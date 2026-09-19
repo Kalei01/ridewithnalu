@@ -751,6 +751,26 @@ function Index() {
     },
   });
 
+  // Options arrive in earliest-door-arrival order. A slightly later trip is
+  // available by choice, but is never silently preferred.
+  const earliest = options[0];
+  const alternative = useMemo(() => {
+    if (!earliest) return null;
+    let pick: Option | null = null;
+    for (const option of options.slice(1)) {
+      const laterLeave = option.leave_by_seconds - earliest.leave_by_seconds;
+      const laterArrive = option.arrive_seconds - earliest.arrive_seconds;
+      if (laterLeave < 5 * 60 || laterArrive > 10 * 60) continue;
+      if (!pick || option.leave_by_seconds > pick.leave_by_seconds) pick = option;
+    }
+    return pick;
+  }, [options, earliest]);
+  const [preferLater, setPreferLater] = useState(false);
+  useEffect(() => {
+    setPreferLater(false);
+  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
+  const best = preferLater && alternative ? alternative : earliest;
+
   // ---- Trip progress -------------------------------------------------------
   const tripActive = Boolean(trip);
 
@@ -880,13 +900,19 @@ function Index() {
   const activeBusLeg = trip?.legs.find((leg) => leg.mode === "bus" && (
     phase === "boarding" ? leg.kind === "access" : phase === "transfer" ? leg.kind !== "access" : false
   )) ?? null;
-  const busStopName = phase === "transfer" ? connecting[0]?.stop_name : activeBusLeg?.from;
+  const plannedBusLeg = !tripActive
+    ? best?.legs.find((leg) => leg.mode === "bus" && leg.kind === "connect")
+      ?? best?.legs.find((leg) => leg.mode === "bus")
+      ?? null
+    : null;
+  const trackedBusLeg = activeBusLeg ?? plannedBusLeg;
+  const busStopName = phase === "transfer" && tripActive ? connecting[0]?.stop_name : trackedBusLeg?.from;
   const { data: activeBusStopId = null } = useQuery({
     queryKey: ["active-bus-stop", busStopName],
-    enabled: tripActive && Boolean(busStopName),
+    enabled: Boolean(busStopName),
     staleTime: 3 * 60 * 60_000,
     queryFn: async () => {
-      if (phase === "transfer" && connecting[0]?.stop_id) return connecting[0].stop_id;
+      if (tripActive && phase === "transfer" && connecting[0]?.stop_id) return connecting[0].stop_id;
       const { data, error } = await supabase.from("stops").select("stop_id").eq("stop_name", busStopName as string).limit(1);
       if (error) throw error;
       return data?.[0]?.stop_id ?? null;
@@ -894,22 +920,22 @@ function Index() {
   });
   const busTarget: BusStopTarget | null = activeBusStopId ? {
     stopId: activeBusStopId,
-    scheduled: phase === "transfer"
+    scheduled: tripActive && phase === "transfer"
       ? connecting.slice(0, 4).map((bus) => ({
           routeShortName: bus.route_short_name,
           headsign: bus.headsign,
           scheduledSeconds: bus.depart_seconds,
         }))
-      : activeBusLeg?.depart_seconds ? [{
-          routeShortName: activeBusLeg.route_short,
-          headsign: activeBusLeg.headsign,
-          scheduledSeconds: activeBusLeg.depart_seconds,
+      : trackedBusLeg?.depart_seconds ? [{
+          routeShortName: trackedBusLeg.route_short,
+          headsign: trackedBusLeg.headsign,
+          scheduledSeconds: trackedBusLeg.depart_seconds,
         }] : [],
   } : null;
   const fetchBusArrivals = useServerFn(busArrivals);
   const { data: liveBus, isFetching: liveBusRefreshing } = useQuery({
     queryKey: ["hea-arrivals", busTarget?.stopId, busTarget?.scheduled],
-    enabled: tripActive && Boolean(busTarget),
+    enabled: Boolean(busTarget),
     staleTime: 30_000,
     refetchInterval: 30_000,
     retry: false,
@@ -1022,26 +1048,6 @@ function Index() {
   });
 
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
-  // Options arrive in earliest-door-arrival order, so the first one is the
-  // recommendation. A later departure that lands barely later is offered, never
-  // chosen for the rider.
-  const earliest = options[0];
-  const alternative = useMemo(() => {
-    if (!earliest) return null;
-    let pick: Option | null = null;
-    for (const option of options.slice(1)) {
-      const laterLeave = option.leave_by_seconds - earliest.leave_by_seconds;
-      const laterArrive = option.arrive_seconds - earliest.arrive_seconds;
-      if (laterLeave < 5 * 60 || laterArrive > 10 * 60) continue;
-      if (!pick || option.leave_by_seconds > pick.leave_by_seconds) pick = option;
-    }
-    return pick;
-  }, [options, earliest]);
-  const [preferLater, setPreferLater] = useState(false);
-  useEffect(() => {
-    setPreferLater(false);
-  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
-  const best = preferLater && alternative ? alternative : earliest;
   // Rail total carries a safety buffer, and a range for transfers that slip.
   const railMinutes = best ? best.total_minutes + RAIL_BUFFER_MIN : null;
   const railRange = railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
@@ -1717,20 +1723,11 @@ function Index() {
             {railRange && (
               <p className="mt-1 text-sm text-muted-foreground">{railRange.low}–{railRange.high} min, worst case first</p>
             )}
-            <dl className="mt-7 space-y-4 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Train departs</dt>
-                <dd className="mt-1 font-semibold text-foreground">
-                  {best ? clockFromSeconds(best.depart_seconds) : optionsLoading ? "…" : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">First leg</dt>
-                <dd className="mt-1 font-semibold text-foreground">
-                  {best?.legs[0] ? vehicleName(best.legs[0]) : "—"}
-                </dd>
-              </div>
-            </dl>
+            {best ? (
+              <RailTripBreakdown option={best} liveBus={liveBus} liveBusRefreshing={liveBusRefreshing} />
+            ) : (
+              <p className="mt-7 text-sm text-muted-foreground">{optionsLoading ? "Building your trip…" : "No rail trip available."}</p>
+            )}
           </article>
           <article className={`py-7 pl-5 ${verdict === "drive" ? "" : "opacity-55"}`}>
             <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-recommended" : "text-muted-foreground"}`}>
@@ -1964,6 +1961,92 @@ function Index() {
 
       {setupDialog}
     </main>
+  );
+}
+
+function RailTripBreakdown({
+  option,
+  liveBus,
+  liveBusRefreshing,
+}: {
+  option: Option;
+  liveBus: BusArrivalsResult | undefined;
+  liveBusRefreshing: boolean;
+}) {
+  const duration = (leg: Leg) =>
+    leg.minutes ?? (leg.depart_seconds !== null && leg.arrive_seconds !== null
+      ? Math.max(0, Math.round((leg.arrive_seconds - leg.depart_seconds) / 60))
+      : null);
+  const access = option.legs.find((leg) => leg.kind === "access") ?? null;
+  const rail = option.legs.find((leg) => leg.kind === "rail") ?? null;
+  const connection = option.legs.find((leg) => leg.kind === "connect") ?? null;
+  const egress = option.legs.find((leg) => leg.kind === "egress") ?? null;
+  const rows = [access, rail, connection, egress].filter((leg): leg is Leg => Boolean(leg));
+
+  return (
+    <ol className="mt-7" aria-label="Rail trip breakdown">
+      {rows.map((leg, index) => {
+        const Icon = modeIcon(leg.mode);
+        const previous = rows[index - 1];
+        const waitMinutes = previous?.arrive_seconds !== null && previous?.arrive_seconds !== undefined && leg.depart_seconds !== null
+          ? Math.max(0, Math.round((leg.depart_seconds - previous.arrive_seconds) / 60))
+          : 0;
+        const legMinutes = duration(leg);
+        const label = leg.kind === "access"
+          ? "To the station"
+          : leg.kind === "rail"
+            ? "Skyline"
+            : leg.kind === "connect"
+              ? "Transfer & bus"
+              : "Final walk";
+        const arrivalLabel = leg.kind === "access"
+          ? "platform"
+          : leg.kind === "egress"
+            ? "destination"
+            : titleCase(leg.to);
+        const liveArrival = leg.mode === "bus"
+          ? matchLiveArrival(liveBus, leg.route_short, leg.headsign, leg.depart_seconds)
+          : null;
+
+        return (
+          <li key={`${leg.kind}-${leg.depart_seconds}-${index}`} className="flex gap-2.5">
+            <span className="flex flex-col items-center pt-0.5">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-muted-foreground">
+                <Icon className="size-3" />
+              </span>
+              {index < rows.length - 1 && <span className="w-px flex-1 bg-border" />}
+            </span>
+            <div className="min-w-0 flex-1 pb-5">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-xs font-bold uppercase text-muted-foreground">{label}</p>
+                {legMinutes !== null && <p className="shrink-0 text-xs font-semibold tabular-nums text-foreground">{legMinutes} min</p>}
+              </div>
+              <p className="mt-1 text-sm font-semibold leading-snug text-foreground">{vehicleName(leg)}</p>
+              {leg.mode === "bus" ? (
+                <div className="mt-1">
+                  {waitMinutes > 0 && <p className="text-xs text-muted-foreground">Transfer walk/wait · {waitMinutes} min</p>}
+                  <BusArrivalTime
+                    arrival={liveArrival}
+                    scheduledSeconds={leg.depart_seconds}
+                    fetchedAt={liveBus?.fetchedAt}
+                    refreshing={liveBusRefreshing}
+                    compact
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Ride {legMinutes ?? "—"} min · arrive {arrivalLabel} {clockFromSeconds(leg.arrive_seconds)}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {leg.kind === "rail" ? `Departs ${clockFromSeconds(leg.depart_seconds)} · ` : ""}
+                  {leg.kind === "access" ? `Arrive at platform ${clockFromSeconds(leg.arrive_seconds)}` : `Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}
+                </p>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
