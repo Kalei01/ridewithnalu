@@ -705,7 +705,7 @@ function Index() {
 
   const { data: browseStations = [] } = useQuery({
     queryKey: ["browse-rail-stations"],
-    enabled: browseActive,
+    enabled: hydrated,
     staleTime: 6 * 60 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rail_stations");
@@ -1062,7 +1062,7 @@ function Index() {
     refetch: refetchEastboundTraffic,
   } = useQuery({
     queryKey: ["browse-h1", "eastbound"],
-    enabled: browseActive,
+    enabled: hydrated,
     staleTime: 3 * 60_000,
     refetchInterval: 3 * 60_000,
     retry: 1,
@@ -1444,14 +1444,6 @@ function Index() {
       !trafficLoading &&
       Math.max(eastboundTraffic?.delayMinutes ?? 0, westboundTraffic?.delayMinutes ?? 0) > 10;
 
-    function trafficStatus(delayMinutes: number) {
-      const delay = Math.max(0, Math.round(delayMinutes));
-      if (delay === 0) return { label: "Clear", className: "text-primary" };
-      if (delay > 20) return { label: `${delay} min slower than usual`, className: "text-destructive" };
-      if (delay >= 10) return { label: `${delay} min slower than usual`, className: "text-chart-4" };
-      return { label: `${delay} min slower than usual`, className: "text-foreground" };
-    }
-
     return (
       <main className="min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
@@ -1491,36 +1483,13 @@ function Index() {
           <DataExpiryNotice />
 
 
-          <section className={`verdict-lift mt-7 rounded-lg border border-border p-5 ${refreshing ? "animate-in fade-in duration-300" : ""}`} aria-labelledby="h1-conditions-title">
-            <div className="flex items-baseline justify-between gap-3">
-              <h1 id="h1-conditions-title" className="text-lg font-semibold">H-1 conditions</h1>
-              <span className="shrink-0 text-[10px] text-muted-foreground">TomTom</span>
-            </div>
-            {trafficLoading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
-            {trafficUnavailable && <p className="mt-4 text-sm text-muted-foreground">Traffic data unavailable</p>}
-            {!trafficLoading && !trafficUnavailable && eastboundTraffic && westboundTraffic && (
-              <div className="mt-3 divide-y divide-border">
-                {[
-                  { label: "H-1 Eastbound (toward town)", data: eastboundTraffic },
-                  { label: "H-1 Westbound (toward Kapolei)", data: westboundTraffic },
-                ].map((item) => {
-                  const status = trafficStatus(item.data.delayMinutes);
-                  return (
-                    <div key={item.label} className="flex min-h-14 items-center justify-between gap-4 py-3">
-                      <span className="text-sm text-foreground">{item.label}</span>
-                      <span className={`shrink-0 text-right text-sm font-semibold tabular-nums ${status.className}`}>{status.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {browseWeatherLine && (
-              <p className={`mt-4 text-xs ${TONE_CLASS[browseWeatherLine.tone]}`}>
-                {browseWeatherLine.text}
-                <span className="ml-1 text-[10px] text-muted-foreground">{browseWeatherLine.source}</span>
-              </p>
-            )}
-          </section>
+          <H1ConditionsCard
+            eastbound={eastboundTraffic}
+            westbound={westboundTraffic}
+            loading={trafficLoading}
+            unavailable={trafficUnavailable}
+            weatherLine={browseWeatherLine}
+          />
 
           <Button onClick={() => setOnboardingOpen(true)} className="mt-5 min-h-13 w-full rounded-lg px-5 text-sm font-semibold shadow-none">
             Set up my commute for a door-to-door comparison
@@ -1707,6 +1676,18 @@ function Index() {
 
         <DataExpiryNotice />
 
+        {!tripActive && (
+          <H1ConditionsCard
+            eastbound={eastboundTraffic}
+            westbound={westboundTraffic}
+            loading={eastboundTrafficLoading || westboundTrafficLoading}
+            unavailable={
+              eastboundTrafficFailed ||
+              westboundTrafficFailed ||
+              (!(eastboundTrafficLoading || westboundTrafficLoading) && (!eastboundTraffic || !westboundTraffic))
+            }
+          />
+        )}
 
         {!tripActive && (
         <section
@@ -1733,21 +1714,25 @@ function Index() {
                     ? "TAKE THE RAIL"
                     : "DRIVE TODAY"}
           </h1>
-          {best && (
-            <p className={`mt-6 text-3xl font-bold ${verdict === "drive" ? "text-muted-foreground" : "text-recommended"}`}>
-              Leave by {clockFromSeconds(best.leave_by_seconds)}
-              {verdict === "drive" ? " for the train" : ""}
+          {verdict === "rail" && best && (
+            <p className="mt-6 text-3xl font-bold text-recommended">
+              Leave by {clockFromSeconds(best.leave_by_seconds)} for the train
+            </p>
+          )}
+          {verdict === "drive" && drive && (
+            <p className="mt-6 text-3xl font-bold text-recommended">
+              Leave now for a ~{drive.trafficMinutes} min drive
             </p>
           )}
           <p className="mt-3 text-lg font-medium text-muted-foreground">
             {best
               ? verdict === "same"
-                ? `Rail and driving land within ${TOSS_UP_MIN} min of each other${
-                    leaveIn !== null && leaveIn > 0 ? ` · train in ${leaveIn} min` : ""
-                  }`
-                : `${
-                    gap !== null ? `${Math.abs(gap)} min ${railWins ? "faster" : "slower"} than driving · ` : ""
-                  }${leaveIn !== null && leaveIn > 0 ? `train in ${leaveIn} min` : "leave now"}`
+                ? `Rail and driving are within ${TOSS_UP_MIN} min of each other.`
+                : verdict === "rail"
+                  ? `${gap !== null ? `Rail is ${Math.abs(gap)} min faster than driving · ` : ""}${
+                      leaveIn !== null && leaveIn > 0 ? `train in ${leaveIn} min` : "leave now"
+                    }`
+                  : `${gap !== null ? `Driving is ${Math.abs(gap)} min faster than rail.` : "Driving is the faster available option."}`
               : !configured
                 ? "Add your home station and destination to start."
                 : optionsLoading
