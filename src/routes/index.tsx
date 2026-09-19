@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Bus, Car, Check, Footprints, LocateFixed, RefreshCw, Settings, TrainFront } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { geocodeAddress } from "@/lib/geocode.functions";
+import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
