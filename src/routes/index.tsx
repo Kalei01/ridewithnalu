@@ -1281,7 +1281,7 @@ function Index() {
             </p>
           </div>
           <ol className="divide-y divide-border">
-            {options.slice(1).map((option, index) => (
+            {options.filter((option) => option !== best).map((option, index) => (
               <li key={`${option.leave_by_seconds}-${index}`} className="flex min-h-14 items-center justify-between gap-3 py-2">
                 <span className="font-medium tabular-nums text-foreground">
                   Leave {clockFromSeconds(option.leave_by_seconds)}
