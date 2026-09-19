@@ -1289,7 +1289,9 @@ function Index() {
                 <span className="truncate text-sm text-muted-foreground">
                   {option.legs[0] ? vehicleName(option.legs[0]) : ""}
                 </span>
-                <span className="shrink-0 text-sm text-muted-foreground">{option.total_minutes} min</span>
+                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                  Arrive {clockFromSeconds(option.arrive_seconds)} · {option.total_minutes} min
+                </span>
               </li>
             ))}
             {options.length <= 1 && (
