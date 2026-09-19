@@ -26,10 +26,16 @@ import { Switch } from "@/components/ui/switch";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Kine — Rail or drive today?" },
-      { name: "description", content: "Your quick commute decision between West Oahu and Honolulu." },
-      { property: "og:title", content: "Kine — Rail or drive today?" },
-      { property: "og:description", content: "Your quick commute decision between West Oahu and Honolulu." },
+      { title: "Nalu" },
+      {
+        name: "description",
+        content: "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
+      },
+      { property: "og:title", content: "Nalu" },
+      {
+        property: "og:description",
+        content: "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
