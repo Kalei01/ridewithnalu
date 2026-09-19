@@ -77,9 +77,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Kine" },
-      { name: "description", content: "A daily rail-or-drive decision for Oahu commuters." },
-      { name: "author", content: "Kine" },
+      { title: "Nalu" },
+      {
+        name: "description",
+        content: "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
+      },
+      { name: "author", content: "Nalu" },
       { name: "theme-color", content: "#181b20" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
