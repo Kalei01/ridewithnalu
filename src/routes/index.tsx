@@ -280,6 +280,18 @@ function Index() {
     },
   });
 
+  // Remember when the outbound plan drives to the station, so the return leg drives home.
+  const outboundAccessMode = !inbound ? options[0]?.legs?.[0]?.mode : undefined;
+  useEffect(() => {
+    if (outboundAccessMode !== "drive" || !setup.homeStopId) return;
+    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId };
+    setParked((current) =>
+      current && current.date === entry.date && current.station === entry.station ? current : entry,
+    );
+    window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
+  }, [outboundAccessMode, setup.homeStopId]);
+
+
   // Real service hours for the rail station, used when nothing is reachable.
   const { data: railHours = [] } = useQuery({
     queryKey: ["service-hours", setup.homeStopId],
