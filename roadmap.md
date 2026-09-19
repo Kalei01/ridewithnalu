@@ -82,3 +82,9 @@
   Transfer search is narrowed to stops actually served by routes reaching the
   destination, sampling 12 trips per route/direction to keep variant patterns
   (0019, 0020); read timeout raised to 10s (0021). 6:45 AM now answers in ~1s.
+
+## Browse commute conditions (done)
+- [x] Live H-1 eastbound and westbound delay conditions with a three-minute traffic cache and unavailable-data fallback
+- [x] Single inline setup action between traffic conditions and nearest-station departures
+- [x] Location-derived station with a data-derived West Oahu estimate and selector when location is unavailable
+- [x] Three rail-only departures per physical direction, Honolulu time, compact countdown formatting, and no scheduled labels
