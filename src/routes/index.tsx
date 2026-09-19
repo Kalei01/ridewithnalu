@@ -7,6 +7,7 @@ import { Bus, Car, Check, Footprints, LocateFixed, RefreshCw, Settings, TrainFro
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { driveTime, type DriveIncident } from "@/lib/drive.functions";
+import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -72,6 +73,11 @@ type Leg = {
   depart_seconds: number | null;
   arrive_seconds: number | null;
   minutes: number | null;
+};
+
+type BusStopTarget = {
+  stopId: string;
+  scheduled: Array<{ routeShortName: string | null; headsign: string | null; scheduledSeconds: number }>;
 };
 
 type Option = {
@@ -722,6 +728,45 @@ function Index() {
     },
   });
 
+  const activeBusLeg = trip?.legs.find((leg) => leg.mode === "bus" && (
+    phase === "boarding" ? leg.kind === "access" : phase === "transfer" ? leg.kind !== "access" : false
+  )) ?? null;
+  const busStopName = phase === "transfer" ? connecting[0]?.stop_name : activeBusLeg?.from;
+  const { data: activeBusStopId = null } = useQuery({
+    queryKey: ["active-bus-stop", busStopName],
+    enabled: tripActive && Boolean(busStopName),
+    staleTime: 3 * 60 * 60_000,
+    queryFn: async () => {
+      if (phase === "transfer" && connecting[0]?.stop_id) return connecting[0].stop_id;
+      const { data, error } = await supabase.from("stops").select("stop_id").eq("stop_name", busStopName as string).limit(1);
+      if (error) throw error;
+      return data?.[0]?.stop_id ?? null;
+    },
+  });
+  const busTarget: BusStopTarget | null = activeBusStopId ? {
+    stopId: activeBusStopId,
+    scheduled: phase === "transfer"
+      ? connecting.slice(0, 4).map((bus) => ({
+          routeShortName: bus.route_short_name,
+          headsign: bus.headsign,
+          scheduledSeconds: bus.depart_seconds,
+        }))
+      : activeBusLeg?.depart_seconds ? [{
+          routeShortName: activeBusLeg.route_short,
+          headsign: activeBusLeg.headsign,
+          scheduledSeconds: activeBusLeg.depart_seconds,
+        }] : [],
+  } : null;
+  const fetchBusArrivals = useServerFn(busArrivals);
+  const { data: liveBus, isFetching: liveBusRefreshing } = useQuery({
+    queryKey: ["hea-arrivals", busTarget?.stopId, busTarget?.scheduled],
+    enabled: tripActive && Boolean(busTarget),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    retry: false,
+    queryFn: () => fetchBusArrivals({ data: busTarget as BusStopTarget }),
+  });
+
   // The trip puts itself away once the rider has been there a while.
   useEffect(() => {
     if (!trip) return;
@@ -1356,6 +1401,9 @@ function Index() {
             connectLeg={connectLeg}
             connecting={connecting}
             connectingLoading={connectingLoading}
+            activeBusLeg={activeBusLeg}
+            liveBus={liveBus}
+            liveBusRefreshing={liveBusRefreshing}
             nowSeconds={nowSeconds}
             destinationLabel={destinationLabel}
             onEnd={endTrip}
@@ -1498,6 +1546,9 @@ type TripProgressProps = {
   connectLeg: Leg | null;
   connecting: ConnectingDeparture[];
   connectingLoading: boolean;
+  activeBusLeg: Leg | null;
+  liveBus: BusArrivalsResult | undefined;
+  liveBusRefreshing: boolean;
   nowSeconds: number;
   destinationLabel: string;
   onEnd: () => void;
@@ -1511,6 +1562,9 @@ function TripProgress({
   connectLeg,
   connecting,
   connectingLoading,
+  activeBusLeg,
+  liveBus,
+  liveBusRefreshing,
   nowSeconds,
   destinationLabel,
   onEnd,
@@ -1561,7 +1615,21 @@ function TripProgress({
       </h2>
 
       {phase === "boarding" && railLeg && (
-        <div className="mt-4 rounded-2xl bg-surface-raised p-5">
+        <div className="mt-4 space-y-3">
+          {activeBusLeg && (
+            <div className="rounded-2xl bg-surface-raised p-5">
+              <p className="text-xs font-bold uppercase text-muted-foreground">First, your feeder</p>
+              <p className="mt-2 text-[15px] font-medium text-foreground">{vehicleName(activeBusLeg)}</p>
+              <BusArrivalTime
+                arrival={matchLiveArrival(liveBus, activeBusLeg.route_short, activeBusLeg.headsign, activeBusLeg.depart_seconds)}
+                scheduledSeconds={activeBusLeg.depart_seconds}
+                fetchedAt={liveBus?.fetchedAt}
+                refreshing={liveBusRefreshing}
+              />
+              <p className="mt-2 text-sm text-muted-foreground">Board at {titleCase(activeBusLeg.from)}</p>
+            </div>
+          )}
+          <div className="rounded-2xl bg-surface-raised p-5">
           <p className="text-3xl font-bold tabular-nums">{clockFromSeconds(railLeg.depart_seconds)}</p>
           <p className="mt-1 text-[15px] font-medium text-foreground">{vehicleName(railLeg)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -1570,6 +1638,7 @@ function TripProgress({
               ? ` · in ${minutesUntil(railLeg.depart_seconds)} min`
               : " · now"}
           </p>
+          </div>
         </div>
       )}
 
@@ -1601,7 +1670,12 @@ function TripProgress({
           )}
           {connecting[0] && (
             <div className="rounded-2xl bg-surface-raised p-5">
-              <p className="text-3xl font-bold tabular-nums">{clockFromSeconds(connecting[0].depart_seconds)}</p>
+              <BusArrivalTime
+                arrival={matchLiveArrival(liveBus, connecting[0].route_short_name, connecting[0].headsign, connecting[0].depart_seconds)}
+                scheduledSeconds={connecting[0].depart_seconds}
+                fetchedAt={liveBus?.fetchedAt}
+                refreshing={liveBusRefreshing}
+              />
               <p className="mt-1 text-[15px] font-medium text-foreground">
                 {connecting[0].route_short_name ? `Route ${connecting[0].route_short_name}` : "Bus"}
                 {connecting[0].headsign ? ` to ${titleCase(connecting[0].headsign)}` : ""}
@@ -1622,14 +1696,18 @@ function TripProgress({
             <div>
               <h3 className="text-sm font-semibold text-foreground">After that</h3>
               <ol className="mt-2 divide-y divide-border">
-                {connecting.slice(1).map((bus) => (
+                {connecting.slice(1, 2).map((bus) => (
                   <li
                     key={`${bus.route_id}-${bus.depart_seconds}-${bus.stop_id}`}
                     className="flex min-h-12 items-center justify-between gap-3 py-2"
                   >
-                    <span className="font-medium tabular-nums text-foreground">
-                      {clockFromSeconds(bus.depart_seconds)}
-                    </span>
+                    <BusArrivalTime
+                      arrival={matchLiveArrival(liveBus, bus.route_short_name, bus.headsign, bus.depart_seconds)}
+                      scheduledSeconds={bus.depart_seconds}
+                      fetchedAt={liveBus?.fetchedAt}
+                      refreshing={liveBusRefreshing}
+                      compact
+                    />
                     <span className="truncate text-sm text-muted-foreground">
                       {bus.route_short_name ? `Route ${bus.route_short_name}` : "Bus"}
                       {bus.headsign ? ` to ${titleCase(bus.headsign)}` : ""}
@@ -1647,6 +1725,78 @@ function TripProgress({
         End trip
       </Button>
     </section>
+  );
+}
+
+function matchLiveArrival(
+  result: BusArrivalsResult | undefined,
+  route: string | null,
+  headsign: string | null,
+  scheduledSeconds: number | null,
+) {
+  if (!result || result.error) return null;
+  const normalizedRoute = (route ?? "").trim().toLowerCase();
+  const normalizedHeadsign = (headsign ?? "").trim().toLowerCase();
+  const matches = result.arrivals.filter((arrival) => {
+    if (arrival.routeShortName.trim().toLowerCase() !== normalizedRoute) return false;
+    const candidate = arrival.headsign.trim().toLowerCase();
+    return !candidate || !normalizedHeadsign || candidate.includes(normalizedHeadsign) || normalizedHeadsign.includes(candidate);
+  });
+  if (scheduledSeconds === null) return matches[0] ?? null;
+  return matches.sort(
+    (a, b) => Math.abs(a.scheduledSeconds - scheduledSeconds) - Math.abs(b.scheduledSeconds - scheduledSeconds),
+  )[0] ?? null;
+}
+
+function BusArrivalTime({
+  arrival,
+  scheduledSeconds,
+  fetchedAt,
+  refreshing,
+  compact = false,
+}: {
+  arrival: BusArrival | null;
+  scheduledSeconds: number | null;
+  fetchedAt: number | undefined;
+  refreshing: boolean;
+  compact?: boolean;
+}) {
+  const stale = Boolean(fetchedAt && Date.now() - fetchedAt > 90_000);
+  const updatedTime = fetchedAt
+    ? new Intl.DateTimeFormat("en-US", {
+        timeZone: "Pacific/Honolulu",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(fetchedAt))
+    : null;
+  if (!arrival?.isLive) {
+    return (
+      <div className={compact ? "shrink-0 text-right" : "mt-2"}>
+        <p className={`${compact ? "text-base" : "text-3xl"} font-bold tabular-nums text-foreground`}>
+          {clockFromSeconds(scheduledSeconds)}
+        </p>
+        <p className="text-xs text-muted-foreground">Scheduled</p>
+      </div>
+    );
+  }
+  const delayed = arrival.delayMinutes > 2;
+  return (
+    <div className={compact ? "shrink-0 text-right" : "mt-2"}>
+      <div className="flex flex-wrap items-baseline gap-2">
+        {delayed && (
+          <span className="text-sm tabular-nums text-muted-foreground line-through">{arrival.scheduledArrivalTime}</span>
+        )}
+        <span className={`${compact ? "text-base" : "text-3xl"} font-bold tabular-nums ${delayed ? "text-warning" : "text-foreground"}`}>
+          {arrival.estimatedArrivalTime}
+        </span>
+        {arrival.delayMinutes > 5 && (
+          <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-bold text-destructive">Delayed</span>
+        )}
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {stale || refreshing ? "Refreshing" : `Live · ${updatedTime ?? `${arrival.minutesAway} min away`}`}
+      </p>
+    </div>
   );
 }
 
