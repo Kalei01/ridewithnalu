@@ -878,7 +878,9 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
           homeStopId: nearest.stop_id,
           homeStopName: nearest.stop_name ?? "",
         }));
-        setStatus(`Nearest station: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
+        setStatus(
+          `Home station near you: ${titleCase(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
+        );
       },
       () => {
         setBusy(false);
