@@ -1337,7 +1337,10 @@ function Index() {
       <main className="min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
           <header className="flex min-h-11 items-start justify-between gap-4">
-            <p className="pt-1 text-xs font-semibold uppercase text-muted-foreground">Oahu commute conditions</p>
+            <div>
+              <p className="text-lg font-light tracking-wide text-foreground">Nalu</p>
+              <p className="mt-0.5 text-xs font-semibold uppercase text-muted-foreground">Oahu commute conditions</p>
+            </div>
             <div className="flex items-center gap-1">
               <p className="text-right text-sm font-medium text-foreground">{timeText}</p>
               <Button
