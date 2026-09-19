@@ -230,10 +230,45 @@ function clockFromSeconds(seconds: number | null | undefined) {
   return `${hour12}:${String(minutes).padStart(2, "0")} ${suffix}`;
 }
 
+/**
+ * Title case that respects the 'okina: a letter after ' or ʻ stays lowercase,
+ * so KUALAKA'I reads Kualaka'i and never Kualaka'I.
+ */
 function titleCase(value: string | null | undefined) {
   if (!value) return "";
-  return value.toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
+  return expandName(value)
+    .toLowerCase()
+    .replace(/(^|[\s\-/&(.])([a-z\u02bb\u2018'])/g, (_match, lead: string, letter: string) => lead + letter.toUpperCase())
+    .replace(/([\u02bb\u2018'])([A-Z])/g, (_match, mark: string, letter: string) => mark + letter.toLowerCase());
 }
+
+/** GTFS ships abbreviations; spell them out for reading, database untouched. */
+const ABBREVIATIONS: Array<[RegExp, string]> = [
+  [/\bTRN\s+CTR\b/gi, "Transit Center"],
+  [/\bTRANSIT\s+CTR\b/gi, "Transit Center"],
+  [/\bCOMM\s+COLL\b/gi, "Community College"],
+  [/\bHWY\b/gi, "Highway"],
+  [/\bSTN\b/gi, "Station"],
+  [/\bINTL\b/gi, "International"],
+  [/\bOPP\b/gi, "Opposite"],
+  [/\bJCT\b/gi, "Junction"],
+  [/\bCTR\b/gi, "Center"],
+  [/\bPK\b/gi, "Park"],
+];
+
+function expandName(value: string | null | undefined) {
+  if (!value) return "";
+  let out = value;
+  for (const [pattern, replacement] of ABBREVIATIONS) out = out.replace(pattern, replacement);
+  return out;
+}
+
+/** Rail names on the Skyline screen: expanded, with the redundant suffix gone. */
+function stationLabel(value: string | null | undefined) {
+  const expanded = expandName(value).replace(/\s*\bSkyline\b\s*(Station)?\s*$/i, "").replace(/\s*\bStation\b\s*$/i, "");
+  return titleCase(expanded.trim() || expandName(value));
+}
+
 
 /** US customary distance: feet under 0.1 miles, otherwise miles to one decimal. */
 function formatDistance(meters: number) {
@@ -244,8 +279,8 @@ function formatDistance(meters: number) {
 
 function vehicleName(leg: Leg) {
   if (leg.mode === "rail") {
-    const line = titleCase(leg.route_long) || "Skyline";
-    return leg.headsign ? `${line} to ${titleCase(leg.headsign)}` : line;
+    const line = stationLabel(leg.route_long) || "Skyline";
+    return leg.headsign ? `${line} to ${stationLabel(leg.headsign)}` : line;
   }
   if (leg.mode === "bus") {
     const label = leg.route_short ? `Route ${leg.route_short}` : "Bus";
@@ -353,11 +388,11 @@ function Index() {
   const carAwayReason = !setup.allowDrive
     ? "Driving is switched off in your settings."
     : inbound && carPlace === "station"
-      ? `Your car is at ${titleCase(parkedToday?.station === setup.homeStopId ? setup.homeStopName : "your station")}.`
+      ? `Your car is at ${stationLabel(parkedToday?.station === setup.homeStopId ? setup.homeStopName : "your station")}.`
       : inbound && carPlace === "home"
         ? "Your car is at home."
         : !inbound && carPlace === "station"
-          ? `Your car is at ${titleCase(setup.homeStopName)}.`
+          ? `Your car is at ${stationLabel(setup.homeStopName)}.`
           : !inbound && carPlace === "destination"
             ? `Your car is at ${setup.destinationName || "your destination"}.`
             : null;
@@ -453,7 +488,7 @@ function Index() {
       const { data, error } = await supabase.rpc("rail_departures", {
         p_home_stop: browseStation?.stopId as string,
         p_after_seconds: afterSeconds,
-        p_limit: 4,
+        p_limit: 3,
       });
       if (error) throw error;
       return (data ?? []) as BrowseDeparture[];
@@ -461,15 +496,20 @@ function Index() {
   });
 
   const browseDirections = useMemo(() => {
+    const here = stationLabel(browseStation?.stopName).toLowerCase();
     const groups = new Map<string, BrowseDeparture[]>();
     for (const departure of browseDepartures) {
+      // Never head a direction with the station the rider is standing at.
+      const label = stationLabel(departure.trip_headsign).toLowerCase();
+      if (here && label && label === here) continue;
       const key = departure.trip_headsign || departure.route_long_name || departure.route_id;
       const group = groups.get(key) ?? [];
-      if (group.length < 4) group.push(departure);
+      if (group.length < 3) group.push(departure);
       groups.set(key, group);
     }
-    return Array.from(groups.values()).slice(0, 2);
-  }, [browseDepartures]);
+    return Array.from(groups.values());
+  }, [browseDepartures, browseStation?.stopName]);
+
 
   const { data: options = [], isLoading: optionsLoading } = useQuery({
     queryKey: [
@@ -863,7 +903,7 @@ function Index() {
 
   if (browseActive) {
     return (
-      <main className="min-h-dvh bg-background px-5 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+      <main className="min-h-dvh bg-page-gradient px-5 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
           <header className="flex min-h-11 items-center justify-between">
             <div>
@@ -882,11 +922,11 @@ function Index() {
             </Button>
           </header>
 
-          <section className="py-10">
-            <h1 className="text-[clamp(2.6rem,11vw,3.8rem)] font-bold leading-[0.95] text-foreground">
-              {browseStation ? titleCase(browseStation.stopName) : "CHOOSE STATION"}
+          <section className="pb-6 pt-7">
+            <h1 className="truncate text-xl font-medium text-foreground">
+              {browseStation ? stationLabel(browseStation.stopName) : "Choose a station"}
             </h1>
-            <p className="mt-4 text-base font-medium text-muted-foreground">
+            <p className="mt-2 text-sm text-muted-foreground">
               Add a destination to unlock the rail-versus-drive comparison.
             </p>
           </section>
@@ -916,7 +956,7 @@ function Index() {
                 <SelectContent>
                   {browseStations.map((station) => (
                     <SelectItem key={station.stop_id} value={station.stop_id}>
-                      {titleCase(station.stop_name)}
+                      {stationLabel(station.stop_name)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -929,28 +969,45 @@ function Index() {
           )}
 
           {browseStation && (
-            <section className="space-y-8" aria-label={`Departures from ${browseStation.stopName}`}>
+            <section
+              className="departures-fade space-y-8 animate-in fade-in duration-300"
+              aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
+            >
               {browseDeparturesLoading && <p className="text-sm text-muted-foreground">Loading departures…</p>}
               {!browseDeparturesLoading && browseDirections.length === 0 && (
                 <p className="text-sm text-muted-foreground">No rail departures are scheduled from this station right now.</p>
               )}
               {browseDirections.map((direction) => {
                 const first = direction[0];
-                const directionName = first?.trip_headsign
-                  ? `${titleCase(first.route_long_name)} to ${titleCase(first.trip_headsign)}`
-                  : titleCase(first?.route_long_name) || "Rail departures";
+                // The agency headsign already names the direction; don't dress it up.
+                const directionName =
+                  stationLabel(first?.trip_headsign) || stationLabel(first?.route_long_name) || "Rail departures";
                 return (
                   <article key={first?.trip_headsign || first?.route_id} className="border-t border-border pt-5">
-                    <h2 className="text-lg font-semibold">{directionName}</h2>
+                    <h2 className="text-lg font-semibold">To {directionName}</h2>
                     <ol className="mt-3 divide-y divide-border">
-                      {direction.map((departure) => (
-                        <li key={departure.trip_id} className="flex min-h-14 items-center justify-between gap-4 py-2">
-                          <span className="text-xl font-semibold tabular-nums text-foreground">
-                            {clockFromSeconds(departure.departure_seconds)}
-                          </span>
-                          <span className="text-sm text-muted-foreground">Scheduled</span>
-                        </li>
-                      ))}
+                      {direction.map((departure) => {
+                        const minutesAway = Math.round((departure.departure_seconds - nowSeconds) / 60);
+                        const soon = minutesAway >= 0 && minutesAway < 20;
+                        return (
+                          <li key={departure.trip_id} className="flex min-h-14 items-center justify-between gap-4 py-2">
+                            {soon ? (
+                              <span className="flex flex-col">
+                                <span className="text-xl font-semibold tabular-nums text-foreground">
+                                  in {minutesAway} min
+                                </span>
+                                <span className="text-xs tabular-nums text-muted-foreground">
+                                  {clockFromSeconds(departure.departure_seconds)}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-xl font-semibold tabular-nums text-foreground">
+                                {clockFromSeconds(departure.departure_seconds)}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ol>
                   </article>
                 );
@@ -958,6 +1015,7 @@ function Index() {
             </section>
           )}
         </div>
+
 
         <div className="fixed inset-x-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] mx-auto max-w-[440px]">
           <Button onClick={() => setOnboardingOpen(true)} className="h-13 w-full rounded-full text-base shadow-none">
@@ -970,7 +1028,7 @@ function Index() {
   }
 
   return (
-    <main className="min-h-dvh bg-background px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+    <main className="min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
       <div className="mx-auto flex w-full max-w-[440px] flex-col">
         <div role="tablist" aria-label="Trip direction" className="grid grid-cols-2 gap-1 rounded-full bg-surface-raised p-1">
           {[
@@ -1010,7 +1068,10 @@ function Index() {
         </header>
 
         {!tripActive && (
-        <section className="py-10" aria-labelledby="verdict-title">
+        <section
+          className="verdict-lift -mx-3 mt-4 rounded-3xl px-3 py-9 animate-in fade-in duration-300"
+          aria-labelledby="verdict-title"
+        >
           <div className="mb-5 flex items-center gap-2 text-recommended">
             <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
               <Check className="size-4 stroke-[3]" />
@@ -1278,8 +1339,8 @@ function Index() {
             </h2>
             <p className="mt-1 truncate text-sm text-muted-foreground">
               {inbound
-                ? `Via ${titleCase(setup.homeStopName)}`
-                : titleCase(setup.homeStopName) || "No station set"}
+                ? `Via ${stationLabel(setup.homeStopName)}`
+                : stationLabel(setup.homeStopName) || "No station set"}
             </p>
           </div>
           <ol className="divide-y divide-border">
@@ -1402,7 +1463,7 @@ function TripProgress({
           <p className="text-3xl font-bold tabular-nums">{clockFromSeconds(railLeg.depart_seconds)}</p>
           <p className="mt-1 text-[15px] font-medium text-foreground">{vehicleName(railLeg)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            From {titleCase(railLeg.from)}
+            From {stationLabel(railLeg.from)}
             {minutesUntil(railLeg.depart_seconds) !== null && minutesUntil(railLeg.depart_seconds)! > 0
               ? ` · in ${minutesUntil(railLeg.depart_seconds)} min`
               : " · now"}
@@ -1415,7 +1476,7 @@ function TripProgress({
           <p className="text-[15px] font-medium text-foreground">{vehicleName(railLeg)}</p>
           <p className="mt-3 text-3xl font-bold tabular-nums">{clockFromSeconds(railLeg.arrive_seconds)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Arrive {titleCase(railLeg.to)}
+            Arrive {stationLabel(railLeg.to)}
             {minutesUntil(railLeg.arrive_seconds) !== null && minutesUntil(railLeg.arrive_seconds)! > 0
               ? ` · ${minutesUntil(railLeg.arrive_seconds)} min to go`
               : ""}
@@ -1577,7 +1638,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
           homeStopName: nearest.stop_name ?? "",
         }));
         setStatus(
-          `Home station near you: ${titleCase(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
+          `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
         );
       },
       () => {
@@ -1682,7 +1743,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               <SelectContent>
                 {stations.map((station) => (
                   <SelectItem key={station.stop_id} value={station.stop_id}>
-                    {titleCase(station.stop_name)}
+                    {stationLabel(station.stop_name)}
                   </SelectItem>
                 ))}
               </SelectContent>
