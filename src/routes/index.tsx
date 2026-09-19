@@ -1068,7 +1068,10 @@ function Index() {
         </header>
 
         {!tripActive && (
-        <section className="py-10" aria-labelledby="verdict-title">
+        <section
+          className="verdict-lift -mx-3 mt-4 rounded-3xl px-3 py-9 animate-in fade-in duration-300"
+          aria-labelledby="verdict-title"
+        >
           <div className="mb-5 flex items-center gap-2 text-recommended">
             <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
               <Check className="size-4 stroke-[3]" />
