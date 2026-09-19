@@ -1621,7 +1621,7 @@ function TripProgress({
               <p className="text-xs font-bold uppercase text-muted-foreground">First, your feeder</p>
               <p className="mt-2 text-[15px] font-medium text-foreground">{vehicleName(activeBusLeg)}</p>
               <BusArrivalTime
-                arrival={matchLiveArrival(liveBus, activeBusLeg.route_short, activeBusLeg.headsign)}
+                arrival={matchLiveArrival(liveBus, activeBusLeg.route_short, activeBusLeg.headsign, activeBusLeg.depart_seconds)}
                 scheduledSeconds={activeBusLeg.depart_seconds}
                 fetchedAt={liveBus?.fetchedAt}
                 refreshing={liveBusRefreshing}
@@ -1671,7 +1671,7 @@ function TripProgress({
           {connecting[0] && (
             <div className="rounded-2xl bg-surface-raised p-5">
               <BusArrivalTime
-                arrival={matchLiveArrival(liveBus, connecting[0].route_short_name, connecting[0].headsign)}
+                arrival={matchLiveArrival(liveBus, connecting[0].route_short_name, connecting[0].headsign, connecting[0].depart_seconds)}
                 scheduledSeconds={connecting[0].depart_seconds}
                 fetchedAt={liveBus?.fetchedAt}
                 refreshing={liveBusRefreshing}
@@ -1702,7 +1702,7 @@ function TripProgress({
                     className="flex min-h-12 items-center justify-between gap-3 py-2"
                   >
                     <BusArrivalTime
-                      arrival={matchLiveArrival(liveBus, bus.route_short_name, bus.headsign)}
+                      arrival={matchLiveArrival(liveBus, bus.route_short_name, bus.headsign, bus.depart_seconds)}
                       scheduledSeconds={bus.depart_seconds}
                       fetchedAt={liveBus?.fetchedAt}
                       refreshing={liveBusRefreshing}
@@ -1732,15 +1732,20 @@ function matchLiveArrival(
   result: BusArrivalsResult | undefined,
   route: string | null,
   headsign: string | null,
+  scheduledSeconds: number | null,
 ) {
   if (!result || result.error) return null;
   const normalizedRoute = (route ?? "").trim().toLowerCase();
   const normalizedHeadsign = (headsign ?? "").trim().toLowerCase();
-  return result.arrivals.find((arrival) => {
+  const matches = result.arrivals.filter((arrival) => {
     if (arrival.routeShortName.trim().toLowerCase() !== normalizedRoute) return false;
     const candidate = arrival.headsign.trim().toLowerCase();
     return !candidate || !normalizedHeadsign || candidate.includes(normalizedHeadsign) || normalizedHeadsign.includes(candidate);
-  }) ?? null;
+  });
+  if (scheduledSeconds === null) return matches[0] ?? null;
+  return matches.sort(
+    (a, b) => Math.abs(a.scheduledSeconds - scheduledSeconds) - Math.abs(b.scheduledSeconds - scheduledSeconds),
+  )[0] ?? null;
 }
 
 function BusArrivalTime({
