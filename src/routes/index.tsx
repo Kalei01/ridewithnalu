@@ -798,9 +798,10 @@ function Index() {
                     ? "TAKE THE RAIL"
                     : "DRIVE TODAY"}
           </h1>
-          {best && verdict !== "drive" && (
-            <p className="mt-6 text-3xl font-bold text-recommended">
+          {best && (
+            <p className={`mt-6 text-3xl font-bold ${verdict === "drive" ? "text-muted-foreground" : "text-recommended"}`}>
               Leave by {clockFromSeconds(best.leave_by_seconds)}
+              {verdict === "drive" ? " for the train" : ""}
             </p>
           )}
           <p className="mt-3 text-lg font-medium text-muted-foreground">
