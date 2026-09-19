@@ -155,7 +155,7 @@ function Index() {
         p_dest_stop: setup.destStopId,
         p_after_seconds: afterSeconds,
         p_limit: 4,
-        p_bus_route_id: setup.busRouteId,
+        p_bus_route_id: setup.busRouteId ?? undefined,
       });
       if (error) throw error;
       return data ?? [];
@@ -520,7 +520,6 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
     <Dialog open={open} onOpenChange={(next) => { if (!next && !firstRun) onClose(); }}>
       <DialogContent
         className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg"
-        showCloseButton={!firstRun}
       >
         <DialogHeader className="text-left">
           <DialogTitle className="text-2xl">{firstRun ? "Set up your commute" : "Your commute"}</DialogTitle>
