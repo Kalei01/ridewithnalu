@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, Car, Check, Footprints, LocateFixed, RefreshCw, Settings, TrainFront } from "lucide-react";
+import { Bus, Car, Check, ChevronRight, Footprints, LocateFixed, RefreshCw, Settings, TrainFront } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
@@ -26,14 +26,14 @@ import { Textarea } from "@/components/ui/textarea";
 
 function WaveMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 22 16" fill="none" className={className} aria-hidden="true">
+    <svg viewBox="0 0 30 20" fill="none" className={className} aria-hidden="true">
       <path
-        d="M1 11C4 4 8 4 11 11S18 18 21 11"
+        d="M2 12C6 4.2 11 4.2 15 11C19 17.8 24 17.8 28 11"
         stroke="currentColor"
-        strokeWidth="1.8"
+        strokeWidth="3.4"
         strokeLinecap="round"
       />
-    </svg>
+riod    </svg>
   );
 }
 
