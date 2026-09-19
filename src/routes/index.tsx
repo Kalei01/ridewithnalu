@@ -600,18 +600,25 @@ function Index() {
   const browseActive = hydrated && !configured;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
-  // Where today's car is. Yesterday's note is stale, so the car starts at home.
+  // Where today's car is. With station driving enabled, an unrecorded return
+  // starts with the car at the home station; an explicit same-day location wins.
   const parkedToday = parked && parked.date === honoluluDateKey(now) ? parked : null;
-  const carPlace: CarPlace = parkedToday?.place ?? (parkedToday ? "station" : "home");
+  const carPlace: CarPlace = parkedToday?.place ?? (inbound && setup.allowDrive ? "station" : "home");
   const carAtStation = Boolean(
-    setup.allowDrive && carPlace === "station" && parkedToday?.station === setup.homeStopId,
+    setup.allowDrive
+      && carPlace === "station"
+      && (!parkedToday || parkedToday.station === setup.homeStopId),
   );
   // Driving this direction is only possible if the car is where the trip starts.
   const driveAvailable = Boolean(setup.allowDrive) && (inbound ? carPlace === "destination" : carPlace === "home");
   const carAwayReason = !setup.allowDrive
     ? "Driving is switched off in your settings."
     : inbound && carPlace === "station"
-      ? `Your car is at ${stationLabel(parkedToday?.station === setup.homeStopId ? setup.homeStopName : "your station")}.`
+      ? `Your car is parked at ${
+          parkedToday && parkedToday.station !== setup.homeStopId
+            ? "your station"
+            : `${stationLabel(setup.homeStopName)} Station`
+        }.`
       : inbound && carPlace === "home"
         ? "Your car is at home."
         : !inbound && carPlace === "station"
