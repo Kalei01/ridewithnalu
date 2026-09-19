@@ -717,8 +717,11 @@ function Index() {
   const railRange = railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
   // Parking only costs time where you have to park: nothing when you get home.
   const parkingBuffer = inbound ? 0 : Math.max(0, setup.parkingBufferMinutes ?? 8);
-  const driveMinutes = drive ? drive.trafficMinutes + parkingBuffer : null;
-  const driveRange = drive ? { low: drive.freeflowMinutes + parkingBuffer, high: drive.trafficMinutes + parkingBuffer } : null;
+  const driveRange = drive
+    ? { low: drive.lowMinutes + parkingBuffer, high: drive.highMinutes + parkingBuffer }
+    : null;
+  // The verdict compares exactly the number each column shows: the worst case.
+  const driveMinutes = driveRange ? driveRange.high : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
   const waitForTrain = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
   const longWait = waitForTrain !== null && waitForTrain > LONG_WAIT_MIN;
