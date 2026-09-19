@@ -105,14 +105,14 @@ type Option = {
   legs: Leg[];
 };
 
-const STORAGE_KEY = "kine-setup-v3";
-const SETUP_DISMISSED_KEY = "kine-setup-dismissed-v1";
-const BROWSE_STATION_KEY = "kine-browse-station-v1";
-const BROWSE_LOCATION_DENIED_KEY = "kine-browse-location-denied-v1";
+const STORAGE_KEY = "nalu-setup-v3";
+const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
+const BROWSE_STATION_KEY = "nalu-browse-station-v1";
+const BROWSE_LOCATION_DENIED_KEY = "nalu-browse-location-denied-v1";
 const KAPOLEI_POINT = { lat: 21.3358, lon: -158.0798 };
 const DOWNTOWN_POINT = { lat: 21.3099, lon: -157.8644 };
-const DIRECTION_KEY = "kine-direction-v1";
-const PARKED_KEY = "kine-parked-v1";
+const DIRECTION_KEY = "nalu-direction-v1";
+const PARKED_KEY = "nalu-parked-v1";
 const OVERRIDE_MS = 2 * 60 * 60 * 1000;
 /** Minutes of padding on the rail chain, and how much a transfer can slip. */
 const RAIL_BUFFER_MIN = 3;
@@ -121,7 +121,7 @@ const RAIL_SLIP_MIN = 4;
 const TOSS_UP_MIN = 5;
 /** A long wait for the first train tips the choice toward the car. */
 const LONG_WAIT_MIN = 25;
-const ACTIVE_TRIP_KEY = "kine-active-trip-v1";
+const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
 /** A trip clears itself after this long, even if the phone never saw the arrival. */
 const TRIP_MAX_MS = 3 * 60 * 60 * 1000;
 /** How long the arrival card stays up before the trip collapses on its own. */
@@ -714,7 +714,7 @@ function Index() {
         p_origin_lon: setup.homeLon as number,
         p_station: setup.homeStopId,
         p_dest_stop: setup.destStopId,
-        p_allow_drive: setup.allowDrive,
+        p_allow_drive: driveAvailable,
         p_after_seconds: afterSeconds,
         p_limit: 4,
         // Any stop within a quarter mile of the door is fair game, walk included.
@@ -726,23 +726,13 @@ function Index() {
     },
   });
 
-  // Remember when the outbound plan drives to the station, so the return leg drives home.
-  const outboundAccessMode = !inbound ? options[0]?.legs?.[0]?.mode : undefined;
-  useEffect(() => {
-    if (outboundAccessMode !== "drive" || !setup.homeStopId) return;
-    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place: "station" };
-    setParked((current) =>
-      current && current.date === entry.date && current.station === entry.station && current.place === "station"
-        ? current
-        : entry,
-    );
-    window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
-  }, [outboundAccessMode, setup.homeStopId]);
-
   // ---- Trip progress -------------------------------------------------------
   const tripActive = Boolean(trip);
 
   function startTrip(option: Option) {
+    if (!inbound && option.legs[0]?.mode === "drive") {
+      setCarPlace("station");
+    }
     const entry: ActiveTrip = {
       startedAt: Date.now(),
       inbound,
@@ -1704,6 +1694,7 @@ function Index() {
             {railRange && (
               <p className="mt-1 text-sm text-muted-foreground">{railRange.low}–{railRange.high} min, worst case first</p>
             )}
+            {driveAvailable && (
             <dl className="mt-7 space-y-4 text-sm">
               <div>
                 <dt className="text-muted-foreground">Train departs</dt>
@@ -1718,6 +1709,17 @@ function Index() {
                 </dd>
               </div>
             </dl>
+            )}
+            {!driveAvailable && setup.allowDrive && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCarPlace(inbound ? "destination" : "home")}
+                className="mt-3 px-0 text-muted-foreground hover:text-foreground"
+              >
+                My car is with me
+              </Button>
+            )}
           </article>
           <article className={`py-7 pl-5 ${verdict === "drive" ? "" : "opacity-55"}`}>
             <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-recommended" : "text-muted-foreground"}`}>
