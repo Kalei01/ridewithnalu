@@ -790,22 +790,28 @@ function Index() {
           >
             {!configured
               ? "SET UP KINE"
-              : railMinutes === null
+              : verdict === "none"
                 ? "RAIL UNAVAILABLE"
-                : railWins
-                  ? "TAKE THE RAIL"
-                  : "DRIVE TODAY"}
+                : verdict === "same"
+                  ? "ABOUT THE SAME"
+                  : verdict === "rail"
+                    ? "TAKE THE RAIL"
+                    : "DRIVE TODAY"}
           </h1>
-          {best && (
+          {best && verdict !== "drive" && (
             <p className="mt-6 text-3xl font-bold text-recommended">
               Leave by {clockFromSeconds(best.leave_by_seconds)}
             </p>
           )}
           <p className="mt-3 text-lg font-medium text-muted-foreground">
             {best
-              ? `${Math.abs(DRIVE_MINUTES - (railMinutes ?? 0))} min ${railWins ? "faster" : "slower"} than driving · ${
-                  leaveIn !== null && leaveIn > 0 ? `in ${leaveIn} min` : "now"
-                }`
+              ? verdict === "same"
+                ? `Rail and driving land within ${TOSS_UP_MIN} min of each other${
+                    leaveIn !== null && leaveIn > 0 ? ` · train in ${leaveIn} min` : ""
+                  }`
+                : `${
+                    gap !== null ? `${Math.abs(gap)} min ${railWins ? "faster" : "slower"} than driving · ` : ""
+                  }${leaveIn !== null && leaveIn > 0 ? `train in ${leaveIn} min` : "leave now"}`
               : !configured
                 ? "Add your home station and destination to start."
                 : optionsLoading
@@ -816,6 +822,7 @@ function Index() {
                       )} today — no reachable trip with a connection right now.`
                     : "No rail service for this trip today."}
           </p>
+          {reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
           {activeDestStopName && (
             <p className="mt-3 text-sm text-muted-foreground">
               {inbound
@@ -827,12 +834,21 @@ function Index() {
         </section>
 
         <section aria-label="Comparison" className="grid grid-cols-2 border-y border-border">
-          <article className="border-r border-border py-7 pr-5">
-            <p className="text-xs font-bold uppercase text-recommended">Rail trip</p>
-            <p className="mt-3 text-5xl font-semibold leading-none text-recommended">
-              {railMinutes ?? "—"}
+          <article className={`border-r border-border py-7 pr-5 ${verdict === "drive" ? "opacity-55" : ""}`}>
+            <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-muted-foreground" : "text-recommended"}`}>
+              Rail trip
+            </p>
+            <p
+              className={`mt-3 text-5xl font-semibold leading-none ${
+                verdict === "drive" ? "text-foreground" : "text-recommended"
+              }`}
+            >
+              {railRange ? railRange.high : "—"}
               <span className="ml-1 text-base font-medium">min</span>
             </p>
+            {railRange && (
+              <p className="mt-1 text-sm text-muted-foreground">{railRange.low}–{railRange.high} min, worst case first</p>
+            )}
             <dl className="mt-7 space-y-4 text-sm">
               <div>
                 <dt className="text-muted-foreground">Train departs</dt>
@@ -846,28 +862,85 @@ function Index() {
                   {best?.legs[0] ? vehicleName(best.legs[0]) : "—"}
                 </dd>
               </div>
+              <div>
+                <dt className="text-muted-foreground">Fare</dt>
+                <dd className="mt-1 font-semibold text-foreground">{money(setup.railFare) ?? "Not set"}</dd>
+              </div>
             </dl>
           </article>
-          <article className="py-7 pl-5 opacity-55">
-            <p className="text-xs font-bold uppercase text-muted-foreground">Drive</p>
-            <p className="mt-3 text-5xl font-semibold leading-none text-foreground">
-              {DRIVE_MINUTES}
-              <span className="ml-1 text-base font-medium">min</span>
+          <article className={`py-7 pl-5 ${verdict === "drive" ? "" : "opacity-55"}`}>
+            <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-recommended" : "text-muted-foreground"}`}>
+              Drive
             </p>
+            <p className="mt-3 text-5xl font-semibold leading-none text-foreground">
+              {driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}
+              {driveAvailable && driveRange && <span className="ml-1 text-base font-medium">min</span>}
+            </p>
+            {driveAvailable && driveRange && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {driveRange.low}–{driveRange.high} min
+                {parkingBuffer > 0 ? ` incl. ${parkingBuffer} min parking` : ""}
+              </p>
+            )}
+            {!driveAvailable && carAwayReason && (
+              <p className="mt-2 text-sm text-muted-foreground">{carAwayReason}</p>
+            )}
+            {driveAvailable && driveFailed && (
+              <p className="mt-2 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>
+            )}
+            {driveAvailable && drive?.incidents.length ? (
+              <p className="mt-3 rounded-lg bg-surface-raised px-3 py-2 text-sm text-foreground">
+                {drive.incidents[0]?.road
+                  ? `${drive.incidents[0]?.description} on ${drive.incidents[0]?.road}`
+                  : drive.incidents[0]?.description}
+                {drive.incidents[0]?.delayMinutes ? ` · +${drive.incidents[0]?.delayMinutes} min` : ""}
+              </p>
+            ) : null}
             <dl className="mt-7 space-y-4 text-sm">
               <div>
-                <dt className="text-muted-foreground">H-1 traffic</dt>
-                <dd className="mt-1 font-semibold text-foreground">Heavy</dd>
+                <dt className="text-muted-foreground">Traffic delay</dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  {drive ? (drive.delayMinutes > 0 ? `+${drive.delayMinutes} min` : "Clear") : "—"}
+                </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">{inbound ? "From" : "To"}</dt>
                 <dd className="mt-1 truncate font-semibold text-foreground">
-                  {setup.destinationName || setup.destinationAddress || "Your destination"}
+                  {inbound
+                    ? setup.destinationName || setup.destinationAddress || "Your destination"
+                    : setup.destinationName || setup.destinationAddress || "Your destination"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Parking</dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  {inbound ? "None at home" : (money(setup.parkingCost) ?? "Not set")}
                 </dd>
               </div>
             </dl>
+            {!inbound && setup.allowDrive && carPlace !== "destination" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCarPlace("destination")}
+                className="mt-4 px-0 text-muted-foreground hover:text-foreground"
+              >
+                I'm driving all the way
+              </Button>
+            )}
+            {inbound && carPlace === "destination" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCarPlace("home")}
+                className="mt-4 px-0 text-muted-foreground hover:text-foreground"
+              >
+                My car isn't here
+              </Button>
+            )}
           </article>
         </section>
+
 
         {best && (
           <section className="py-8" aria-labelledby="chain-title">
