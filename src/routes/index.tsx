@@ -1088,11 +1088,20 @@ function Index() {
               {driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}
               {driveAvailable && driveRange && <span className="ml-1 text-base font-medium">min</span>}
             </p>
-            {driveAvailable && driveRange && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                {driveRange.low}–{driveRange.high} min
-                {parkingBuffer > 0 ? ` incl. ${parkingBuffer} min parking` : ""}
-              </p>
+            {driveAvailable && driveRange && drive && (
+              <>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {driveRange.low}–{driveRange.high} min
+                  {parkingBuffer > 0 ? ` incl. ${parkingBuffer} min parking` : ""}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {drive.delayMinutes >= 1
+                    ? `${drive.trafficMinutes} min now, ${drive.delayMinutes} min slower than usual`
+                    : drive.delayMinutes <= -1
+                      ? `${drive.trafficMinutes} min now, ${Math.abs(drive.delayMinutes)} min faster than usual`
+                      : `${drive.trafficMinutes} min now, about usual for this time`}
+                </p>
+              </>
             )}
             {!driveAvailable && carAwayReason && (
               <p className="mt-2 text-sm text-muted-foreground">{carAwayReason}</p>
@@ -1108,9 +1117,9 @@ function Index() {
             ) : null}
             <dl className="mt-7 space-y-4 text-sm">
               <div>
-                <dt className="text-muted-foreground">Traffic delay</dt>
+                <dt className="text-muted-foreground">Usually</dt>
                 <dd className="mt-1 font-semibold text-foreground">
-                  {drive ? (drive.delayMinutes > 0 ? `+${drive.delayMinutes} min` : "Clear") : "—"}
+                  {drive ? `${drive.typicalMinutes} min` : "—"}
                 </dd>
               </div>
               <div>
