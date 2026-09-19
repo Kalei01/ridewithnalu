@@ -593,7 +593,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
           homeStopId: nearest.stop_id,
           homeStopName: nearest.stop_name ?? "",
         }));
-        setStatus(`Nearest station: ${titleCase(nearest.stop_name)} (${Math.round(nearest.distance_m)} m away).`);
+        setStatus(`Nearest station: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
       },
       () => {
         setBusy(false);
@@ -635,7 +635,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
         destStopName: nearest.stop_name ?? "",
         busRouteId: null,
       }));
-      setStatus(`Nearest stop: ${titleCase(nearest.stop_name)} (${Math.round(nearest.distance_m)} m away).`);
+      setStatus(`Nearest stop: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Address lookup failed.");
     } finally {
