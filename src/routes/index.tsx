@@ -43,8 +43,14 @@ type Setup = {
   destinationAddress: string;
   destLat: number | null;
   destLon: number | null;
+  /** Arriving stop: served by routes coming from the rail transfer points. */
   destStopId: string;
   destStopName: string;
+  destStopWalkM: number | null;
+  /** Boarding stop for the trip home: served by routes heading back toward the rail line. */
+  destReturnStopId: string;
+  destReturnStopName: string;
+  destReturnWalkM: number | null;
   allowDrive: boolean;
   busRouteId: string | null;
 };
@@ -114,6 +120,10 @@ const emptySetup: Setup = {
   destLon: null,
   destStopId: "",
   destStopName: "",
+  destStopWalkM: null,
+  destReturnStopId: "",
+  destReturnStopName: "",
+  destReturnWalkM: null,
   allowDrive: false,
   busRouteId: null,
 };
@@ -266,6 +276,33 @@ function Index() {
     window.localStorage.setItem(BROWSE_STATION_KEY, JSON.stringify(next));
   }
 
+  // Older saved trips only stored one stop; fill in the directional pair once.
+  useEffect(() => {
+    if (!hydrated || !setup.destLat || !setup.destLon || setup.destReturnStopId) return;
+    let cancelled = false;
+    (async () => {
+      const [arriving, boarding] = await Promise.all([
+        supabase.rpc("directional_dest_stop", { p_lat: setup.destLat!, p_lon: setup.destLon!, p_toward_rail: false }),
+        supabase.rpc("directional_dest_stop", { p_lat: setup.destLat!, p_lon: setup.destLon!, p_toward_rail: true }),
+      ]);
+      const out = arriving.data?.[0];
+      const back = boarding.data?.[0];
+      if (cancelled || !back) return;
+      setSetup((current) => ({
+        ...current,
+        destStopId: out?.stop_id ?? current.destStopId,
+        destStopName: out?.stop_name ?? current.destStopName,
+        destStopWalkM: out ? Number(out.distance_m) : current.destStopWalkM,
+        destReturnStopId: back.stop_id,
+        destReturnStopName: back.stop_name ?? "",
+        destReturnWalkM: Number(back.distance_m),
+      }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, setup.destLat, setup.destLon, setup.destReturnStopId]);
+
   // Dismissed setup still works: use location only to choose the closest rail station.
   useEffect(() => {
     if (!browseActive || onboardingOpen || browseStation || browseLocationDenied) return;
@@ -409,6 +446,11 @@ function Index() {
   const railMinutes = best?.total_minutes ?? null;
   const railWins = railMinutes !== null && railMinutes < DRIVE_MINUTES;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
+  const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
+  // A stop serves one direction, so the arriving stop and the boarding stop differ.
+  const activeDestStopName = inbound ? setup.destReturnStopName || setup.destStopName : setup.destStopName;
+  const rawWalkM = inbound ? (setup.destReturnWalkM ?? setup.destStopWalkM) : setup.destStopWalkM;
+  const activeDestWalkM = typeof rawWalkM === "number" ? rawWalkM : null;
 
   const timeline = useMemo(() => {
     if (!best) return [];
@@ -417,9 +459,9 @@ function Index() {
       title: vehicleName(leg),
       detail:
         leg.mode === "walk" || leg.mode === "drive"
-          ? leg.kind === "egress" && leg.mode === "drive"
-            ? `${leg.minutes} min · your car is parked here`
-            : `${leg.minutes} min`
+          ? `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
+              titleCase(leg.to) || (inbound ? "home" : "your destination")
+            }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
           : `${titleCase(leg.from)} → ${titleCase(leg.to)}`,
       mode: leg.mode,
     }));
@@ -645,6 +687,14 @@ function Index() {
                       )} today — no reachable trip with a connection right now.`
                     : "No rail service for this trip today."}
           </p>
+          {activeDestStopName && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {inbound
+                ? `Bus stop you board near ${destinationLabel}: ${titleCase(activeDestStopName)}`
+                : `Bus stop near ${destinationLabel} when you arrive: ${titleCase(activeDestStopName)}`}
+              {activeDestWalkM !== null ? `, a ${formatDistance(activeDestWalkM)} walk` : ""}
+            </p>
+          )}
         </section>
 
         <section aria-label="Comparison" className="grid grid-cols-2 border-y border-border">
@@ -868,7 +918,9 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
           homeStopId: nearest.stop_id,
           homeStopName: nearest.stop_name ?? "",
         }));
-        setStatus(`Nearest station: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
+        setStatus(
+          `Home station near you: ${titleCase(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
+        );
       },
       () => {
         setBusy(false);
@@ -880,15 +932,19 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
 
   async function selectPlace(place: PlaceSuggestion) {
     setBusy(true);
-    setStatus("Finding the stop nearest that place…");
+    setStatus("Finding the stops on each side of that place…");
     try {
-      const { data, error } = await supabase.rpc("nearest_stop", {
-        p_lat: place.lat,
-        p_lon: place.lon,
-        p_rail_only: false,
-      });
-      const nearest = data?.[0];
-      if (error || !nearest) {
+      // A stop serves one direction only, so resolve the arriving stop and the
+      // stop heading back toward the rail line separately, from the data.
+      const [arriving, boarding, fallback] = await Promise.all([
+        supabase.rpc("directional_dest_stop", { p_lat: place.lat, p_lon: place.lon, p_toward_rail: false }),
+        supabase.rpc("directional_dest_stop", { p_lat: place.lat, p_lon: place.lon, p_toward_rail: true }),
+        supabase.rpc("nearest_stop", { p_lat: place.lat, p_lon: place.lon, p_rail_only: false }),
+      ]);
+      const near = fallback.data?.[0];
+      const out = arriving.data?.[0] ?? near;
+      const back = boarding.data?.[0] ?? near;
+      if (!out || !back) {
         setStatus("No stop found near that place.");
         return;
       }
@@ -898,13 +954,19 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
         destinationAddress: place.address || place.name,
         destLat: place.lat,
         destLon: place.lon,
-        destStopId: nearest.stop_id,
-        destStopName: nearest.stop_name ?? "",
+        destStopId: out.stop_id,
+        destStopName: out.stop_name ?? "",
+        destStopWalkM: Number(out.distance_m),
+        destReturnStopId: back.stop_id,
+        destReturnStopName: back.stop_name ?? "",
+        destReturnWalkM: Number(back.distance_m),
         busRouteId: null,
       }));
       setPlaceQuery("");
       setDebouncedQuery("");
-      setStatus(`Nearest stop: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
+      setStatus(
+        `Bus stop near ${place.name}: ${titleCase(out.stop_name)}, a ${formatDistance(Number(out.distance_m))} walk.`,
+      );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Place search failed.");
     } finally {
@@ -1023,7 +1085,19 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               </>
             )}
             {draft.destStopName && (
-              <p className="text-sm text-muted-foreground">Destination stop: {titleCase(draft.destStopName)}</p>
+              <p className="text-sm text-muted-foreground">
+                Bus stop near {draft.destinationName || "your destination"} when you arrive:{" "}
+                {titleCase(draft.destStopName)}
+                {typeof draft.destStopWalkM === "number" ? `, a ${formatDistance(draft.destStopWalkM)} walk` : ""}
+              </p>
+            )}
+            {draft.destReturnStopName && (
+              <p className="text-sm text-muted-foreground">
+                Stop you board for the trip home: {titleCase(draft.destReturnStopName)}
+                {typeof draft.destReturnWalkM === "number"
+                  ? `, a ${formatDistance(draft.destReturnWalkM)} walk from ${draft.destinationName || "your destination"}`
+                  : ""}
+              </p>
             )}
           </div>
 

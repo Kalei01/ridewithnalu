@@ -224,6 +224,26 @@ export type Database = {
           service_id: string
         }[]
       }
+      directional_dest_stop: {
+        Args: {
+          p_lat: number
+          p_lon: number
+          p_radius_m?: number
+          p_station_radius_m?: number
+          p_toward_rail?: boolean
+        }
+        Returns: {
+          direction_id: number
+          distance_m: number
+          headsign: string
+          route_long_name: string
+          route_short_name: string
+          stop_id: string
+          stop_lat: number
+          stop_lon: number
+          stop_name: string
+        }[]
+      }
       egress_legs: {
         Args: {
           p_allow_drive?: boolean
