@@ -159,3 +159,31 @@
     font: inherit;
   }
 }
+
+/*
+ * Three gradients, all near-black and low contrast: the page, the verdict card,
+ * and a fade at the foot of a departures list. Nothing else gets one.
+ */
+@utility bg-page-gradient {
+  background-color: var(--color-background);
+  background-image: linear-gradient(
+    to bottom,
+    oklch(0.125 0.012 255) 0%,
+    var(--color-background) 45%,
+    oklch(0.178 0.013 255) 100%
+  );
+  background-attachment: fixed;
+}
+
+@utility verdict-lift {
+  background-image: linear-gradient(
+    165deg,
+    oklch(0.225 0.016 255 / 0.85) 0%,
+    oklch(0.185 0.013 255 / 0.5) 55%,
+    transparent 100%
+  );
+}
+
+@utility departures-fade {
+  mask-image: linear-gradient(to bottom, black 0%, black 88%, transparent 100%);
+}
