@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -2481,29 +2483,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
             />
           </div>
 
-          <div className="border-t border-border pt-5">
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Data sources</p>
-            <ul className="mt-3 grid gap-2.5 text-xs text-muted-foreground">
-              {[
-                { label: "Transit schedules and routes: TheBus / Oahu Transit Services", href: "https://www.thebus.org" },
-                { label: "Live bus arrivals: TheBus HEA API / Oahu Transit Services", href: "https://hea.thebus.org" },
-                { label: "Traffic and drive times: TomTom", href: "https://www.tomtom.com" },
-                { label: "Weather and forecasts: National Weather Service / NOAA", href: "https://www.weather.gov" },
-                { label: "Air quality: AirNow / US EPA", href: "https://www.airnow.gov" },
-              ].map((source) => (
-                <li key={source.href}>
-                  <a
-                    href={source.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
-                  >
-                    {source.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {!firstRun && <AboutSection />}
+
 
           {status && <p className="text-sm text-muted-foreground">{status}</p>}
         </div>
@@ -2517,3 +2498,159 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
     </Dialog>
   );
 }
+
+const DATA_SOURCES = [
+  { label: "Transit schedules: TheBus / Oahu Transit Services (thebus.org)", href: "https://www.thebus.org" },
+  { label: "Live bus arrivals: TheBus HEA API", href: "https://hea.thebus.org" },
+  { label: "Traffic and drive times: TomTom (tomtom.com)", href: "https://www.tomtom.com" },
+  { label: "Weather: National Weather Service / NOAA (weather.gov)", href: "https://www.weather.gov" },
+  { label: "Air quality: AirNow / US EPA (airnow.gov)", href: "https://www.airnow.gov" },
+];
+
+function AboutSection() {
+  return (
+    <div className="border-t border-border pt-5">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">About</p>
+
+      <div className="mt-3 grid gap-2.5 text-xs text-muted-foreground">
+        <p>Nalu · version 1.0</p>
+        <p>Nalu is Hawaiian for wave, and to think deeply. We liked both.</p>
+        <p>
+          Nalu helps Oahu commuters decide whether to take Skyline rail or drive, using real-time traffic and live bus
+          schedules.
+        </p>
+        <p>Built for Oahu. Transit data covers TheBus and Skyline rail.</p>
+      </div>
+
+      <p className="mt-4 text-xs font-semibold uppercase text-muted-foreground">Data sources</p>
+      <ul className="mt-2 grid gap-2.5 text-xs text-muted-foreground">
+        {DATA_SOURCES.map((source) => (
+          <li key={source.href}>
+            <a
+              href={source.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              {source.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-4 text-xs font-semibold uppercase text-muted-foreground">Privacy</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Nalu does not collect or store your personal data. Your home station, destination, and preferences stay on this
+        device only. Feedback you submit is sent directly to the Nalu team and not shared.
+      </p>
+
+      <p className="mt-4 text-xs font-semibold uppercase text-muted-foreground">Contact</p>
+      <p className="mt-2 text-xs text-muted-foreground">Questions or feedback? HelloNalu14@gmail.com</p>
+
+      <FeedbackForm />
+    </div>
+  );
+}
+
+const FEEDBACK_ENDPOINT = "https://formspree.io/f/mppwqpaz";
+
+function FeedbackForm() {
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [component, setComponent] = useState("");
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function submit() {
+    if (!message.trim() || sending) return;
+    setSending(true);
+    setFailed(false);
+    try {
+      const response = await fetch(FEEDBACK_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ message: message.trim(), component, email: email.trim() || undefined }),
+      });
+      if (!response.ok) throw new Error(`status ${response.status}`);
+      setSent(true);
+      setMessage("");
+      setComponent("");
+      setEmail("");
+    } catch {
+      setFailed(true);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+            setSent(false);
+            setFailed(false);
+          }}
+          className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+        >
+          Send feedback
+        </button>
+      ) : (
+        <div className="grid gap-3 rounded-lg bg-surface-raised p-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="feedback-message">What happened?</Label>
+            <Textarea
+              id="feedback-message"
+              rows={4}
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="feedback-component">Which part of the app?</Label>
+            <Select value={component} onValueChange={setComponent}>
+              <SelectTrigger id="feedback-component" className="bg-background">
+                <SelectValue placeholder="Choose one" />
+              </SelectTrigger>
+              <SelectContent>
+                {["Browse mode", "Trip setup", "Verdict", "Departures", "Weather", "Other"].map((part) => (
+                  <SelectItem key={part} value={part}>
+                    {part}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="feedback-email">Your email (optional)</Label>
+            <Input
+              id="feedback-email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              Cancel
+            </button>
+            <Button size="sm" onClick={submit} disabled={!message.trim() || sending} className="shadow-none">
+              {sending ? "Sending…" : "Submit"}
+            </Button>
+          </div>
+          {sent && <p className="text-xs text-muted-foreground">Thanks, we read everything.</p>}
+          {failed && <p className="text-xs text-muted-foreground">Couldn't send · try HelloNalu14@gmail.com</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
