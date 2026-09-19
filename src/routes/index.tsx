@@ -1202,7 +1202,39 @@ function Index() {
             <h2 id="chain-title" className="text-lg font-semibold">
               Your next trip
             </h2>
+            {earliest && alternative && (
+              <div className="mt-4 flex gap-2" role="group" aria-label="Choose a trip">
+                <button
+                  type="button"
+                  aria-pressed={!preferLater}
+                  onClick={() => setPreferLater(false)}
+                  className={`min-h-11 flex-1 rounded-2xl border px-3 py-2 text-left text-sm ${
+                    preferLater ? "border-border text-muted-foreground" : "border-recommended text-foreground"
+                  }`}
+                >
+                  <span className="block font-semibold">Arrive {clockFromSeconds(earliest.arrive_seconds)}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Leave {clockFromSeconds(earliest.leave_by_seconds)} · earliest arrival
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={preferLater}
+                  onClick={() => setPreferLater(true)}
+                  className={`min-h-11 flex-1 rounded-2xl border px-3 py-2 text-left text-sm ${
+                    preferLater ? "border-recommended text-foreground" : "border-border text-muted-foreground"
+                  }`}
+                >
+                  <span className="block font-semibold">Arrive {clockFromSeconds(alternative.arrive_seconds)}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Leave {Math.round((alternative.leave_by_seconds - earliest.leave_by_seconds) / 60)} min later,
+                    arrive {Math.round((alternative.arrive_seconds - earliest.arrive_seconds) / 60)} min later
+                  </span>
+                </button>
+              </div>
+            )}
             <ol className="mt-5">
+
               {timeline.map((row, index) => {
                 const Icon = modeIcon(row.mode);
                 return (
