@@ -880,13 +880,15 @@ function Index() {
   const activeBusLeg = trip?.legs.find((leg) => leg.mode === "bus" && (
     phase === "boarding" ? leg.kind === "access" : phase === "transfer" ? leg.kind !== "access" : false
   )) ?? null;
-  const busStopName = phase === "transfer" ? connecting[0]?.stop_name : activeBusLeg?.from;
+  const plannedBusLeg = !tripActive ? best?.legs.find((leg) => leg.mode === "bus") ?? null : null;
+  const trackedBusLeg = activeBusLeg ?? plannedBusLeg;
+  const busStopName = phase === "transfer" && tripActive ? connecting[0]?.stop_name : trackedBusLeg?.from;
   const { data: activeBusStopId = null } = useQuery({
     queryKey: ["active-bus-stop", busStopName],
-    enabled: tripActive && Boolean(busStopName),
+    enabled: Boolean(busStopName),
     staleTime: 3 * 60 * 60_000,
     queryFn: async () => {
-      if (phase === "transfer" && connecting[0]?.stop_id) return connecting[0].stop_id;
+      if (tripActive && phase === "transfer" && connecting[0]?.stop_id) return connecting[0].stop_id;
       const { data, error } = await supabase.from("stops").select("stop_id").eq("stop_name", busStopName as string).limit(1);
       if (error) throw error;
       return data?.[0]?.stop_id ?? null;
@@ -894,22 +896,22 @@ function Index() {
   });
   const busTarget: BusStopTarget | null = activeBusStopId ? {
     stopId: activeBusStopId,
-    scheduled: phase === "transfer"
+    scheduled: tripActive && phase === "transfer"
       ? connecting.slice(0, 4).map((bus) => ({
           routeShortName: bus.route_short_name,
           headsign: bus.headsign,
           scheduledSeconds: bus.depart_seconds,
         }))
-      : activeBusLeg?.depart_seconds ? [{
-          routeShortName: activeBusLeg.route_short,
-          headsign: activeBusLeg.headsign,
-          scheduledSeconds: activeBusLeg.depart_seconds,
+      : trackedBusLeg?.depart_seconds ? [{
+          routeShortName: trackedBusLeg.route_short,
+          headsign: trackedBusLeg.headsign,
+          scheduledSeconds: trackedBusLeg.depart_seconds,
         }] : [],
   } : null;
   const fetchBusArrivals = useServerFn(busArrivals);
   const { data: liveBus, isFetching: liveBusRefreshing } = useQuery({
     queryKey: ["hea-arrivals", busTarget?.stopId, busTarget?.scheduled],
-    enabled: tripActive && Boolean(busTarget),
+    enabled: Boolean(busTarget),
     staleTime: 30_000,
     refetchInterval: 30_000,
     retry: false,
@@ -1717,20 +1719,11 @@ function Index() {
             {railRange && (
               <p className="mt-1 text-sm text-muted-foreground">{railRange.low}–{railRange.high} min, worst case first</p>
             )}
-            <dl className="mt-7 space-y-4 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Train departs</dt>
-                <dd className="mt-1 font-semibold text-foreground">
-                  {best ? clockFromSeconds(best.depart_seconds) : optionsLoading ? "…" : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">First leg</dt>
-                <dd className="mt-1 font-semibold text-foreground">
-                  {best?.legs[0] ? vehicleName(best.legs[0]) : "—"}
-                </dd>
-              </div>
-            </dl>
+            {best ? (
+              <RailTripBreakdown option={best} liveBus={liveBus} liveBusRefreshing={liveBusRefreshing} />
+            ) : (
+              <p className="mt-7 text-sm text-muted-foreground">{optionsLoading ? "Building your trip…" : "No rail trip available."}</p>
+            )}
           </article>
           <article className={`py-7 pl-5 ${verdict === "drive" ? "" : "opacity-55"}`}>
             <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-recommended" : "text-muted-foreground"}`}>
