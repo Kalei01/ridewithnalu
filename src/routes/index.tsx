@@ -985,7 +985,7 @@ function Index() {
                 const directionName =
                   stationLabel(first?.trip_headsign) || stationLabel(first?.route_long_name) || "Rail departures";
                 return (
-                  <article key={first?.trip_headsign || first?.route_id} className="border-t border-border pt-5">
+                  <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="border-t border-border pt-5">
                     <h2 className="text-lg font-semibold">To {directionName}</h2>
                     <ol className="mt-3 divide-y divide-border">
                       {direction.map((departure) => {
