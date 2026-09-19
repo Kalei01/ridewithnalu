@@ -58,8 +58,6 @@ type Setup = {
   /** Shown beside each option; never folded into the verdict. */
   parkingCost: number | null;
   railFare: number | null;
-  /** Minutes to park and walk in when arriving at the destination. */
-  parkingBufferMinutes: number;
 };
 
 type Leg = {
@@ -200,7 +198,6 @@ const emptySetup: Setup = {
   busRouteId: null,
   parkingCost: null,
   railFare: null,
-  parkingBufferMinutes: 8,
 };
 
 function honoluluParts(date: Date) {
@@ -907,10 +904,8 @@ function Index() {
   // Rail total carries a safety buffer, and a range for transfers that slip.
   const railMinutes = best ? best.total_minutes + RAIL_BUFFER_MIN : null;
   const railRange = railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
-  // Parking only costs time where you have to park: nothing when you get home.
-  const parkingBuffer = inbound ? 0 : Math.max(0, setup.parkingBufferMinutes ?? 8);
   const driveRange = drive
-    ? { low: drive.lowMinutes + parkingBuffer, high: drive.highMinutes + parkingBuffer }
+    ? { low: drive.lowMinutes, high: drive.highMinutes }
     : null;
   // The verdict compares exactly the number each column shows: the worst case.
   const driveMinutes = driveRange ? driveRange.high : null;
@@ -1352,7 +1347,6 @@ function Index() {
               <>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {driveRange.low}–{driveRange.high} min
-                  {parkingBuffer > 0 ? ` incl. ${parkingBuffer} min parking` : ""}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {drive.delayMinutes >= 1
@@ -2053,7 +2047,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
                 <Input
                   id="destination"
                   className="h-12 bg-surface-raised"
-                  placeholder="Ala Moana Center, 1000 Bishop St…"
+                  placeholder="Search for a place or address"
                   autoComplete="off"
                   value={placeQuery}
                   onChange={(event) => setPlaceQuery(event.target.value)}
@@ -2154,28 +2148,6 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               />
             </div>
           </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="parking-buffer">Minutes to park at your destination</Label>
-            <Input
-              id="parking-buffer"
-              type="number"
-              inputMode="numeric"
-              min="0"
-              max="60"
-              className="h-12 bg-surface-raised"
-              value={draft.parkingBufferMinutes}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  parkingBufferMinutes: event.target.value === "" ? 0 : Number(event.target.value),
-                }))
-              }
-            />
-            <p className="text-xs text-muted-foreground">Added to the drive time. Arriving home adds nothing.</p>
-          </div>
-
-
 
           {draft.destStopId && (
             <div className="grid gap-2">
