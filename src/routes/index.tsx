@@ -2724,7 +2724,7 @@ function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
               className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
             >
               Cancel
