@@ -1176,8 +1176,17 @@ function Index() {
 
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
-  const activeDestStopName = inbound ? setup.destReturnStopName || setup.destStopName : setup.destStopName;
-  const rawWalkM = inbound ? (setup.destReturnWalkM ?? setup.destStopWalkM) : setup.destStopWalkM;
+  const plannedInboundAccess = inbound && best?.legs[0]?.kind === "access" ? best.legs[0] : null;
+  // The return banner must describe the chosen itinerary, not the stop saved during setup.
+  const activeDestStopName = inbound
+    ? plannedInboundAccess?.mode === "bus"
+      ? plannedInboundAccess.from
+      : null
+    : setup.destStopName;
+  const plannedInboundWalkM = plannedInboundAccess?.mode === "bus" && plannedInboundAccess.depart_seconds !== null && best
+    ? Math.max(0, plannedInboundAccess.depart_seconds - best.leave_by_seconds) / 60 * 80.47
+    : null;
+  const rawWalkM = inbound ? plannedInboundWalkM : setup.destStopWalkM;
   const activeDestWalkM = typeof rawWalkM === "number" ? rawWalkM : null;
 
   const timeline = useMemo(() => {
@@ -1771,7 +1780,7 @@ function Index() {
               <p className="mt-1 text-sm text-muted-foreground">{railRange.low}–{railRange.high} min, worst case first</p>
             )}
             {best ? (
-              <RailTripBreakdown option={best} liveBus={liveBus} liveBusRefreshing={liveBusRefreshing} />
+               <RailTripBreakdown option={best} inbound={inbound} liveBus={liveBus} liveBusRefreshing={liveBusRefreshing} />
             ) : (
               <p className="mt-7 text-sm text-muted-foreground">{optionsLoading ? "Building your trip…" : "No rail trip available."}</p>
             )}
@@ -2013,10 +2022,12 @@ function Index() {
 
 function RailTripBreakdown({
   option,
+  inbound,
   liveBus,
   liveBusRefreshing,
 }: {
   option: Option;
+  inbound: boolean;
   liveBus: BusArrivalsResult | undefined;
   liveBusRefreshing: boolean;
 }) {
@@ -2039,17 +2050,22 @@ function RailTripBreakdown({
           ? Math.max(0, Math.round((leg.depart_seconds - previous.arrive_seconds) / 60))
           : 0;
         const legMinutes = duration(leg);
+        const stationName = stationLabel(leg.to);
         const label = leg.kind === "access"
-          ? "To the station"
+          ? stationName ? `To ${stationName} Station` : "To the station"
           : leg.kind === "rail"
             ? "Skyline"
             : leg.kind === "connect"
-              ? "Transfer & bus"
-              : "Final walk";
-        const arrivalLabel = leg.kind === "access"
-          ? "platform"
-          : leg.kind === "egress"
-            ? "destination"
+              ? "Connecting bus"
+              : leg.mode === "bus"
+                ? inbound ? "Bus home" : "Connecting bus"
+                : leg.mode === "drive"
+                  ? inbound ? "Drive home" : "Drive"
+                  : inbound ? "Walk home" : "Final walk";
+        const arrivalLabel = leg.kind === "egress"
+          ? inbound ? "home" : "destination"
+          : leg.kind === "access"
+            ? `${stationName || titleCase(leg.to) || "station"} Station platform`
             : titleCase(leg.to);
         const liveArrival = leg.mode === "bus"
           ? matchLiveArrival(liveBus, leg.route_short, leg.headsign, leg.depart_seconds)
@@ -2085,8 +2101,10 @@ function RailTripBreakdown({
                 </div>
               ) : (
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {leg.kind === "rail" ? `Departs ${clockFromSeconds(leg.depart_seconds)} · ` : ""}
-                  {leg.kind === "access" ? `Arrive at platform ${clockFromSeconds(leg.arrive_seconds)}` : `Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}
+                  {leg.kind === "rail"
+                    ? `Departs ${stationLabel(leg.from) || titleCase(leg.from) || "station"} Station ${clockFromSeconds(leg.depart_seconds)} · `
+                    : ""}
+                  {`Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}
                 </p>
               )}
             </div>
