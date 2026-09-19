@@ -325,7 +325,26 @@ function Index() {
   return (
     <main className="min-h-dvh bg-background px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
       <div className="mx-auto flex w-full max-w-[440px] flex-col">
-        <header className="flex min-h-11 items-center justify-between">
+        <div role="tablist" aria-label="Trip direction" className="grid grid-cols-2 gap-1 rounded-full bg-surface-raised p-1">
+          {[
+            { label: "To destination", value: false },
+            { label: "To home", value: true },
+          ].map((tab) => (
+            <button
+              key={tab.label}
+              role="tab"
+              aria-selected={inbound === tab.value}
+              onClick={() => chooseDirection(tab.value)}
+              className={`min-h-11 rounded-full text-sm font-semibold transition-colors ${
+                inbound === tab.value ? "bg-recommended text-recommended-foreground" : "text-muted-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <header className="mt-5 flex min-h-11 items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase text-muted-foreground">
               {inbound ? "Heading home" : "Heading out"}
@@ -342,28 +361,6 @@ function Index() {
             <Settings className="size-5" />
           </Button>
         </header>
-
-        <div role="tablist" aria-label="Trip direction" className="mt-5 grid grid-cols-2 rounded-full bg-surface-raised p-1">
-          {[
-            { label: "To destination", value: false },
-            { label: "To home", value: true },
-          ].map((tab) => (
-            <button
-              key={tab.label}
-              role="tab"
-              aria-selected={inbound === tab.value}
-              onClick={() => {
-                setDirectionTouched(true);
-                setInbound(tab.value);
-              }}
-              className={`min-h-10 rounded-full text-sm font-medium transition-colors ${
-                inbound === tab.value ? "bg-recommended text-recommended-foreground" : "text-muted-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
 
         <section className="py-10" aria-labelledby="verdict-title">
           <div className="mb-5 flex items-center gap-2 text-recommended">
