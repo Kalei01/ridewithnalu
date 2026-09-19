@@ -1193,6 +1193,9 @@ function Index() {
                 );
               })}
             </ol>
+            <Button onClick={() => startTrip(best)} className="h-12 w-full rounded-full text-base shadow-none">
+              I'm on my way
+            </Button>
           </section>
         )}
 
