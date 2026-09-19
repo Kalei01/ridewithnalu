@@ -171,24 +171,102 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
           },
         );
 
-        const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const filters = STOP_NAME_FILTERS.map(normalize);
-        const relevantStops = stops.filter((stop) => {
-          if (STOP_ID_FILTERS.includes(stop["stop_id"] ?? "")) return true;
-          const name = normalize(stop["stop_name"] ?? "");
-          return filters.some((filter) => name.includes(filter));
-        });
-        const relevantStopIds = new Set(relevantStops.map((stop) => stop["stop_id"]!));
+        // Skyline rail is route_type 1 inside TheBus feed.
+        const railRouteIds = new Set(
+          [...routes.values()]
+            .filter((route) => num(route["route_type"]) === 1)
+            .map((route) => route["route_id"]!),
+        );
+        const railTripIds = new Set(
+          [...trips.values()]
+            .filter((trip) => railRouteIds.has(trip["route_id"] ?? ""))
+            .map((trip) => trip["trip_id"]!),
+        );
 
-        // Pass 2: stop_times, filtered to relevant stops only.
+        // Pass 2: find which stops rail trips actually serve.
+        const railStopIds = new Set<string>();
+        await streamZip(buffer, new Set(["stop_times.txt"]), (_file, row) => {
+          if (railTripIds.has(row["trip_id"] ?? "")) railStopIds.add(row["stop_id"]!);
+        });
+
+        // Target stops = rail stops + everything within walking distance of one,
+        // which pulls in the connecting bus routes at those stations.
+        const coords = stops
+          .map((stop) => ({
+            id: stop["stop_id"]!,
+            lat: num(stop["stop_lat"]),
+            lon: num(stop["stop_lon"]),
+          }))
+          .filter((stop) => stop.lat !== null && stop.lon !== null) as Array<{
+          id: string;
+          lat: number;
+          lon: number;
+        }>;
+        const railCoords = coords.filter((stop) => railStopIds.has(stop.id));
+        const targetStopIds = new Set(railStopIds);
+        for (const stop of coords) {
+          if (targetStopIds.has(stop.id)) continue;
+          if (
+            railCoords.some(
+              (station) =>
+                distanceMeters(stop.lat, stop.lon, station.lat, station.lon) <=
+                RAIL_WALK_RADIUS_M,
+            )
+          ) {
+            targetStopIds.add(stop.id);
+          }
+        }
+
+        // Services running in the current calendar window (used only if we must trim).
+        const today = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Pacific/Honolulu",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        })
+          .format(new Date())
+          .replace(/-/g, "");
+        const activeServiceIds = new Set(
+          calendar
+            .filter(
+              (row) =>
+                (row["start_date"] ?? "") <= today && (row["end_date"] ?? "") >= today,
+            )
+            .map((row) => row["service_id"]!),
+        );
+        for (const row of calendarDates) {
+          if (row["date"] === today && num(row["exception_type"]) === 1) {
+            activeServiceIds.add(row["service_id"]!);
+          }
+        }
+        const activeTripIds = new Set(
+          [...trips.values()]
+            .filter((trip) => activeServiceIds.has(trip["service_id"] ?? ""))
+            .map((trip) => trip["trip_id"]!),
+        );
+
+        // Pass 3: count first so we can decide whether trimming is needed,
+        // without holding an oversized array in memory.
+        let candidateRows = 0;
+        let activeRows = 0;
+        await streamZip(buffer, new Set(["stop_times.txt"]), (_file, row) => {
+          if (!targetStopIds.has(row["stop_id"] ?? "")) return;
+          candidateRows += 1;
+          if (activeTripIds.has(row["trip_id"] ?? "")) activeRows += 1;
+        });
+        const trimToActive = candidateRows > STOP_TIMES_SOFT_CAP;
+
+        // Pass 4: collect the stop_times we keep.
         const stopTimes: Array<Record<string, unknown>> = [];
         const usedTripIds = new Set<string>();
         await streamZip(buffer, new Set(["stop_times.txt"]), (_file, row) => {
           const stopId = row["stop_id"] ?? "";
-          if (!relevantStopIds.has(stopId)) return;
-          usedTripIds.add(row["trip_id"]!);
+          const tripId = row["trip_id"] ?? "";
+          if (!targetStopIds.has(stopId)) return;
+          if (trimToActive && !activeTripIds.has(tripId)) return;
+          usedTripIds.add(tripId);
           stopTimes.push({
-            trip_id: row["trip_id"],
+            trip_id: tripId,
             stop_id: stopId,
             arrival_time: row["arrival_time"] || null,
             departure_time: row["departure_time"] || null,
@@ -199,8 +277,8 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
         const relevantTrips = [...usedTripIds]
           .map((id) => trips.get(id))
           .filter((trip): trip is Row => Boolean(trip));
-        const usedRouteIds = new Set(relevantTrips.map((trip) => trip["route_id"]!));
         const usedServiceIds = new Set(relevantTrips.map((trip) => trip["service_id"]!));
+
 
         const upsert = async (
           table: "stops" | "routes" | "trips" | "stop_times" | "calendar" | "calendar_dates",
