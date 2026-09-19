@@ -6,7 +6,7 @@ import { Bus, Car, Check, ChevronRight, Footprints, LocateFixed, RefreshCw, Sett
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
-import { driveTime, type DriveIncident } from "@/lib/drive.functions";
+import { driveTime, type DriveIncident, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
 import { Button } from "@/components/ui/button";
@@ -448,6 +448,70 @@ function modeIcon(mode: Leg["mode"]) {
 /** Names the road when TomTom gives one, so the banner always says where. */
 function incidentText(incident: DriveIncident) {
   return incident.road ? `${incident.description} on ${incident.road}` : `${incident.description} on your route`;
+}
+
+function trafficStatus(delayMinutes: number) {
+  const delay = Math.max(0, Math.round(delayMinutes));
+  if (delay === 0) return { label: "Clear", className: "text-primary" };
+  if (delay > 20) return { label: `${delay} min slower than usual`, className: "text-destructive" };
+  if (delay >= 10) return { label: `${delay} min slower than usual`, className: "text-chart-4" };
+  return { label: `${delay} min slower than usual`, className: "text-foreground" };
+}
+
+function H1ConditionsCard({
+  eastbound,
+  westbound,
+  loading,
+  unavailable,
+  weatherLine,
+}: {
+  eastbound?: DriveTime;
+  westbound?: DriveTime;
+  loading: boolean;
+  unavailable: boolean;
+  weatherLine?: WeatherLine | null;
+}) {
+  return (
+    <section className="verdict-lift mt-7 rounded-lg border border-border p-5" aria-labelledby="h1-conditions-title">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="h1-conditions-title" className="text-lg font-semibold">H-1 conditions</h2>
+        <span className="shrink-0 text-[10px] text-muted-foreground">TomTom</span>
+      </div>
+      {loading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
+      {unavailable && <p className="mt-4 text-sm text-muted-foreground">Traffic data unavailable</p>}
+      {!loading && !unavailable && eastbound && westbound && (
+        <div className="mt-3 divide-y divide-border">
+          {[
+            { label: "H-1 Eastbound (toward town)", data: eastbound },
+            { label: "H-1 Westbound (toward Kapolei)", data: westbound },
+          ].map((item) => {
+            const status = trafficStatus(item.data.delayMinutes);
+            const incident = item.data.incidents[0];
+            return (
+              <div key={item.label} className="py-3">
+                <div className="flex min-h-8 items-center justify-between gap-4">
+                  <span className="text-sm text-foreground">{item.label}</span>
+                  <span className={`shrink-0 text-right text-sm font-semibold tabular-nums ${status.className}`}>{status.label}</span>
+                </div>
+                {incident && (
+                  <p className="mt-2 rounded-lg bg-surface-raised px-3 py-2 text-xs text-muted-foreground">
+                    {incidentText(incident)}
+                    {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {weatherLine && (
+        <p className={`mt-4 text-xs ${TONE_CLASS[weatherLine.tone]}`}>
+          {weatherLine.text}
+          <span className="ml-1 text-[10px] text-muted-foreground">{weatherLine.source}</span>
+        </p>
+      )}
+    </section>
+  );
 }
 
 function Index() {
