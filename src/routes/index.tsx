@@ -276,6 +276,33 @@ function Index() {
     window.localStorage.setItem(BROWSE_STATION_KEY, JSON.stringify(next));
   }
 
+  // Older saved trips only stored one stop; fill in the directional pair once.
+  useEffect(() => {
+    if (!hydrated || !setup.destLat || !setup.destLon || setup.destReturnStopId) return;
+    let cancelled = false;
+    (async () => {
+      const [arriving, boarding] = await Promise.all([
+        supabase.rpc("directional_dest_stop", { p_lat: setup.destLat!, p_lon: setup.destLon!, p_toward_rail: false }),
+        supabase.rpc("directional_dest_stop", { p_lat: setup.destLat!, p_lon: setup.destLon!, p_toward_rail: true }),
+      ]);
+      const out = arriving.data?.[0];
+      const back = boarding.data?.[0];
+      if (cancelled || !back) return;
+      setSetup((current) => ({
+        ...current,
+        destStopId: out?.stop_id ?? current.destStopId,
+        destStopName: out?.stop_name ?? current.destStopName,
+        destStopWalkM: out ? Number(out.distance_m) : current.destStopWalkM,
+        destReturnStopId: back.stop_id,
+        destReturnStopName: back.stop_name ?? "",
+        destReturnWalkM: Number(back.distance_m),
+      }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, setup.destLat, setup.destLon, setup.destReturnStopId]);
+
   // Dismissed setup still works: use location only to choose the closest rail station.
   useEffect(() => {
     if (!browseActive || onboardingOpen || browseStation || browseLocationDenied) return;
