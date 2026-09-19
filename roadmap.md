@@ -89,3 +89,4 @@
 - [x] Single inline setup action between traffic conditions and nearest-station departures
 - [x] Location-derived station with a data-derived West Oahu estimate and selector when location is unavailable
 - [x] Three rail-only departures per physical direction, Honolulu time, compact countdown formatting, and no scheduled labels
+- [x] Beginner-friendly train headings, data-derived line endpoints and ride times, plus H-1-aware Skyline context
