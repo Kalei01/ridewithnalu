@@ -727,7 +727,9 @@ function Index() {
   const longWait = waitForTrain !== null && waitForTrain > LONG_WAIT_MIN;
 
   const usableDrive = driveAvailable && driveMinutes !== null;
-  const gap = railMinutes !== null && driveMinutes !== null ? driveMinutes - railMinutes : null;
+  // Compare worst case against worst case: the same figures headlining each column.
+  const railWorst = railRange ? railRange.high : null;
+  const gap = railWorst !== null && driveMinutes !== null ? driveMinutes - railWorst : null;
   const verdict: "rail" | "drive" | "same" | "none" =
     railMinutes === null && !usableDrive
       ? "none"
