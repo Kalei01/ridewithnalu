@@ -1523,7 +1523,8 @@ function Index() {
 
         <header className="mt-5 flex min-h-11 items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground">
+            <p className="text-lg font-light tracking-wide text-foreground">Nalu</p>
+            <p className="mt-0.5 text-xs font-semibold uppercase text-muted-foreground">
               {inbound ? "Heading home" : "Heading out"}
             </p>
             <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
