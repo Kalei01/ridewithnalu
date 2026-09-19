@@ -36,7 +36,7 @@ export type WeatherResult = {
   air: AirQuality | null;
 };
 
-const USER_AGENT = "(KineApp/1.0, kine-commute@lovable.app)";
+const USER_AGENT = "(NaluApp/1.0, nalu-commute@lovable.app)";
 const FORECAST_TTL_MS = 20 * 60_000;
 const AIR_TTL_MS = 60 * 60_000;
 
