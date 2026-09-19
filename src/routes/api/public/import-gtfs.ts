@@ -4,36 +4,32 @@ import { Unzip, AsyncUnzipInflate } from "fflate";
 const GTFS_URL = "https://www.thebus.org/transitdata/production/google_transit.zip";
 
 /**
- * Configurable allow-list. Only stops whose stop_name matches one of these
- * (case-insensitive substring) are imported, together with the stop_times that
- * serve them. This keeps the dataset far below free-tier storage limits.
- * Skyline rail is inside TheBus feed as route_type 1.
+ * Every stop and route in the feed is imported. stop_times is limited to the
+ * stops that matter for a rail-vs-drive answer: stops served by Skyline rail
+ * (route_type 1) plus any stop within RAIL_WALK_RADIUS_M of a rail station,
+ * which is how connecting bus routes get included.
  */
-const STOP_NAME_FILTERS = [
-  "East Kapolei",
-  "Kualakai",
-  "UH West Oahu",
-  "Keoneae",
-  "Hoopili",
-  "Honouliuli",
-  "West Loch",
-  "Hoaeae",
-  "Waipahu Transit Center",
-  "Pouhala",
-  "Leeward Community College",
-  "Halaulani",
-  "Pearl Highlands",
-  "Waiawa",
-  "Halawa",
-  "Aloha Stadium",
-  "Middle Street",
-  "Kalihi",
-  "Alapai Transit Center",
-  "Downtown",
-];
+const RAIL_WALK_RADIUS_M = 400;
 
-/** Optional explicit stop_id allow-list; when non-empty it is added to the name matches. */
-const STOP_ID_FILTERS: string[] = [];
+/** Above this many stop_times rows, trips outside the current service window are dropped. */
+const STOP_TIMES_SOFT_CAP = 600_000;
+
+/** Metres between two coordinates (haversine). */
+function distanceMeters(
+  latA: number,
+  lonA: number,
+  latB: number,
+  lonB: number,
+): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(latB - latA);
+  const dLon = toRad(lonB - lonA);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(latA)) * Math.cos(toRad(latB)) * Math.sin(dLon / 2) ** 2;
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 
 type Row = Record<string, string>;
 
