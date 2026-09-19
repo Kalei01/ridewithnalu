@@ -2685,20 +2685,8 @@ function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   }
 
   return (
-    <div className="mt-3">
-      {!open ? (
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(true);
-            setSent(false);
-            setFailed(false);
-          }}
-          className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-        >
-          Send feedback
-        </button>
-      ) : (
+    <div className={open ? "mt-3" : ""}>
+      {open && (
         <div className="grid gap-3 rounded-lg bg-surface-raised p-4">
           <div className="grid gap-1.5">
             <Label htmlFor="feedback-message">What happened?</Label>
