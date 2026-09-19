@@ -10,3 +10,11 @@
 - [ ] Data API batch upserts are too slow for 1.4M rows in one scheduled run; the weekly job needs a faster load path before it can refresh the full set
 
 - [ ] Realtime delays (paused at user's request — no realtime code in the app)
+
+## Setup, trip chaining, timeline (done)
+- [x] First-open setup: browser location -> nearest rail station (data-derived), rail station dropdown from `rail_stations()`
+- [x] Work address geocoded once via TomTom through server fn `geocodeAddress` (TOMTOM_API_KEY is a backend secret); coords + nearest stop saved to localStorage
+- [x] `plan_rail_chains` RPC: rail leg -> data-derived transfer station -> connecting bus to destination stop, 4 min buffer, fastest chain per departure (~0.7s)
+- [x] Manual fallback: connecting route picker from `routes_serving_stop(dest)` in settings
+- [x] Vertical timeline naming each vehicle (Skyline + headsign, Route X to Y)
+- No hardcoded station names, transfer points, hours, or route numbers anywhere in the app
