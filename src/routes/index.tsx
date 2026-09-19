@@ -6,6 +6,7 @@ import { Bus, Car, Check, Footprints, LocateFixed, RefreshCw, Settings, TrainFro
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
+import { driveTime } from "@/lib/drive.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
