@@ -1234,7 +1234,7 @@ function Index() {
       const lines: WeatherLine[] = [];
       const rain = rainLine(moment, reading);
       if (rain) lines.push({ text: rain, tone: "rain" });
-      const heat = heatLine(reading);
+      const heat = heatLine(moment, reading);
       if (heat) lines.push(heat);
       if (airMoment && moment.id === airMoment.id) {
         const air = airLine(weather.air?.category ?? 0);
