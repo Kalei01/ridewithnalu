@@ -120,6 +120,13 @@
       "when": 1789848787144,
       "tag": "0016_plan_outbound_multi_dest_stops",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789848945087,
+      "tag": "0017_plan_outbound_multi_dest_fast",
+      "breakpoints": true
     }
   ]
 }
