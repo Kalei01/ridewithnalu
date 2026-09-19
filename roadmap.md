@@ -50,7 +50,7 @@
 - [x] `driveTime` server function (`src/lib/drive.functions.ts`): TomTom routing with traffic + no-traffic times, traffic incidents in a padded bounding box, 3-minute cache, key stays server-side
 - [x] Drive is queried for the current direction (outbound: home → destination, return: destination → home) and refetched every 3 minutes
 - [x] Car tracking (`kine-parked-v1`): home / station / destination; driving offered only when the car is where the trip starts, otherwise a plain reason is shown ("Your car is at …")
-- [x] Verdict: rail total + 3 min buffer vs drive with traffic + configurable parking buffer (8 min arriving at destination, 0 arriving home); under 5 min gap = "About the same"; long wait (>25 min) + car available = drive
+- [x] Verdict: rail total + 3 min buffer vs TomTom drive time only; under 5 min gap = "About the same"; long wait (>25 min) + car available = drive
 - [x] Ranges instead of single numbers, worst case emphasised (drive: no-traffic → traffic; rail: transfer slip)
 - [x] Reasoning line names the bottleneck (incident, long wait, worst connection wait, traffic delay)
 - [x] Rail fare and parking cost fields in settings, shown beside each column, not folded into the verdict
