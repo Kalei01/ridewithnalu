@@ -488,7 +488,7 @@ function Index() {
       const { data, error } = await supabase.rpc("rail_departures", {
         p_home_stop: browseStation?.stopId as string,
         p_after_seconds: afterSeconds,
-        p_limit: 4,
+        p_limit: 3,
       });
       if (error) throw error;
       return (data ?? []) as BrowseDeparture[];
