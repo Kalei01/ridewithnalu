@@ -127,16 +127,33 @@ function Index() {
         p_limit: 4,
       });
       if (error) throw error;
-      return (data ?? []).map((row) => ({
-        time: formatDepartureTime(row.departure_time ?? ""),
-        away: minutesAway(row.departure_time ?? "", new Date()),
-        headsign: row.trip_headsign ?? "",
-      }));
+      const now = new Date();
+      return (data ?? []).map((row) => {
+        const scheduled = row.departure_time ?? "";
+        const fetchedAt = row.realtime_fetched_at ? new Date(row.realtime_fetched_at) : null;
+        const fresh = Boolean(
+          fetchedAt && now.getTime() - fetchedAt.getTime() < REALTIME_MAX_AGE_MS,
+        );
+        const delaySeconds = fresh ? row.delay_seconds ?? 0 : 0;
+        const live = fresh && delaySeconds > DELAY_THRESHOLD_SECONDS;
+        return {
+          time: formatDepartureTime(scheduled),
+          liveTime: live ? formatDepartureTime(shiftTime(scheduled, delaySeconds)) : null,
+          away: minutesAway(live ? shiftTime(scheduled, delaySeconds) : scheduled, now),
+          delayMinutes: Math.round(delaySeconds / 60),
+          isLive: fresh,
+          headsign: row.trip_headsign ?? "",
+        };
+      });
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 
   const nextDeparture = departures[0];
+  const realtimeActive = departures.some((departure) => departure.isLive);
+
+
 
 
   function refresh() {
