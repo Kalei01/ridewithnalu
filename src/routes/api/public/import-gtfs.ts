@@ -360,8 +360,17 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
           stop_times: await upsert("stop_times", stopTimes, "trip_id,stop_sequence"),
         };
 
-        console.log("import-gtfs rows landed:", counts);
-        return Response.json({ success: true, counts });
+        const summary = {
+          ...counts,
+          rail_stops: railStopIds.size,
+          target_stops: targetStopIds.size,
+          candidate_stop_times: candidateRows,
+          active_stop_times: activeRows,
+          trimmed_to_active_services: trimToActive,
+        };
+        console.log("import-gtfs rows landed:", summary);
+        return Response.json({ success: true, counts: summary });
+
       },
     },
   },
