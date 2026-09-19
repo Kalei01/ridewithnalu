@@ -1317,6 +1317,69 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="fare">Rail fare</Label>
+              <Input
+                id="fare"
+                type="number"
+                inputMode="decimal"
+                step="0.25"
+                min="0"
+                className="h-12 bg-surface-raised"
+                value={draft.railFare ?? ""}
+                placeholder="3.00"
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    railFare: event.target.value === "" ? null : Number(event.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="parking-cost">Parking cost</Label>
+              <Input
+                id="parking-cost"
+                type="number"
+                inputMode="decimal"
+                step="0.25"
+                min="0"
+                className="h-12 bg-surface-raised"
+                value={draft.parkingCost ?? ""}
+                placeholder="15.00"
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    parkingCost: event.target.value === "" ? null : Number(event.target.value),
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="parking-buffer">Minutes to park at your destination</Label>
+            <Input
+              id="parking-buffer"
+              type="number"
+              inputMode="numeric"
+              min="0"
+              max="60"
+              className="h-12 bg-surface-raised"
+              value={draft.parkingBufferMinutes}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  parkingBufferMinutes: event.target.value === "" ? 0 : Number(event.target.value),
+                }))
+              }
+            />
+            <p className="text-xs text-muted-foreground">Added to the drive time. Arriving home adds nothing.</p>
+          </div>
+
+
+
           {draft.destStopId && (
             <div className="grid gap-2">
               <Label>Connecting route</Label>
