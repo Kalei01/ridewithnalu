@@ -43,6 +43,13 @@
       "when": 1789820052780,
       "tag": "0005_speed_up_plan_rail_chains",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789820090956,
+      "tag": "0006_plan_rail_chains_materialized_ctes",
+      "breakpoints": true
     }
   ]
 }
