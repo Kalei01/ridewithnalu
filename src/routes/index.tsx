@@ -230,10 +230,45 @@ function clockFromSeconds(seconds: number | null | undefined) {
   return `${hour12}:${String(minutes).padStart(2, "0")} ${suffix}`;
 }
 
+/**
+ * Title case that respects the 'okina: a letter after ' or ʻ stays lowercase,
+ * so KUALAKA'I reads Kualaka'i and never Kualaka'I.
+ */
 function titleCase(value: string | null | undefined) {
   if (!value) return "";
-  return value.toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
+  return value
+    .toLowerCase()
+    .replace(/(^|[\s\-/&(.])([a-z\u02bb\u2018'])/g, (_match, lead: string, letter: string) => lead + letter.toUpperCase())
+    .replace(/([\u02bb\u2018'])([A-Z])/g, (_match, mark: string, letter: string) => mark + letter.toLowerCase());
 }
+
+/** GTFS ships abbreviations; spell them out for reading, database untouched. */
+const ABBREVIATIONS: Array<[RegExp, string]> = [
+  [/\bTRN\s+CTR\b/gi, "Transit Center"],
+  [/\bTRANSIT\s+CTR\b/gi, "Transit Center"],
+  [/\bCOMM\s+COLL\b/gi, "Community College"],
+  [/\bHWY\b/gi, "Highway"],
+  [/\bSTN\b/gi, "Station"],
+  [/\bINTL\b/gi, "International"],
+  [/\bOPP\b/gi, "Opposite"],
+  [/\bJCT\b/gi, "Junction"],
+  [/\bCTR\b/gi, "Center"],
+  [/\bPK\b/gi, "Park"],
+];
+
+function expandName(value: string | null | undefined) {
+  if (!value) return "";
+  let out = value;
+  for (const [pattern, replacement] of ABBREVIATIONS) out = out.replace(pattern, replacement);
+  return out;
+}
+
+/** Rail names on the Skyline screen: expanded, with the redundant suffix gone. */
+function stationLabel(value: string | null | undefined) {
+  const expanded = expandName(value).replace(/\s*\bSkyline\b\s*(Station)?\s*$/i, "").replace(/\s*\bStation\b\s*$/i, "");
+  return titleCase(expanded.trim() || expandName(value));
+}
+
 
 /** US customary distance: feet under 0.1 miles, otherwise miles to one decimal. */
 function formatDistance(meters: number) {
