@@ -131,6 +131,9 @@ const emptySetup: Setup = {
   destReturnWalkM: null,
   allowDrive: false,
   busRouteId: null,
+  parkingCost: null,
+  railFare: null,
+  parkingBufferMinutes: 8,
 };
 
 function honoluluParts(date: Date) {
