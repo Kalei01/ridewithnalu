@@ -185,5 +185,5 @@
 }
 
 @utility departures-fade {
-  mask-image: linear-gradient(to bottom, black 0%, black 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), rgb(0 0 0 / 0.55) 100%);
 }
