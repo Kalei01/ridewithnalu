@@ -465,8 +465,8 @@ function H1ConditionsCard({
   unavailable,
   weatherLine,
 }: {
-  eastbound?: DriveTime;
-  westbound?: DriveTime;
+  eastbound: DriveTime | undefined;
+  westbound: DriveTime | undefined;
   loading: boolean;
   unavailable: boolean;
   weatherLine?: WeatherLine | null;
@@ -1142,8 +1142,6 @@ function Index() {
               : (gap ?? 0) > 0
                 ? "rail"
                 : "drive";
-  const railWins = verdict === "rail";
-
   // One line naming the single thing that decides it.
   const reasoning = useMemo(() => {
     const incident = drive?.incidents[0];
