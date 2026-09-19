@@ -1,0 +1,147 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+
+const schema = z.object({
+  fromLat: z.number(),
+  fromLon: z.number(),
+  toLat: z.number(),
+  toLon: z.number(),
+});
+
+export type DriveIncident = {
+  description: string;
+  road: string | null;
+  delayMinutes: number | null;
+};
+
+export type DriveTime = {
+  /** Travel time with current traffic, in minutes. */
+  trafficMinutes: number;
+  /** Travel time with no traffic, in minutes: the low end of the range. */
+  freeflowMinutes: number;
+  /** Extra minutes traffic is adding right now. */
+  delayMinutes: number;
+  meters: number;
+  incidents: DriveIncident[];
+  fetchedAt: number;
+};
+
+const CACHE_MS = 3 * 60_000;
+const cache = new Map<string, DriveTime>();
+
+function round(value: number) {
+  // ~10 m precision keeps the cache useful while the phone's GPS jitters.
+  return Math.round(value * 10000) / 10000;
+}
+
+/** Live driving time with traffic plus any incident on the route, via TomTom. */
+export const driveTime = createServerFn({ method: "POST" })
+  .inputValidator((input) => schema.parse(input))
+  .handler(async ({ data }): Promise<DriveTime> => {
+    const key = process.env["TOMTOM_API_KEY"];
+    if (!key) throw new Error("Drive times are not configured yet.");
+
+    const from = `${round(data.fromLat)},${round(data.fromLon)}`;
+    const to = `${round(data.toLat)},${round(data.toLon)}`;
+    const cacheKey = `${from}:${to}`;
+    const cached = cache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < CACHE_MS) return cached;
+
+    const routeUrl =
+      `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
+      `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all`;
+
+    const response = await fetch(routeUrl);
+    if (!response.ok) {
+      const body = await response.text();
+      console.error(`TomTom routing failed [${response.status}]: ${body}`);
+      throw new Error(`Drive time lookup failed (${response.status}).`);
+    }
+
+    const payload = (await response.json()) as {
+      routes?: Array<{
+        summary?: {
+          lengthInMeters?: number;
+          travelTimeInSeconds?: number;
+          noTrafficTravelTimeInSeconds?: number;
+          liveTrafficIncidentsTravelTimeInSeconds?: number;
+          trafficDelayInSeconds?: number;
+        };
+      }>;
+    };
+    const summary = payload.routes?.[0]?.summary;
+    if (!summary?.travelTimeInSeconds) throw new Error("No driving route was found.");
+
+    const trafficSeconds =
+      summary.liveTrafficIncidentsTravelTimeInSeconds ?? summary.travelTimeInSeconds;
+    const freeflowSeconds = summary.noTrafficTravelTimeInSeconds ?? summary.travelTimeInSeconds;
+
+    const incidents = await fetchIncidents(key, data);
+
+    const result: DriveTime = {
+      trafficMinutes: Math.round(trafficSeconds / 60),
+      freeflowMinutes: Math.round(Math.min(freeflowSeconds, trafficSeconds) / 60),
+      delayMinutes: Math.round((summary.trafficDelayInSeconds ?? 0) / 60),
+      meters: summary.lengthInMeters ?? 0,
+      incidents,
+      fetchedAt: Date.now(),
+    };
+    cache.set(cacheKey, result);
+    return result;
+  });
+
+/** Active incidents inside a slightly padded box around the two points. */
+async function fetchIncidents(
+  key: string,
+  points: { fromLat: number; fromLon: number; toLat: number; toLon: number },
+): Promise<DriveIncident[]> {
+  const pad = 0.03;
+  const minLat = Math.min(points.fromLat, points.toLat) - pad;
+  const maxLat = Math.max(points.fromLat, points.toLat) + pad;
+  const minLon = Math.min(points.fromLon, points.toLon) - pad;
+  const maxLon = Math.max(points.fromLon, points.toLon) + pad;
+
+  const fields =
+    "{incidents{properties{iconCategory,magnitudeOfDelay,delay,roadNumbers,events{description}}}}";
+  const url =
+    `https://api.tomtom.com/traffic/services/5/incidentDetails` +
+    `?key=${key}&bbox=${minLon},${minLat},${maxLon},${maxLat}` +
+    `&fields=${encodeURIComponent(fields)}&language=en-GB&timeValidityFilter=present`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`TomTom incidents failed [${response.status}]: ${await response.text()}`);
+      return [];
+    }
+    const payload = (await response.json()) as {
+      incidents?: Array<{
+        properties?: {
+          magnitudeOfDelay?: number;
+          delay?: number;
+          roadNumbers?: string[];
+          events?: Array<{ description?: string }>;
+        };
+      }>;
+    };
+    const out: DriveIncident[] = [];
+    for (const incident of payload.incidents ?? []) {
+      const description = incident.properties?.events?.[0]?.description;
+      if (!description) continue;
+      // Skip trivial slow-downs; only report what changes the number.
+      if ((incident.properties?.magnitudeOfDelay ?? 0) < 2) continue;
+      const road = incident.properties?.roadNumbers?.[0] ?? null;
+      const delay = incident.properties?.delay;
+      out.push({
+        description,
+        road,
+        delayMinutes: typeof delay === "number" ? Math.round(delay / 60) : null,
+      });
+      if (out.length === 3) break;
+    }
+    return out;
+  } catch (error) {
+    console.error("TomTom incidents error", error);
+    return [];
+  }
+}
