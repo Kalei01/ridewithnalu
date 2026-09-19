@@ -216,6 +216,11 @@ function modeIcon(mode: Leg["mode"]) {
   return Footprints;
 }
 
+/** Names the road when TomTom gives one, so the banner always says where. */
+function incidentText(incident: DriveIncident) {
+  return incident.road ? `${incident.description} on ${incident.road}` : `${incident.description} on your route`;
+}
+
 function Index() {
   const [now, setNow] = useState(() => new Date());
   const [hydrated, setHydrated] = useState(false);
