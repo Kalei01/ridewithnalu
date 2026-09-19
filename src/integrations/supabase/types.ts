@@ -193,14 +193,10 @@ export type Database = {
       next_departures: {
         Args: { p_limit?: number; p_station_query: string }
         Returns: {
-          delay_seconds: number
           departure_time: string
-          realtime_fetched_at: string
           route_short_name: string
-          stop_id: string
           stop_name: string
           trip_headsign: string
-          trip_id: string
         }[]
       }
     }

@@ -5,7 +5,7 @@
 - [x] Add installable app manifest and icons
 - [x] Verify desktop and 390px mobile layouts
 - [x] Import real GTFS schedule data and show live departures
-- [ ] Realtime delays: cache table, realtime proxy, periodic run, delayed-time UI
-- [ ] Realtime feed credential (Swiftly API key) needed from user
-- [ ] Expand import: all stops, all routes, stop_times for Skyline + bus stops within 400m of a station
-- [ ] Trim inactive service_id trips (not stops) if stop_times grows too large; log updated counts
+- [x] Import all stops and all routes
+- [x] Import stop_times for Skyline stops + all stops within 400m of a rail station
+- [x] Trim inactive service_id trips (not stops) if stop_times exceeds the cap; log counts
+- [ ] Realtime delays (paused at user's request — no realtime code in the app)
