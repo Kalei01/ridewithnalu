@@ -111,6 +111,10 @@ function honoluluIsoDow(date: Date) {
   return order.indexOf(weekday) + 1;
 }
 
+function honoluluDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Honolulu", dateStyle: "short" }).format(date);
+}
+
 function clockFromSeconds(seconds: number | null | undefined) {
   if (seconds === null || seconds === undefined) return "—";
   const total = ((seconds % 86400) + 86400) % 86400;
