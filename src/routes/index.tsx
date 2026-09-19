@@ -388,11 +388,11 @@ function Index() {
   const carAwayReason = !setup.allowDrive
     ? "Driving is switched off in your settings."
     : inbound && carPlace === "station"
-      ? `Your car is at ${titleCase(parkedToday?.station === setup.homeStopId ? setup.homeStopName : "your station")}.`
+      ? `Your car is at ${stationLabel(parkedToday?.station === setup.homeStopId ? setup.homeStopName : "your station")}.`
       : inbound && carPlace === "home"
         ? "Your car is at home."
         : !inbound && carPlace === "station"
-          ? `Your car is at ${titleCase(setup.homeStopName)}.`
+          ? `Your car is at ${stationLabel(setup.homeStopName)}.`
           : !inbound && carPlace === "destination"
             ? `Your car is at ${setup.destinationName || "your destination"}.`
             : null;
@@ -1336,8 +1336,8 @@ function Index() {
             </h2>
             <p className="mt-1 truncate text-sm text-muted-foreground">
               {inbound
-                ? `Via ${titleCase(setup.homeStopName)}`
-                : titleCase(setup.homeStopName) || "No station set"}
+                ? `Via ${stationLabel(setup.homeStopName)}`
+                : stationLabel(setup.homeStopName) || "No station set"}
             </p>
           </div>
           <ol className="divide-y divide-border">
@@ -1460,7 +1460,7 @@ function TripProgress({
           <p className="text-3xl font-bold tabular-nums">{clockFromSeconds(railLeg.depart_seconds)}</p>
           <p className="mt-1 text-[15px] font-medium text-foreground">{vehicleName(railLeg)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            From {titleCase(railLeg.from)}
+            From {stationLabel(railLeg.from)}
             {minutesUntil(railLeg.depart_seconds) !== null && minutesUntil(railLeg.depart_seconds)! > 0
               ? ` · in ${minutesUntil(railLeg.depart_seconds)} min`
               : " · now"}
@@ -1473,7 +1473,7 @@ function TripProgress({
           <p className="text-[15px] font-medium text-foreground">{vehicleName(railLeg)}</p>
           <p className="mt-3 text-3xl font-bold tabular-nums">{clockFromSeconds(railLeg.arrive_seconds)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Arrive {titleCase(railLeg.to)}
+            Arrive {stationLabel(railLeg.to)}
             {minutesUntil(railLeg.arrive_seconds) !== null && minutesUntil(railLeg.arrive_seconds)! > 0
               ? ` · ${minutesUntil(railLeg.arrive_seconds)} min to go`
               : ""}
@@ -1635,7 +1635,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
           homeStopName: nearest.stop_name ?? "",
         }));
         setStatus(
-          `Home station near you: ${titleCase(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
+          `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
         );
       },
       () => {
@@ -1740,7 +1740,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               <SelectContent>
                 {stations.map((station) => (
                   <SelectItem key={station.stop_id} value={station.stop_id}>
-                    {titleCase(station.stop_name)}
+                    {stationLabel(station.stop_name)}
                   </SelectItem>
                 ))}
               </SelectContent>
