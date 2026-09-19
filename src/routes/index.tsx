@@ -1371,8 +1371,12 @@ function Index() {
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
           <header className="flex min-h-11 items-start justify-between gap-4">
             <div>
-              <p className="text-lg font-light tracking-wide text-foreground">Nalu</p>
-              <p className="mt-0.5 text-xs font-semibold uppercase text-muted-foreground">Oahu commute conditions</p>
+              <div className="flex items-center gap-1.5">
+                <WaveMark className="h-[15px] w-auto text-recommended" />
+                <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
+              </div>
+              <div className="mt-1.5 h-px bg-border/70" />
+              <p className="mt-1 text-xs font-semibold uppercase text-muted-foreground">Oahu commute conditions</p>
             </div>
             <div className="flex items-center gap-1">
               <p className="text-right text-sm font-medium text-foreground">{timeText}</p>
@@ -1585,8 +1589,12 @@ function Index() {
 
         <header className="mt-5 flex min-h-11 items-center justify-between">
           <div>
-            <p className="text-lg font-light tracking-wide text-foreground">Nalu</p>
-            <p className="mt-0.5 text-xs font-semibold uppercase text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <WaveMark className="h-[15px] w-auto text-recommended" />
+              <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
+            </div>
+            <div className="mt-1.5 h-px bg-border/70" />
+            <p className="mt-1 text-xs font-semibold uppercase text-muted-foreground">
               {inbound ? "Heading home" : "Heading out"}
             </p>
             <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
