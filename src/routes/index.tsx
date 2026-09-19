@@ -253,12 +253,89 @@ function Index() {
   );
 
   const configured = Boolean(setup.homeStopId && setup.destStopId && setup.destLat && setup.homeLat);
+  const browseActive = hydrated && !configured;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
   // The car only helps on the way home if this morning's trip drove to this station.
   const carAtStation = Boolean(
     setup.allowDrive && parked && parked.station === setup.homeStopId && parked.date === honoluluDateKey(now),
   );
+
+  function rememberBrowseStation(next: BrowseStation) {
+    setBrowseStation(next);
+    window.localStorage.setItem(BROWSE_STATION_KEY, JSON.stringify(next));
+  }
+
+  // Dismissed setup still works: use location only to choose the closest rail station.
+  useEffect(() => {
+    if (!browseActive || onboardingOpen || browseStation || browseLocationDenied) return;
+    if (!navigator.geolocation) {
+      setBrowseLocationDenied(true);
+      window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const { data, error } = await supabase.rpc("nearest_stop", { p_lat: lat, p_lon: lon, p_rail_only: true });
+        const nearest = data?.[0];
+        if (error || !nearest) {
+          setBrowseLocationDenied(true);
+          window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
+          return;
+        }
+        rememberBrowseStation({
+          stopId: nearest.stop_id,
+          stopName: nearest.stop_name ?? "",
+          lat,
+          lon,
+        });
+      },
+      () => {
+        setBrowseLocationDenied(true);
+        window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
+      },
+      { timeout: 10_000 },
+    );
+  }, [browseActive, onboardingOpen, browseStation, browseLocationDenied]);
+
+  const { data: browseStations = [] } = useQuery({
+    queryKey: ["browse-rail-stations"],
+    enabled: browseActive,
+    staleTime: 6 * 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rail_stations");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: browseDepartures = [], isLoading: browseDeparturesLoading } = useQuery({
+    queryKey: ["browse-departures", browseStation?.stopId, Math.floor(afterSeconds / 60)],
+    enabled: browseActive && Boolean(browseStation?.stopId),
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rail_departures", {
+        p_home_stop: browseStation?.stopId as string,
+        p_after_seconds: afterSeconds,
+        p_limit: 8,
+      });
+      if (error) throw error;
+      return (data ?? []) as BrowseDeparture[];
+    },
+  });
+
+  const browseDirections = useMemo(() => {
+    const groups = new Map<string, BrowseDeparture[]>();
+    for (const departure of browseDepartures) {
+      const key = departure.trip_headsign || departure.route_long_name || departure.route_id;
+      const group = groups.get(key) ?? [];
+      if (group.length < 4) group.push(departure);
+      groups.set(key, group);
+    }
+    return Array.from(groups.values()).slice(0, 2);
+  }, [browseDepartures]);
 
   const { data: options = [], isLoading: optionsLoading } = useQuery({
     queryKey: [
