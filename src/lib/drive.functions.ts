@@ -68,6 +68,7 @@ export const driveTime = createServerFn({ method: "POST" })
           lengthInMeters?: number;
           travelTimeInSeconds?: number;
           noTrafficTravelTimeInSeconds?: number;
+          historicTrafficTravelTimeInSeconds?: number;
           liveTrafficIncidentsTravelTimeInSeconds?: number;
           trafficDelayInSeconds?: number;
         };
@@ -78,14 +79,23 @@ export const driveTime = createServerFn({ method: "POST" })
 
     const trafficSeconds =
       summary.liveTrafficIncidentsTravelTimeInSeconds ?? summary.travelTimeInSeconds;
-    const freeflowSeconds = summary.noTrafficTravelTimeInSeconds ?? summary.travelTimeInSeconds;
+    // What this road usually takes at this hour. Free-flow is not achievable at
+    // rush hour, so it never becomes the low end of anything shown to a rider.
+    const typicalSeconds = summary.historicTrafficTravelTimeInSeconds ?? trafficSeconds;
 
     const incidents = await fetchIncidents(key, data);
 
+    const trafficMinutes = Math.round(trafficSeconds / 60);
+    const typicalMinutes = Math.round(typicalSeconds / 60);
+    // Variance grows with how far today sits from typical; never pretend certainty.
+    const spread = Math.max(3, Math.round(Math.abs(trafficMinutes - typicalMinutes) * 0.5));
+
     const result: DriveTime = {
-      trafficMinutes: Math.round(trafficSeconds / 60),
-      freeflowMinutes: Math.round(Math.min(freeflowSeconds, trafficSeconds) / 60),
-      delayMinutes: Math.round((summary.trafficDelayInSeconds ?? 0) / 60),
+      trafficMinutes,
+      typicalMinutes,
+      delayMinutes: trafficMinutes - typicalMinutes,
+      lowMinutes: Math.min(typicalMinutes, trafficMinutes),
+      highMinutes: trafficMinutes + spread,
       meters: summary.lengthInMeters ?? 0,
       incidents,
       fetchedAt: Date.now(),
