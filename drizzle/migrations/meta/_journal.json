@@ -176,6 +176,13 @@
       "when": 1789852656409,
       "tag": "0024_rail_departures_add_data_derived_ride_context",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789855731690,
+      "tag": "0025_gtfs_staging_swap_job_tracking",
+      "breakpoints": true
     }
   ]
 }
