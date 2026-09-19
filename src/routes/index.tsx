@@ -232,6 +232,10 @@ function Index() {
   const configured = Boolean(setup.homeStopId && setup.destStopId && setup.destLat && setup.homeLat);
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
+  // The car only helps on the way home if this morning's trip drove to this station.
+  const carAtStation = Boolean(
+    setup.allowDrive && parked && parked.station === setup.homeStopId && parked.date === honoluluDateKey(now),
+  );
 
   const { data: options = [], isLoading: optionsLoading } = useQuery({
     queryKey: [
@@ -241,6 +245,7 @@ function Index() {
       setup.destStopId,
       setup.busRouteId,
       setup.allowDrive,
+      carAtStation,
       Math.floor(afterSeconds / 60),
     ],
     enabled: hydrated && configured,
@@ -253,7 +258,7 @@ function Index() {
           p_station: setup.homeStopId,
           p_home_lat: setup.homeLat as number,
           p_home_lon: setup.homeLon as number,
-          p_allow_drive: setup.allowDrive,
+          p_allow_drive: carAtStation,
           p_after_seconds: afterSeconds,
           p_limit: 4,
         });
