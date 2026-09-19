@@ -422,7 +422,8 @@ function Index() {
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
   const activeDestStopName = inbound ? setup.destReturnStopName || setup.destStopName : setup.destStopName;
-  const activeDestWalkM = inbound ? (setup.destReturnWalkM ?? setup.destStopWalkM) : setup.destStopWalkM;
+  const rawWalkM = inbound ? (setup.destReturnWalkM ?? setup.destStopWalkM) : setup.destStopWalkM;
+  const activeDestWalkM = typeof rawWalkM === "number" ? rawWalkM : null;
 
   const timeline = useMemo(() => {
     if (!best) return [];
