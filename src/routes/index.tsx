@@ -209,14 +209,20 @@ function rainLine(moment: OutdoorMoment, reading: MomentConditions): string | nu
 }
 
 /** Heat and humidity always arrive as a single line, never two. */
-function heatLine(reading: MomentConditions): WeatherLine | null {
+function heatLine(moment: OutdoorMoment, reading: MomentConditions): WeatherLine | null {
+  // Driving is indoors; heat only matters where the rider is standing outside.
+  if (moment.kind === "drive-station" || moment.kind === "drive-route") return null;
   const feels = reading.heatIndexF;
   const humid = (reading.humidityPercent ?? 0) > 75;
   const hot = feels !== null && feels > 88;
   if (hot && humid) {
     return { text: `Hot and humid · feels like ${feels}°F · limit time outdoors`, tone: "heat" };
   }
-  if (hot) return { text: `Hot · feels like ${feels}°F`, tone: "heat" };
+  if (hot) {
+    const where =
+      moment.kind === "wait-feeder" ? "Hot at bus stop" : moment.kind === "platform" ? "Hot on the platform" : "Hot";
+    return { text: `${where} · feels like ${feels}°F`, tone: "heat" };
+  }
   if (humid) {
     return {
       text: feels !== null ? `Humid · feels like ${feels}°F` : "Humid outside right now",
