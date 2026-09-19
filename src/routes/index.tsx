@@ -1390,6 +1390,15 @@ function Index() {
               >
                 <RefreshCw />
               </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Open settings"
+                onClick={() => setSettingsOpen(true)}
+                className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+              >
+                <Settings className="size-5" />
+              </Button>
             </div>
           </header>
 
