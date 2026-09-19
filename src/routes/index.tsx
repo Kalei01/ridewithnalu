@@ -199,9 +199,12 @@ function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const [override, setOverride] = useState<DirectionOverride | null>(null);
   const [parked, setParked] = useState<ParkedCar | null>(null);
+  const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
+  const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
+    const setupDismissed = window.localStorage.getItem(SETUP_DISMISSED_KEY) === "1";
     if (stored) {
       try {
         const saved = { ...emptySetup, ...(JSON.parse(stored) as Partial<Setup>) };
@@ -209,11 +212,13 @@ function Index() {
         setSetup({ ...saved, destinationName: saved.destinationName || saved.destinationAddress });
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
-        setOnboardingOpen(true);
+        if (!setupDismissed) setOnboardingOpen(true);
       }
-    } else {
+    } else if (!setupDismissed) {
       setOnboardingOpen(true);
     }
+    setBrowseStation(readJson<BrowseStation>(BROWSE_STATION_KEY));
+    setBrowseLocationDenied(window.localStorage.getItem(BROWSE_LOCATION_DENIED_KEY) === "1");
     setOverride(readJson<DirectionOverride>(DIRECTION_KEY));
     setParked(readJson<ParkedCar>(PARKED_KEY));
     setHydrated(true);
