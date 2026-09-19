@@ -190,7 +190,9 @@ function Index() {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        setSetup({ ...emptySetup, ...(JSON.parse(stored) as Partial<Setup>) });
+        const saved = { ...emptySetup, ...(JSON.parse(stored) as Partial<Setup>) };
+        // Older saves only kept the address; use it as the display name.
+        setSetup({ ...saved, destinationName: saved.destinationName || saved.destinationAddress });
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
         setOnboardingOpen(true);
