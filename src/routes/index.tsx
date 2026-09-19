@@ -2654,8 +2654,7 @@ function AboutSection() {
 
 const FEEDBACK_ENDPOINT = "https://formspree.io/f/mppwqpaz";
 
-function FeedbackForm() {
-  const [open, setOpen] = useState(false);
+function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [message, setMessage] = useState("");
   const [component, setComponent] = useState("");
   const [email, setEmail] = useState("");
