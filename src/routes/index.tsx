@@ -281,10 +281,31 @@ function Index() {
   const browseActive = hydrated && !configured;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
-  // The car only helps on the way home if this morning's trip drove to this station.
+  // Where today's car is. Yesterday's note is stale, so the car starts at home.
+  const parkedToday = parked && parked.date === honoluluDateKey(now) ? parked : null;
+  const carPlace: CarPlace = parkedToday?.place ?? (parkedToday ? "station" : "home");
   const carAtStation = Boolean(
-    setup.allowDrive && parked && parked.station === setup.homeStopId && parked.date === honoluluDateKey(now),
+    setup.allowDrive && carPlace === "station" && parkedToday?.station === setup.homeStopId,
   );
+  // Driving this direction is only possible if the car is where the trip starts.
+  const driveAvailable = Boolean(setup.allowDrive) && (inbound ? carPlace === "destination" : carPlace === "home");
+  const carAwayReason = !setup.allowDrive
+    ? "Driving is switched off in your settings."
+    : inbound && carPlace === "station"
+      ? `Your car is at ${titleCase(parkedToday?.station === setup.homeStopId ? setup.homeStopName : "your station")}.`
+      : inbound && carPlace === "home"
+        ? "Your car is at home."
+        : !inbound && carPlace === "station"
+          ? `Your car is at ${titleCase(setup.homeStopName)}.`
+          : !inbound && carPlace === "destination"
+            ? `Your car is at ${setup.destinationName || "your destination"}.`
+            : null;
+
+  function setCarPlace(place: CarPlace) {
+    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place };
+    setParked(entry);
+    window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
+  }
 
   function rememberBrowseStation(next: BrowseStation) {
     setBrowseStation(next);
