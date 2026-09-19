@@ -1183,7 +1183,7 @@ function Index() {
       ? plannedInboundAccess.from
       : null
     : setup.destStopName;
-  const plannedInboundWalkM = plannedInboundAccess?.mode === "bus" && plannedInboundAccess.depart_seconds !== null
+  const plannedInboundWalkM = plannedInboundAccess?.mode === "bus" && plannedInboundAccess.depart_seconds !== null && best
     ? Math.max(0, plannedInboundAccess.depart_seconds - best.leave_by_seconds) / 60 * 80.47
     : null;
   const rawWalkM = inbound ? plannedInboundWalkM : setup.destStopWalkM;
