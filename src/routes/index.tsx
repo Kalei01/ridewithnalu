@@ -572,17 +572,12 @@ function Index() {
   const railLeg = trip?.legs.find((leg) => leg.kind === "rail") ?? null;
   const connectLeg = trip?.legs.find((leg) => leg.kind === "connect" || leg.kind === "egress") ?? null;
 
-  function stationPoint(name: string | null | undefined) {
+  function stationPoint(name: string | null | undefined): Coords | null {
     if (!name) return null;
     const wanted = name.trim().toLowerCase();
     const hit = stationCoords.find((station) => (station.stop_name ?? "").trim().toLowerCase() === wanted);
-    return hit ? { lat: Number(station_lat(hit)), lon: Number(station_lon(hit)) } : null;
-  }
-  function station_lat(station: { stop_lat: number | null }) {
-    return station.stop_lat ?? 0;
-  }
-  function station_lon(station: { stop_lon: number | null }) {
-    return station.stop_lon ?? 0;
+    if (!hit || hit.stop_lat === null || hit.stop_lon === null) return null;
+    return { lat: Number(hit.stop_lat), lon: Number(hit.stop_lon) };
   }
 
   const boardPoint = stationPoint(railLeg?.from);
