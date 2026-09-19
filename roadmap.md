@@ -26,3 +26,9 @@
 - [x] Direction toggle (to destination / to home), defaulting by Honolulu time of day; `plan_inbound` plans the return as its own trip
 - [x] `service_hours(stop_id, route_type)` gives real first/last departures per day of week; used to say rail is unavailable instead of recommending it
 - New DB functions: `nearby_stops`, `access_legs`, `egress_legs`, `service_hours`, `plan_outbound`, `plan_inbound` (all data-derived, ~0.5-1.2s)
+
+## US customary units (done)
+- [x] Distances shown as feet under 0.1 mile, else miles to one decimal
+- [x] Walking speed 3 mph (80.47 m/min), 15-min walk limit = 0.75 mile; driving estimate 25 mph
+- [x] Quarter-mile (402 m) stop-to-station proximity, half-mile (805 m) bus boarding radius
+- [x] No temperatures in the app; database values remain metric, conversion happens at display/calculation time

@@ -126,6 +126,13 @@ function titleCase(value: string | null | undefined) {
   return value.toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
 }
 
+/** US customary distance: feet under 0.1 miles, otherwise miles to one decimal. */
+function formatDistance(meters: number) {
+  const miles = meters / 1609.344;
+  if (miles < 0.1) return `${Math.round(meters * 3.28084 / 10) * 10} ft`;
+  return `${miles.toFixed(1)} miles`;
+}
+
 function vehicleName(leg: Leg) {
   if (leg.mode === "rail") {
     const line = titleCase(leg.route_long) || "Skyline";
@@ -586,7 +593,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
           homeStopId: nearest.stop_id,
           homeStopName: nearest.stop_name ?? "",
         }));
-        setStatus(`Nearest station: ${titleCase(nearest.stop_name)} (${Math.round(nearest.distance_m)} m away).`);
+        setStatus(`Nearest station: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
       },
       () => {
         setBusy(false);
@@ -628,7 +635,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
         destStopName: nearest.stop_name ?? "",
         busRouteId: null,
       }));
-      setStatus(`Nearest stop: ${titleCase(nearest.stop_name)} (${Math.round(nearest.distance_m)} m away).`);
+      setStatus(`Nearest stop: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Address lookup failed.");
     } finally {
