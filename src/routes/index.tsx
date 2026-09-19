@@ -1964,6 +1964,92 @@ function Index() {
   );
 }
 
+function RailTripBreakdown({
+  option,
+  liveBus,
+  liveBusRefreshing,
+}: {
+  option: Option;
+  liveBus: BusArrivalsResult | undefined;
+  liveBusRefreshing: boolean;
+}) {
+  const duration = (leg: Leg) =>
+    leg.minutes ?? (leg.depart_seconds !== null && leg.arrive_seconds !== null
+      ? Math.max(0, Math.round((leg.arrive_seconds - leg.depart_seconds) / 60))
+      : null);
+  const access = option.legs.find((leg) => leg.kind === "access") ?? null;
+  const rail = option.legs.find((leg) => leg.kind === "rail") ?? null;
+  const connection = option.legs.find((leg) => leg.kind === "connect") ?? null;
+  const egress = option.legs.find((leg) => leg.kind === "egress") ?? null;
+  const rows = [access, rail, connection, egress].filter((leg): leg is Leg => Boolean(leg));
+
+  return (
+    <ol className="mt-7" aria-label="Rail trip breakdown">
+      {rows.map((leg, index) => {
+        const Icon = modeIcon(leg.mode);
+        const previous = rows[index - 1];
+        const waitMinutes = previous?.arrive_seconds !== null && previous?.arrive_seconds !== undefined && leg.depart_seconds !== null
+          ? Math.max(0, Math.round((leg.depart_seconds - previous.arrive_seconds) / 60))
+          : 0;
+        const legMinutes = duration(leg);
+        const label = leg.kind === "access"
+          ? "To the station"
+          : leg.kind === "rail"
+            ? "Skyline"
+            : leg.kind === "connect"
+              ? "Transfer & bus"
+              : "Final walk";
+        const arrivalLabel = leg.kind === "access"
+          ? "platform"
+          : leg.kind === "egress"
+            ? "destination"
+            : titleCase(leg.to);
+        const liveArrival = leg.mode === "bus"
+          ? matchLiveArrival(liveBus, leg.route_short, leg.headsign, leg.depart_seconds)
+          : null;
+
+        return (
+          <li key={`${leg.kind}-${leg.depart_seconds}-${index}`} className="flex gap-2.5">
+            <span className="flex flex-col items-center pt-0.5">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-muted-foreground">
+                <Icon className="size-3" />
+              </span>
+              {index < rows.length - 1 && <span className="w-px flex-1 bg-border" />}
+            </span>
+            <div className="min-w-0 flex-1 pb-5">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-xs font-bold uppercase text-muted-foreground">{label}</p>
+                {legMinutes !== null && <p className="shrink-0 text-xs font-semibold tabular-nums text-foreground">{legMinutes} min</p>}
+              </div>
+              <p className="mt-1 text-sm font-semibold leading-snug text-foreground">{vehicleName(leg)}</p>
+              {leg.mode === "bus" ? (
+                <div className="mt-1">
+                  {waitMinutes > 0 && <p className="text-xs text-muted-foreground">Transfer walk/wait · {waitMinutes} min</p>}
+                  <BusArrivalTime
+                    arrival={liveArrival}
+                    scheduledSeconds={leg.depart_seconds}
+                    fetchedAt={liveBus?.fetchedAt}
+                    refreshing={liveBusRefreshing}
+                    compact
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Ride {legMinutes ?? "—"} min · arrive {arrivalLabel} {clockFromSeconds(leg.arrive_seconds)}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {leg.kind === "rail" ? `Departs ${clockFromSeconds(leg.depart_seconds)} · ` : ""}
+                  {leg.kind === "access" ? `Arrive at platform ${clockFromSeconds(leg.arrive_seconds)}` : `Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}
+                </p>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 type TripProgressProps = {
   trip: ActiveTrip;
   phase: TripPhase;
