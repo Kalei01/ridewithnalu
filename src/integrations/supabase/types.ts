@@ -224,6 +224,30 @@ export type Database = {
           service_id: string
         }[]
       }
+      connecting_departures: {
+        Args: {
+          p_after_seconds?: number
+          p_dest_stop: string
+          p_lat: number
+          p_limit?: number
+          p_lon: number
+          p_radius_m?: number
+        }
+        Returns: {
+          arrive_seconds: number
+          depart_seconds: number
+          dest_stop_name: string
+          distance_m: number
+          headsign: string
+          ride_minutes: number
+          route_id: string
+          route_long_name: string
+          route_short_name: string
+          stop_id: string
+          stop_name: string
+          walk_minutes: number
+        }[]
+      }
       directional_dest_stop: {
         Args: {
           p_lat: number
