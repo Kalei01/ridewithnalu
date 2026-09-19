@@ -317,7 +317,9 @@ function Index() {
       title: vehicleName(leg),
       detail:
         leg.mode === "walk" || leg.mode === "drive"
-          ? `${leg.minutes} min`
+          ? leg.kind === "egress" && leg.mode === "drive"
+            ? `${leg.minutes} min · your car is parked here`
+            : `${leg.minutes} min`
           : `${titleCase(leg.from)} → ${titleCase(leg.to)}`,
       mode: leg.mode,
     }));
