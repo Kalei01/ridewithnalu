@@ -2481,29 +2481,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
             />
           </div>
 
-          <div className="border-t border-border pt-5">
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Data sources</p>
-            <ul className="mt-3 grid gap-2.5 text-xs text-muted-foreground">
-              {[
-                { label: "Transit schedules and routes: TheBus / Oahu Transit Services", href: "https://www.thebus.org" },
-                { label: "Live bus arrivals: TheBus HEA API / Oahu Transit Services", href: "https://hea.thebus.org" },
-                { label: "Traffic and drive times: TomTom", href: "https://www.tomtom.com" },
-                { label: "Weather and forecasts: National Weather Service / NOAA", href: "https://www.weather.gov" },
-                { label: "Air quality: AirNow / US EPA", href: "https://www.airnow.gov" },
-              ].map((source) => (
-                <li key={source.href}>
-                  <a
-                    href={source.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
-                  >
-                    {source.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {!firstRun && <AboutSection />}
+
 
           {status && <p className="text-sm text-muted-foreground">{status}</p>}
         </div>
