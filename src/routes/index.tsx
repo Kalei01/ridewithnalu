@@ -457,13 +457,43 @@ function Index() {
   const outboundAccessMode = !inbound ? options[0]?.legs?.[0]?.mode : undefined;
   useEffect(() => {
     if (outboundAccessMode !== "drive" || !setup.homeStopId) return;
-    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId };
+    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place: "station" };
     setParked((current) =>
-      current && current.date === entry.date && current.station === entry.station ? current : entry,
+      current && current.date === entry.date && current.station === entry.station && current.place === "station"
+        ? current
+        : entry,
     );
     window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
   }, [outboundAccessMode, setup.homeStopId]);
 
+  // Real driving time between the two points that matter for this direction.
+  const driveFrom = inbound
+    ? { lat: setup.destLat, lon: setup.destLon }
+    : { lat: setup.homeLat, lon: setup.homeLon };
+  const driveTo = inbound
+    ? { lat: setup.homeLat, lon: setup.homeLon }
+    : { lat: setup.destLat, lon: setup.destLon };
+  const fetchDriveTime = useServerFn(driveTime);
+  const {
+    data: drive,
+    isLoading: driveLoading,
+    isError: driveFailed,
+  } = useQuery({
+    queryKey: ["drive", driveFrom.lat, driveFrom.lon, driveTo.lat, driveTo.lon],
+    enabled: hydrated && configured && driveFrom.lat !== null && driveTo.lat !== null,
+    staleTime: 3 * 60_000,
+    refetchInterval: 3 * 60_000,
+    retry: 1,
+    queryFn: () =>
+      fetchDriveTime({
+        data: {
+          fromLat: driveFrom.lat as number,
+          fromLon: driveFrom.lon as number,
+          toLat: driveTo.lat as number,
+          toLon: driveTo.lon as number,
+        },
+      }),
+  });
 
   // Real service hours for the rail station, used when nothing is reachable.
   const { data: railHours = [] } = useQuery({
@@ -479,14 +509,76 @@ function Index() {
 
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
   const best = options[0];
-  const railMinutes = best?.total_minutes ?? null;
-  const railWins = railMinutes !== null && railMinutes < DRIVE_MINUTES;
+  // Rail total carries a safety buffer, and a range for transfers that slip.
+  const railMinutes = best ? best.total_minutes + RAIL_BUFFER_MIN : null;
+  const railRange = railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
+  // Parking only costs time where you have to park: nothing when you get home.
+  const parkingBuffer = inbound ? 0 : Math.max(0, setup.parkingBufferMinutes ?? 8);
+  const driveMinutes = drive ? drive.trafficMinutes + parkingBuffer : null;
+  const driveRange = drive ? { low: drive.freeflowMinutes + parkingBuffer, high: drive.trafficMinutes + parkingBuffer } : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
+  const waitForTrain = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
+  const longWait = waitForTrain !== null && waitForTrain > LONG_WAIT_MIN;
+
+  const usableDrive = driveAvailable && driveMinutes !== null;
+  const gap = railMinutes !== null && driveMinutes !== null ? driveMinutes - railMinutes : null;
+  const verdict: "rail" | "drive" | "same" | "none" =
+    railMinutes === null && !usableDrive
+      ? "none"
+      : railMinutes === null
+        ? "drive"
+        : !usableDrive
+          ? "rail"
+          : longWait
+            ? "drive"
+            : Math.abs(gap ?? 0) < TOSS_UP_MIN
+              ? "same"
+              : (gap ?? 0) > 0
+                ? "rail"
+                : "drive";
+  const railWins = verdict === "rail";
+
+  // One line naming the single thing that decides it.
+  const reasoning = useMemo(() => {
+    const incident = drive?.incidents[0];
+    if (verdict === "drive" && incident) {
+      return incident.road ? `${incident.description} on ${incident.road}` : incident.description;
+    }
+    if (verdict === "drive" && longWait && waitForTrain !== null) {
+      return `Next reachable train is ${waitForTrain} min out`;
+    }
+    if (best) {
+      // Biggest wait inside the chain is the bottleneck worth naming.
+      let worstLabel: string | null = null;
+      let worstWait = 0;
+      for (let index = 1; index < best.legs.length; index += 1) {
+        const previous = best.legs[index - 1];
+        const leg = best.legs[index];
+        const wait = (leg?.depart_seconds ?? 0) - (previous?.arrive_seconds ?? 0);
+        if (wait > worstWait && leg) {
+          worstWait = wait;
+          worstLabel = vehicleName(leg);
+        }
+      }
+      if (worstLabel && worstWait >= 5 * 60) {
+        return `${worstLabel} connection adds ${Math.round(worstWait / 60)} min of waiting`;
+      }
+    }
+    if (drive && drive.delayMinutes >= 5) return `Traffic is adding ${drive.delayMinutes} min to the drive`;
+    if (incident) return incident.road ? `${incident.description} on ${incident.road}` : incident.description;
+    return null;
+  }, [best, drive, verdict, longWait, waitForTrain]);
+
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
   const activeDestStopName = inbound ? setup.destReturnStopName || setup.destStopName : setup.destStopName;
   const rawWalkM = inbound ? (setup.destReturnWalkM ?? setup.destStopWalkM) : setup.destStopWalkM;
   const activeDestWalkM = typeof rawWalkM === "number" ? rawWalkM : null;
+
+  function money(value: number | null) {
+    if (value === null || Number.isNaN(value)) return null;
+    return `$${value.toFixed(2)}`;
+  }
 
   const timeline = useMemo(() => {
     if (!best) return [];
