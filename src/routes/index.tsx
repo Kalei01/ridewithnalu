@@ -979,6 +979,7 @@ function Index() {
           </Button>
         </header>
 
+        {!tripActive && (
         <section className="py-10" aria-labelledby="verdict-title">
           <div className="mb-5 flex items-center gap-2 text-recommended">
             <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
@@ -1035,7 +1036,9 @@ function Index() {
             </p>
           )}
         </section>
+        )}
 
+        {!tripActive && (
         <section aria-label="Comparison" className="grid grid-cols-2 border-y border-border">
           <article className={`border-r border-border py-7 pr-5 ${verdict === "drive" ? "opacity-55" : ""}`}>
             <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-muted-foreground" : "text-recommended"}`}>
@@ -1141,9 +1144,23 @@ function Index() {
             )}
           </article>
         </section>
+        )}
 
+        {trip && (
+          <TripProgress
+            trip={trip}
+            phase={phase}
+            railLeg={railLeg}
+            connectLeg={connectLeg}
+            connecting={connecting}
+            connectingLoading={connectingLoading}
+            nowSeconds={nowSeconds}
+            destinationLabel={destinationLabel}
+            onEnd={endTrip}
+          />
+        )}
 
-        {best && (
+        {best && !tripActive && (
           <section className="py-8" aria-labelledby="chain-title">
             <h2 id="chain-title" className="text-lg font-semibold">
               Your next trip
