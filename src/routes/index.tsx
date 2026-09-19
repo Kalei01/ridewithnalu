@@ -460,7 +460,7 @@ function Index() {
               <div>
                 <dt className="text-muted-foreground">{inbound ? "From" : "To"}</dt>
                 <dd className="mt-1 truncate font-semibold text-foreground">
-                  {setup.destinationAddress || "Your destination"}
+                  {setup.destinationName || setup.destinationAddress || "Your destination"}
                 </dd>
               </div>
             </dl>
