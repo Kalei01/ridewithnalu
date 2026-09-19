@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { driveTime, type DriveIncident } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
+import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -638,7 +639,6 @@ function Index() {
 
   const { data: stationCoords = [] } = useQuery({
     queryKey: ["rail-station-coords"],
-    enabled: tripActive,
     staleTime: 6 * 60 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rail_stations");
@@ -964,8 +964,9 @@ function Index() {
 
   const timeline = useMemo(() => {
     if (!best) return [];
-    const rows = best.legs.map((leg) => ({
+    const rows = best.legs.map((leg, legIndex) => ({
       seconds: leg.depart_seconds,
+      legIndex,
       title: vehicleName(leg),
       detail:
         leg.mode === "walk" || leg.mode === "drive"
@@ -978,12 +979,180 @@ function Index() {
     const last = best.legs[best.legs.length - 1];
     rows.push({
       seconds: last?.arrive_seconds ?? null,
+      legIndex: -1,
       title: inbound ? "Arrive home" : "Arrive destination",
       detail: titleCase(last?.to) || setup.destinationName || setup.destinationAddress,
       mode: "walk" as Leg["mode"],
     });
     return rows;
   }, [best, inbound, setup.destinationName, setup.destinationAddress]);
+
+  // ---- Outdoor conditions --------------------------------------------------
+  // Every moment of this trip spent outside: where it happens, when, how long.
+  const homePoint = setup.homeLat !== null && setup.homeLon !== null
+    ? { lat: setup.homeLat, lon: setup.homeLon }
+    : null;
+  const destPoint = setup.destLat !== null && setup.destLon !== null
+    ? { lat: setup.destLat, lon: setup.destLon }
+    : null;
+
+  const moments = useMemo<OutdoorMoment[]>(() => {
+    if (!best) return [];
+    const originPoint = inbound ? destPoint : (position ?? homePoint);
+    const arrivalPoint = inbound ? homePoint : destPoint;
+    const railLegHere = best.legs.find((leg) => leg.kind === "rail") ?? null;
+    const boardStation = stationPoint(railLegHere?.from);
+    const transferStation = stationPoint(railLegHere?.to);
+    const list: OutdoorMoment[] = [];
+
+    best.legs.forEach((leg, legIndex) => {
+      const previous = best.legs[legIndex - 1];
+      const start = previous?.arrive_seconds ?? best.leave_by_seconds;
+      const waitMinutes = Math.max(0, Math.round(((leg.depart_seconds ?? start) - start) / 60));
+      const offset = Math.max(0, Math.round(((leg.depart_seconds ?? start) - nowSeconds) / 60));
+
+      if (leg.kind === "access" && leg.mode === "bus" && originPoint) {
+        list.push({
+          id: `wait-feeder-${legIndex}`,
+          legIndex,
+          kind: "wait-feeder",
+          ...originPoint,
+          offsetMinutes: offset,
+          outdoorMinutes: waitMinutes,
+        });
+        return;
+      }
+      if (leg.kind === "access" && leg.mode === "drive" && boardStation) {
+        list.push({
+          id: `drive-station-${legIndex}`,
+          legIndex,
+          kind: "drive-station",
+          ...boardStation,
+          offsetMinutes: Math.max(0, Math.round(((leg.arrive_seconds ?? start) - nowSeconds) / 60)),
+          outdoorMinutes: 0,
+          label: titleCase(leg.to) || stationLabel(setup.homeStopName),
+        });
+        return;
+      }
+      if (leg.kind === "rail" && boardStation) {
+        list.push({
+          id: `platform-${legIndex}`,
+          legIndex,
+          kind: "platform",
+          ...boardStation,
+          offsetMinutes: offset,
+          outdoorMinutes: waitMinutes,
+        });
+        return;
+      }
+      if (leg.mode === "walk" && leg.kind === "connect" && transferStation) {
+        list.push({
+          id: `transfer-walk-${legIndex}`,
+          legIndex,
+          kind: "transfer-walk",
+          ...transferStation,
+          offsetMinutes: offset,
+          outdoorMinutes: leg.minutes ?? 0,
+          minutes: leg.minutes ?? 0,
+        });
+        return;
+      }
+      if (leg.mode === "bus" && leg.kind !== "access") {
+        const point = transferStation ?? originPoint;
+        if (!point) return;
+        list.push({
+          id: `wait-connect-${legIndex}`,
+          legIndex,
+          kind: "wait-connect",
+          ...point,
+          offsetMinutes: offset,
+          outdoorMinutes: waitMinutes,
+          label: leg.route_short ?? null,
+        });
+        return;
+      }
+      if (leg.mode === "walk" && leg.kind === "egress" && arrivalPoint) {
+        list.push({
+          id: `final-walk-${legIndex}`,
+          legIndex,
+          kind: "final-walk",
+          ...arrivalPoint,
+          offsetMinutes: offset,
+          outdoorMinutes: leg.minutes ?? 0,
+          minutes: leg.minutes ?? 0,
+        });
+      }
+    });
+
+    // The drive itself: the corridor between the two ends of the trip.
+    if (originPoint && arrivalPoint) {
+      list.push({
+        id: "drive-route",
+        legIndex: -2,
+        kind: "drive-route",
+        lat: (originPoint.lat + arrivalPoint.lat) / 2,
+        lon: (originPoint.lon + arrivalPoint.lon) / 2,
+        offsetMinutes: 0,
+        outdoorMinutes: 0,
+      });
+    }
+    return list;
+  }, [best, inbound, position, homePoint, destPoint, nowSeconds, stationCoords, setup.homeStopName]);
+
+  const fetchWeather = useServerFn(outdoorConditions);
+  // Runs alongside the plan, never in front of it: the trip renders regardless.
+  const { data: weather } = useQuery({
+    queryKey: ["weather", moments.map((moment) => `${moment.id}:${moment.lat.toFixed(2)},${moment.lon.toFixed(2)}:${moment.offsetMinutes}`)],
+    enabled: moments.length > 0,
+    staleTime: 20 * 60_000,
+    refetchInterval: 20 * 60_000,
+    retry: false,
+    queryFn: () => {
+      const longest = moments.filter((moment) => moment.outdoorMinutes > 5).sort((a, b) => b.outdoorMinutes - a.outdoorMinutes)[0];
+      return fetchWeather({
+        data: {
+          points: moments.map((moment) => ({
+            id: moment.id,
+            lat: moment.lat,
+            lon: moment.lon,
+            offsetMinutes: moment.offsetMinutes,
+          })),
+          airLat: longest?.lat ?? null,
+          airLon: longest?.lon ?? null,
+        },
+      });
+    },
+  });
+
+  // One line per condition, hung on the leg it belongs to.
+  const weatherLines = useMemo(() => {
+    const byLeg = new Map<number, WeatherLine[]>();
+    if (!weather) return byLeg;
+    const readings = new Map(weather.moments.map((moment) => [moment.id, moment]));
+    // Air quality is said once, on the longest stretch spent outside.
+    const airMoment = moments
+      .filter((moment) => moment.outdoorMinutes > 5)
+      .sort((a, b) => b.outdoorMinutes - a.outdoorMinutes)[0];
+
+    for (const moment of moments) {
+      const reading = readings.get(moment.id);
+      if (!reading) continue;
+      const lines: WeatherLine[] = [];
+      const rain = rainLine(moment, reading);
+      if (rain) lines.push({ text: rain, tone: "rain" });
+      const heat = heatLine(reading);
+      if (heat) lines.push(heat);
+      if (airMoment && moment.id === airMoment.id) {
+        const air = airLine(weather.air?.category ?? 0);
+        if (air) lines.push(air);
+      }
+      if (!lines.length) continue;
+      byLeg.set(moment.legIndex, [...(byLeg.get(moment.legIndex) ?? []), ...lines]);
+    }
+    return byLeg;
+  }, [weather, moments]);
+
+  const driveWeatherLines = weatherLines.get(-2) ?? [];
 
   async function refresh() {
     setRefreshing(true);
