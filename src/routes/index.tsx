@@ -279,8 +279,8 @@ function formatDistance(meters: number) {
 
 function vehicleName(leg: Leg) {
   if (leg.mode === "rail") {
-    const line = titleCase(leg.route_long) || "Skyline";
-    return leg.headsign ? `${line} to ${titleCase(leg.headsign)}` : line;
+    const line = stationLabel(leg.route_long) || "Skyline";
+    return leg.headsign ? `${line} to ${stationLabel(leg.headsign)}` : line;
   }
   if (leg.mode === "bus") {
     const label = leg.route_short ? `Route ${leg.route_short}` : "Bus";
