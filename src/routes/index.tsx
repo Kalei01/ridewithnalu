@@ -88,11 +88,18 @@ const BROWSE_LOCATION_DENIED_KEY = "kine-browse-location-denied-v1";
 const DIRECTION_KEY = "kine-direction-v1";
 const PARKED_KEY = "kine-parked-v1";
 const OVERRIDE_MS = 2 * 60 * 60 * 1000;
-const DRIVE_MINUTES = 54;
+/** Minutes of padding on the rail chain, and how much a transfer can slip. */
+const RAIL_BUFFER_MIN = 3;
+const RAIL_SLIP_MIN = 4;
+/** Under this gap, neither option really wins. */
+const TOSS_UP_MIN = 5;
+/** A long wait for the first train tips the choice toward the car. */
+const LONG_WAIT_MIN = 25;
 
 type DirectionOverride = { inbound: boolean; at: number };
-/** Set when the morning trip drove to the station: the car waits there for the return leg. */
-type ParkedCar = { date: string; station: string };
+/** Where the car is today: at home, left at the station, or driven all the way. */
+type CarPlace = "home" | "station" | "destination";
+type ParkedCar = { date: string; station: string; place?: CarPlace };
 type BrowseStation = { stopId: string; stopName: string; lat: number; lon: number };
 type BrowseDeparture = {
   departure_seconds: number;
