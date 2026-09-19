@@ -34,6 +34,9 @@ function WaveMark({ className }: { className?: string }) {
         strokeLinecap="round"
       />
     </svg>
+  );
+}
+
 
 
 export const Route = createFileRoute("/")({
