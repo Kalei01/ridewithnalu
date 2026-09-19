@@ -1515,7 +1515,7 @@ function Index() {
             className="max-w-[360px] text-[clamp(3.1rem,13vw,4.2rem)] font-bold leading-[0.9] text-foreground"
           >
             {!configured
-              ? "SET UP KINE"
+              ? "SET UP NALU"
               : verdict === "none"
                 ? "RAIL UNAVAILABLE"
                 : verdict === "same"
@@ -2243,7 +2243,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
         <DialogHeader className="text-left">
           <DialogTitle className="text-2xl">{firstRun ? "Set up your trip" : "Your trip"}</DialogTitle>
           <DialogDescription>
-            Kine needs your starting point and destination once. Everything stays on this device.
+            Nalu needs your starting point and destination once. Everything stays on this device.
           </DialogDescription>
         </DialogHeader>
 
@@ -2351,7 +2351,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
             <Label htmlFor="drive" className="leading-snug">
               I can drive to the station
               <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                Lets Kine use driving for the first leg.
+                Lets Nalu use driving for the first leg.
               </span>
             </Label>
             <Switch
