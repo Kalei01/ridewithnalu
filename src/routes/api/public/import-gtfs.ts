@@ -297,7 +297,7 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
         const counts = {
           stops: await upsert(
             "stops",
-            relevantStops.map((stop) => ({
+            stops.map((stop) => ({
               stop_id: stop["stop_id"],
               stop_name: stop["stop_name"] ?? null,
               stop_lat: num(stop["stop_lat"]),
@@ -308,17 +308,15 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
           ),
           routes: await upsert(
             "routes",
-            [...usedRouteIds]
-              .map((id) => routes.get(id))
-              .filter((route): route is Row => Boolean(route))
-              .map((route) => ({
-                route_id: route["route_id"],
-                route_short_name: route["route_short_name"] ?? null,
-                route_long_name: route["route_long_name"] ?? null,
-                route_type: num(route["route_type"]),
-              })),
+            [...routes.values()].map((route) => ({
+              route_id: route["route_id"],
+              route_short_name: route["route_short_name"] ?? null,
+              route_long_name: route["route_long_name"] ?? null,
+              route_type: num(route["route_type"]),
+            })),
             "route_id",
           ),
+
           trips: await upsert(
             "trips",
             relevantTrips.map((trip) => ({
