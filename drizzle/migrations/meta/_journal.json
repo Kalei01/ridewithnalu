@@ -183,6 +183,13 @@
       "when": 1789855731690,
       "tag": "0025_gtfs_staging_swap_job_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789857344870,
+      "tag": "0026_swap_gtfs_staging_truncate_live",
+      "breakpoints": true
     }
   ]
 }
