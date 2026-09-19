@@ -252,8 +252,10 @@ function vehicleName(leg: Leg) {
     return leg.headsign ? `${label} to ${titleCase(leg.headsign)}` : label;
   }
   const verb = leg.mode === "drive" ? "Drive" : "Walk";
-  if (leg.kind === "egress") return `${verb} home`;
-  return `${verb} to ${titleCase(leg.to)}`;
+  // Name both ends: the last leg is only "home" when the trip ends at home.
+  const to = titleCase(leg.to);
+  if (!to) return leg.kind === "egress" ? `${verb} home` : verb;
+  return `${verb} to ${to}`;
 }
 
 function modeIcon(mode: Leg["mode"]) {
