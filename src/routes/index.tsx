@@ -26,10 +26,16 @@ import { Switch } from "@/components/ui/switch";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Kine — Rail or drive today?" },
-      { name: "description", content: "Your quick commute decision between West Oahu and Honolulu." },
-      { property: "og:title", content: "Kine — Rail or drive today?" },
-      { property: "og:description", content: "Your quick commute decision between West Oahu and Honolulu." },
+      { title: "Nalu" },
+      {
+        name: "description",
+        content: "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
+      },
+      { property: "og:title", content: "Nalu" },
+      {
+        property: "og:description",
+        content: "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -1249,6 +1255,37 @@ function Index() {
 
   const driveWeatherLines = weatherLines.get(-2) ?? [];
 
+  // Browse mode gets one line only, read at wherever the rider is standing now.
+  const { data: browseWeather } = useQuery({
+    queryKey: ["browse-weather", browseStation?.lat?.toFixed(2), browseStation?.lon?.toFixed(2)],
+    enabled: browseActive && Boolean(browseStation),
+    staleTime: 20 * 60_000,
+    refetchInterval: 20 * 60_000,
+    retry: false,
+    queryFn: () =>
+      fetchWeather({
+        data: {
+          points: [{ id: "browse", lat: browseStation!.lat, lon: browseStation!.lon, offsetMinutes: 0 }],
+          airLat: browseStation!.lat,
+          airLon: browseStation!.lon,
+        },
+      }),
+  });
+
+  const browseWeatherLine = useMemo<WeatherLine | null>(() => {
+    const reading = browseWeather?.moments[0];
+    if (!reading) return null;
+    if ((reading.precipPercent ?? 0) > 40) {
+      return { text: "Rain in the area · good day for the train", tone: "rain", source: "NWS" };
+    }
+    const feels = reading.heatIndexF;
+    const hot = feels !== null && feels > 88;
+    const humid = (reading.humidityPercent ?? 0) > 75;
+    if (hot && humid) return { text: `Hot and humid · feels like ${feels}°F`, tone: "heat", source: "NWS" };
+    if (hot) return { text: `Hot out · feels like ${feels}°F`, tone: "heat", source: "NWS" };
+    return airLine(browseWeather?.air?.category ?? 0);
+  }, [browseWeather]);
+
   async function refresh() {
     setRefreshing(true);
     setNow(new Date());
@@ -1300,7 +1337,10 @@ function Index() {
       <main className="min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
           <header className="flex min-h-11 items-start justify-between gap-4">
-            <p className="pt-1 text-xs font-semibold uppercase text-muted-foreground">Oahu commute conditions</p>
+            <div>
+              <p className="text-lg font-light tracking-wide text-foreground">Nalu</p>
+              <p className="mt-0.5 text-xs font-semibold uppercase text-muted-foreground">Oahu commute conditions</p>
+            </div>
             <div className="flex items-center gap-1">
               <p className="text-right text-sm font-medium text-foreground">{timeText}</p>
               <Button
@@ -1338,6 +1378,12 @@ function Index() {
                   );
                 })}
               </div>
+            )}
+            {browseWeatherLine && (
+              <p className={`mt-4 text-xs ${TONE_CLASS[browseWeatherLine.tone]}`}>
+                {browseWeatherLine.text}
+                <span className="ml-1 text-[10px] text-muted-foreground">{browseWeatherLine.source}</span>
+              </p>
             )}
           </section>
 
@@ -1477,7 +1523,8 @@ function Index() {
 
         <header className="mt-5 flex min-h-11 items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground">
+            <p className="text-lg font-light tracking-wide text-foreground">Nalu</p>
+            <p className="mt-0.5 text-xs font-semibold uppercase text-muted-foreground">
               {inbound ? "Heading home" : "Heading out"}
             </p>
             <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
@@ -1509,7 +1556,7 @@ function Index() {
             className="max-w-[360px] text-[clamp(3.1rem,13vw,4.2rem)] font-bold leading-[0.9] text-foreground"
           >
             {!configured
-              ? "SET UP KINE"
+              ? "SET UP NALU"
               : verdict === "none"
                 ? "RAIL UNAVAILABLE"
                 : verdict === "same"
@@ -2237,7 +2284,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
         <DialogHeader className="text-left">
           <DialogTitle className="text-2xl">{firstRun ? "Set up your trip" : "Your trip"}</DialogTitle>
           <DialogDescription>
-            Kine needs your starting point and destination once. Everything stays on this device.
+            Nalu needs your starting point and destination once. Everything stays on this device.
           </DialogDescription>
         </DialogHeader>
 
@@ -2345,7 +2392,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
             <Label htmlFor="drive" className="leading-snug">
               I can drive to the station
               <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                Lets Kine use driving for the first leg.
+                Lets Nalu use driving for the first leg.
               </span>
             </Label>
             <Switch
