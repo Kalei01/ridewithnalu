@@ -190,10 +190,63 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      access_legs: {
+        Args: {
+          p_allow_drive?: boolean
+          p_board_radius_m?: number
+          p_earliest?: number
+          p_lat: number
+          p_lon: number
+          p_station?: string
+          p_station_radius_m?: number
+          p_walk_radius_m?: number
+          p_window_sec?: number
+        }
+        Returns: {
+          arrive_seconds: number
+          board_seconds: number
+          from_stop_name: string
+          headsign: string
+          leave_by_seconds: number
+          minutes: number
+          mode: string
+          route_id: string
+          route_long_name: string
+          route_short_name: string
+          station_name: string
+          station_stop: string
+          to_stop_name: string
+        }[]
+      }
       active_service_ids: {
         Args: never
         Returns: {
           service_id: string
+        }[]
+      }
+      egress_legs: {
+        Args: {
+          p_allow_drive?: boolean
+          p_earliest?: number
+          p_lat: number
+          p_lon: number
+          p_point_radius_m?: number
+          p_station: string
+          p_station_radius_m?: number
+          p_walk_radius_m?: number
+          p_window_sec?: number
+        }
+        Returns: {
+          arrive_seconds: number
+          board_seconds: number
+          from_stop_name: string
+          headsign: string
+          minutes: number
+          mode: string
+          route_id: string
+          route_long_name: string
+          route_short_name: string
+          to_stop_name: string
         }[]
       }
       gtfs_distance_m: {
@@ -201,6 +254,16 @@ export type Database = {
         Returns: number
       }
       gtfs_seconds: { Args: { p_time: string }; Returns: number }
+      nearby_stops: {
+        Args: { p_lat: number; p_lon: number; p_radius_m: number }
+        Returns: {
+          distance_m: number
+          stop_id: string
+          stop_lat: number
+          stop_lon: number
+          stop_name: string
+        }[]
+      }
       nearest_stop: {
         Args: { p_lat: number; p_lon: number; p_rail_only?: boolean }
         Returns: {
@@ -218,6 +281,49 @@ export type Database = {
           route_short_name: string
           stop_name: string
           trip_headsign: string
+        }[]
+      }
+      plan_inbound: {
+        Args: {
+          p_after_seconds?: number
+          p_allow_drive?: boolean
+          p_dest_lat: number
+          p_dest_lon: number
+          p_home_lat: number
+          p_home_lon: number
+          p_limit?: number
+          p_station: string
+          p_transfer_buffer_seconds?: number
+        }
+        Returns: {
+          arrive_seconds: number
+          depart_seconds: number
+          leave_by_seconds: number
+          legs: Json
+          rail_trip_id: string
+          total_minutes: number
+        }[]
+      }
+      plan_outbound: {
+        Args: {
+          p_after_seconds?: number
+          p_allow_drive?: boolean
+          p_bus_route_id?: string
+          p_dest_stop: string
+          p_limit?: number
+          p_origin_lat: number
+          p_origin_lon: number
+          p_station: string
+          p_transfer_buffer_seconds?: number
+          p_transfer_radius_m?: number
+        }
+        Returns: {
+          arrive_seconds: number
+          depart_seconds: number
+          leave_by_seconds: number
+          legs: Json
+          rail_trip_id: string
+          total_minutes: number
         }[]
       }
       plan_rail_chains: {
@@ -289,6 +395,14 @@ export type Database = {
           route_short_name: string
           route_type: number
           sample_headsign: string
+        }[]
+      }
+      service_hours: {
+        Args: { p_route_type?: number; p_stop_id: string }
+        Returns: {
+          dow: number
+          first_seconds: number
+          last_seconds: number
         }[]
       }
     }

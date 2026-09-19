@@ -18,3 +18,11 @@
 - [x] Manual fallback: connecting route picker from `routes_serving_stop(dest)` in settings
 - [x] Vertical timeline naming each vehicle (Skyline + headsign, Route X to Y)
 - No hardcoded station names, transfer points, hours, or route numbers anywhere in the app
+
+## Four-leg chain, leave-by, direction, service hours (done)
+- [x] First leg computed from location: walk (<15 min at 5 km/h), drive (if enabled in settings), or feeder bus from `stop_times`; fastest reachable option wins, unreachable rail departures are skipped
+- [x] Manual "minutes to station" field removed; "Work address" relabelled "Destination"
+- [x] "Leave by" time shown under the verdict, derived from the earliest reachable departure
+- [x] Direction toggle (to destination / to home), defaulting by Honolulu time of day; `plan_inbound` plans the return as its own trip
+- [x] `service_hours(stop_id, route_type)` gives real first/last departures per day of week; used to say rail is unavailable instead of recommending it
+- New DB functions: `nearby_stops`, `access_legs`, `egress_legs`, `service_hours`, `plan_outbound`, `plan_inbound` (all data-derived, ~0.5-1.2s)

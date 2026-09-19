@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Clock3, Footprints, LocateFixed, RefreshCw, Settings } from "lucide-react";
+import { Bus, Car, Check, Footprints, LocateFixed, RefreshCw, Settings, TrainFront } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { geocodeAddress } from "@/lib/geocode.functions";
@@ -18,14 +18,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Kine — Rail or drive today?" },
-      { name: "description", content: "Your quick morning commute decision from West Oahu to Honolulu." },
+      { name: "description", content: "Your quick commute decision between West Oahu and Honolulu." },
       { property: "og:title", content: "Kine — Rail or drive today?" },
-      { property: "og:description", content: "Your quick morning commute decision from West Oahu to Honolulu." },
+      { property: "og:description", content: "Your quick commute decision between West Oahu and Honolulu." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -36,31 +37,56 @@ export const Route = createFileRoute("/")({
 type Setup = {
   homeStopId: string;
   homeStopName: string;
-  workAddress: string;
-  workLat: number | null;
-  workLon: number | null;
+  homeLat: number | null;
+  homeLon: number | null;
+  destinationAddress: string;
+  destLat: number | null;
+  destLon: number | null;
   destStopId: string;
   destStopName: string;
-  walkMinutes: number;
+  allowDrive: boolean;
   busRouteId: string | null;
 };
 
-const STORAGE_KEY = "kine-setup-v2";
+type Leg = {
+  kind: "access" | "rail" | "connect" | "egress";
+  mode: "walk" | "drive" | "bus" | "rail";
+  route_short: string | null;
+  route_long: string | null;
+  headsign: string | null;
+  from: string | null;
+  to: string | null;
+  depart_seconds: number | null;
+  arrive_seconds: number | null;
+  minutes: number | null;
+};
+
+type Option = {
+  leave_by_seconds: number;
+  depart_seconds: number;
+  arrive_seconds: number;
+  total_minutes: number;
+  legs: Leg[];
+};
+
+const STORAGE_KEY = "kine-setup-v3";
 const DRIVE_MINUTES = 54;
 
 const emptySetup: Setup = {
   homeStopId: "",
   homeStopName: "",
-  workAddress: "",
-  workLat: null,
-  workLon: null,
+  homeLat: null,
+  homeLon: null,
+  destinationAddress: "",
+  destLat: null,
+  destLon: null,
   destStopId: "",
   destStopName: "",
-  walkMinutes: 7,
+  allowDrive: false,
   busRouteId: null,
 };
 
-function honoluluSeconds(date: Date) {
+function honoluluParts(date: Date) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Pacific/Honolulu",
     hour: "2-digit",
@@ -71,34 +97,54 @@ function honoluluSeconds(date: Date) {
     .format(date)
     .split(":")
     .map(Number);
-  return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+  return { hour: parts[0] ?? 0, minute: parts[1] ?? 0, second: parts[2] ?? 0 };
 }
 
-function clockLabel(time: string | null) {
-  if (!time) return "—";
-  const [hours = "0", minutes = "00"] = time.split(":");
-  const hour24 = Number(hours) % 24;
+function honoluluSeconds(date: Date) {
+  const { hour, minute, second } = honoluluParts(date);
+  return hour * 3600 + minute * 60 + second;
+}
+
+function honoluluIsoDow(date: Date) {
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "Pacific/Honolulu", weekday: "short" }).format(date);
+  const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  return order.indexOf(weekday) + 1;
+}
+
+function clockFromSeconds(seconds: number | null | undefined) {
+  if (seconds === null || seconds === undefined) return "—";
+  const total = ((seconds % 86400) + 86400) % 86400;
+  const hour24 = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
   const suffix = hour24 >= 12 ? "PM" : "AM";
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
-  return `${hour12}:${minutes} ${suffix}`;
+  return `${hour12}:${String(minutes).padStart(2, "0")} ${suffix}`;
 }
 
-function titleCase(value: string | null) {
+function titleCase(value: string | null | undefined) {
   if (!value) return "";
-  return value
-    .toLowerCase()
-    .replace(/\b([a-z])/g, (match) => match.toUpperCase())
-    .replace(/\b(U\.h\.|Uh)\b/g, "UH");
+  return value.toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
 }
 
-function railName(longName: string | null, shortName: string | null, headsign: string | null) {
-  const line = titleCase(longName) || (shortName ? `Route ${shortName}` : "Rail");
-  return headsign ? `${line} to ${titleCase(headsign)}` : line;
+function vehicleName(leg: Leg) {
+  if (leg.mode === "rail") {
+    const line = titleCase(leg.route_long) || "Skyline";
+    return leg.headsign ? `${line} to ${titleCase(leg.headsign)}` : line;
+  }
+  if (leg.mode === "bus") {
+    const label = leg.route_short ? `Route ${leg.route_short}` : "Bus";
+    return leg.headsign ? `${label} to ${titleCase(leg.headsign)}` : label;
+  }
+  const verb = leg.mode === "drive" ? "Drive" : "Walk";
+  if (leg.kind === "egress") return `${verb} home`;
+  return `${verb} to ${titleCase(leg.to)}`;
 }
 
-function busName(shortName: string | null, headsign: string | null) {
-  const label = shortName ? `Route ${shortName}` : "Bus";
-  return headsign ? `${label} to ${titleCase(headsign)}` : label;
+function modeIcon(mode: Leg["mode"]) {
+  if (mode === "rail") return TrainFront;
+  if (mode === "bus") return Bus;
+  if (mode === "drive") return Car;
+  return Footprints;
 }
 
 function Index() {
@@ -108,6 +154,8 @@ function Index() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [inbound, setInbound] = useState(false);
+  const [directionTouched, setDirectionTouched] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -126,6 +174,11 @@ function Index() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // Default direction from the time of day until the user chooses one.
+  useEffect(() => {
+    if (!directionTouched) setInbound(honoluluParts(now).hour >= 12);
+  }, [now, directionTouched]);
+
   function persist(next: Setup) {
     setSetup(next);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -142,45 +195,90 @@ function Index() {
     [now],
   );
 
-  const configured = Boolean(setup.homeStopId && setup.destStopId);
-  const afterSeconds = honoluluSeconds(now) + setup.walkMinutes * 60;
+  const configured = Boolean(setup.homeStopId && setup.destStopId && setup.destLat && setup.homeLat);
+  const nowSeconds = honoluluSeconds(now);
+  const afterSeconds = Math.floor(nowSeconds / 60) * 60;
 
-  const { data: chains = [], isLoading: chainsLoading } = useQuery({
-    queryKey: ["chains", setup.homeStopId, setup.destStopId, setup.busRouteId, Math.floor(afterSeconds / 60)],
+  const { data: options = [], isLoading: optionsLoading } = useQuery({
+    queryKey: [
+      "trip",
+      inbound ? "inbound" : "outbound",
+      setup.homeStopId,
+      setup.destStopId,
+      setup.busRouteId,
+      setup.allowDrive,
+      Math.floor(afterSeconds / 60),
+    ],
     enabled: hydrated && configured,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("plan_rail_chains", {
-        p_home_stop: setup.homeStopId,
+      if (inbound) {
+        const { data, error } = await supabase.rpc("plan_inbound", {
+          p_dest_lat: setup.destLat as number,
+          p_dest_lon: setup.destLon as number,
+          p_station: setup.homeStopId,
+          p_home_lat: setup.homeLat as number,
+          p_home_lon: setup.homeLon as number,
+          p_allow_drive: setup.allowDrive,
+          p_after_seconds: afterSeconds,
+          p_limit: 4,
+        });
+        if (error) throw error;
+        return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] })) as Option[];
+      }
+      const { data, error } = await supabase.rpc("plan_outbound", {
+        p_origin_lat: setup.homeLat as number,
+        p_origin_lon: setup.homeLon as number,
+        p_station: setup.homeStopId,
         p_dest_stop: setup.destStopId,
+        p_allow_drive: setup.allowDrive,
         p_after_seconds: afterSeconds,
         p_limit: 4,
         ...(setup.busRouteId ? { p_bus_route_id: setup.busRouteId } : {}),
       });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] })) as Option[];
     },
   });
 
-  const { data: railFallback = [] } = useQuery({
-    queryKey: ["rail-departures", setup.homeStopId, Math.floor(afterSeconds / 60)],
-    enabled: hydrated && configured && !chainsLoading && chains.length === 0,
-    staleTime: 60_000,
+  // Real service hours for the rail station, used when nothing is reachable.
+  const { data: railHours = [] } = useQuery({
+    queryKey: ["service-hours", setup.homeStopId],
+    enabled: hydrated && Boolean(setup.homeStopId) && !optionsLoading && options.length === 0,
+    staleTime: 12 * 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rail_departures", {
-        p_home_stop: setup.homeStopId,
-        p_after_seconds: afterSeconds,
-        p_limit: 4,
-      });
+      const { data, error } = await supabase.rpc("service_hours", { p_stop_id: setup.homeStopId, p_route_type: 1 });
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  const best = chains[0];
-  const railMinutes = best ? best.total_minutes + setup.walkMinutes : null;
+  const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
+  const best = options[0];
+  const railMinutes = best?.total_minutes ?? null;
   const railWins = railMinutes !== null && railMinutes < DRIVE_MINUTES;
-  const leavesIn = best ? Math.max(0, Math.round((best.depart_seconds - honoluluSeconds(now)) / 60)) : null;
+  const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
+
+  const timeline = useMemo(() => {
+    if (!best) return [];
+    const rows = best.legs.map((leg) => ({
+      seconds: leg.depart_seconds,
+      title: vehicleName(leg),
+      detail:
+        leg.mode === "walk" || leg.mode === "drive"
+          ? `${leg.minutes} min`
+          : `${titleCase(leg.from)} → ${titleCase(leg.to)}`,
+      mode: leg.mode,
+    }));
+    const last = best.legs[best.legs.length - 1];
+    rows.push({
+      seconds: last?.arrive_seconds ?? null,
+      title: inbound ? "Arrive home" : "Arrive destination",
+      detail: titleCase(last?.to) || setup.destinationAddress,
+      mode: "walk" as Leg["mode"],
+    });
+    return rows;
+  }, [best, inbound, setup.destinationAddress]);
 
   function refresh() {
     setRefreshing(true);
@@ -195,7 +293,9 @@ function Index() {
       <div className="mx-auto flex w-full max-w-[440px] flex-col">
         <header className="flex min-h-11 items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Good morning</p>
+            <p className="text-xs font-semibold uppercase text-muted-foreground">
+              {inbound ? "Heading home" : "Heading out"}
+            </p>
             <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
           </div>
           <Button
@@ -209,7 +309,29 @@ function Index() {
           </Button>
         </header>
 
-        <section className="py-12" aria-labelledby="verdict-title">
+        <div role="tablist" aria-label="Trip direction" className="mt-5 grid grid-cols-2 rounded-full bg-surface-raised p-1">
+          {[
+            { label: "To destination", value: false },
+            { label: "To home", value: true },
+          ].map((tab) => (
+            <button
+              key={tab.label}
+              role="tab"
+              aria-selected={inbound === tab.value}
+              onClick={() => {
+                setDirectionTouched(true);
+                setInbound(tab.value);
+              }}
+              className={`min-h-10 rounded-full text-sm font-medium transition-colors ${
+                inbound === tab.value ? "bg-recommended text-recommended-foreground" : "text-muted-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <section className="py-10" aria-labelledby="verdict-title">
           <div className="mb-5 flex items-center gap-2 text-recommended">
             <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
               <Check className="size-4 stroke-[3]" />
@@ -218,44 +340,57 @@ function Index() {
           </div>
           <h1
             id="verdict-title"
-            className="max-w-[360px] text-[clamp(3.4rem,15vw,4.5rem)] font-bold leading-[0.9] text-foreground"
+            className="max-w-[360px] text-[clamp(3.1rem,13vw,4.2rem)] font-bold leading-[0.9] text-foreground"
           >
-            {railWins ? "TAKE THE RAIL" : railMinutes !== null ? "DRIVE TODAY" : "SET UP KINE"}
+            {!configured
+              ? "SET UP KINE"
+              : railMinutes === null
+                ? "RAIL UNAVAILABLE"
+                : railWins
+                  ? "TAKE THE RAIL"
+                  : "DRIVE TODAY"}
           </h1>
-          <p className="mt-5 text-lg font-medium text-muted-foreground">
-            {railMinutes !== null
-              ? `${Math.abs(DRIVE_MINUTES - railMinutes)} min ${railWins ? "faster" : "slower"}${
-                  leavesIn !== null ? ` · leaves in ${leavesIn} min` : ""
+          {best && (
+            <p className="mt-6 text-3xl font-bold text-recommended">
+              Leave by {clockFromSeconds(best.leave_by_seconds)}
+            </p>
+          )}
+          <p className="mt-3 text-lg font-medium text-muted-foreground">
+            {best
+              ? `${Math.abs(DRIVE_MINUTES - (railMinutes ?? 0))} min ${railWins ? "faster" : "slower"} than driving · ${
+                  leaveIn !== null && leaveIn > 0 ? `in ${leaveIn} min` : "now"
                 }`
-              : configured
-                ? chainsLoading
+              : !configured
+                ? "Add your home station and destination to start."
+                : optionsLoading
                   ? "Checking today's connections…"
-                  : "No rail and bus connection found for now."
-                : "Add your home station and work address to start."}
+                  : todayHours
+                    ? `Rail runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(
+                        todayHours.last_seconds,
+                      )} today — no reachable trip with a connection right now.`
+                    : "No rail service for this trip today."}
           </p>
         </section>
 
-        <section aria-label="Commute comparison" className="grid grid-cols-2 border-y border-border">
+        <section aria-label="Comparison" className="grid grid-cols-2 border-y border-border">
           <article className="border-r border-border py-7 pr-5">
-            <p className="text-xs font-bold uppercase text-recommended">Rail</p>
+            <p className="text-xs font-bold uppercase text-recommended">Rail trip</p>
             <p className="mt-3 text-5xl font-semibold leading-none text-recommended">
               {railMinutes ?? "—"}
               <span className="ml-1 text-base font-medium">min</span>
             </p>
             <dl className="mt-7 space-y-4 text-sm">
               <div>
-                <dt className="text-muted-foreground">Next train</dt>
+                <dt className="text-muted-foreground">Train departs</dt>
                 <dd className="mt-1 font-semibold text-foreground">
-                  {best ? clockLabel(best.depart_time) : chainsLoading ? "…" : "—"}
+                  {best ? clockFromSeconds(best.depart_seconds) : optionsLoading ? "…" : "—"}
                 </dd>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock3 className="size-4 text-recommended" />
-                <span>{leavesIn !== null ? `${leavesIn} min away` : "No connection"}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Footprints className="size-4 text-recommended" />
-                <span>{setup.walkMinutes} min to station</span>
+              <div>
+                <dt className="text-muted-foreground">First leg</dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  {best?.legs[0] ? vehicleName(best.legs[0]) : "—"}
+                </dd>
               </div>
             </dl>
           </article>
@@ -271,8 +406,10 @@ function Index() {
                 <dd className="mt-1 font-semibold text-foreground">Heavy</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">To</dt>
-                <dd className="mt-1 truncate font-semibold text-foreground">{setup.workAddress || "Your work"}</dd>
+                <dt className="text-muted-foreground">{inbound ? "From" : "To"}</dt>
+                <dd className="mt-1 truncate font-semibold text-foreground">
+                  {setup.destinationAddress || "Your destination"}
+                </dd>
               </div>
             </dl>
           </article>
@@ -283,88 +420,69 @@ function Index() {
             <h2 id="chain-title" className="text-lg font-semibold">
               Your next trip
             </h2>
-            <ol className="mt-5 space-y-0">
-              {[
-                {
-                  time: best.depart_time,
-                  title: `Depart ${titleCase(best.home_stop_name)}`,
-                  detail: railName(best.rail_route_long_name, best.rail_route_short_name, best.rail_headsign),
-                },
-                {
-                  time: best.rail_arrive_time,
-                  title: `Arrive ${titleCase(best.transfer_stop_name)}`,
-                  detail: `Transfer at ${titleCase(best.bus_stop_name)}`,
-                },
-                {
-                  time: best.bus_depart_time,
-                  title: busName(best.bus_route_short_name, best.bus_headsign),
-                  detail: titleCase(best.bus_route_long_name),
-                },
-                {
-                  time: best.arrive_time,
-                  title: "Arrive work",
-                  detail: titleCase(best.dest_stop_name),
-                },
-              ].map((leg, index, list) => (
-                <li key={`${leg.time}-${index}`} className="flex gap-4">
-                  <span className="w-[74px] shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-foreground">
-                    {clockLabel(leg.time)}
-                  </span>
-                  <span className="flex flex-col items-center pt-1.5">
-                    <span
-                      className={`size-2.5 rounded-full ${index === 0 || index === list.length - 1 ? "bg-recommended" : "bg-border"}`}
-                    />
-                    {index < list.length - 1 && <span className="w-px flex-1 bg-border" />}
-                  </span>
-                  <span className="flex-1 pb-6">
-                    <span className="block text-[15px] font-medium text-foreground">{leg.title}</span>
-                    <span className="mt-0.5 block text-sm text-muted-foreground">{leg.detail}</span>
-                  </span>
-                </li>
-              ))}
+            <ol className="mt-5">
+              {timeline.map((row, index) => {
+                const Icon = modeIcon(row.mode);
+                return (
+                  <li key={`${row.seconds}-${index}`} className="flex gap-3">
+                    <span className="w-[74px] shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-foreground">
+                      {clockFromSeconds(row.seconds)}
+                    </span>
+                    <span className="flex flex-col items-center pt-1">
+                      <span
+                        className={`flex size-5 items-center justify-center rounded-full ${
+                          index === 0 || index === timeline.length - 1
+                            ? "bg-recommended text-recommended-foreground"
+                            : "bg-surface-raised text-muted-foreground"
+                        }`}
+                      >
+                        <Icon className="size-3" />
+                      </span>
+                      {index < timeline.length - 1 && <span className="w-px flex-1 bg-border" />}
+                    </span>
+                    <span className="flex-1 pb-6">
+                      <span className="block text-[15px] font-medium text-foreground">{row.title}</span>
+                      <span className="mt-0.5 block text-sm text-muted-foreground">{row.detail}</span>
+                    </span>
+                  </li>
+                );
+              })}
             </ol>
           </section>
         )}
 
-        <section className="pb-8" aria-labelledby="departures-title">
+        <section className="pb-8" aria-labelledby="later-title">
           <div className="mb-4">
-            <h2 id="departures-title" className="text-lg font-semibold">
-              Later departures
+            <h2 id="later-title" className="text-lg font-semibold">
+              Later options
             </h2>
-            <p className="mt-1 truncate text-sm text-muted-foreground">{titleCase(setup.homeStopName) || "No station set"}</p>
+            <p className="mt-1 truncate text-sm text-muted-foreground">
+              {inbound
+                ? `Via ${titleCase(setup.homeStopName)}`
+                : titleCase(setup.homeStopName) || "No station set"}
+            </p>
           </div>
           <ol className="divide-y divide-border">
-            {chains.slice(1).map((chain, index) => (
-              <li key={`${chain.depart_time}-${index}`} className="flex min-h-14 items-center justify-between gap-3 py-2">
-                <span className="font-medium tabular-nums text-foreground">{clockLabel(chain.depart_time)}</span>
+            {options.slice(1).map((option, index) => (
+              <li key={`${option.leave_by_seconds}-${index}`} className="flex min-h-14 items-center justify-between gap-3 py-2">
+                <span className="font-medium tabular-nums text-foreground">
+                  Leave {clockFromSeconds(option.leave_by_seconds)}
+                </span>
                 <span className="truncate text-sm text-muted-foreground">
-                  {busName(chain.bus_route_short_name, chain.bus_headsign)}
+                  {option.legs[0] ? vehicleName(option.legs[0]) : ""}
                 </span>
-                <span className="shrink-0 text-sm text-muted-foreground">
-                  {chain.total_minutes + setup.walkMinutes} min
-                </span>
+                <span className="shrink-0 text-sm text-muted-foreground">{option.total_minutes} min</span>
               </li>
             ))}
-            {chains.length <= 1 && (
+            {options.length <= 1 && (
               <li className="py-3 text-sm text-muted-foreground">
                 {!configured
-                  ? "Finish setup to see departures."
-                  : chainsLoading
+                  ? "Finish setup to see options."
+                  : optionsLoading
                     ? "Loading schedule…"
-                    : railFallback.length > 0
-                      ? "Trains are running, but no connecting bus lines up. Pick your connecting route in settings."
-                      : "No more connections today."}
+                    : "No other reachable trip with a connection today."}
               </li>
             )}
-            {chains.length === 0 &&
-              railFallback.map((train, index) => (
-                <li key={`${train.departure_time}-${index}`} className="flex min-h-14 items-center justify-between gap-3 py-2">
-                  <span className="font-medium tabular-nums text-foreground">{clockLabel(train.departure_time)}</span>
-                  <span className="truncate text-sm text-muted-foreground">
-                    {railName(train.route_long_name, train.route_short_name, train.trip_headsign)}
-                  </span>
-                </li>
-              ))}
           </ol>
         </section>
 
@@ -452,18 +570,22 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
     setStatus("Finding your nearest rail station…");
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const { data, error } = await supabase.rpc("nearest_stop", {
-          p_lat: position.coords.latitude,
-          p_lon: position.coords.longitude,
-          p_rail_only: true,
-        });
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const { data, error } = await supabase.rpc("nearest_stop", { p_lat: lat, p_lon: lon, p_rail_only: true });
         setBusy(false);
         const nearest = data?.[0];
         if (error || !nearest) {
           setStatus("Could not match a station. Pick one below.");
           return;
         }
-        setDraft((current) => ({ ...current, homeStopId: nearest.stop_id, homeStopName: nearest.stop_name ?? "" }));
+        setDraft((current) => ({
+          ...current,
+          homeLat: lat,
+          homeLon: lon,
+          homeStopId: nearest.stop_id,
+          homeStopName: nearest.stop_name ?? "",
+        }));
         setStatus(`Nearest station: ${titleCase(nearest.stop_name)} (${Math.round(nearest.distance_m)} m away).`);
       },
       () => {
@@ -474,15 +596,15 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
     );
   }
 
-  async function findWorkStop() {
-    if (draft.workAddress.trim().length < 3) {
-      setStatus("Enter your work address first.");
+  async function findDestinationStop() {
+    if (draft.destinationAddress.trim().length < 3) {
+      setStatus("Enter your destination first.");
       return;
     }
     setBusy(true);
-    setStatus("Looking up your work address…");
+    setStatus("Looking up your destination…");
     try {
-      const result = await geocode({ data: { address: draft.workAddress.trim() } });
+      const result = await geocode({ data: { address: draft.destinationAddress.trim() } });
       if (!result.found) {
         setStatus("That address was not found. Try adding the city.");
         return;
@@ -499,14 +621,14 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
       }
       setDraft((current) => ({
         ...current,
-        workAddress: result.label,
-        workLat: result.lat,
-        workLon: result.lon,
+        destinationAddress: result.label,
+        destLat: result.lat,
+        destLon: result.lon,
         destStopId: nearest.stop_id,
         destStopName: nearest.stop_name ?? "",
         busRouteId: null,
       }));
-      setStatus(`Work stop: ${titleCase(nearest.stop_name)} (${Math.round(nearest.distance_m)} m from your address).`);
+      setStatus(`Nearest stop: ${titleCase(nearest.stop_name)} (${Math.round(nearest.distance_m)} m away).`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Address lookup failed.");
     } finally {
@@ -514,17 +636,30 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
     }
   }
 
-  const canSave = Boolean(draft.homeStopId && draft.destStopId);
+  function save() {
+    const station = stations.find((item) => item.stop_id === draft.homeStopId);
+    onSave({
+      ...draft,
+      // Without a shared location, treat the chosen station as the starting point.
+      homeLat: draft.homeLat ?? (station?.stop_lat ? Number(station.stop_lat) : null),
+      homeLon: draft.homeLon ?? (station?.stop_lon ? Number(station.stop_lon) : null),
+    });
+  }
+
+  const canSave = Boolean(draft.homeStopId && draft.destStopId && draft.destLat);
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next && !firstRun) onClose(); }}>
-      <DialogContent
-        className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg"
-      >
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !firstRun) onClose();
+      }}
+    >
+      <DialogContent className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
         <DialogHeader className="text-left">
-          <DialogTitle className="text-2xl">{firstRun ? "Set up your commute" : "Your commute"}</DialogTitle>
+          <DialogTitle className="text-2xl">{firstRun ? "Set up your trip" : "Your trip"}</DialogTitle>
           <DialogDescription>
-            Kine needs your home station and work address once. Everything stays on this device.
+            Kine needs your starting point and destination once. Everything stays on this device.
           </DialogDescription>
         </DialogHeader>
 
@@ -558,32 +693,33 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="work">Work address</Label>
+            <Label htmlFor="destination">Destination</Label>
             <Input
-              id="work"
+              id="destination"
               className="h-12 bg-surface-raised"
               placeholder="1000 Bishop St, Honolulu"
-              value={draft.workAddress}
-              onChange={(event) => setDraft((current) => ({ ...current, workAddress: event.target.value }))}
+              value={draft.destinationAddress}
+              onChange={(event) => setDraft((current) => ({ ...current, destinationAddress: event.target.value }))}
             />
-            <Button variant="outline" onClick={findWorkStop} disabled={busy} className="h-12">
-              Find my work stop
+            <Button variant="outline" onClick={findDestinationStop} disabled={busy} className="h-12">
+              Find nearest stop
             </Button>
             {draft.destStopName && (
-              <p className="text-sm text-muted-foreground">Work stop: {titleCase(draft.destStopName)}</p>
+              <p className="text-sm text-muted-foreground">Destination stop: {titleCase(draft.destStopName)}</p>
             )}
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="walk">Minutes to reach your station</Label>
-            <Input
-              id="walk"
-              type="number"
-              min="0"
-              max="90"
-              className="h-12 bg-surface-raised"
-              value={draft.walkMinutes}
-              onChange={(event) => setDraft((current) => ({ ...current, walkMinutes: Number(event.target.value) }))}
+          <div className="flex items-center justify-between gap-4 rounded-lg bg-surface-raised px-4 py-3">
+            <Label htmlFor="drive" className="leading-snug">
+              I can drive to the station
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                Lets Kine use driving for the first leg.
+              </span>
+            </Label>
+            <Switch
+              id="drive"
+              checked={draft.allowDrive}
+              onCheckedChange={(checked) => setDraft((current) => ({ ...current, allowDrive: checked }))}
             />
           </div>
 
@@ -603,7 +739,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
                   <SelectItem value="auto">Automatic (fastest connection)</SelectItem>
                   {destRoutes.map((route) => (
                     <SelectItem key={route.route_id} value={route.route_id}>
-                      {busName(route.route_short_name, route.sample_headsign)}
+                      {route.route_short_name ? `Route ${route.route_short_name}` : route.route_id}
+                      {route.sample_headsign ? ` to ${titleCase(route.sample_headsign)}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -615,8 +752,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onSave(draft)} disabled={!canSave || busy} className="h-12 w-full shadow-none">
-            Save commute
+          <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
+            Save trip
           </Button>
         </DialogFooter>
       </DialogContent>
