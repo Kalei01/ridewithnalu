@@ -1472,6 +1472,7 @@ function Index() {
               )}
               {browseDirections.map((direction) => {
                 const first = direction[0];
+                const second = direction[1];
                 const towardDowntown =
                   first?.terminus_lon !== null &&
                   first?.terminus_lon !== undefined &&
@@ -1479,38 +1480,63 @@ function Index() {
                 const directionName = towardDowntown ? "Downtown Honolulu" : "Kapolei";
                 const endpoint =
                   terminusLabel(first?.direction_terminus) || stationLabel(first?.trip_headsign) || "the end of the line";
+                const secondsAway = (first?.departure_seconds ?? 0) - nowSeconds;
+                const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
+                const nowDeparture = secondsAway >= -30 && secondsAway < 60;
+                const soon = secondsAway >= 60 && secondsAway < 20 * 60;
+                const userLoc =
+                  browseStation.userLat != null && browseStation.userLon != null
+                    ? { lat: browseStation.userLat, lon: browseStation.userLon }
+                    : null;
+                const stationRow = browseStations.find((s) => s.stop_id === browseStation.stopId);
+                const stationCoords =
+                  stationRow?.stop_lat != null && stationRow?.stop_lon != null
+                    ? { lat: Number(stationRow.stop_lat), lon: Number(stationRow.stop_lon) }
+                    : null;
+                const access =
+                  userLoc && stationCoords ? stationAccess(userLoc, stationCoords, minutesAway) : null;
                 return (
                   <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="border-t border-border pt-5">
                     <h3 className="text-lg font-semibold">toward {directionName}</h3>
                     <p className="mt-0.5 text-sm text-muted-foreground">ends at {endpoint}</p>
-                    <ol className="mt-3 divide-y divide-border">
-                      {direction.map((departure) => {
-                        const secondsAway = departure.departure_seconds - nowSeconds;
-                        const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
-                        const nowDeparture = secondsAway >= -30 && secondsAway < 60;
-                        const soon = secondsAway >= 60 && secondsAway < 20 * 60;
-                        return (
-                          <li key={departure.trip_id} className="min-h-14 py-3">
-                            <div>
-                              {nowDeparture ? (
-                                <span className="text-xl font-semibold tabular-nums text-foreground">Now</span>
-                              ) : soon ? (
-                                <span className="text-xl font-semibold tabular-nums text-foreground">
-                                  in {minutesAway} min <span className="text-sm font-normal text-muted-foreground">· {clockFromSeconds(departure.departure_seconds)}</span>
-                                </span>
-                              ) : (
-                                <span className="text-xl font-semibold tabular-nums text-foreground">
-                                  {clockFromSeconds(departure.departure_seconds)}
-                                </span>
-                              )}
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Skyline rail · toward {directionName} · {departure.ride_minutes} min to {towardDowntown ? "downtown" : "Kapolei"}
-                              </p>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ol>
+                    {first && (
+                      <div className="mt-4">
+                        <p className="text-3xl font-semibold tabular-nums text-foreground">
+                          {nowDeparture ? (
+                            <>
+                              Now{" "}
+                              <span className="text-lg font-normal text-muted-foreground">
+                                · {clockFromSeconds(first.departure_seconds)}
+                              </span>
+                            </>
+                          ) : soon ? (
+                            <>
+                              in {minutesAway} min{" "}
+                              <span className="text-lg font-normal text-muted-foreground">
+                                · {clockFromSeconds(first.departure_seconds)}
+                              </span>
+                            </>
+                          ) : (
+                            clockFromSeconds(first.departure_seconds)
+                          )}
+                        </p>
+                        <p className="mt-1.5 text-xs text-muted-foreground">
+                          Skyline rail · toward {directionName} · {first.ride_minutes} min to {towardDowntown ? "downtown" : "Kapolei"}
+                        </p>
+                        {access && (
+                          <p className={`mt-2.5 text-sm font-medium ${access.state === "ok" ? "text-primary" : "text-warning"}`}>
+                            You have {minutesAway} min · {stationLabel(browseStation.stopName)} is {access.minutes} min away by{" "}
+                            {access.mode}
+                            {access.state === "tight" ? " · Tight" : access.state === "miss" ? " · You'll miss this one." : ""}
+                          </p>
+                        )}
+                        {second && (
+                          <p className="mt-1.5 text-xs text-muted-foreground">
+                            Miss it? Next train at {clockFromSeconds(second.departure_seconds)}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </article>
                 );
               })}
