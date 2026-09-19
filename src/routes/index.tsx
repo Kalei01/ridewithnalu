@@ -505,6 +505,9 @@ function Index() {
         p_allow_drive: setup.allowDrive,
         p_after_seconds: afterSeconds,
         p_limit: 4,
+        // Any stop within a quarter mile of the door is fair game, walk included.
+        p_dest_lat: setup.destLat as number,
+        p_dest_lon: setup.destLon as number,
         ...(setup.busRouteId ? { p_bus_route_id: setup.busRouteId } : {}),
       });
       if (error) throw error;
