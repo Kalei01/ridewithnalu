@@ -714,7 +714,26 @@ function Index() {
   });
 
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
-  const best = options[0];
+  // Options arrive in earliest-door-arrival order, so the first one is the
+  // recommendation. A later departure that lands barely later is offered, never
+  // chosen for the rider.
+  const earliest = options[0];
+  const alternative = useMemo(() => {
+    if (!earliest) return null;
+    let pick: PlanOption | null = null;
+    for (const option of options.slice(1)) {
+      const laterLeave = option.leave_by_seconds - earliest.leave_by_seconds;
+      const laterArrive = option.arrive_seconds - earliest.arrive_seconds;
+      if (laterLeave < 5 * 60 || laterArrive > 10 * 60) continue;
+      if (!pick || option.leave_by_seconds > pick.leave_by_seconds) pick = option;
+    }
+    return pick;
+  }, [options, earliest]);
+  const [preferLater, setPreferLater] = useState(false);
+  useEffect(() => {
+    setPreferLater(false);
+  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
+  const best = preferLater && alternative ? alternative : earliest;
   // Rail total carries a safety buffer, and a range for transfers that slip.
   const railMinutes = best ? best.total_minutes + RAIL_BUFFER_MIN : null;
   const railRange = railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
