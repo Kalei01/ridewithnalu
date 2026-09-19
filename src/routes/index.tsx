@@ -329,11 +329,11 @@ function Index() {
     rows.push({
       seconds: last?.arrive_seconds ?? null,
       title: inbound ? "Arrive home" : "Arrive destination",
-      detail: titleCase(last?.to) || setup.destinationAddress,
+      detail: titleCase(last?.to) || setup.destinationName || setup.destinationAddress,
       mode: "walk" as Leg["mode"],
     });
     return rows;
-  }, [best, inbound, setup.destinationAddress]);
+  }, [best, inbound, setup.destinationName, setup.destinationAddress]);
 
   function refresh() {
     setRefreshing(true);
