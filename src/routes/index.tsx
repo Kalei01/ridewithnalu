@@ -70,7 +70,23 @@ type Option = {
 };
 
 const STORAGE_KEY = "kine-setup-v3";
+const DIRECTION_KEY = "kine-direction-v1";
+const PARKED_KEY = "kine-parked-v1";
+const OVERRIDE_MS = 2 * 60 * 60 * 1000;
 const DRIVE_MINUTES = 54;
+
+type DirectionOverride = { inbound: boolean; at: number };
+/** Set when the morning trip drove to the station: the car waits there for the return leg. */
+type ParkedCar = { date: string; station: string };
+
+function readJson<T>(key: string): T | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
 
 const emptySetup: Setup = {
   homeStopId: "",
@@ -109,6 +125,10 @@ function honoluluIsoDow(date: Date) {
   const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "Pacific/Honolulu", weekday: "short" }).format(date);
   const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   return order.indexOf(weekday) + 1;
+}
+
+function honoluluDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Honolulu", dateStyle: "short" }).format(date);
 }
 
 function clockFromSeconds(seconds: number | null | undefined) {
@@ -161,8 +181,8 @@ function Index() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [inbound, setInbound] = useState(false);
-  const [directionTouched, setDirectionTouched] = useState(false);
+  const [override, setOverride] = useState<DirectionOverride | null>(null);
+  const [parked, setParked] = useState<ParkedCar | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -176,15 +196,22 @@ function Index() {
     } else {
       setOnboardingOpen(true);
     }
+    setOverride(readJson<DirectionOverride>(DIRECTION_KEY));
+    setParked(readJson<ParkedCar>(PARKED_KEY));
     setHydrated(true);
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
 
-  // Default direction from the time of day until the user chooses one.
-  useEffect(() => {
-    if (!directionTouched) setInbound(honoluluParts(now).hour >= 12);
-  }, [now, directionTouched]);
+  // A manual choice sticks for 2 hours, then the time-of-day default takes over again.
+  const overrideActive = Boolean(override && now.getTime() - override.at < OVERRIDE_MS);
+  const inbound = overrideActive ? Boolean(override?.inbound) : honoluluParts(now).hour >= 12;
+
+  function chooseDirection(next: boolean) {
+    const entry: DirectionOverride = { inbound: next, at: Date.now() };
+    setOverride(entry);
+    window.localStorage.setItem(DIRECTION_KEY, JSON.stringify(entry));
+  }
 
   function persist(next: Setup) {
     setSetup(next);
@@ -205,6 +232,10 @@ function Index() {
   const configured = Boolean(setup.homeStopId && setup.destStopId && setup.destLat && setup.homeLat);
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
+  // The car only helps on the way home if this morning's trip drove to this station.
+  const carAtStation = Boolean(
+    setup.allowDrive && parked && parked.station === setup.homeStopId && parked.date === honoluluDateKey(now),
+  );
 
   const { data: options = [], isLoading: optionsLoading } = useQuery({
     queryKey: [
@@ -214,6 +245,7 @@ function Index() {
       setup.destStopId,
       setup.busRouteId,
       setup.allowDrive,
+      carAtStation,
       Math.floor(afterSeconds / 60),
     ],
     enabled: hydrated && configured,
@@ -226,7 +258,7 @@ function Index() {
           p_station: setup.homeStopId,
           p_home_lat: setup.homeLat as number,
           p_home_lon: setup.homeLon as number,
-          p_allow_drive: setup.allowDrive,
+          p_allow_drive: carAtStation,
           p_after_seconds: afterSeconds,
           p_limit: 4,
         });
@@ -247,6 +279,18 @@ function Index() {
       return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] })) as Option[];
     },
   });
+
+  // Remember when the outbound plan drives to the station, so the return leg drives home.
+  const outboundAccessMode = !inbound ? options[0]?.legs?.[0]?.mode : undefined;
+  useEffect(() => {
+    if (outboundAccessMode !== "drive" || !setup.homeStopId) return;
+    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId };
+    setParked((current) =>
+      current && current.date === entry.date && current.station === entry.station ? current : entry,
+    );
+    window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
+  }, [outboundAccessMode, setup.homeStopId]);
+
 
   // Real service hours for the rail station, used when nothing is reachable.
   const { data: railHours = [] } = useQuery({
@@ -273,7 +317,9 @@ function Index() {
       title: vehicleName(leg),
       detail:
         leg.mode === "walk" || leg.mode === "drive"
-          ? `${leg.minutes} min`
+          ? leg.kind === "egress" && leg.mode === "drive"
+            ? `${leg.minutes} min · your car is parked here`
+            : `${leg.minutes} min`
           : `${titleCase(leg.from)} → ${titleCase(leg.to)}`,
       mode: leg.mode,
     }));
@@ -298,7 +344,26 @@ function Index() {
   return (
     <main className="min-h-dvh bg-background px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
       <div className="mx-auto flex w-full max-w-[440px] flex-col">
-        <header className="flex min-h-11 items-center justify-between">
+        <div role="tablist" aria-label="Trip direction" className="grid grid-cols-2 gap-1 rounded-full bg-surface-raised p-1">
+          {[
+            { label: "To destination", value: false },
+            { label: "To home", value: true },
+          ].map((tab) => (
+            <button
+              key={tab.label}
+              role="tab"
+              aria-selected={inbound === tab.value}
+              onClick={() => chooseDirection(tab.value)}
+              className={`min-h-11 rounded-full text-sm font-semibold transition-colors ${
+                inbound === tab.value ? "bg-recommended text-recommended-foreground" : "text-muted-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <header className="mt-5 flex min-h-11 items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase text-muted-foreground">
               {inbound ? "Heading home" : "Heading out"}
@@ -315,28 +380,6 @@ function Index() {
             <Settings className="size-5" />
           </Button>
         </header>
-
-        <div role="tablist" aria-label="Trip direction" className="mt-5 grid grid-cols-2 rounded-full bg-surface-raised p-1">
-          {[
-            { label: "To destination", value: false },
-            { label: "To home", value: true },
-          ].map((tab) => (
-            <button
-              key={tab.label}
-              role="tab"
-              aria-selected={inbound === tab.value}
-              onClick={() => {
-                setDirectionTouched(true);
-                setInbound(tab.value);
-              }}
-              className={`min-h-10 rounded-full text-sm font-medium transition-colors ${
-                inbound === tab.value ? "bg-recommended text-recommended-foreground" : "text-muted-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
 
         <section className="py-10" aria-labelledby="verdict-title">
           <div className="mb-5 flex items-center gap-2 text-recommended">
@@ -672,7 +715,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
 
         <div className="grid gap-5">
           <div className="grid gap-2">
-            <Label>Home rail station</Label>
+            <Label>Home station</Label>
+            <p className="text-sm text-muted-foreground">The station nearest where you live.</p>
             <Button variant="outline" onClick={useMyLocation} disabled={busy} className="h-12 justify-start">
               <LocateFixed className="size-4" /> Use my location
             </Button>

@@ -32,3 +32,9 @@
 - [x] Walking speed 3 mph (80.47 m/min), 15-min walk limit = 0.75 mile; driving estimate 25 mph
 - [x] Quarter-mile (402 m) stop-to-station proximity, half-mile (805 m) bus boarding radius
 - [x] No temperatures in the app; database values remain metric, conversion happens at display/calculation time
+
+## Direction + real return trip (done)
+- [x] Outbound before noon, return after noon; manual toggle at the top of the screen persists 2 hours (`kine-direction-v1`) then auto resumes
+- [x] Return planned independently by `plan_inbound` (bus/walk to boarding stop, rail to home station, last leg home)
+- [x] Outbound drive to the station is remembered (`kine-parked-v1`, per date + station) so the evening last leg drives home; otherwise driving is not offered on the return
+- [x] "Home rail station" relabelled "Home station" with helper text
