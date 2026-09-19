@@ -24,6 +24,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
+function WaveMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 22 16" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M1 11C4 4 8 4 11 11S18 18 21 11"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
