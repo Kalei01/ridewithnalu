@@ -62,3 +62,10 @@
 - [x] At the transfer station the rail leg is dropped and `connecting_departures(lat, lon, dest_stop, after_seconds)` recomputes the bus from the real position and time, with walk stop, distance, walk minutes and the next departures
 - [x] Verdict, drive comparison, leave-by and later options hidden while a leg is underway
 - [x] Manual "End trip"; auto-clear 10 min after arrival or 3 hours after start
+
+## Multi-stop destinations + honest drive range (done)
+- plan_outbound evaluates every stop within 0.25 mi of the destination and adds the
+  final walk into the chain total (migrations 0016, 0017). Return direction and the
+  feeder/first leg already evaluated all stops within 0.5 mi with walk included.
+- Drive range is traffic-centred: TomTom historic (typical) time is the low end,
+  never free-flow. Delay shown plainly; verdict compares the displayed worst cases.

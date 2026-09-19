@@ -113,6 +113,20 @@
       "when": 1789846927617,
       "tag": "0015_connecting_departures_from_position",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789848787144,
+      "tag": "0016_plan_outbound_multi_dest_stops",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789848945087,
+      "tag": "0017_plan_outbound_multi_dest_fast",
+      "breakpoints": true
     }
   ]
 }

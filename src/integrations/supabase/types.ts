@@ -353,6 +353,9 @@ export type Database = {
           p_after_seconds?: number
           p_allow_drive?: boolean
           p_bus_route_id?: string
+          p_dest_lat?: number
+          p_dest_lon?: number
+          p_dest_radius_m?: number
           p_dest_stop: string
           p_limit?: number
           p_origin_lat: number

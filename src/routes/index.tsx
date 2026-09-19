@@ -505,6 +505,9 @@ function Index() {
         p_allow_drive: setup.allowDrive,
         p_after_seconds: afterSeconds,
         p_limit: 4,
+        // Any stop within a quarter mile of the door is fair game, walk included.
+        p_dest_lat: setup.destLat as number,
+        p_dest_lon: setup.destLon as number,
         ...(setup.busRouteId ? { p_bus_route_id: setup.busRouteId } : {}),
       });
       if (error) throw error;
@@ -717,14 +720,19 @@ function Index() {
   const railRange = railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
   // Parking only costs time where you have to park: nothing when you get home.
   const parkingBuffer = inbound ? 0 : Math.max(0, setup.parkingBufferMinutes ?? 8);
-  const driveMinutes = drive ? drive.trafficMinutes + parkingBuffer : null;
-  const driveRange = drive ? { low: drive.freeflowMinutes + parkingBuffer, high: drive.trafficMinutes + parkingBuffer } : null;
+  const driveRange = drive
+    ? { low: drive.lowMinutes + parkingBuffer, high: drive.highMinutes + parkingBuffer }
+    : null;
+  // The verdict compares exactly the number each column shows: the worst case.
+  const driveMinutes = driveRange ? driveRange.high : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
   const waitForTrain = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
   const longWait = waitForTrain !== null && waitForTrain > LONG_WAIT_MIN;
 
   const usableDrive = driveAvailable && driveMinutes !== null;
-  const gap = railMinutes !== null && driveMinutes !== null ? driveMinutes - railMinutes : null;
+  // Compare worst case against worst case: the same figures headlining each column.
+  const railWorst = railRange ? railRange.high : null;
+  const gap = railWorst !== null && driveMinutes !== null ? driveMinutes - railWorst : null;
   const verdict: "rail" | "drive" | "same" | "none" =
     railMinutes === null && !usableDrive
       ? "none"
@@ -767,7 +775,8 @@ function Index() {
         return `${worstLabel} connection adds ${Math.round(worstWait / 60)} min of waiting`;
       }
     }
-    if (drive && drive.delayMinutes >= 5) return `Traffic is adding ${drive.delayMinutes} min to the drive`;
+    if (drive && drive.delayMinutes >= 5)
+      return `The drive is running ${drive.delayMinutes} min slower than usual`;
     if (incident) return incidentText(incident);
     return null;
   }, [best, drive, verdict, longWait, waitForTrain]);
@@ -1082,11 +1091,20 @@ function Index() {
               {driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}
               {driveAvailable && driveRange && <span className="ml-1 text-base font-medium">min</span>}
             </p>
-            {driveAvailable && driveRange && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                {driveRange.low}–{driveRange.high} min
-                {parkingBuffer > 0 ? ` incl. ${parkingBuffer} min parking` : ""}
-              </p>
+            {driveAvailable && driveRange && drive && (
+              <>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {driveRange.low}–{driveRange.high} min
+                  {parkingBuffer > 0 ? ` incl. ${parkingBuffer} min parking` : ""}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {drive.delayMinutes >= 1
+                    ? `${drive.trafficMinutes} min now, ${drive.delayMinutes} min slower than usual`
+                    : drive.delayMinutes <= -1
+                      ? `${drive.trafficMinutes} min now, ${Math.abs(drive.delayMinutes)} min faster than usual`
+                      : `${drive.trafficMinutes} min now, about usual for this time`}
+                </p>
+              </>
             )}
             {!driveAvailable && carAwayReason && (
               <p className="mt-2 text-sm text-muted-foreground">{carAwayReason}</p>
@@ -1102,9 +1120,9 @@ function Index() {
             ) : null}
             <dl className="mt-7 space-y-4 text-sm">
               <div>
-                <dt className="text-muted-foreground">Traffic delay</dt>
+                <dt className="text-muted-foreground">Usually</dt>
                 <dd className="mt-1 font-semibold text-foreground">
-                  {drive ? (drive.delayMinutes > 0 ? `+${drive.delayMinutes} min` : "Clear") : "—"}
+                  {drive ? `${drive.typicalMinutes} min` : "—"}
                 </dd>
               </div>
               <div>
