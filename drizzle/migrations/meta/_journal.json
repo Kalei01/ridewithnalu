@@ -15,6 +15,13 @@
       "when": 1789815012282,
       "tag": "0001_next_departures_normalized_match",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789815509529,
+      "tag": "0002_create_trip_updates_realtime_cache",
+      "breakpoints": true
     }
   ]
 }
