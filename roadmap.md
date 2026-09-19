@@ -6,6 +6,7 @@
 - [x] Verify desktop and 390px mobile layouts
 - [x] Import real GTFS schedule data and show live departures
 - [x] Import all stops and all routes
-- [x] Import stop_times for Skyline stops + all stops within 400m of a rail station
-- [x] Trim inactive service_id trips (not stops) if stop_times exceeds the cap; log counts
+- [x] Import full stop sequences for every trip active in the Jul 12 – Dec 5, 2026 calendar window (no stop/proximity filter): 1,428,712 stop_times rows, 37,779 trips, DB 312 MB
+- [ ] Data API batch upserts are too slow for 1.4M rows in one scheduled run; the weekly job needs a faster load path before it can refresh the full set
+
 - [ ] Realtime delays (paused at user's request — no realtime code in the app)
