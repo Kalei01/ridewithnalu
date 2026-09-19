@@ -47,7 +47,7 @@ const stations = [
 ];
 
 const defaults: Preferences = {
-  station: stations[2],
+  station: "Honouliuli · Hoʻopili",
   destination: "Downtown Honolulu",
   departureTime: "07:00",
   walkMinutes: 7,
