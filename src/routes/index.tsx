@@ -96,6 +96,13 @@ const RAIL_SLIP_MIN = 4;
 const TOSS_UP_MIN = 5;
 /** A long wait for the first train tips the choice toward the car. */
 const LONG_WAIT_MIN = 25;
+const ACTIVE_TRIP_KEY = "kine-active-trip-v1";
+/** A trip clears itself after this long, even if the phone never saw the arrival. */
+const TRIP_MAX_MS = 3 * 60 * 60 * 1000;
+/** How long the arrival card stays up before the trip collapses on its own. */
+const ARRIVED_CLEAR_MS = 10 * 60 * 1000;
+/** Treated as "you are here" for stations and the destination. */
+const AT_PLACE_M = 250;
 
 type DirectionOverride = { inbound: boolean; at: number };
 /** Where the car is today: at home, left at the station, or driven all the way. */
@@ -112,6 +119,46 @@ type BrowseDeparture = {
   trip_headsign: string;
   trip_id: string;
 };
+
+/** A trip the rider is actually on: the plan they boarded plus when it started. */
+type ActiveTrip = {
+  startedAt: number;
+  inbound: boolean;
+  legs: Leg[];
+  departSeconds: number;
+  arriveSeconds: number;
+  homeStopId: string;
+  destStopId: string;
+};
+
+type TripPhase = "boarding" | "rail" | "transfer" | "arrived";
+
+type Coords = { lat: number; lon: number };
+
+type ConnectingDeparture = {
+  stop_id: string;
+  stop_name: string;
+  distance_m: number;
+  walk_minutes: number;
+  route_id: string;
+  route_short_name: string | null;
+  route_long_name: string | null;
+  headsign: string | null;
+  depart_seconds: number;
+  arrive_seconds: number;
+  ride_minutes: number;
+  dest_stop_name: string | null;
+};
+
+/** Straight-line metres between two points; good enough to tell "am I there yet". */
+function distanceM(a: Coords, b: Coords) {
+  const toRad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toRad;
+  const dLon = (b.lon - a.lon) * toRad;
+  const mid = (a.lat + b.lat) / 2 * toRad;
+  const x = dLon * Math.cos(mid);
+  return Math.sqrt(dLat * dLat + x * x) * 6371000;
+}
 
 function readJson<T>(key: string): T | null {
   try {
@@ -232,6 +279,8 @@ function Index() {
   const [parked, setParked] = useState<ParkedCar | null>(null);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
+  const [trip, setTrip] = useState<ActiveTrip | null>(null);
+  const [position, setPosition] = useState<Coords | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -252,6 +301,10 @@ function Index() {
     setBrowseLocationDenied(window.localStorage.getItem(BROWSE_LOCATION_DENIED_KEY) === "1");
     setOverride(readJson<DirectionOverride>(DIRECTION_KEY));
     setParked(readJson<ParkedCar>(PARKED_KEY));
+    // A trip older than three hours is over, whatever the phone last saw.
+    const saved = readJson<ActiveTrip>(ACTIVE_TRIP_KEY);
+    if (saved && Date.now() - saved.startedAt < TRIP_MAX_MS) setTrip(saved);
+    else window.localStorage.removeItem(ACTIVE_TRIP_KEY);
     setHydrated(true);
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
@@ -471,6 +524,150 @@ function Index() {
     );
     window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
   }, [outboundAccessMode, setup.homeStopId]);
+
+  // ---- Trip progress -------------------------------------------------------
+  const tripActive = Boolean(trip);
+
+  function startTrip(option: Option) {
+    const entry: ActiveTrip = {
+      startedAt: Date.now(),
+      inbound,
+      legs: option.legs,
+      departSeconds: option.depart_seconds,
+      arriveSeconds: option.arrive_seconds,
+      homeStopId: setup.homeStopId,
+      destStopId: inbound ? "" : setup.destStopId,
+    };
+    setTrip(entry);
+    window.localStorage.setItem(ACTIVE_TRIP_KEY, JSON.stringify(entry));
+  }
+
+  function endTrip() {
+    setTrip(null);
+    window.localStorage.removeItem(ACTIVE_TRIP_KEY);
+  }
+
+  // Follow the rider while a trip is underway; that is the only time it matters.
+  useEffect(() => {
+    if (!tripActive || !navigator.geolocation) return;
+    const watch = navigator.geolocation.watchPosition(
+      (fix) => setPosition({ lat: fix.coords.latitude, lon: fix.coords.longitude }),
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 },
+    );
+    return () => navigator.geolocation.clearWatch(watch);
+  }, [tripActive]);
+
+  const { data: stationCoords = [] } = useQuery({
+    queryKey: ["rail-station-coords"],
+    enabled: tripActive,
+    staleTime: 6 * 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rail_stations");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const railLeg = trip?.legs.find((leg) => leg.kind === "rail") ?? null;
+  const connectLeg = trip?.legs.find((leg) => leg.kind === "connect" || leg.kind === "egress") ?? null;
+
+  function stationPoint(name: string | null | undefined): Coords | null {
+    if (!name) return null;
+    const wanted = name.trim().toLowerCase();
+    const hit = stationCoords.find((station) => (station.stop_name ?? "").trim().toLowerCase() === wanted);
+    if (!hit || hit.stop_lat === null || hit.stop_lon === null) return null;
+    return { lat: Number(hit.stop_lat), lon: Number(hit.stop_lon) };
+  }
+
+  const boardPoint = stationPoint(railLeg?.from);
+  const transferPoint = stationPoint(railLeg?.to);
+  const endPoint = trip?.inbound
+    ? setup.homeLat && setup.homeLon
+      ? { lat: setup.homeLat, lon: setup.homeLon }
+      : null
+    : setup.destLat && setup.destLon
+      ? { lat: setup.destLat, lon: setup.destLon }
+      : null;
+
+  // Which leg the rider is on, read from where they actually are, with the
+  // schedule as a fallback when location is unavailable.
+  const phase: TripPhase = useMemo(() => {
+    if (!trip) return "boarding";
+    if (position) {
+      if (endPoint && distanceM(position, endPoint) <= AT_PLACE_M) return "arrived";
+      if (transferPoint && distanceM(position, transferPoint) <= AT_PLACE_M) return "transfer";
+      if (boardPoint && distanceM(position, boardPoint) <= AT_PLACE_M) return "boarding";
+      if (railLeg?.depart_seconds && nowSeconds >= railLeg.depart_seconds) return "rail";
+      return "boarding";
+    }
+    if (nowSeconds >= trip.arriveSeconds) return "arrived";
+    if (railLeg?.arrive_seconds && nowSeconds >= railLeg.arrive_seconds) return "transfer";
+    if (railLeg?.depart_seconds && nowSeconds >= railLeg.depart_seconds) return "rail";
+    return "boarding";
+  }, [trip, position, endPoint, transferPoint, boardPoint, railLeg, nowSeconds]);
+
+  // Coming home, the connecting stop is near home, so resolve that stop once.
+  const { data: inboundEndStop } = useQuery({
+    queryKey: ["inbound-end-stop", setup.homeLat, setup.homeLon],
+    enabled: tripActive && Boolean(trip?.inbound) && setup.homeLat !== null && setup.homeLon !== null,
+    staleTime: 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("nearest_stop", {
+        p_lat: setup.homeLat as number,
+        p_lon: setup.homeLon as number,
+      });
+      if (error) throw error;
+      return data?.[0]?.stop_id ?? null;
+    },
+  });
+
+  const connectDestStop = trip?.inbound ? (inboundEndStop ?? "") : (trip?.destStopId || setup.destStopId);
+
+  // At the transfer station the plan is stale: recompute from here and now.
+  const { data: connecting = [], isLoading: connectingLoading } = useQuery({
+    queryKey: [
+      "connecting",
+      connectDestStop,
+      position?.lat?.toFixed(4),
+      position?.lon?.toFixed(4),
+      Math.floor(afterSeconds / 60),
+    ],
+    enabled: phase === "transfer" && Boolean(connectDestStop) && Boolean(position ?? transferPoint),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const at = position ?? (transferPoint as Coords);
+      const { data, error } = await supabase.rpc("connecting_departures", {
+        p_lat: at.lat,
+        p_lon: at.lon,
+        p_dest_stop: connectDestStop,
+        p_after_seconds: afterSeconds,
+        p_limit: 4,
+      });
+      if (error) throw error;
+      return (data ?? []) as ConnectingDeparture[];
+    },
+  });
+
+  // The trip puts itself away once the rider has been there a while.
+  useEffect(() => {
+    if (!trip) return;
+    if (phase !== "arrived") return;
+    const timer = window.setTimeout(endTrip, ARRIVED_CLEAR_MS);
+    return () => window.clearTimeout(timer);
+  }, [trip, phase]);
+
+  useEffect(() => {
+    if (!trip) return;
+    const remaining = trip.startedAt + TRIP_MAX_MS - Date.now();
+    if (remaining <= 0) {
+      endTrip();
+      return;
+    }
+    const timer = window.setTimeout(endTrip, remaining);
+    return () => window.clearTimeout(timer);
+  }, [trip]);
+
 
   // Real driving time between the two points that matter for this direction.
   const driveFrom = inbound
@@ -782,6 +979,7 @@ function Index() {
           </Button>
         </header>
 
+        {!tripActive && (
         <section className="py-10" aria-labelledby="verdict-title">
           <div className="mb-5 flex items-center gap-2 text-recommended">
             <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
@@ -838,7 +1036,9 @@ function Index() {
             </p>
           )}
         </section>
+        )}
 
+        {!tripActive && (
         <section aria-label="Comparison" className="grid grid-cols-2 border-y border-border">
           <article className={`border-r border-border py-7 pr-5 ${verdict === "drive" ? "opacity-55" : ""}`}>
             <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-muted-foreground" : "text-recommended"}`}>
@@ -944,9 +1144,23 @@ function Index() {
             )}
           </article>
         </section>
+        )}
 
+        {trip && (
+          <TripProgress
+            trip={trip}
+            phase={phase}
+            railLeg={railLeg}
+            connectLeg={connectLeg}
+            connecting={connecting}
+            connectingLoading={connectingLoading}
+            nowSeconds={nowSeconds}
+            destinationLabel={destinationLabel}
+            onEnd={endTrip}
+          />
+        )}
 
-        {best && (
+        {best && !tripActive && (
           <section className="py-8" aria-labelledby="chain-title">
             <h2 id="chain-title" className="text-lg font-semibold">
               Your next trip
@@ -979,9 +1193,13 @@ function Index() {
                 );
               })}
             </ol>
+            <Button onClick={() => startTrip(best)} className="h-12 w-full rounded-full text-base shadow-none">
+              I'm on my way
+            </Button>
           </section>
         )}
 
+        {!tripActive && (
         <section className="pb-8" aria-labelledby="later-title">
           <div className="mb-4">
             <h2 id="later-title" className="text-lg font-semibold">
@@ -1016,6 +1234,7 @@ function Index() {
             )}
           </ol>
         </section>
+        )}
 
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
           <span>Schedule data from the agency feed</span>
@@ -1035,6 +1254,166 @@ function Index() {
     </main>
   );
 }
+
+type TripProgressProps = {
+  trip: ActiveTrip;
+  phase: TripPhase;
+  railLeg: Leg | null;
+  connectLeg: Leg | null;
+  connecting: ConnectingDeparture[];
+  connectingLoading: boolean;
+  nowSeconds: number;
+  destinationLabel: string;
+  onEnd: () => void;
+};
+
+/** What's happening now and what comes next — never the original plan once it's stale. */
+function TripProgress({
+  trip,
+  phase,
+  railLeg,
+  connectLeg,
+  connecting,
+  connectingLoading,
+  nowSeconds,
+  destinationLabel,
+  onEnd,
+}: TripProgressProps) {
+  const endLabel = trip.inbound ? "home" : destinationLabel;
+  const minutesUntil = (seconds: number | null | undefined) =>
+    seconds === null || seconds === undefined ? null : Math.round((seconds - nowSeconds) / 60);
+
+  if (phase === "arrived") {
+    return (
+      <section className="py-8" aria-labelledby="progress-title">
+        <div className="rounded-2xl bg-surface-raised p-5">
+          <div className="flex items-center gap-2 text-recommended">
+            <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
+              <Check className="size-4 stroke-[3]" />
+            </span>
+            <span className="text-xs font-bold uppercase">Arrived</span>
+          </div>
+          <h2 id="progress-title" className="mt-3 text-2xl font-bold">
+            You made it to {endLabel}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This trip closes itself shortly. Tap below to go back to the comparison now.
+          </p>
+          <Button onClick={onEnd} variant="secondary" className="mt-4 h-11 w-full rounded-full">
+            End trip
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
+  const heading =
+    phase === "boarding"
+      ? "Board your train"
+      : phase === "rail"
+        ? "On board"
+        : "Your connection";
+
+  return (
+    <section className="py-8" aria-labelledby="progress-title">
+      <div className="flex items-center gap-2 text-recommended">
+        <LocateFixed className="size-4" />
+        <span className="text-xs font-bold uppercase">Trip in progress</span>
+      </div>
+      <h2 id="progress-title" className="mt-3 text-2xl font-bold">
+        {heading}
+      </h2>
+
+      {phase === "boarding" && railLeg && (
+        <div className="mt-4 rounded-2xl bg-surface-raised p-5">
+          <p className="text-3xl font-bold tabular-nums">{clockFromSeconds(railLeg.depart_seconds)}</p>
+          <p className="mt-1 text-[15px] font-medium text-foreground">{vehicleName(railLeg)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            From {titleCase(railLeg.from)}
+            {minutesUntil(railLeg.depart_seconds) !== null && minutesUntil(railLeg.depart_seconds)! > 0
+              ? ` · in ${minutesUntil(railLeg.depart_seconds)} min`
+              : " · now"}
+          </p>
+        </div>
+      )}
+
+      {phase === "rail" && railLeg && (
+        <div className="mt-4 rounded-2xl bg-surface-raised p-5">
+          <p className="text-[15px] font-medium text-foreground">{vehicleName(railLeg)}</p>
+          <p className="mt-3 text-3xl font-bold tabular-nums">{clockFromSeconds(railLeg.arrive_seconds)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Arrive {titleCase(railLeg.to)}
+            {minutesUntil(railLeg.arrive_seconds) !== null && minutesUntil(railLeg.arrive_seconds)! > 0
+              ? ` · ${minutesUntil(railLeg.arrive_seconds)} min to go`
+              : ""}
+          </p>
+        </div>
+      )}
+
+      {phase === "transfer" && (
+        <div className="mt-4 space-y-4">
+          {connectingLoading && <p className="text-sm text-muted-foreground">Finding your next connection…</p>}
+          {!connectingLoading && connecting.length === 0 && (
+            <div className="rounded-2xl bg-surface-raised p-5">
+              <p className="text-[15px] font-medium text-foreground">
+                {connectLeg ? vehicleName(connectLeg) : "No connection found"}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Nothing more is scheduled to {endLabel} from here right now.
+              </p>
+            </div>
+          )}
+          {connecting[0] && (
+            <div className="rounded-2xl bg-surface-raised p-5">
+              <p className="text-3xl font-bold tabular-nums">{clockFromSeconds(connecting[0].depart_seconds)}</p>
+              <p className="mt-1 text-[15px] font-medium text-foreground">
+                {connecting[0].route_short_name ? `Route ${connecting[0].route_short_name}` : "Bus"}
+                {connecting[0].headsign ? ` to ${titleCase(connecting[0].headsign)}` : ""}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Walk to {titleCase(connecting[0].stop_name)} — {formatDistance(Number(connecting[0].distance_m))}, about{" "}
+                {connecting[0].walk_minutes} min on foot
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Arrives {titleCase(connecting[0].dest_stop_name)} at {clockFromSeconds(connecting[0].arrive_seconds)}
+                {minutesUntil(connecting[0].depart_seconds) !== null
+                  ? ` · leaves in ${Math.max(0, minutesUntil(connecting[0].depart_seconds)!)} min`
+                  : ""}
+              </p>
+            </div>
+          )}
+          {connecting.length > 1 && (
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">After that</h3>
+              <ol className="mt-2 divide-y divide-border">
+                {connecting.slice(1).map((bus) => (
+                  <li
+                    key={`${bus.route_id}-${bus.depart_seconds}-${bus.stop_id}`}
+                    className="flex min-h-12 items-center justify-between gap-3 py-2"
+                  >
+                    <span className="font-medium tabular-nums text-foreground">
+                      {clockFromSeconds(bus.depart_seconds)}
+                    </span>
+                    <span className="truncate text-sm text-muted-foreground">
+                      {bus.route_short_name ? `Route ${bus.route_short_name}` : "Bus"}
+                      {bus.headsign ? ` to ${titleCase(bus.headsign)}` : ""}
+                    </span>
+                    <span className="shrink-0 text-sm text-muted-foreground">{bus.ride_minutes} min</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Button variant="secondary" onClick={onEnd} className="mt-5 h-11 w-full rounded-full">
+        End trip
+      </Button>
+    </section>
+  );
+}
+
 
 type SetupDialogProps = {
   open: boolean;
