@@ -6,6 +6,7 @@ import { Bus, Car, Check, Footprints, LocateFixed, RefreshCw, Settings, TrainFro
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
+import { driveTime, type DriveIncident } from "@/lib/drive.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -53,6 +54,11 @@ type Setup = {
   destReturnWalkM: number | null;
   allowDrive: boolean;
   busRouteId: string | null;
+  /** Shown beside each option; never folded into the verdict. */
+  parkingCost: number | null;
+  railFare: number | null;
+  /** Minutes to park and walk in when arriving at the destination. */
+  parkingBufferMinutes: number;
 };
 
 type Leg = {
@@ -83,11 +89,18 @@ const BROWSE_LOCATION_DENIED_KEY = "kine-browse-location-denied-v1";
 const DIRECTION_KEY = "kine-direction-v1";
 const PARKED_KEY = "kine-parked-v1";
 const OVERRIDE_MS = 2 * 60 * 60 * 1000;
-const DRIVE_MINUTES = 54;
+/** Minutes of padding on the rail chain, and how much a transfer can slip. */
+const RAIL_BUFFER_MIN = 3;
+const RAIL_SLIP_MIN = 4;
+/** Under this gap, neither option really wins. */
+const TOSS_UP_MIN = 5;
+/** A long wait for the first train tips the choice toward the car. */
+const LONG_WAIT_MIN = 25;
 
 type DirectionOverride = { inbound: boolean; at: number };
-/** Set when the morning trip drove to the station: the car waits there for the return leg. */
-type ParkedCar = { date: string; station: string };
+/** Where the car is today: at home, left at the station, or driven all the way. */
+type CarPlace = "home" | "station" | "destination";
+type ParkedCar = { date: string; station: string; place?: CarPlace };
 type BrowseStation = { stopId: string; stopName: string; lat: number; lon: number };
 type BrowseDeparture = {
   departure_seconds: number;
@@ -126,6 +139,9 @@ const emptySetup: Setup = {
   destReturnWalkM: null,
   allowDrive: false,
   busRouteId: null,
+  parkingCost: null,
+  railFare: null,
+  parkingBufferMinutes: 8,
 };
 
 function honoluluParts(date: Date) {
@@ -200,6 +216,11 @@ function modeIcon(mode: Leg["mode"]) {
   return Footprints;
 }
 
+/** Names the road when TomTom gives one, so the banner always says where. */
+function incidentText(incident: DriveIncident) {
+  return incident.road ? `${incident.description} on ${incident.road}` : `${incident.description} on your route`;
+}
+
 function Index() {
   const [now, setNow] = useState(() => new Date());
   const [hydrated, setHydrated] = useState(false);
@@ -266,10 +287,31 @@ function Index() {
   const browseActive = hydrated && !configured;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
-  // The car only helps on the way home if this morning's trip drove to this station.
+  // Where today's car is. Yesterday's note is stale, so the car starts at home.
+  const parkedToday = parked && parked.date === honoluluDateKey(now) ? parked : null;
+  const carPlace: CarPlace = parkedToday?.place ?? (parkedToday ? "station" : "home");
   const carAtStation = Boolean(
-    setup.allowDrive && parked && parked.station === setup.homeStopId && parked.date === honoluluDateKey(now),
+    setup.allowDrive && carPlace === "station" && parkedToday?.station === setup.homeStopId,
   );
+  // Driving this direction is only possible if the car is where the trip starts.
+  const driveAvailable = Boolean(setup.allowDrive) && (inbound ? carPlace === "destination" : carPlace === "home");
+  const carAwayReason = !setup.allowDrive
+    ? "Driving is switched off in your settings."
+    : inbound && carPlace === "station"
+      ? `Your car is at ${titleCase(parkedToday?.station === setup.homeStopId ? setup.homeStopName : "your station")}.`
+      : inbound && carPlace === "home"
+        ? "Your car is at home."
+        : !inbound && carPlace === "station"
+          ? `Your car is at ${titleCase(setup.homeStopName)}.`
+          : !inbound && carPlace === "destination"
+            ? `Your car is at ${setup.destinationName || "your destination"}.`
+            : null;
+
+  function setCarPlace(place: CarPlace) {
+    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place };
+    setParked(entry);
+    window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
+  }
 
   function rememberBrowseStation(next: BrowseStation) {
     setBrowseStation(next);
@@ -421,13 +463,43 @@ function Index() {
   const outboundAccessMode = !inbound ? options[0]?.legs?.[0]?.mode : undefined;
   useEffect(() => {
     if (outboundAccessMode !== "drive" || !setup.homeStopId) return;
-    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId };
+    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place: "station" };
     setParked((current) =>
-      current && current.date === entry.date && current.station === entry.station ? current : entry,
+      current && current.date === entry.date && current.station === entry.station && current.place === "station"
+        ? current
+        : entry,
     );
     window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
   }, [outboundAccessMode, setup.homeStopId]);
 
+  // Real driving time between the two points that matter for this direction.
+  const driveFrom = inbound
+    ? { lat: setup.destLat, lon: setup.destLon }
+    : { lat: setup.homeLat, lon: setup.homeLon };
+  const driveTo = inbound
+    ? { lat: setup.homeLat, lon: setup.homeLon }
+    : { lat: setup.destLat, lon: setup.destLon };
+  const fetchDriveTime = useServerFn(driveTime);
+  const {
+    data: drive,
+    isLoading: driveLoading,
+    isError: driveFailed,
+  } = useQuery({
+    queryKey: ["drive", driveFrom.lat, driveFrom.lon, driveTo.lat, driveTo.lon],
+    enabled: hydrated && configured && driveFrom.lat !== null && driveTo.lat !== null,
+    staleTime: 3 * 60_000,
+    refetchInterval: 3 * 60_000,
+    retry: 1,
+    queryFn: () =>
+      fetchDriveTime({
+        data: {
+          fromLat: driveFrom.lat as number,
+          fromLon: driveFrom.lon as number,
+          toLat: driveTo.lat as number,
+          toLon: driveTo.lon as number,
+        },
+      }),
+  });
 
   // Real service hours for the rail station, used when nothing is reachable.
   const { data: railHours = [] } = useQuery({
@@ -443,14 +515,76 @@ function Index() {
 
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
   const best = options[0];
-  const railMinutes = best?.total_minutes ?? null;
-  const railWins = railMinutes !== null && railMinutes < DRIVE_MINUTES;
+  // Rail total carries a safety buffer, and a range for transfers that slip.
+  const railMinutes = best ? best.total_minutes + RAIL_BUFFER_MIN : null;
+  const railRange = railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
+  // Parking only costs time where you have to park: nothing when you get home.
+  const parkingBuffer = inbound ? 0 : Math.max(0, setup.parkingBufferMinutes ?? 8);
+  const driveMinutes = drive ? drive.trafficMinutes + parkingBuffer : null;
+  const driveRange = drive ? { low: drive.freeflowMinutes + parkingBuffer, high: drive.trafficMinutes + parkingBuffer } : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
+  const waitForTrain = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
+  const longWait = waitForTrain !== null && waitForTrain > LONG_WAIT_MIN;
+
+  const usableDrive = driveAvailable && driveMinutes !== null;
+  const gap = railMinutes !== null && driveMinutes !== null ? driveMinutes - railMinutes : null;
+  const verdict: "rail" | "drive" | "same" | "none" =
+    railMinutes === null && !usableDrive
+      ? "none"
+      : railMinutes === null
+        ? "drive"
+        : !usableDrive
+          ? "rail"
+          : longWait
+            ? "drive"
+            : Math.abs(gap ?? 0) < TOSS_UP_MIN
+              ? "same"
+              : (gap ?? 0) > 0
+                ? "rail"
+                : "drive";
+  const railWins = verdict === "rail";
+
+  // One line naming the single thing that decides it.
+  const reasoning = useMemo(() => {
+    const incident = drive?.incidents[0];
+    if (verdict === "drive" && incident) {
+      return incidentText(incident);
+    }
+    if (verdict === "drive" && longWait && waitForTrain !== null) {
+      return `Next reachable train is ${waitForTrain} min out`;
+    }
+    if (best) {
+      // Biggest wait inside the chain is the bottleneck worth naming.
+      let worstLabel: string | null = null;
+      let worstWait = 0;
+      for (let index = 1; index < best.legs.length; index += 1) {
+        const previous = best.legs[index - 1];
+        const leg = best.legs[index];
+        const wait = (leg?.depart_seconds ?? 0) - (previous?.arrive_seconds ?? 0);
+        if (wait > worstWait && leg) {
+          worstWait = wait;
+          worstLabel = vehicleName(leg);
+        }
+      }
+      if (worstLabel && worstWait >= 5 * 60) {
+        return `${worstLabel} connection adds ${Math.round(worstWait / 60)} min of waiting`;
+      }
+    }
+    if (drive && drive.delayMinutes >= 5) return `Traffic is adding ${drive.delayMinutes} min to the drive`;
+    if (incident) return incidentText(incident);
+    return null;
+  }, [best, drive, verdict, longWait, waitForTrain]);
+
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
   const activeDestStopName = inbound ? setup.destReturnStopName || setup.destStopName : setup.destStopName;
   const rawWalkM = inbound ? (setup.destReturnWalkM ?? setup.destStopWalkM) : setup.destStopWalkM;
   const activeDestWalkM = typeof rawWalkM === "number" ? rawWalkM : null;
+
+  function money(value: number | null) {
+    if (value === null || Number.isNaN(value)) return null;
+    return `$${value.toFixed(2)}`;
+  }
 
   const timeline = useMemo(() => {
     if (!best) return [];
@@ -661,22 +795,29 @@ function Index() {
           >
             {!configured
               ? "SET UP KINE"
-              : railMinutes === null
+              : verdict === "none"
                 ? "RAIL UNAVAILABLE"
-                : railWins
-                  ? "TAKE THE RAIL"
-                  : "DRIVE TODAY"}
+                : verdict === "same"
+                  ? "ABOUT THE SAME"
+                  : verdict === "rail"
+                    ? "TAKE THE RAIL"
+                    : "DRIVE TODAY"}
           </h1>
           {best && (
-            <p className="mt-6 text-3xl font-bold text-recommended">
+            <p className={`mt-6 text-3xl font-bold ${verdict === "drive" ? "text-muted-foreground" : "text-recommended"}`}>
               Leave by {clockFromSeconds(best.leave_by_seconds)}
+              {verdict === "drive" ? " for the train" : ""}
             </p>
           )}
           <p className="mt-3 text-lg font-medium text-muted-foreground">
             {best
-              ? `${Math.abs(DRIVE_MINUTES - (railMinutes ?? 0))} min ${railWins ? "faster" : "slower"} than driving · ${
-                  leaveIn !== null && leaveIn > 0 ? `in ${leaveIn} min` : "now"
-                }`
+              ? verdict === "same"
+                ? `Rail and driving land within ${TOSS_UP_MIN} min of each other${
+                    leaveIn !== null && leaveIn > 0 ? ` · train in ${leaveIn} min` : ""
+                  }`
+                : `${
+                    gap !== null ? `${Math.abs(gap)} min ${railWins ? "faster" : "slower"} than driving · ` : ""
+                  }${leaveIn !== null && leaveIn > 0 ? `train in ${leaveIn} min` : "leave now"}`
               : !configured
                 ? "Add your home station and destination to start."
                 : optionsLoading
@@ -687,6 +828,7 @@ function Index() {
                       )} today — no reachable trip with a connection right now.`
                     : "No rail service for this trip today."}
           </p>
+          {reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
           {activeDestStopName && (
             <p className="mt-3 text-sm text-muted-foreground">
               {inbound
@@ -698,12 +840,21 @@ function Index() {
         </section>
 
         <section aria-label="Comparison" className="grid grid-cols-2 border-y border-border">
-          <article className="border-r border-border py-7 pr-5">
-            <p className="text-xs font-bold uppercase text-recommended">Rail trip</p>
-            <p className="mt-3 text-5xl font-semibold leading-none text-recommended">
-              {railMinutes ?? "—"}
+          <article className={`border-r border-border py-7 pr-5 ${verdict === "drive" ? "opacity-55" : ""}`}>
+            <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-muted-foreground" : "text-recommended"}`}>
+              Rail trip
+            </p>
+            <p
+              className={`mt-3 text-5xl font-semibold leading-none ${
+                verdict === "drive" ? "text-foreground" : "text-recommended"
+              }`}
+            >
+              {railRange ? railRange.high : "—"}
               <span className="ml-1 text-base font-medium">min</span>
             </p>
+            {railRange && (
+              <p className="mt-1 text-sm text-muted-foreground">{railRange.low}–{railRange.high} min, worst case first</p>
+            )}
             <dl className="mt-7 space-y-4 text-sm">
               <div>
                 <dt className="text-muted-foreground">Train departs</dt>
@@ -717,28 +868,83 @@ function Index() {
                   {best?.legs[0] ? vehicleName(best.legs[0]) : "—"}
                 </dd>
               </div>
+              <div>
+                <dt className="text-muted-foreground">Fare</dt>
+                <dd className="mt-1 font-semibold text-foreground">{money(setup.railFare) ?? "Not set"}</dd>
+              </div>
             </dl>
           </article>
-          <article className="py-7 pl-5 opacity-55">
-            <p className="text-xs font-bold uppercase text-muted-foreground">Drive</p>
-            <p className="mt-3 text-5xl font-semibold leading-none text-foreground">
-              {DRIVE_MINUTES}
-              <span className="ml-1 text-base font-medium">min</span>
+          <article className={`py-7 pl-5 ${verdict === "drive" ? "" : "opacity-55"}`}>
+            <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-recommended" : "text-muted-foreground"}`}>
+              Drive
             </p>
+            <p className="mt-3 text-5xl font-semibold leading-none text-foreground">
+              {driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}
+              {driveAvailable && driveRange && <span className="ml-1 text-base font-medium">min</span>}
+            </p>
+            {driveAvailable && driveRange && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {driveRange.low}–{driveRange.high} min
+                {parkingBuffer > 0 ? ` incl. ${parkingBuffer} min parking` : ""}
+              </p>
+            )}
+            {!driveAvailable && carAwayReason && (
+              <p className="mt-2 text-sm text-muted-foreground">{carAwayReason}</p>
+            )}
+            {driveAvailable && driveFailed && (
+              <p className="mt-2 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>
+            )}
+            {driveAvailable && drive?.incidents[0] ? (
+              <p className="mt-3 rounded-lg bg-surface-raised px-3 py-2 text-sm text-foreground">
+                {incidentText(drive.incidents[0])}
+                {drive.incidents[0].delayMinutes ? ` · +${drive.incidents[0].delayMinutes} min` : ""}
+              </p>
+            ) : null}
             <dl className="mt-7 space-y-4 text-sm">
               <div>
-                <dt className="text-muted-foreground">H-1 traffic</dt>
-                <dd className="mt-1 font-semibold text-foreground">Heavy</dd>
+                <dt className="text-muted-foreground">Traffic delay</dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  {drive ? (drive.delayMinutes > 0 ? `+${drive.delayMinutes} min` : "Clear") : "—"}
+                </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">{inbound ? "From" : "To"}</dt>
                 <dd className="mt-1 truncate font-semibold text-foreground">
-                  {setup.destinationName || setup.destinationAddress || "Your destination"}
+                  {inbound
+                    ? setup.destinationName || setup.destinationAddress || "Your destination"
+                    : setup.destinationName || setup.destinationAddress || "Your destination"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Parking</dt>
+                <dd className="mt-1 font-semibold text-foreground">
+                  {inbound ? "None at home" : (money(setup.parkingCost) ?? "Not set")}
                 </dd>
               </div>
             </dl>
+            {!inbound && setup.allowDrive && carPlace !== "destination" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCarPlace("destination")}
+                className="mt-4 px-0 text-muted-foreground hover:text-foreground"
+              >
+                I'm driving all the way
+              </Button>
+            )}
+            {inbound && carPlace === "destination" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCarPlace("home")}
+                className="mt-4 px-0 text-muted-foreground hover:text-foreground"
+              >
+                My car isn't here
+              </Button>
+            )}
           </article>
         </section>
+
 
         {best && (
           <section className="py-8" aria-labelledby="chain-title">
@@ -1114,6 +1320,69 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               onCheckedChange={(checked) => setDraft((current) => ({ ...current, allowDrive: checked }))}
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="fare">Rail fare</Label>
+              <Input
+                id="fare"
+                type="number"
+                inputMode="decimal"
+                step="0.25"
+                min="0"
+                className="h-12 bg-surface-raised"
+                value={draft.railFare ?? ""}
+                placeholder="3.00"
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    railFare: event.target.value === "" ? null : Number(event.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="parking-cost">Parking cost</Label>
+              <Input
+                id="parking-cost"
+                type="number"
+                inputMode="decimal"
+                step="0.25"
+                min="0"
+                className="h-12 bg-surface-raised"
+                value={draft.parkingCost ?? ""}
+                placeholder="15.00"
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    parkingCost: event.target.value === "" ? null : Number(event.target.value),
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="parking-buffer">Minutes to park at your destination</Label>
+            <Input
+              id="parking-buffer"
+              type="number"
+              inputMode="numeric"
+              min="0"
+              max="60"
+              className="h-12 bg-surface-raised"
+              value={draft.parkingBufferMinutes}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  parkingBufferMinutes: event.target.value === "" ? 0 : Number(event.target.value),
+                }))
+              }
+            />
+            <p className="text-xs text-muted-foreground">Added to the drive time. Arriving home adds nothing.</p>
+          </div>
+
+
 
           {draft.destStopId && (
             <div className="grid gap-2">

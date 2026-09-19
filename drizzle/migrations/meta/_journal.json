@@ -92,6 +92,20 @@
       "when": 1789822788733,
       "tag": "0012_rail_departures_per_direction",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789824934704,
+      "tag": "0013_wider_transfer_radius_with_walk",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789824972790,
+      "tag": "0014_restore_plan_rail_chains_wider_radius",
+      "breakpoints": true
     }
   ]
 }
