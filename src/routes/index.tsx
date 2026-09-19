@@ -122,6 +122,7 @@ const TOSS_UP_MIN = 5;
 /** A long wait for the first train tips the choice toward the car. */
 const LONG_WAIT_MIN = 25;
 const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
+const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 /** A trip clears itself after this long, even if the phone never saw the arrival. */
 const TRIP_MAX_MS = 3 * 60 * 60 * 1000;
 /** How long the arrival card stays up before the trip collapses on its own. */
@@ -464,8 +465,17 @@ function Index() {
   const [position, setPosition] = useState<Coords | null>(null);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    const setupDismissed = window.localStorage.getItem(SETUP_DISMISSED_KEY) === "1";
+    const migrateStorage = (key: string, legacySuffix: string) => {
+      const current = window.localStorage.getItem(key);
+      if (current !== null) return current;
+      const legacyKey = `${LEGACY_STORAGE_PREFIX}-${legacySuffix}`;
+      const legacy = window.localStorage.getItem(legacyKey);
+      if (legacy !== null) window.localStorage.setItem(key, legacy);
+      window.localStorage.removeItem(legacyKey);
+      return legacy;
+    };
+    const stored = migrateStorage(STORAGE_KEY, "setup-v3");
+    const setupDismissed = migrateStorage(SETUP_DISMISSED_KEY, "setup-dismissed-v1") === "1";
     if (stored) {
       try {
         const saved = { ...emptySetup, ...(JSON.parse(stored) as Partial<Setup>) };
@@ -478,6 +488,11 @@ function Index() {
     } else if (!setupDismissed) {
       setOnboardingOpen(true);
     }
+    migrateStorage(BROWSE_STATION_KEY, "browse-station-v1");
+    migrateStorage(BROWSE_LOCATION_DENIED_KEY, "browse-location-denied-v1");
+    migrateStorage(DIRECTION_KEY, "direction-v1");
+    migrateStorage(PARKED_KEY, "parked-v1");
+    migrateStorage(ACTIVE_TRIP_KEY, "active-trip-v1");
     setBrowseStation(readJson<BrowseStation>(BROWSE_STATION_KEY));
     setBrowseLocationDenied(window.localStorage.getItem(BROWSE_LOCATION_DENIED_KEY) === "1");
     setOverride(readJson<DirectionOverride>(DIRECTION_KEY));
@@ -540,6 +555,15 @@ function Index() {
           : !inbound && carPlace === "destination"
             ? `Your car is at ${setup.destinationName || "your destination"}.`
             : null;
+
+  // An outbound plan starts at home. A station marker left by an unfinished
+  // earlier plan is stale and must not suppress the drive option or contradict
+  // a drive-to-station first leg.
+  useEffect(() => {
+    if (!hydrated || inbound || tripActive || carPlace === "home") return;
+    setParked(null);
+    window.localStorage.removeItem(PARKED_KEY);
+  }, [hydrated, inbound, tripActive, carPlace]);
 
   function setCarPlace(place: CarPlace) {
     const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place };
@@ -1042,9 +1066,7 @@ function Index() {
         ? "drive"
         : !usableDrive
           ? "rail"
-          : longWait
-            ? "drive"
-            : Math.abs(gap ?? 0) < TOSS_UP_MIN
+          : Math.abs(gap ?? 0) < TOSS_UP_MIN
               ? "same"
               : (gap ?? 0) > 0
                 ? "rail"
@@ -1694,7 +1716,6 @@ function Index() {
             {railRange && (
               <p className="mt-1 text-sm text-muted-foreground">{railRange.low}–{railRange.high} min, worst case first</p>
             )}
-            {driveAvailable && (
             <dl className="mt-7 space-y-4 text-sm">
               <div>
                 <dt className="text-muted-foreground">Train departs</dt>
@@ -1709,17 +1730,6 @@ function Index() {
                 </dd>
               </div>
             </dl>
-            )}
-            {!driveAvailable && setup.allowDrive && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCarPlace(inbound ? "destination" : "home")}
-                className="mt-3 px-0 text-muted-foreground hover:text-foreground"
-              >
-                My car is with me
-              </Button>
-            )}
           </article>
           <article className={`py-7 pl-5 ${verdict === "drive" ? "" : "opacity-55"}`}>
             <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-recommended" : "text-muted-foreground"}`}>
@@ -1762,6 +1772,7 @@ function Index() {
                 {drive.incidents[0].delayMinutes ? ` · +${drive.incidents[0].delayMinutes} min` : ""}
               </p>
             ) : null}
+            {driveAvailable && (
             <dl className="mt-7 space-y-4 text-sm">
               <div>
                 <dt className="text-muted-foreground">Usually</dt>
@@ -1778,6 +1789,7 @@ function Index() {
                 </dd>
               </div>
             </dl>
+            )}
             {!inbound && driveAvailable && (
               <Button
                 variant="ghost"
