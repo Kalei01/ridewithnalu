@@ -543,7 +543,7 @@ function Index() {
   const reasoning = useMemo(() => {
     const incident = drive?.incidents[0];
     if (verdict === "drive" && incident) {
-      return incident.road ? `${incident.description} on ${incident.road}` : incident.description;
+      return incidentText(incident);
     }
     if (verdict === "drive" && longWait && waitForTrain !== null) {
       return `Next reachable train is ${waitForTrain} min out`;
