@@ -236,7 +236,7 @@ function clockFromSeconds(seconds: number | null | undefined) {
  */
 function titleCase(value: string | null | undefined) {
   if (!value) return "";
-  return value
+  return expandName(value)
     .toLowerCase()
     .replace(/(^|[\s\-/&(.])([a-z\u02bb\u2018'])/g, (_match, lead: string, letter: string) => lead + letter.toUpperCase())
     .replace(/([\u02bb\u2018'])([A-Z])/g, (_match, mark: string, letter: string) => mark + letter.toLowerCase());
