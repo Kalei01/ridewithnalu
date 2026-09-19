@@ -579,10 +579,13 @@ type SetupDialogProps = {
 };
 
 function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProps) {
-  const geocode = useServerFn(geocodeAddress);
+  const findPlaces = useServerFn(searchPlaces);
   const [draft, setDraft] = useState<Setup>(setup);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
 
   useEffect(() => {
     if (open) {
