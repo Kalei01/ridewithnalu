@@ -418,10 +418,13 @@ export type Database = {
           departure_seconds: number
           departure_time: string
           direction_id: number
+          direction_terminus: string
+          ride_minutes: number
           route_id: string
           route_long_name: string
           route_short_name: string
           stop_name: string
+          terminus_lon: number
           trip_headsign: string
           trip_id: string
         }[]
