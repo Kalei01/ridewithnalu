@@ -15,12 +15,16 @@ export type DriveIncident = {
 };
 
 export type DriveTime = {
-  /** Travel time with current traffic, in minutes. */
+  /** Travel time with current traffic, in minutes: the honest centre of the range. */
   trafficMinutes: number;
-  /** Travel time with no traffic, in minutes: the low end of the range. */
-  freeflowMinutes: number;
-  /** Extra minutes traffic is adding right now. */
+  /** What this trip usually takes at this time of day, from TomTom's historic profile. */
+  typicalMinutes: number;
+  /** Minutes slower than usual right now (negative when it is running better). */
   delayMinutes: number;
+  /** Low end of the plausible range. */
+  lowMinutes: number;
+  /** High end of the plausible range; the number a commuter should plan around. */
+  highMinutes: number;
   meters: number;
   incidents: DriveIncident[];
   fetchedAt: number;
