@@ -71,6 +71,63 @@ export type Database = {
         }
         Relationships: []
       }
+      import_log: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          error_message: string | null
+          id: number
+          row_counts: Json | null
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          error_message?: string | null
+          id?: number
+          row_counts?: Json | null
+          success: boolean
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          error_message?: string | null
+          id?: number
+          row_counts?: Json | null
+          success?: boolean
+        }
+        Relationships: []
+      }
+      job_status: {
+        Row: {
+          job_id: string
+          last_updated_at: string
+          rows_completed: number
+          started_at: string
+          status: string
+          table_name: string
+          total_rows_estimated: number | null
+        }
+        Insert: {
+          job_id: string
+          last_updated_at?: string
+          rows_completed?: number
+          started_at?: string
+          status?: string
+          table_name: string
+          total_rows_estimated?: number | null
+        }
+        Update: {
+          job_id?: string
+          last_updated_at?: string
+          rows_completed?: number
+          started_at?: string
+          status?: string
+          table_name?: string
+          total_rows_estimated?: number | null
+        }
+        Relationships: []
+      }
       routes: {
         Row: {
           route_id: string
@@ -89,6 +146,156 @@ export type Database = {
           route_long_name?: string | null
           route_short_name?: string | null
           route_type?: number | null
+        }
+        Relationships: []
+      }
+      staging_calendar: {
+        Row: {
+          end_date: string | null
+          friday: number | null
+          monday: number | null
+          saturday: number | null
+          service_id: string
+          start_date: string | null
+          sunday: number | null
+          thursday: number | null
+          tuesday: number | null
+          wednesday: number | null
+        }
+        Insert: {
+          end_date?: string | null
+          friday?: number | null
+          monday?: number | null
+          saturday?: number | null
+          service_id: string
+          start_date?: string | null
+          sunday?: number | null
+          thursday?: number | null
+          tuesday?: number | null
+          wednesday?: number | null
+        }
+        Update: {
+          end_date?: string | null
+          friday?: number | null
+          monday?: number | null
+          saturday?: number | null
+          service_id?: string
+          start_date?: string | null
+          sunday?: number | null
+          thursday?: number | null
+          tuesday?: number | null
+          wednesday?: number | null
+        }
+        Relationships: []
+      }
+      staging_calendar_dates: {
+        Row: {
+          date: string
+          exception_type: number | null
+          service_id: string
+        }
+        Insert: {
+          date: string
+          exception_type?: number | null
+          service_id: string
+        }
+        Update: {
+          date?: string
+          exception_type?: number | null
+          service_id?: string
+        }
+        Relationships: []
+      }
+      staging_routes: {
+        Row: {
+          route_id: string
+          route_long_name: string | null
+          route_short_name: string | null
+          route_type: number | null
+        }
+        Insert: {
+          route_id: string
+          route_long_name?: string | null
+          route_short_name?: string | null
+          route_type?: number | null
+        }
+        Update: {
+          route_id?: string
+          route_long_name?: string | null
+          route_short_name?: string | null
+          route_type?: number | null
+        }
+        Relationships: []
+      }
+      staging_stop_times: {
+        Row: {
+          arrival_time: string | null
+          departure_time: string | null
+          stop_id: string
+          stop_sequence: number
+          trip_id: string
+        }
+        Insert: {
+          arrival_time?: string | null
+          departure_time?: string | null
+          stop_id: string
+          stop_sequence: number
+          trip_id: string
+        }
+        Update: {
+          arrival_time?: string | null
+          departure_time?: string | null
+          stop_id?: string
+          stop_sequence?: number
+          trip_id?: string
+        }
+        Relationships: []
+      }
+      staging_stops: {
+        Row: {
+          location_type: number | null
+          stop_id: string
+          stop_lat: number | null
+          stop_lon: number | null
+          stop_name: string | null
+        }
+        Insert: {
+          location_type?: number | null
+          stop_id: string
+          stop_lat?: number | null
+          stop_lon?: number | null
+          stop_name?: string | null
+        }
+        Update: {
+          location_type?: number | null
+          stop_id?: string
+          stop_lat?: number | null
+          stop_lon?: number | null
+          stop_name?: string | null
+        }
+        Relationships: []
+      }
+      staging_trips: {
+        Row: {
+          direction_id: number | null
+          route_id: string | null
+          service_id: string | null
+          trip_headsign: string | null
+          trip_id: string
+        }
+        Insert: {
+          direction_id?: number | null
+          route_id?: string | null
+          service_id?: string | null
+          trip_headsign?: string | null
+          trip_id: string
+        }
+        Update: {
+          direction_id?: number | null
+          route_id?: string | null
+          service_id?: string | null
+          trip_headsign?: string | null
+          trip_id?: string
         }
         Relationships: []
       }
@@ -293,6 +500,13 @@ export type Database = {
           to_stop_name: string
         }[]
       }
+      gtfs_data_expiry: {
+        Args: never
+        Returns: {
+          days_remaining: number
+          expires_on: string
+        }[]
+      }
       gtfs_distance_m: {
         Args: { lat1: number; lat2: number; lon1: number; lon2: number }
         Returns: number
@@ -408,6 +622,7 @@ export type Database = {
           transfer_stop_name: string
         }[]
       }
+      prune_import_log: { Args: never; Returns: undefined }
       rail_departures: {
         Args: {
           p_after_seconds?: number
@@ -456,6 +671,7 @@ export type Database = {
           last_seconds: number
         }[]
       }
+      swap_gtfs_staging: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never

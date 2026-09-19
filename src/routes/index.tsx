@@ -1356,6 +1356,9 @@ function Index() {
             </div>
           </header>
 
+          <DataExpiryNotice />
+
+
           <section className={`verdict-lift mt-7 rounded-lg border border-border p-5 ${refreshing ? "animate-in fade-in duration-300" : ""}`} aria-labelledby="h1-conditions-title">
             <div className="flex items-baseline justify-between gap-3">
               <h1 id="h1-conditions-title" className="text-lg font-semibold">H-1 conditions</h1>
@@ -1539,6 +1542,9 @@ function Index() {
             <Settings className="size-5" />
           </Button>
         </header>
+
+        <DataExpiryNotice />
+
 
         {!tripActive && (
         <section
@@ -2137,7 +2143,79 @@ type SetupDialogProps = {
   onSave: (next: Setup) => void;
 };
 
+const EXPIRY_DISMISS_KEY = "nalu-expiry-dismissed-v1";
+
+/** The expiry date is read from the loaded feed's calendar, never hardcoded. */
+function useDataExpiry() {
+  const { data } = useQuery({
+    queryKey: ["gtfs-expiry"],
+    staleTime: 12 * 60 * 60_000,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("gtfs_data_expiry");
+      if (error) throw error;
+      const row = (data ?? [])[0];
+      return row ? { expiresOn: row.expires_on as string, daysRemaining: row.days_remaining as number } : null;
+    },
+  });
+  return data ?? null;
+}
+
+function expiryLabel(iso: string) {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year!, (month ?? 1) - 1, day ?? 1).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function DataExpiryNotice() {
+  const expiry = useDataExpiry();
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!expiry) return;
+    setDismissed(window.localStorage.getItem(EXPIRY_DISMISS_KEY) === expiry.expiresOn);
+  }, [expiry]);
+
+  if (!expiry) return null;
+  const expired = expiry.daysRemaining < 0;
+  if (!expired && (expiry.daysRemaining > 7 || dismissed)) return null;
+
+  return (
+    <div
+      className={`mt-4 flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-xs ${
+        expired ? "border-destructive/40 text-destructive" : "border-chart-4/40 text-chart-4"
+      }`}
+      role="status"
+    >
+      <p>{expired ? "Transit data expired · times may be wrong" : "Transit schedules expiring soon · data may become inaccurate"}</p>
+      {!expired && (
+        <button
+          type="button"
+          aria-label="Dismiss schedule expiry notice"
+          className="shrink-0 text-muted-foreground"
+          onClick={() => {
+            window.localStorage.setItem(EXPIRY_DISMISS_KEY, expiry.expiresOn);
+            setDismissed(true);
+          }}
+        >
+          Dismiss
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SettingsExpiryBanner() {
+  const expiry = useDataExpiry();
+  if (!expiry || expiry.daysRemaining > 14) return null;
+  return (
+    <p className="mb-4 rounded-lg border border-chart-4/40 px-4 py-3 text-xs text-chart-4" role="status">
+      Transit data expires {expiryLabel(expiry.expiresOn)} · refresh needed
+    </p>
+  );
+}
+
 function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProps) {
+
   const findPlaces = useServerFn(searchPlaces);
   const [draft, setDraft] = useState<Setup>(setup);
   const [status, setStatus] = useState<string | null>(null);
@@ -2281,6 +2359,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
       }}
     >
       <DialogContent className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
+        <SettingsExpiryBanner />
         <DialogHeader className="text-left">
           <DialogTitle className="text-2xl">{firstRun ? "Set up your trip" : "Your trip"}</DialogTitle>
           <DialogDescription>
