@@ -655,6 +655,14 @@ function Index() {
                       )} today — no reachable trip with a connection right now.`
                     : "No rail service for this trip today."}
           </p>
+          {activeDestStopName && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {inbound
+                ? `Bus stop you board near ${destinationLabel}: ${titleCase(activeDestStopName)}`
+                : `Bus stop near ${destinationLabel} when you arrive: ${titleCase(activeDestStopName)}`}
+              {activeDestWalkM !== null ? `, a ${formatDistance(activeDestWalkM)} walk` : ""}
+            </p>
+          )}
         </section>
 
         <section aria-label="Comparison" className="grid grid-cols-2 border-y border-border">
