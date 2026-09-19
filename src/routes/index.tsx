@@ -96,6 +96,13 @@ const RAIL_SLIP_MIN = 4;
 const TOSS_UP_MIN = 5;
 /** A long wait for the first train tips the choice toward the car. */
 const LONG_WAIT_MIN = 25;
+const ACTIVE_TRIP_KEY = "kine-active-trip-v1";
+/** A trip clears itself after this long, even if the phone never saw the arrival. */
+const TRIP_MAX_MS = 3 * 60 * 60 * 1000;
+/** How long the arrival card stays up before the trip collapses on its own. */
+const ARRIVED_CLEAR_MS = 10 * 60 * 1000;
+/** Treated as "you are here" for stations and the destination. */
+const AT_PLACE_M = 250;
 
 type DirectionOverride = { inbound: boolean; at: number };
 /** Where the car is today: at home, left at the station, or driven all the way. */
@@ -112,6 +119,46 @@ type BrowseDeparture = {
   trip_headsign: string;
   trip_id: string;
 };
+
+/** A trip the rider is actually on: the plan they boarded plus when it started. */
+type ActiveTrip = {
+  startedAt: number;
+  inbound: boolean;
+  legs: Leg[];
+  departSeconds: number;
+  arriveSeconds: number;
+  homeStopId: string;
+  destStopId: string;
+};
+
+type TripPhase = "boarding" | "rail" | "transfer" | "arrived";
+
+type Coords = { lat: number; lon: number };
+
+type ConnectingDeparture = {
+  stop_id: string;
+  stop_name: string;
+  distance_m: number;
+  walk_minutes: number;
+  route_id: string;
+  route_short_name: string | null;
+  route_long_name: string | null;
+  headsign: string | null;
+  depart_seconds: number;
+  arrive_seconds: number;
+  ride_minutes: number;
+  dest_stop_name: string | null;
+};
+
+/** Straight-line metres between two points; good enough to tell "am I there yet". */
+function distanceM(a: Coords, b: Coords) {
+  const toRad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toRad;
+  const dLon = (b.lon - a.lon) * toRad;
+  const mid = (a.lat + b.lat) / 2 * toRad;
+  const x = dLon * Math.cos(mid);
+  return Math.sqrt(dLat * dLat + x * x) * 6371000;
+}
 
 function readJson<T>(key: string): T | null {
   try {
