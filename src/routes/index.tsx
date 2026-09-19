@@ -135,8 +135,9 @@ function vehicleName(leg: Leg) {
     const label = leg.route_short ? `Route ${leg.route_short}` : "Bus";
     return leg.headsign ? `${label} to ${titleCase(leg.headsign)}` : label;
   }
-  if (leg.mode === "drive") return `Drive to ${titleCase(leg.to)}`;
-  return `Walk to ${titleCase(leg.to)}`;
+  const verb = leg.mode === "drive" ? "Drive" : "Walk";
+  if (leg.kind === "egress") return `${verb} home`;
+  return `${verb} to ${titleCase(leg.to)}`;
 }
 
 function modeIcon(mode: Leg["mode"]) {
