@@ -70,7 +70,23 @@ type Option = {
 };
 
 const STORAGE_KEY = "kine-setup-v3";
+const DIRECTION_KEY = "kine-direction-v1";
+const PARKED_KEY = "kine-parked-v1";
+const OVERRIDE_MS = 2 * 60 * 60 * 1000;
 const DRIVE_MINUTES = 54;
+
+type DirectionOverride = { inbound: boolean; at: number };
+/** Set when the morning trip drove to the station: the car waits there for the return leg. */
+type ParkedCar = { date: string; station: string };
+
+function readJson<T>(key: string): T | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
 
 const emptySetup: Setup = {
   homeStopId: "",
