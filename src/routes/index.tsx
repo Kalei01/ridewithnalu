@@ -74,20 +74,6 @@ function formatDepartureTime(departure: string) {
   return `${hour12}:${minutes} ${suffix}`;
 }
 
-/** Realtime data older than this is ignored and the timetable is shown instead. */
-const REALTIME_MAX_AGE_MS = 5 * 60_000;
-/** Only surface a live time once the trip runs more than 2 minutes late. */
-const DELAY_THRESHOLD_SECONDS = 120;
-
-/** Shifts a GTFS "HH:MM:SS" time by a delay in seconds. */
-function shiftTime(departure: string, seconds: number) {
-  const [hours = "0", minutes = "0", secs = "0"] = departure.split(":");
-  const total = Number(hours) * 3600 + Number(minutes) * 60 + Number(secs) + seconds;
-  const safe = Math.max(0, total);
-  const hh = Math.floor(safe / 3600);
-  const mm = Math.floor((safe % 3600) / 60);
-  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
-}
 
 
 
@@ -144,30 +130,17 @@ function Index() {
       });
       if (error) throw error;
       const now = new Date();
-      return (data ?? []).map((row) => {
-        const scheduled = row.departure_time ?? "";
-        const fetchedAt = row.realtime_fetched_at ? new Date(row.realtime_fetched_at) : null;
-        const fresh = Boolean(
-          fetchedAt && now.getTime() - fetchedAt.getTime() < REALTIME_MAX_AGE_MS,
-        );
-        const delaySeconds = fresh ? row.delay_seconds ?? 0 : 0;
-        const live = fresh && delaySeconds > DELAY_THRESHOLD_SECONDS;
-        return {
-          time: formatDepartureTime(scheduled),
-          liveTime: live ? formatDepartureTime(shiftTime(scheduled, delaySeconds)) : null,
-          away: minutesAway(live ? shiftTime(scheduled, delaySeconds) : scheduled, now),
-          delayMinutes: Math.round(delaySeconds / 60),
-          isLive: fresh,
-          headsign: row.trip_headsign ?? "",
-        };
-      });
+      return (data ?? []).map((row) => ({
+        time: formatDepartureTime(row.departure_time ?? ""),
+        away: minutesAway(row.departure_time ?? "", now),
+        headsign: row.trip_headsign ?? "",
+      }));
     },
-    staleTime: 30_000,
-    refetchInterval: 30_000,
+    staleTime: 60_000,
   });
 
   const nextDeparture = departures[0];
-  const realtimeActive = departures.some((departure) => departure.isLive);
+
 
 
 
@@ -225,7 +198,7 @@ function Index() {
             <p className="text-xs font-bold uppercase text-recommended">Rail</p>
             <p className="mt-3 text-5xl font-semibold leading-none text-recommended">42<span className="ml-1 text-base font-medium">min</span></p>
             <dl className="mt-7 space-y-4 text-sm">
-              <div><dt className="text-muted-foreground">Next train</dt><dd className="mt-1 font-semibold text-foreground">{nextDeparture ? nextDeparture.liveTime ?? nextDeparture.time : departuresLoading ? "…" : "—"}</dd></div>
+              <div><dt className="text-muted-foreground">Next train</dt><dd className="mt-1 font-semibold text-foreground">{nextDeparture ? nextDeparture.time : departuresLoading ? "…" : "—"}</dd></div>
               <div className="flex items-center gap-2 text-muted-foreground"><Clock3 className="size-4 text-recommended" /><span>{nextDeparture ? `${nextDeparture.away} min away` : "No more trains today"}</span></div>
               <div className="flex items-center gap-2 text-muted-foreground"><Footprints className="size-4 text-recommended" /><span>{preferences.walkMinutes} min walk</span></div>
             </dl>
@@ -246,37 +219,15 @@ function Index() {
               <h2 id="departures-title" className="text-lg font-semibold">Next departures</h2>
               <p className="mt-1 truncate text-sm text-muted-foreground">{preferences.station}</p>
             </div>
-            <span className="shrink-0 text-xs font-bold uppercase text-muted-foreground">
-              {realtimeActive ? "Live" : "Scheduled"}
-            </span>
           </div>
           <ol className="divide-y divide-border">
             {departures.map((departure, index) => (
-              <li key={`${departure.time}-${index}`} className="flex min-h-14 items-center justify-between gap-3">
-                <span className="flex items-baseline gap-2">
-                  <span
-                    className={
-                      departure.liveTime
-                        ? "text-muted-foreground line-through"
-                        : index === 0
-                          ? "font-semibold text-recommended"
-                          : "font-medium text-foreground"
-                    }
-                  >
-                    {departure.time}
-                  </span>
-                  {departure.liveTime && (
-                    <span className={index === 0 ? "font-semibold text-recommended" : "font-medium text-foreground"}>
-                      {departure.liveTime}
-                    </span>
-                  )}
-                  {departure.liveTime && (
-                    <span className="text-xs text-muted-foreground">{departure.delayMinutes} min late</span>
-                  )}
-                </span>
-                <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">{departure.away} min <ChevronRight className="size-4" /></span>
+              <li key={`${departure.time}-${index}`} className="flex min-h-14 items-center justify-between">
+                <span className={index === 0 ? "font-semibold text-recommended" : "font-medium text-foreground"}>{departure.time}</span>
+                <span className="flex items-center gap-1 text-sm text-muted-foreground">{departure.away} min <ChevronRight className="size-4" /></span>
               </li>
             ))}
+
 
             {departures.length === 0 && (
               <li className="flex min-h-14 items-center text-sm text-muted-foreground">
