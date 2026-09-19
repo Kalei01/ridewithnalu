@@ -165,8 +165,8 @@ function Index() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [inbound, setInbound] = useState(false);
-  const [directionTouched, setDirectionTouched] = useState(false);
+  const [override, setOverride] = useState<DirectionOverride | null>(null);
+  const [parked, setParked] = useState<ParkedCar | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -180,15 +180,22 @@ function Index() {
     } else {
       setOnboardingOpen(true);
     }
+    setOverride(readJson<DirectionOverride>(DIRECTION_KEY));
+    setParked(readJson<ParkedCar>(PARKED_KEY));
     setHydrated(true);
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
 
-  // Default direction from the time of day until the user chooses one.
-  useEffect(() => {
-    if (!directionTouched) setInbound(honoluluParts(now).hour >= 12);
-  }, [now, directionTouched]);
+  // A manual choice sticks for 2 hours, then the time-of-day default takes over again.
+  const overrideActive = Boolean(override && now.getTime() - override.at < OVERRIDE_MS);
+  const inbound = overrideActive ? Boolean(override?.inbound) : honoluluParts(now).hour >= 12;
+
+  function chooseDirection(next: boolean) {
+    const entry: DirectionOverride = { inbound: next, at: Date.now() };
+    setOverride(entry);
+    window.localStorage.setItem(DIRECTION_KEY, JSON.stringify(entry));
+  }
 
   function persist(next: Setup) {
     setSetup(next);
