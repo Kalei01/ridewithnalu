@@ -53,6 +53,11 @@ type Setup = {
   destReturnWalkM: number | null;
   allowDrive: boolean;
   busRouteId: string | null;
+  /** Shown beside each option; never folded into the verdict. */
+  parkingCost: number | null;
+  railFare: number | null;
+  /** Minutes to park and walk in when arriving at the destination. */
+  parkingBufferMinutes: number;
 };
 
 type Leg = {
