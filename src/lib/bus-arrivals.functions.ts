@@ -105,11 +105,11 @@ export const busArrivals = createServerFn({ method: "POST" })
         url.searchParams.set("key", key);
         url.searchParams.set("stop", data.stopId);
         const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
-        if (!response.ok) return failed(true);
+        if (!response.ok) return failed(false);
         xml = await response.text();
         cache.set(data.stopId, { xml, expiresAt: Date.now() + CACHE_MS });
       }
-      if (text(xml, "errorMessage")) return failed(true);
+      if (text(xml, "errorMessage")) return failed(false);
 
       const nowSeconds = honoluluSecondsNow();
       const blocks = xml.match(/<arrival\b[^>]*>[\s\S]*?<\/arrival>/gi) ?? [];
@@ -150,6 +150,6 @@ export const busArrivals = createServerFn({ method: "POST" })
       return { arrivals, error: false, configured: true, fetchedAt: Date.now() };
     } catch (error) {
       console.error("TheBus HEA arrivals failed", error instanceof Error ? error.message : "Unknown error");
-      return failed(true);
+      return failed(false);
     }
   });

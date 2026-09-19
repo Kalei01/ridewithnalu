@@ -1762,6 +1762,13 @@ function BusArrivalTime({
   compact?: boolean;
 }) {
   const stale = Boolean(fetchedAt && Date.now() - fetchedAt > 90_000);
+  const updatedTime = fetchedAt
+    ? new Intl.DateTimeFormat("en-US", {
+        timeZone: "Pacific/Honolulu",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(fetchedAt))
+    : null;
   if (!arrival?.isLive) {
     return (
       <div className={compact ? "shrink-0 text-right" : "mt-2"}>
@@ -1787,7 +1794,7 @@ function BusArrivalTime({
         )}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        {stale || refreshing ? "Refreshing" : `Live · ${arrival.minutesAway} min away`}
+        {stale || refreshing ? "Refreshing" : `Live · ${updatedTime ?? `${arrival.minutesAway} min away`}`}
       </p>
     </div>
   );
