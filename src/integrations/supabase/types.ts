@@ -190,6 +190,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      active_service_ids: {
+        Args: never
+        Returns: {
+          service_id: string
+        }[]
+      }
+      gtfs_distance_m: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
+      }
+      gtfs_seconds: { Args: { p_time: string }; Returns: number }
+      nearest_stop: {
+        Args: { p_lat: number; p_lon: number; p_rail_only?: boolean }
+        Returns: {
+          distance_m: number
+          stop_id: string
+          stop_lat: number
+          stop_lon: number
+          stop_name: string
+        }[]
+      }
       next_departures: {
         Args: { p_limit?: number; p_station_query: string }
         Returns: {
@@ -197,6 +218,77 @@ export type Database = {
           route_short_name: string
           stop_name: string
           trip_headsign: string
+        }[]
+      }
+      plan_rail_chains: {
+        Args: {
+          p_after_seconds?: number
+          p_bus_route_id?: string
+          p_dest_stop: string
+          p_home_stop: string
+          p_limit?: number
+          p_transfer_buffer_seconds?: number
+          p_transfer_radius_m?: number
+        }
+        Returns: {
+          arrive_seconds: number
+          arrive_time: string
+          bus_depart_seconds: number
+          bus_depart_time: string
+          bus_headsign: string
+          bus_route_id: string
+          bus_route_long_name: string
+          bus_route_short_name: string
+          bus_stop_name: string
+          depart_seconds: number
+          depart_time: string
+          dest_stop_name: string
+          home_stop_name: string
+          rail_arrive_seconds: number
+          rail_arrive_time: string
+          rail_headsign: string
+          rail_route_long_name: string
+          rail_route_short_name: string
+          rail_trip_id: string
+          total_minutes: number
+          transfer_stop_id: string
+          transfer_stop_name: string
+        }[]
+      }
+      rail_departures: {
+        Args: {
+          p_after_seconds?: number
+          p_home_stop: string
+          p_limit?: number
+        }
+        Returns: {
+          departure_seconds: number
+          departure_time: string
+          route_id: string
+          route_long_name: string
+          route_short_name: string
+          stop_name: string
+          trip_headsign: string
+          trip_id: string
+        }[]
+      }
+      rail_stations: {
+        Args: never
+        Returns: {
+          stop_id: string
+          stop_lat: number
+          stop_lon: number
+          stop_name: string
+        }[]
+      }
+      routes_serving_stop: {
+        Args: { p_stop_id: string }
+        Returns: {
+          route_id: string
+          route_long_name: string
+          route_short_name: string
+          route_type: number
+          sample_headsign: string
         }[]
       }
     }
