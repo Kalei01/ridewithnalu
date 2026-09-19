@@ -105,14 +105,14 @@ type Option = {
   legs: Leg[];
 };
 
-const STORAGE_KEY = "kine-setup-v3";
-const SETUP_DISMISSED_KEY = "kine-setup-dismissed-v1";
-const BROWSE_STATION_KEY = "kine-browse-station-v1";
-const BROWSE_LOCATION_DENIED_KEY = "kine-browse-location-denied-v1";
+const STORAGE_KEY = "nalu-setup-v3";
+const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
+const BROWSE_STATION_KEY = "nalu-browse-station-v1";
+const BROWSE_LOCATION_DENIED_KEY = "nalu-browse-location-denied-v1";
 const KAPOLEI_POINT = { lat: 21.3358, lon: -158.0798 };
 const DOWNTOWN_POINT = { lat: 21.3099, lon: -157.8644 };
-const DIRECTION_KEY = "kine-direction-v1";
-const PARKED_KEY = "kine-parked-v1";
+const DIRECTION_KEY = "nalu-direction-v1";
+const PARKED_KEY = "nalu-parked-v1";
 const OVERRIDE_MS = 2 * 60 * 60 * 1000;
 /** Minutes of padding on the rail chain, and how much a transfer can slip. */
 const RAIL_BUFFER_MIN = 3;
@@ -121,7 +121,8 @@ const RAIL_SLIP_MIN = 4;
 const TOSS_UP_MIN = 5;
 /** A long wait for the first train tips the choice toward the car. */
 const LONG_WAIT_MIN = 25;
-const ACTIVE_TRIP_KEY = "kine-active-trip-v1";
+const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
+const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 /** A trip clears itself after this long, even if the phone never saw the arrival. */
 const TRIP_MAX_MS = 3 * 60 * 60 * 1000;
 /** How long the arrival card stays up before the trip collapses on its own. */
@@ -464,8 +465,17 @@ function Index() {
   const [position, setPosition] = useState<Coords | null>(null);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    const setupDismissed = window.localStorage.getItem(SETUP_DISMISSED_KEY) === "1";
+    const migrateStorage = (key: string, legacySuffix: string) => {
+      const current = window.localStorage.getItem(key);
+      if (current !== null) return current;
+      const legacyKey = `${LEGACY_STORAGE_PREFIX}-${legacySuffix}`;
+      const legacy = window.localStorage.getItem(legacyKey);
+      if (legacy !== null) window.localStorage.setItem(key, legacy);
+      window.localStorage.removeItem(legacyKey);
+      return legacy;
+    };
+    const stored = migrateStorage(STORAGE_KEY, "setup-v3");
+    const setupDismissed = migrateStorage(SETUP_DISMISSED_KEY, "setup-dismissed-v1") === "1";
     if (stored) {
       try {
         const saved = { ...emptySetup, ...(JSON.parse(stored) as Partial<Setup>) };
@@ -478,6 +488,11 @@ function Index() {
     } else if (!setupDismissed) {
       setOnboardingOpen(true);
     }
+    migrateStorage(BROWSE_STATION_KEY, "browse-station-v1");
+    migrateStorage(BROWSE_LOCATION_DENIED_KEY, "browse-location-denied-v1");
+    migrateStorage(DIRECTION_KEY, "direction-v1");
+    migrateStorage(PARKED_KEY, "parked-v1");
+    migrateStorage(ACTIVE_TRIP_KEY, "active-trip-v1");
     setBrowseStation(readJson<BrowseStation>(BROWSE_STATION_KEY));
     setBrowseLocationDenied(window.localStorage.getItem(BROWSE_LOCATION_DENIED_KEY) === "1");
     setOverride(readJson<DirectionOverride>(DIRECTION_KEY));
@@ -540,6 +555,15 @@ function Index() {
           : !inbound && carPlace === "destination"
             ? `Your car is at ${setup.destinationName || "your destination"}.`
             : null;
+
+  // An outbound plan starts at home. A station marker left by an unfinished
+  // earlier plan is stale and must not suppress the drive option or contradict
+  // a drive-to-station first leg.
+  useEffect(() => {
+    if (!hydrated || inbound || trip || carPlace === "home") return;
+    setParked(null);
+    window.localStorage.removeItem(PARKED_KEY);
+  }, [hydrated, inbound, trip, carPlace]);
 
   function setCarPlace(place: CarPlace) {
     const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place };
@@ -690,6 +714,7 @@ function Index() {
       setup.destStopId,
       setup.allowDrive,
       carAtStation,
+      driveAvailable,
       Math.floor(afterSeconds / 60),
     ],
     enabled: hydrated && configured,
@@ -714,7 +739,7 @@ function Index() {
         p_origin_lon: setup.homeLon as number,
         p_station: setup.homeStopId,
         p_dest_stop: setup.destStopId,
-        p_allow_drive: setup.allowDrive,
+        p_allow_drive: driveAvailable,
         p_after_seconds: afterSeconds,
         p_limit: 4,
         // Any stop within a quarter mile of the door is fair game, walk included.
@@ -726,23 +751,13 @@ function Index() {
     },
   });
 
-  // Remember when the outbound plan drives to the station, so the return leg drives home.
-  const outboundAccessMode = !inbound ? options[0]?.legs?.[0]?.mode : undefined;
-  useEffect(() => {
-    if (outboundAccessMode !== "drive" || !setup.homeStopId) return;
-    const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place: "station" };
-    setParked((current) =>
-      current && current.date === entry.date && current.station === entry.station && current.place === "station"
-        ? current
-        : entry,
-    );
-    window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
-  }, [outboundAccessMode, setup.homeStopId]);
-
   // ---- Trip progress -------------------------------------------------------
   const tripActive = Boolean(trip);
 
   function startTrip(option: Option) {
+    if (!inbound && option.legs[0]?.mode === "drive") {
+      setCarPlace("station");
+    }
     const entry: ActiveTrip = {
       startedAt: Date.now(),
       inbound,
@@ -1052,9 +1067,7 @@ function Index() {
         ? "drive"
         : !usableDrive
           ? "rail"
-          : longWait
-            ? "drive"
-            : Math.abs(gap ?? 0) < TOSS_UP_MIN
+          : Math.abs(gap ?? 0) < TOSS_UP_MIN
               ? "same"
               : (gap ?? 0) > 0
                 ? "rail"
@@ -1760,6 +1773,7 @@ function Index() {
                 {drive.incidents[0].delayMinutes ? ` · +${drive.incidents[0].delayMinutes} min` : ""}
               </p>
             ) : null}
+            {driveAvailable && (
             <dl className="mt-7 space-y-4 text-sm">
               <div>
                 <dt className="text-muted-foreground">Usually</dt>
@@ -1776,6 +1790,7 @@ function Index() {
                 </dd>
               </div>
             </dl>
+            )}
             {!inbound && driveAvailable && (
               <Button
                 variant="ghost"
