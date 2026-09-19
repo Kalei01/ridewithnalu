@@ -1040,9 +1040,11 @@ function Index() {
   const longWait = waitForTrain !== null && waitForTrain > LONG_WAIT_MIN;
 
   const usableDrive = driveAvailable && driveMinutes !== null;
-  // Compare worst case against worst case: the same figures headlining each column.
+  // Compare worst case against worst case: the exact figures headlining each
+  // column. When driving is not an option there is nothing to compare, so the
+  // gap stays null and the headline never claims a margin.
   const railWorst = railRange ? railRange.high : null;
-  const gap = railWorst !== null && driveMinutes !== null ? driveMinutes - railWorst : null;
+  const gap = railWorst !== null && usableDrive && driveMinutes !== null ? driveMinutes - railWorst : null;
   const verdict: "rail" | "drive" | "same" | "none" =
     railMinutes === null && !usableDrive
       ? "none"
