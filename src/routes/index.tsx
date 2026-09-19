@@ -903,7 +903,7 @@ function Index() {
 
   if (browseActive) {
     return (
-      <main className="min-h-dvh bg-background px-5 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+      <main className="min-h-dvh bg-page-gradient px-5 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
           <header className="flex min-h-11 items-center justify-between">
             <div>
@@ -922,11 +922,11 @@ function Index() {
             </Button>
           </header>
 
-          <section className="py-10">
-            <h1 className="text-[clamp(2.6rem,11vw,3.8rem)] font-bold leading-[0.95] text-foreground">
-              {browseStation ? titleCase(browseStation.stopName) : "CHOOSE STATION"}
+          <section className="pb-6 pt-7">
+            <h1 className="truncate text-xl font-medium text-foreground">
+              {browseStation ? stationLabel(browseStation.stopName) : "Choose a station"}
             </h1>
-            <p className="mt-4 text-base font-medium text-muted-foreground">
+            <p className="mt-2 text-sm text-muted-foreground">
               Add a destination to unlock the rail-versus-drive comparison.
             </p>
           </section>
@@ -956,7 +956,7 @@ function Index() {
                 <SelectContent>
                   {browseStations.map((station) => (
                     <SelectItem key={station.stop_id} value={station.stop_id}>
-                      {titleCase(station.stop_name)}
+                      {stationLabel(station.stop_name)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -969,28 +969,45 @@ function Index() {
           )}
 
           {browseStation && (
-            <section className="space-y-8" aria-label={`Departures from ${browseStation.stopName}`}>
+            <section
+              className="departures-fade space-y-8 animate-in fade-in duration-300"
+              aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
+            >
               {browseDeparturesLoading && <p className="text-sm text-muted-foreground">Loading departures…</p>}
               {!browseDeparturesLoading && browseDirections.length === 0 && (
                 <p className="text-sm text-muted-foreground">No rail departures are scheduled from this station right now.</p>
               )}
               {browseDirections.map((direction) => {
                 const first = direction[0];
-                const directionName = first?.trip_headsign
-                  ? `${titleCase(first.route_long_name)} to ${titleCase(first.trip_headsign)}`
-                  : titleCase(first?.route_long_name) || "Rail departures";
+                // The agency headsign already names the direction; don't dress it up.
+                const directionName =
+                  stationLabel(first?.trip_headsign) || stationLabel(first?.route_long_name) || "Rail departures";
                 return (
                   <article key={first?.trip_headsign || first?.route_id} className="border-t border-border pt-5">
-                    <h2 className="text-lg font-semibold">{directionName}</h2>
+                    <h2 className="text-lg font-semibold">To {directionName}</h2>
                     <ol className="mt-3 divide-y divide-border">
-                      {direction.map((departure) => (
-                        <li key={departure.trip_id} className="flex min-h-14 items-center justify-between gap-4 py-2">
-                          <span className="text-xl font-semibold tabular-nums text-foreground">
-                            {clockFromSeconds(departure.departure_seconds)}
-                          </span>
-                          <span className="text-sm text-muted-foreground">Scheduled</span>
-                        </li>
-                      ))}
+                      {direction.map((departure) => {
+                        const minutesAway = Math.round((departure.departure_seconds - nowSeconds) / 60);
+                        const soon = minutesAway >= 0 && minutesAway < 20;
+                        return (
+                          <li key={departure.trip_id} className="flex min-h-14 items-center justify-between gap-4 py-2">
+                            {soon ? (
+                              <span className="flex flex-col">
+                                <span className="text-xl font-semibold tabular-nums text-foreground">
+                                  in {minutesAway} min
+                                </span>
+                                <span className="text-xs tabular-nums text-muted-foreground">
+                                  {clockFromSeconds(departure.departure_seconds)}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-xl font-semibold tabular-nums text-foreground">
+                                {clockFromSeconds(departure.departure_seconds)}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ol>
                   </article>
                 );
@@ -998,6 +1015,7 @@ function Index() {
             </section>
           )}
         </div>
+
 
         <div className="fixed inset-x-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] mx-auto max-w-[440px]">
           <Button onClick={() => setOnboardingOpen(true)} className="h-13 w-full rounded-full text-base shadow-none">
