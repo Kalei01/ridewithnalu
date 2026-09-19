@@ -525,6 +525,155 @@ function Index() {
     window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
   }, [outboundAccessMode, setup.homeStopId]);
 
+  // ---- Trip progress -------------------------------------------------------
+  const tripActive = Boolean(trip);
+
+  function startTrip(option: Option) {
+    const entry: ActiveTrip = {
+      startedAt: Date.now(),
+      inbound,
+      legs: option.legs,
+      departSeconds: option.depart_seconds,
+      arriveSeconds: option.arrive_seconds,
+      homeStopId: setup.homeStopId,
+      destStopId: inbound ? "" : setup.destStopId,
+    };
+    setTrip(entry);
+    window.localStorage.setItem(ACTIVE_TRIP_KEY, JSON.stringify(entry));
+  }
+
+  function endTrip() {
+    setTrip(null);
+    window.localStorage.removeItem(ACTIVE_TRIP_KEY);
+  }
+
+  // Follow the rider while a trip is underway; that is the only time it matters.
+  useEffect(() => {
+    if (!tripActive || !navigator.geolocation) return;
+    const watch = navigator.geolocation.watchPosition(
+      (fix) => setPosition({ lat: fix.coords.latitude, lon: fix.coords.longitude }),
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 },
+    );
+    return () => navigator.geolocation.clearWatch(watch);
+  }, [tripActive]);
+
+  const { data: stationCoords = [] } = useQuery({
+    queryKey: ["rail-station-coords"],
+    enabled: tripActive,
+    staleTime: 6 * 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rail_stations");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const railLeg = trip?.legs.find((leg) => leg.kind === "rail") ?? null;
+  const connectLeg = trip?.legs.find((leg) => leg.kind === "connect" || leg.kind === "egress") ?? null;
+
+  function stationPoint(name: string | null | undefined) {
+    if (!name) return null;
+    const wanted = name.trim().toLowerCase();
+    const hit = stationCoords.find((station) => (station.stop_name ?? "").trim().toLowerCase() === wanted);
+    return hit ? { lat: Number(station_lat(hit)), lon: Number(station_lon(hit)) } : null;
+  }
+  function station_lat(station: { stop_lat: number | null }) {
+    return station.stop_lat ?? 0;
+  }
+  function station_lon(station: { stop_lon: number | null }) {
+    return station.stop_lon ?? 0;
+  }
+
+  const boardPoint = stationPoint(railLeg?.from);
+  const transferPoint = stationPoint(railLeg?.to);
+  const endPoint = trip?.inbound
+    ? setup.homeLat && setup.homeLon
+      ? { lat: setup.homeLat, lon: setup.homeLon }
+      : null
+    : setup.destLat && setup.destLon
+      ? { lat: setup.destLat, lon: setup.destLon }
+      : null;
+
+  // Which leg the rider is on, read from where they actually are, with the
+  // schedule as a fallback when location is unavailable.
+  const phase: TripPhase = useMemo(() => {
+    if (!trip) return "boarding";
+    if (position) {
+      if (endPoint && distanceM(position, endPoint) <= AT_PLACE_M) return "arrived";
+      if (transferPoint && distanceM(position, transferPoint) <= AT_PLACE_M) return "transfer";
+      if (boardPoint && distanceM(position, boardPoint) <= AT_PLACE_M) return "boarding";
+      if (railLeg?.depart_seconds && nowSeconds >= railLeg.depart_seconds) return "rail";
+      return "boarding";
+    }
+    if (nowSeconds >= trip.arriveSeconds) return "arrived";
+    if (railLeg?.arrive_seconds && nowSeconds >= railLeg.arrive_seconds) return "transfer";
+    if (railLeg?.depart_seconds && nowSeconds >= railLeg.depart_seconds) return "rail";
+    return "boarding";
+  }, [trip, position, endPoint, transferPoint, boardPoint, railLeg, nowSeconds]);
+
+  // Coming home, the connecting stop is near home, so resolve that stop once.
+  const { data: inboundEndStop } = useQuery({
+    queryKey: ["inbound-end-stop", setup.homeLat, setup.homeLon],
+    enabled: tripActive && Boolean(trip?.inbound) && setup.homeLat !== null && setup.homeLon !== null,
+    staleTime: 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("nearest_stop", {
+        p_lat: setup.homeLat as number,
+        p_lon: setup.homeLon as number,
+      });
+      if (error) throw error;
+      return data?.[0]?.stop_id ?? null;
+    },
+  });
+
+  const connectDestStop = trip?.inbound ? (inboundEndStop ?? "") : (trip?.destStopId || setup.destStopId);
+
+  // At the transfer station the plan is stale: recompute from here and now.
+  const { data: connecting = [], isLoading: connectingLoading } = useQuery({
+    queryKey: [
+      "connecting",
+      connectDestStop,
+      position?.lat?.toFixed(4),
+      position?.lon?.toFixed(4),
+      Math.floor(afterSeconds / 60),
+    ],
+    enabled: phase === "transfer" && Boolean(connectDestStop) && Boolean(position ?? transferPoint),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const at = position ?? (transferPoint as Coords);
+      const { data, error } = await supabase.rpc("connecting_departures", {
+        p_lat: at.lat,
+        p_lon: at.lon,
+        p_dest_stop: connectDestStop,
+        p_after_seconds: afterSeconds,
+        p_limit: 4,
+      });
+      if (error) throw error;
+      return (data ?? []) as ConnectingDeparture[];
+    },
+  });
+
+  // The trip puts itself away once the rider has been there a while.
+  useEffect(() => {
+    if (!trip) return;
+    if (phase !== "arrived") return;
+    const timer = window.setTimeout(endTrip, ARRIVED_CLEAR_MS);
+    return () => window.clearTimeout(timer);
+  }, [trip, phase]);
+
+  useEffect(() => {
+    if (!trip) return;
+    const remaining = trip.startedAt + TRIP_MAX_MS - Date.now();
+    if (remaining <= 0) {
+      endTrip();
+      return;
+    }
+    const timer = window.setTimeout(endTrip, remaining);
+    return () => window.clearTimeout(timer);
+  }, [trip]);
+
+
   // Real driving time between the two points that matter for this direction.
   const driveFrom = inbound
     ? { lat: setup.destLat, lon: setup.destLon }
