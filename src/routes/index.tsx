@@ -890,15 +890,19 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
 
   async function selectPlace(place: PlaceSuggestion) {
     setBusy(true);
-    setStatus("Finding the stop nearest that place…");
+    setStatus("Finding the stops on each side of that place…");
     try {
-      const { data, error } = await supabase.rpc("nearest_stop", {
-        p_lat: place.lat,
-        p_lon: place.lon,
-        p_rail_only: false,
-      });
-      const nearest = data?.[0];
-      if (error || !nearest) {
+      // A stop serves one direction only, so resolve the arriving stop and the
+      // stop heading back toward the rail line separately, from the data.
+      const [arriving, boarding, fallback] = await Promise.all([
+        supabase.rpc("directional_dest_stop", { p_lat: place.lat, p_lon: place.lon, p_toward_rail: false }),
+        supabase.rpc("directional_dest_stop", { p_lat: place.lat, p_lon: place.lon, p_toward_rail: true }),
+        supabase.rpc("nearest_stop", { p_lat: place.lat, p_lon: place.lon, p_rail_only: false }),
+      ]);
+      const near = fallback.data?.[0];
+      const out = arriving.data?.[0] ?? near;
+      const back = boarding.data?.[0] ?? near;
+      if (!out || !back) {
         setStatus("No stop found near that place.");
         return;
       }
@@ -908,13 +912,19 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
         destinationAddress: place.address || place.name,
         destLat: place.lat,
         destLon: place.lon,
-        destStopId: nearest.stop_id,
-        destStopName: nearest.stop_name ?? "",
+        destStopId: out.stop_id,
+        destStopName: out.stop_name ?? "",
+        destStopWalkM: Number(out.distance_m),
+        destReturnStopId: back.stop_id,
+        destReturnStopName: back.stop_name ?? "",
+        destReturnWalkM: Number(back.distance_m),
         busRouteId: null,
       }));
       setPlaceQuery("");
       setDebouncedQuery("");
-      setStatus(`Nearest stop: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
+      setStatus(
+        `Bus stop near ${place.name}: ${titleCase(out.stop_name)}, a ${formatDistance(Number(out.distance_m))} walk.`,
+      );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Place search failed.");
     } finally {
