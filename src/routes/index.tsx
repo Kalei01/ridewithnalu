@@ -566,7 +566,7 @@ function Index() {
       }
     }
     if (drive && drive.delayMinutes >= 5) return `Traffic is adding ${drive.delayMinutes} min to the drive`;
-    if (incident) return incident.road ? `${incident.description} on ${incident.road}` : incident.description;
+    if (incident) return incidentText(incident);
     return null;
   }, [best, drive, verdict, longWait, waitForTrain]);
 
