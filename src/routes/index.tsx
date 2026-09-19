@@ -1593,6 +1593,11 @@ function Index() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {driveRange.low}–{driveRange.high} min
                 </p>
+                {driveWeatherLines.map((line) => (
+                  <p key={line.text} className={`mt-1 text-xs ${TONE_CLASS[line.tone]}`}>
+                    {line.text}
+                  </p>
+                ))}
                 <p className="mt-1 text-sm text-muted-foreground">
                   {drive.delayMinutes >= 1
                     ? `${drive.trafficMinutes} min now, ${drive.delayMinutes} min slower than usual`
@@ -1731,6 +1736,11 @@ function Index() {
                     <span className="flex-1 pb-6">
                       <span className="block text-[15px] font-medium text-foreground">{row.title}</span>
                       <span className="mt-0.5 block text-sm text-muted-foreground">{row.detail}</span>
+                      {(weatherLines.get(row.legIndex) ?? []).map((line) => (
+                        <span key={line.text} className={`mt-1 block text-xs ${TONE_CLASS[line.tone]}`}>
+                          {line.text}
+                        </span>
+                      ))}
                     </span>
                   </li>
                 );
