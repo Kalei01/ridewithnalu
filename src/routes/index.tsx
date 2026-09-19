@@ -720,7 +720,7 @@ function Index() {
   const earliest = options[0];
   const alternative = useMemo(() => {
     if (!earliest) return null;
-    let pick: PlanOption | null = null;
+    let pick: Option | null = null;
     for (const option of options.slice(1)) {
       const laterLeave = option.leave_by_seconds - earliest.leave_by_seconds;
       const laterArrive = option.arrive_seconds - earliest.arrive_seconds;
