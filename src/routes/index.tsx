@@ -1373,7 +1373,7 @@ function Index() {
           <header className="flex min-h-11 items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-1.5">
-                <WaveMark className="h-[15px] w-auto text-recommended" />
+                <WaveMark className="h-6 w-auto text-recommended" />
                 <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
               </div>
               <div className="mt-1.5 h-px bg-border/70" />
@@ -1600,7 +1600,7 @@ function Index() {
         <header className="mt-5 flex min-h-11 items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
-              <WaveMark className="h-[15px] w-auto text-recommended" />
+              <WaveMark className="h-6 w-auto text-recommended" />
               <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
             </div>
             <div className="mt-1.5 h-px bg-border/70" />
@@ -2583,46 +2583,71 @@ const DATA_SOURCES = [
 ];
 
 function AboutSection() {
-  return (
-    <div className="border-t border-border pt-5">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">About</p>
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
-      <div className="mt-3 grid gap-2.5 text-xs text-muted-foreground">
-        <p>Nalu · version 1.0</p>
-        <p>Nalu is Hawaiian for wave, and to think deeply. We liked both.</p>
+  return (
+    <div className="border-t border-border pt-8">
+      <div className="flex flex-col items-center pb-7 text-center">
+        <WaveMark className="h-12 w-auto text-recommended" />
+        <p className="mt-3 text-2xl font-bold tracking-wide text-foreground">Nalu</p>
+        <p className="mt-1 text-xs text-muted-foreground">version 1.0</p>
+        <p className="mt-2 text-sm italic text-muted-foreground">Hawaiian for wave, and to think deeply.</p>
+      </div>
+      <div className="h-px bg-border/60" />
+
+      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">What is Nalu</p>
+      <div className="mt-2 grid gap-2 text-sm leading-relaxed text-muted-foreground">
         <p>
           Nalu helps Oahu commuters decide whether to take Skyline rail or drive, using real-time traffic and live bus
           schedules.
         </p>
         <p>Built for Oahu. Transit data covers TheBus and Skyline rail.</p>
       </div>
+      <div className="mt-6 h-px bg-border/60" />
 
-      <p className="mt-4 text-xs font-semibold uppercase text-muted-foreground">Data sources</p>
-      <ul className="mt-2 grid gap-2.5 text-xs text-muted-foreground">
+      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data sources</p>
+      <ul className="mt-1">
         {DATA_SOURCES.map((source) => (
-          <li key={source.href}>
+          <li key={source.href} className="border-b border-border/50 last:border-b-0">
             <a
               href={source.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
+              className="flex items-center justify-between gap-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
-              {source.label}
+              <span>{source.label}</span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" />
             </a>
           </li>
         ))}
       </ul>
+      <div className="mt-6 h-px bg-border/60" />
 
-      <p className="mt-4 text-xs font-semibold uppercase text-muted-foreground">Privacy</p>
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Privacy</p>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         Nalu does not collect or store your personal data. Your home station, destination, and preferences stay on this
         device only. Feedback you submit is sent directly to the Nalu team and not shared.
       </p>
+      <div className="mt-6 h-px bg-border/60" />
 
-      <p className="mt-4 text-xs font-semibold uppercase text-muted-foreground">Contact</p>
-      <p className="mt-2 text-xs text-muted-foreground">Questions or feedback? HelloNalu14@gmail.com</p>
-
-      <FeedbackForm />
+      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Contact</p>
+      <a
+        href="mailto:HelloNalu14@gmail.com"
+        className="mt-2 inline-block text-sm text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+      >
+        HelloNalu14@gmail.com
+      </a>
+      <Button
+        type="button"
+        variant="outline"
+        className="mt-3 w-full shadow-none"
+        onClick={() => {
+          setFeedbackOpen(true);
+        }}
+      >
+        Send feedback
+      </Button>
+      <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </div>
   );
 }
