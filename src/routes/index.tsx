@@ -119,7 +119,7 @@ type DirectionOverride = { inbound: boolean; at: number };
 /** Where the car is today: at home, left at the station, or driven all the way. */
 type CarPlace = "home" | "station" | "destination";
 type ParkedCar = { date: string; station: string; place?: CarPlace };
-type BrowseStation = { stopId: string; stopName: string; lat: number; lon: number };
+type BrowseStation = { stopId: string; stopName: string; lat: number; lon: number; userLat?: number; userLon?: number };
 type BrowseDeparture = {
   departure_seconds: number;
   departure_time: string;
@@ -268,6 +268,22 @@ function distanceM(a: Coords, b: Coords) {
   const mid = (a.lat + b.lat) / 2 * toRad;
   const x = dLon * Math.cos(mid);
   return Math.sqrt(dLat * dLat + x * x) * 6371000;
+}
+
+type StationAccess = { mode: "walk" | "drive"; minutes: number; state: "ok" | "tight" | "miss" };
+
+/**
+ * Can the rider reach the station before a train leaves? Walk at 3 mph within
+ * 0.75 miles, otherwise estimate driving at 25 mph. A two-minute buffer at the
+ * platform separates "you'll make it" from "tight".
+ */
+function stationAccess(user: Coords, station: Coords, minutesAway: number): StationAccess {
+  const miles = distanceM(user, station) / 1609.344;
+  const mode: StationAccess["mode"] = miles <= 0.75 ? "walk" : "drive";
+  const minutes = Math.max(1, Math.ceil((miles / (mode === "walk" ? 3 : 25)) * 60));
+  const state: StationAccess["state"] =
+    minutes + 2 <= minutesAway ? "ok" : minutes <= minutesAway ? "tight" : "miss";
+  return { mode, minutes, state };
 }
 
 function readJson<T>(key: string): T | null {
@@ -573,6 +589,8 @@ function Index() {
           stopName: nearest.stop_name ?? "",
           lat,
           lon,
+          userLat: lat,
+          userLon: lon,
         });
       },
       () => {
