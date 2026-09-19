@@ -4,31 +4,16 @@ import { Unzip, AsyncUnzipInflate } from "fflate";
 const GTFS_URL = "https://www.thebus.org/transitdata/production/google_transit.zip";
 
 /**
- * Every stop and route in the feed is imported. stop_times is limited to the
- * stops that matter for a rail-vs-drive answer: stops served by Skyline rail
- * (route_type 1) plus any stop within RAIL_WALK_RADIUS_M of a rail station,
- * which is how connecting bus routes get included.
+ * Every stop and route in the feed is imported, plus the full stop sequence of
+ * every trip whose service is active inside the current schedule window. No
+ * station or proximity filtering is applied to stop_times.
  */
-const RAIL_WALK_RADIUS_M = 400;
+const CALENDAR_WINDOW_START = "20260712";
+const CALENDAR_WINDOW_END = "20261205";
 
-/** Above this many stop_times rows, trips outside the current service window are dropped. */
-const STOP_TIMES_SOFT_CAP = 600_000;
+/** Rows sent per Data API request. */
+const BATCH_SIZE = 5_000;
 
-/** Metres between two coordinates (haversine). */
-function distanceMeters(
-  latA: number,
-  lonA: number,
-  latB: number,
-  lonB: number,
-): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(latB - latA);
-  const dLon = toRad(lonB - lonA);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(latA)) * Math.cos(toRad(latB)) * Math.sin(dLon / 2) ** 2;
-  return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 
 type Row = Record<string, string>;
@@ -171,71 +156,20 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
           },
         );
 
-        // Skyline rail is route_type 1 inside TheBus feed.
-        const railRouteIds = new Set(
-          [...routes.values()]
-            .filter((route) => num(route["route_type"]) === 1)
-            .map((route) => route["route_id"]!),
-        );
-        const railTripIds = new Set(
-          [...trips.values()]
-            .filter((trip) => railRouteIds.has(trip["route_id"] ?? ""))
-            .map((trip) => trip["trip_id"]!),
-        );
-
-        // Pass 2: find which stops rail trips actually serve.
-        const railStopIds = new Set<string>();
-        await streamZip(buffer, new Set(["stop_times.txt"]), (_file, row) => {
-          if (railTripIds.has(row["trip_id"] ?? "")) railStopIds.add(row["stop_id"]!);
-        });
-
-        // Target stops = rail stops + everything within walking distance of one,
-        // which pulls in the connecting bus routes at those stations.
-        const coords = stops
-          .map((stop) => ({
-            id: stop["stop_id"]!,
-            lat: num(stop["stop_lat"]),
-            lon: num(stop["stop_lon"]),
-          }))
-          .filter((stop) => stop.lat !== null && stop.lon !== null) as Array<{
-          id: string;
-          lat: number;
-          lon: number;
-        }>;
-        const railCoords = coords.filter((stop) => railStopIds.has(stop.id));
-        const targetStopIds = new Set(railStopIds);
-        for (const stop of coords) {
-          if (targetStopIds.has(stop.id)) continue;
-          if (
-            railCoords.some(
-              (station) =>
-                distanceMeters(stop.lat, stop.lon, station.lat, station.lon) <=
-                RAIL_WALK_RADIUS_M,
-            )
-          ) {
-            targetStopIds.add(stop.id);
-          }
-        }
-
-        // Services running in the current calendar window (used only if we must trim).
-        const today = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Pacific/Honolulu",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        })
-          .format(new Date())
-          .replace(/-/g, "");
+        // Services whose calendar window overlaps the current schedule window.
+        const overlaps = (row: Row) =>
+          (row["start_date"] ?? "") <= CALENDAR_WINDOW_END &&
+          (row["end_date"] ?? "") >= CALENDAR_WINDOW_START;
         const activeServiceIds = new Set(
-          calendar
-            .filter(
-              (row) =>
-                (row["start_date"] ?? "") <= today && (row["end_date"] ?? "") >= today,
-            )
-            .map((row) => row["service_id"]!),
+          calendar.filter(overlaps).map((row) => row["service_id"]!),
         );
         for (const row of calendarDates) {
-          if (row["date"] === today && num(row["exception_type"]) === 1) {
+          const date = row["date"] ?? "";
+          if (
+            num(row["exception_type"]) === 1 &&
+            date >= CALENDAR_WINDOW_START &&
+            date <= CALENDAR_WINDOW_END
+          ) {
             activeServiceIds.add(row["service_id"]!);
           }
         }
@@ -245,39 +179,41 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
             .map((trip) => trip["trip_id"]!),
         );
 
-        // Pass 3: count first so we can decide whether trimming is needed,
-        // without holding an oversized array in memory.
-        let candidateRows = 0;
-        let activeRows = 0;
-        await streamZip(buffer, new Set(["stop_times.txt"]), (_file, row) => {
-          if (!targetStopIds.has(row["stop_id"] ?? "")) return;
-          candidateRows += 1;
-          if (activeTripIds.has(row["trip_id"] ?? "")) activeRows += 1;
-        });
-        const trimToActive = candidateRows > STOP_TIMES_SOFT_CAP;
-
-        // Pass 4: collect the stop_times we keep.
-        const stopTimes: Array<Record<string, unknown>> = [];
+        // Pass 2: every stop_time of every active trip — no stop or proximity filter.
+        // Rows are held as packed strings to keep peak memory reasonable at ~1-2M rows.
+        const packed: string[] = [];
         const usedTripIds = new Set<string>();
         await streamZip(buffer, new Set(["stop_times.txt"]), (_file, row) => {
-          const stopId = row["stop_id"] ?? "";
           const tripId = row["trip_id"] ?? "";
-          if (!targetStopIds.has(stopId)) return;
-          if (trimToActive && !activeTripIds.has(tripId)) return;
+          if (!activeTripIds.has(tripId)) return;
           usedTripIds.add(tripId);
-          stopTimes.push({
-            trip_id: tripId,
-            stop_id: stopId,
-            arrival_time: row["arrival_time"] || null,
-            departure_time: row["departure_time"] || null,
-            stop_sequence: num(row["stop_sequence"]) ?? 0,
-          });
+          packed.push(
+            [
+              tripId,
+              row["stop_id"] ?? "",
+              row["arrival_time"] ?? "",
+              row["departure_time"] ?? "",
+              row["stop_sequence"] ?? "0",
+            ].join("\u0001"),
+          );
         });
+
+        const unpack = (line: string) => {
+          const [trip, stop, arrival, departure, sequence] = line.split("\u0001");
+          return {
+            trip_id: trip,
+            stop_id: stop,
+            arrival_time: arrival || null,
+            departure_time: departure || null,
+            stop_sequence: num(sequence) ?? 0,
+          };
+        };
 
         const relevantTrips = [...usedTripIds]
           .map((id) => trips.get(id))
           .filter((trip): trip is Row => Boolean(trip));
         const usedServiceIds = new Set(relevantTrips.map((trip) => trip["service_id"]!));
+
 
 
         const upsert = async (
@@ -357,19 +293,27 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
               })),
             "service_id,date",
           ),
-          stop_times: await upsert("stop_times", stopTimes, "trip_id,stop_sequence"),
+          stop_times: await (async () => {
+            for (let i = 0; i < packed.length; i += BATCH_SIZE) {
+              const batch = packed.slice(i, i + BATCH_SIZE).map(unpack);
+              const { error } = await supabaseAdmin
+                .from("stop_times")
+                .upsert(batch as never, { onConflict: "trip_id,stop_sequence" });
+              if (error) throw new Error(`stop_times: ${error.message}`);
+            }
+            return packed.length;
+          })(),
         };
 
         const summary = {
           ...counts,
-          rail_stops: railStopIds.size,
-          target_stops: targetStopIds.size,
-          candidate_stop_times: candidateRows,
-          active_stop_times: activeRows,
-          trimmed_to_active_services: trimToActive,
+          active_services: activeServiceIds.size,
+          active_trips: activeTripIds.size,
+          calendar_window: `${CALENDAR_WINDOW_START}-${CALENDAR_WINDOW_END}`,
         };
         console.log("import-gtfs rows landed:", summary);
         return Response.json({ success: true, counts: summary });
+
 
       },
     },
