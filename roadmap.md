@@ -9,7 +9,7 @@
 - [x] Import full stop sequences for every trip active in the Jul 12 – Dec 5, 2026 calendar window (no stop/proximity filter): 1,428,712 stop_times rows, 37,779 trips, DB 312 MB
 - [ ] Data API batch upserts are too slow for 1.4M rows in one scheduled run; the weekly job needs a faster load path before it can refresh the full set
 
-- [ ] Realtime delays (paused at user's request — no realtime code in the app)
+- [x] Live TheBus HEA arrivals for active feeder and connecting stops, with 30-second server cache and timetable fallback
 
 ## Setup, trip chaining, timeline (done)
 - [x] First-open setup: browser location -> nearest rail station (data-derived), rail station dropdown from `rail_stations()`
@@ -62,6 +62,7 @@
 - [x] At the transfer station the rail leg is dropped and `connecting_departures(lat, lon, dest_stop, after_seconds)` recomputes the bus from the real position and time, with walk stop, distance, walk minutes and the next departures
 - [x] Verdict, drive comparison, leave-by and later options hidden while a leg is underway
 - [x] Manual "End trip"; auto-clear 10 min after arrival or 3 hours after start
+- [x] Active feeder and transfer buses refresh from TheBus HEA every 30 seconds; delayed arrivals show scheduled versus live times, while missing GPS falls back to "Scheduled"
 
 ## Multi-stop destinations + honest drive range (done)
 - plan_outbound evaluates every stop within 0.25 mi of the destination and adds the

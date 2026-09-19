@@ -1752,7 +1752,7 @@ function BusArrivalTime({
 }: {
   arrival: BusArrival | null;
   scheduledSeconds: number | null;
-  fetchedAt?: number;
+  fetchedAt: number | undefined;
   refreshing: boolean;
   compact?: boolean;
 }) {

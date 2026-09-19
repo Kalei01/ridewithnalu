@@ -62,6 +62,7 @@
   --color-recommended: var(--recommended);
   --color-recommended-foreground: var(--recommended-foreground);
   --color-surface-raised: var(--surface-raised);
+  --color-warning: var(--warning);
 }
 
 :root {
@@ -89,6 +90,7 @@
   --recommended: oklch(0.82 0.17 148);
   --recommended-foreground: oklch(0.16 0.025 150);
   --surface-raised: oklch(0.19 0.014 255);
+  --warning: oklch(0.79 0.16 75);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
