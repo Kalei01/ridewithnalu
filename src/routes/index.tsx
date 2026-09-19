@@ -1776,7 +1776,7 @@ function Index() {
                 </dd>
               </div>
             </dl>
-            {!inbound && setup.allowDrive && carPlace !== "destination" && (
+            {!inbound && driveAvailable && (
               <Button
                 variant="ghost"
                 size="sm"
