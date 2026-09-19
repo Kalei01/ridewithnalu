@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Bus, Car, Check, Footprints, LocateFixed, RefreshCw, Settings, TrainFront } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { geocodeAddress } from "@/lib/geocode.functions";
+import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +39,7 @@ type Setup = {
   homeStopName: string;
   homeLat: number | null;
   homeLon: number | null;
+  destinationName: string;
   destinationAddress: string;
   destLat: number | null;
   destLon: number | null;
@@ -93,6 +94,7 @@ const emptySetup: Setup = {
   homeStopName: "",
   homeLat: null,
   homeLon: null,
+  destinationName: "",
   destinationAddress: "",
   destLat: null,
   destLon: null,
@@ -188,7 +190,9 @@ function Index() {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        setSetup({ ...emptySetup, ...(JSON.parse(stored) as Partial<Setup>) });
+        const saved = { ...emptySetup, ...(JSON.parse(stored) as Partial<Setup>) };
+        // Older saves only kept the address; use it as the display name.
+        setSetup({ ...saved, destinationName: saved.destinationName || saved.destinationAddress });
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
         setOnboardingOpen(true);
@@ -327,11 +331,11 @@ function Index() {
     rows.push({
       seconds: last?.arrive_seconds ?? null,
       title: inbound ? "Arrive home" : "Arrive destination",
-      detail: titleCase(last?.to) || setup.destinationAddress,
+      detail: titleCase(last?.to) || setup.destinationName || setup.destinationAddress,
       mode: "walk" as Leg["mode"],
     });
     return rows;
-  }, [best, inbound, setup.destinationAddress]);
+  }, [best, inbound, setup.destinationName, setup.destinationAddress]);
 
   function refresh() {
     setRefreshing(true);
@@ -458,7 +462,7 @@ function Index() {
               <div>
                 <dt className="text-muted-foreground">{inbound ? "From" : "To"}</dt>
                 <dd className="mt-1 truncate font-semibold text-foreground">
-                  {setup.destinationAddress || "Your destination"}
+                  {setup.destinationName || setup.destinationAddress || "Your destination"}
                 </dd>
               </div>
             </dl>
@@ -577,17 +581,37 @@ type SetupDialogProps = {
 };
 
 function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProps) {
-  const geocode = useServerFn(geocodeAddress);
+  const findPlaces = useServerFn(searchPlaces);
   const [draft, setDraft] = useState<Setup>(setup);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
 
   useEffect(() => {
     if (open) {
       setDraft(setup);
       setStatus(null);
+      setPlaceQuery("");
+      setDebouncedQuery("");
     }
   }, [open, setup]);
+
+  // 300ms debounce so typing does not fire a search per keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(placeQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [placeQuery]);
+
+  const { data: suggestions = [], isFetching: searching } = useQuery({
+    queryKey: ["place-search", debouncedQuery],
+    enabled: open && debouncedQuery.length >= 2,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const result = await findPlaces({ data: { query: debouncedQuery } });
+      return result.results;
+    },
+  });
 
   const { data: stations = [] } = useQuery({
     queryKey: ["rail-stations"],
@@ -646,41 +670,35 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
     );
   }
 
-  async function findDestinationStop() {
-    if (draft.destinationAddress.trim().length < 3) {
-      setStatus("Enter your destination first.");
-      return;
-    }
+  async function selectPlace(place: PlaceSuggestion) {
     setBusy(true);
-    setStatus("Looking up your destination…");
+    setStatus("Finding the stop nearest that place…");
     try {
-      const result = await geocode({ data: { address: draft.destinationAddress.trim() } });
-      if (!result.found) {
-        setStatus("That address was not found. Try adding the city.");
-        return;
-      }
       const { data, error } = await supabase.rpc("nearest_stop", {
-        p_lat: result.lat,
-        p_lon: result.lon,
+        p_lat: place.lat,
+        p_lon: place.lon,
         p_rail_only: false,
       });
       const nearest = data?.[0];
       if (error || !nearest) {
-        setStatus("No stop found near that address.");
+        setStatus("No stop found near that place.");
         return;
       }
       setDraft((current) => ({
         ...current,
-        destinationAddress: result.label,
-        destLat: result.lat,
-        destLon: result.lon,
+        destinationName: place.name,
+        destinationAddress: place.address || place.name,
+        destLat: place.lat,
+        destLon: place.lon,
         destStopId: nearest.stop_id,
         destStopName: nearest.stop_name ?? "",
         busRouteId: null,
       }));
+      setPlaceQuery("");
+      setDebouncedQuery("");
       setStatus(`Nearest stop: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Address lookup failed.");
+      setStatus(error instanceof Error ? error.message : "Place search failed.");
     } finally {
       setBusy(false);
     }
@@ -745,16 +763,57 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
 
           <div className="grid gap-2">
             <Label htmlFor="destination">Destination</Label>
-            <Input
-              id="destination"
-              className="h-12 bg-surface-raised"
-              placeholder="1000 Bishop St, Honolulu"
-              value={draft.destinationAddress}
-              onChange={(event) => setDraft((current) => ({ ...current, destinationAddress: event.target.value }))}
-            />
-            <Button variant="outline" onClick={findDestinationStop} disabled={busy} className="h-12">
-              Find nearest stop
-            </Button>
+            {draft.destinationName ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{draft.destinationName}</p>
+                  {draft.destinationAddress !== draft.destinationName && (
+                    <p className="truncate text-xs text-muted-foreground">{draft.destinationAddress}</p>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  className="shrink-0"
+                  onClick={() => setDraft((current) => ({ ...current, destinationName: "" }))}
+                >
+                  Change
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Input
+                  id="destination"
+                  className="h-12 bg-surface-raised"
+                  placeholder="Ala Moana Center, 1000 Bishop St…"
+                  autoComplete="off"
+                  value={placeQuery}
+                  onChange={(event) => setPlaceQuery(event.target.value)}
+                />
+                {searching && <p className="text-sm text-muted-foreground">Searching…</p>}
+                {suggestions.length > 0 && (
+                  <ul className="divide-y divide-border overflow-hidden rounded-lg bg-surface-raised">
+                    {suggestions.map((place) => (
+                      <li key={place.id}>
+                        <button
+                          type="button"
+                          onClick={() => selectPlace(place)}
+                          disabled={busy}
+                          className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                        >
+                          <span className="block truncate font-medium">{place.name}</span>
+                          {place.address && place.address !== place.name && (
+                            <span className="block truncate text-xs text-muted-foreground">{place.address}</span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {!searching && debouncedQuery.length >= 2 && suggestions.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No places matched. Try a different name.</p>
+                )}
+              </>
+            )}
             {draft.destStopName && (
               <p className="text-sm text-muted-foreground">Destination stop: {titleCase(draft.destStopName)}</p>
             )}
