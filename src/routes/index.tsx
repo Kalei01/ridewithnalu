@@ -668,41 +668,35 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
     );
   }
 
-  async function findDestinationStop() {
-    if (draft.destinationAddress.trim().length < 3) {
-      setStatus("Enter your destination first.");
-      return;
-    }
+  async function selectPlace(place: PlaceSuggestion) {
     setBusy(true);
-    setStatus("Looking up your destination…");
+    setStatus("Finding the stop nearest that place…");
     try {
-      const result = await geocode({ data: { address: draft.destinationAddress.trim() } });
-      if (!result.found) {
-        setStatus("That address was not found. Try adding the city.");
-        return;
-      }
       const { data, error } = await supabase.rpc("nearest_stop", {
-        p_lat: result.lat,
-        p_lon: result.lon,
+        p_lat: place.lat,
+        p_lon: place.lon,
         p_rail_only: false,
       });
       const nearest = data?.[0];
       if (error || !nearest) {
-        setStatus("No stop found near that address.");
+        setStatus("No stop found near that place.");
         return;
       }
       setDraft((current) => ({
         ...current,
-        destinationAddress: result.label,
-        destLat: result.lat,
-        destLon: result.lon,
+        destinationName: place.name,
+        destinationAddress: place.address || place.name,
+        destLat: place.lat,
+        destLon: place.lon,
         destStopId: nearest.stop_id,
         destStopName: nearest.stop_name ?? "",
         busRouteId: null,
       }));
+      setPlaceQuery("");
+      setDebouncedQuery("");
       setStatus(`Nearest stop: ${titleCase(nearest.stop_name)} (${formatDistance(nearest.distance_m)} away).`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Address lookup failed.");
+      setStatus(error instanceof Error ? error.message : "Place search failed.");
     } finally {
       setBusy(false);
     }
