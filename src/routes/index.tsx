@@ -126,6 +126,13 @@ function titleCase(value: string | null | undefined) {
   return value.toLowerCase().replace(/\b([a-z])/g, (match) => match.toUpperCase());
 }
 
+/** US customary distance: feet under 0.1 miles, otherwise miles to one decimal. */
+function formatDistance(meters: number) {
+  const miles = meters / 1609.344;
+  if (miles < 0.1) return `${Math.round(meters * 3.28084 / 10) * 10} ft`;
+  return `${miles.toFixed(1)} miles`;
+}
+
 function vehicleName(leg: Leg) {
   if (leg.mode === "rail") {
     const line = titleCase(leg.route_long) || "Skyline";
