@@ -751,6 +751,26 @@ function Index() {
     },
   });
 
+  // Options arrive in earliest-door-arrival order. A slightly later trip is
+  // available by choice, but is never silently preferred.
+  const earliest = options[0];
+  const alternative = useMemo(() => {
+    if (!earliest) return null;
+    let pick: Option | null = null;
+    for (const option of options.slice(1)) {
+      const laterLeave = option.leave_by_seconds - earliest.leave_by_seconds;
+      const laterArrive = option.arrive_seconds - earliest.arrive_seconds;
+      if (laterLeave < 5 * 60 || laterArrive > 10 * 60) continue;
+      if (!pick || option.leave_by_seconds > pick.leave_by_seconds) pick = option;
+    }
+    return pick;
+  }, [options, earliest]);
+  const [preferLater, setPreferLater] = useState(false);
+  useEffect(() => {
+    setPreferLater(false);
+  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
+  const best = preferLater && alternative ? alternative : earliest;
+
   // ---- Trip progress -------------------------------------------------------
   const tripActive = Boolean(trip);
 
@@ -880,7 +900,12 @@ function Index() {
   const activeBusLeg = trip?.legs.find((leg) => leg.mode === "bus" && (
     phase === "boarding" ? leg.kind === "access" : phase === "transfer" ? leg.kind !== "access" : false
   )) ?? null;
-  const trackedBusLeg = activeBusLeg;
+  const plannedBusLeg = !tripActive
+    ? best?.legs.find((leg) => leg.mode === "bus" && leg.kind === "connect")
+      ?? best?.legs.find((leg) => leg.mode === "bus")
+      ?? null
+    : null;
+  const trackedBusLeg = activeBusLeg ?? plannedBusLeg;
   const busStopName = phase === "transfer" && tripActive ? connecting[0]?.stop_name : trackedBusLeg?.from;
   const { data: activeBusStopId = null } = useQuery({
     queryKey: ["active-bus-stop", busStopName],
@@ -1023,48 +1048,6 @@ function Index() {
   });
 
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
-  // Options arrive in earliest-door-arrival order, so the first one is the
-  // recommendation. A later departure that lands barely later is offered, never
-  // chosen for the rider.
-  const earliest = options[0];
-  const alternative = useMemo(() => {
-    if (!earliest) return null;
-    let pick: Option | null = null;
-    for (const option of options.slice(1)) {
-      const laterLeave = option.leave_by_seconds - earliest.leave_by_seconds;
-      const laterArrive = option.arrive_seconds - earliest.arrive_seconds;
-      if (laterLeave < 5 * 60 || laterArrive > 10 * 60) continue;
-      if (!pick || option.leave_by_seconds > pick.leave_by_seconds) pick = option;
-    }
-    return pick;
-  }, [options, earliest]);
-  const [preferLater, setPreferLater] = useState(false);
-  useEffect(() => {
-    setPreferLater(false);
-  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
-  const best = preferLater && alternative ? alternative : earliest;
-  const plannedBusLeg = !tripActive
-    ? best?.legs.find((leg) => leg.mode === "bus" && leg.kind === "connect")
-      ?? best?.legs.find((leg) => leg.mode === "bus")
-      ?? null
-    : null;
-  const busLegForArrivals = trackedBusLeg ?? plannedBusLeg;
-  const plannedBusStopName = !tripActive ? plannedBusLeg?.from : null;
-  const effectiveBusStopName = plannedBusStopName ?? busStopName;
-  const { data: plannedBusStopId = null } = useQuery({
-    queryKey: ["planned-bus-stop", effectiveBusStopName],
-    enabled: Boolean(effectiveBusStopName),
-    staleTime: 3 * 60 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stops")
-        .select("stop_id")
-        .eq("stop_name", effectiveBusStopName as string)
-        .limit(1);
-      if (error) throw error;
-      return data?.[0]?.stop_id ?? null;
-    },
-  });
   // Rail total carries a safety buffer, and a range for transfers that slip.
   const railMinutes = best ? best.total_minutes + RAIL_BUFFER_MIN : null;
   const railRange = railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
