@@ -772,7 +772,8 @@ function Index() {
         return `${worstLabel} connection adds ${Math.round(worstWait / 60)} min of waiting`;
       }
     }
-    if (drive && drive.delayMinutes >= 5) return `Traffic is adding ${drive.delayMinutes} min to the drive`;
+    if (drive && drive.delayMinutes >= 5)
+      return `The drive is running ${drive.delayMinutes} min slower than usual`;
     if (incident) return incidentText(incident);
     return null;
   }, [best, drive, verdict, longWait, waitForTrain]);
