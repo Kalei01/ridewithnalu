@@ -55,3 +55,10 @@
 - [x] Reasoning line names the bottleneck (incident, long wait, worst connection wait, traffic delay)
 - [x] Rail fare and parking cost fields in settings, shown beside each column, not folded into the verdict
 - [x] Transfer radius raised to 0.75 mile (1207 m); a transfer walk over a quarter mile adds its walking time (3 mph) to the chain and appears as its own leg
+
+## Trip progress awareness (done)
+- [x] Active trip saved in `kine-active-trip-v1` (start time, legs, direction, stops); started with "I'm on my way"
+- [x] Location watched only while a trip is active; phase from distance (250 m) to boarding station, transfer station, destination, with the schedule as fallback
+- [x] At the transfer station the rail leg is dropped and `connecting_departures(lat, lon, dest_stop, after_seconds)` recomputes the bus from the real position and time, with walk stop, distance, walk minutes and the next departures
+- [x] Verdict, drive comparison, leave-by and later options hidden while a leg is underway
+- [x] Manual "End trip"; auto-clear 10 min after arrival or 3 hours after start
