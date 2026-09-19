@@ -676,7 +676,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
 
         <div className="grid gap-5">
           <div className="grid gap-2">
-            <Label>Home rail station</Label>
+            <Label>Home station</Label>
+            <p className="text-sm text-muted-foreground">The station nearest where you live.</p>
             <Button variant="outline" onClick={useMyLocation} disabled={busy} className="h-12 justify-start">
               <LocateFixed className="size-4" /> Use my location
             </Button>
