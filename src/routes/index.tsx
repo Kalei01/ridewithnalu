@@ -441,6 +441,133 @@ function Index() {
     }, 450);
   }
 
+  function closeSetup() {
+    if (!configured) window.localStorage.setItem(SETUP_DISMISSED_KEY, "1");
+    setOnboardingOpen(false);
+    setSettingsOpen(false);
+  }
+
+  function saveSetup(next: Setup) {
+    persist(next);
+    window.localStorage.removeItem(SETUP_DISMISSED_KEY);
+    setOnboardingOpen(false);
+    setSettingsOpen(false);
+  }
+
+  const setupDialog = (
+    <SetupDialog open={onboardingOpen || settingsOpen} firstRun={onboardingOpen} setup={setup} onClose={closeSetup} onSave={saveSetup} />
+  );
+
+  if (browseActive) {
+    return (
+      <main className="min-h-dvh bg-background px-5 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+        <div className="mx-auto flex w-full max-w-[440px] flex-col">
+          <header className="flex min-h-11 items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Rail departures</p>
+              <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Refresh departures"
+              onClick={refresh}
+              disabled={refreshing}
+              className="rounded-full text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className={refreshing ? "animate-spin" : ""} />
+            </Button>
+          </header>
+
+          <section className="py-10">
+            <h1 className="text-[clamp(2.6rem,11vw,3.8rem)] font-bold leading-[0.95] text-foreground">
+              {browseStation ? titleCase(browseStation.stopName) : "CHOOSE STATION"}
+            </h1>
+            <p className="mt-4 text-base font-medium text-muted-foreground">
+              Add a destination to unlock the rail-versus-drive comparison.
+            </p>
+          </section>
+
+          {browseLocationDenied && (
+            <section className="pb-6" aria-labelledby="browse-station-title">
+              <h2 id="browse-station-title" className="text-sm font-semibold text-foreground">
+                Choose your nearest station
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">Location is unavailable, so pick a station instead.</p>
+              <Select
+                value={browseStation?.stopId ?? ""}
+                onValueChange={(stopId) => {
+                  const station = browseStations.find((item) => item.stop_id === stopId);
+                  if (!station) return;
+                  rememberBrowseStation({
+                    stopId: station.stop_id,
+                    stopName: station.stop_name ?? "",
+                    lat: Number(station.stop_lat),
+                    lon: Number(station.stop_lon),
+                  });
+                }}
+              >
+                <SelectTrigger className="mt-3 h-12 bg-surface-raised">
+                  <SelectValue placeholder="Choose a station" />
+                </SelectTrigger>
+                <SelectContent>
+                  {browseStations.map((station) => (
+                    <SelectItem key={station.stop_id} value={station.stop_id}>
+                      {titleCase(station.stop_name)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </section>
+          )}
+
+          {!browseStation && !browseLocationDenied && (
+            <p className="pb-6 text-sm text-muted-foreground">Finding your nearest station…</p>
+          )}
+
+          {browseStation && (
+            <section className="space-y-8" aria-label={`Departures from ${browseStation.stopName}`}>
+              {browseDeparturesLoading && <p className="text-sm text-muted-foreground">Loading departures…</p>}
+              {!browseDeparturesLoading && browseDirections.length === 0 && (
+                <p className="text-sm text-muted-foreground">No rail departures are scheduled from this station right now.</p>
+              )}
+              {browseDirections.map((direction) => {
+                const first = direction[0];
+                const directionName = first?.trip_headsign
+                  ? `${titleCase(first.route_long_name)} to ${titleCase(first.trip_headsign)}`
+                  : titleCase(first?.route_long_name) || "Rail departures";
+                return (
+                  <article key={first?.trip_headsign || first?.route_id} className="border-t border-border pt-5">
+                    <h2 className="text-lg font-semibold">{directionName}</h2>
+                    <ol className="mt-3 divide-y divide-border">
+                      {direction.map((departure) => (
+                        <li key={departure.trip_id} className="flex min-h-14 items-center justify-between gap-4 py-2">
+                          <span className="text-xl font-semibold tabular-nums text-foreground">
+                            {clockFromSeconds(departure.departure_seconds)}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {departure.departure_time.slice(0, 5)} schedule
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </article>
+                );
+              })}
+            </section>
+          )}
+        </div>
+
+        <div className="fixed inset-x-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] mx-auto max-w-[440px]">
+          <Button onClick={() => setOnboardingOpen(true)} className="h-13 w-full rounded-full text-base shadow-none">
+            Set up my commute
+          </Button>
+        </div>
+        {setupDialog}
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-dvh bg-background px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
       <div className="mx-auto flex w-full max-w-[440px] flex-col">
