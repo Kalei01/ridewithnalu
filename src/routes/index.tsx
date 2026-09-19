@@ -43,8 +43,14 @@ type Setup = {
   destinationAddress: string;
   destLat: number | null;
   destLon: number | null;
+  /** Arriving stop: served by routes coming from the rail transfer points. */
   destStopId: string;
   destStopName: string;
+  destStopWalkM: number | null;
+  /** Boarding stop for the trip home: served by routes heading back toward the rail line. */
+  destReturnStopId: string;
+  destReturnStopName: string;
+  destReturnWalkM: number | null;
   allowDrive: boolean;
   busRouteId: string | null;
 };
