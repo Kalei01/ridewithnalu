@@ -417,6 +417,7 @@ export type Database = {
         Returns: {
           departure_seconds: number
           departure_time: string
+          direction_id: number
           route_id: string
           route_long_name: string
           route_short_name: string

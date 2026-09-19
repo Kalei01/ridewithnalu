@@ -162,6 +162,13 @@
       "when": 1789850186250,
       "tag": "0022_rail_departures_exclude_terminus",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789850932585,
+      "tag": "0023_rail_departures_group_by_direction",
+      "breakpoints": true
     }
   ]
 }

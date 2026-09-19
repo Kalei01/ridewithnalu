@@ -117,6 +117,7 @@ type BrowseDeparture = {
   route_short_name: string;
   stop_name: string;
   trip_headsign: string;
+  direction_id: number | null;
   trip_id: string;
 };
 
@@ -497,12 +498,13 @@ function Index() {
 
   const browseDirections = useMemo(() => {
     const here = stationLabel(browseStation?.stopName).toLowerCase();
+    // One section per physical line direction; headsign variants are not directions.
     const groups = new Map<string, BrowseDeparture[]>();
     for (const departure of browseDepartures) {
       // Never head a direction with the station the rider is standing at.
       const label = stationLabel(departure.trip_headsign).toLowerCase();
       if (here && label && label === here) continue;
-      const key = departure.trip_headsign || departure.route_long_name || departure.route_id;
+      const key = `${departure.route_id}-${departure.direction_id ?? "x"}`;
       const group = groups.get(key) ?? [];
       if (group.length < 3) group.push(departure);
       groups.set(key, group);
@@ -983,7 +985,7 @@ function Index() {
                 const directionName =
                   stationLabel(first?.trip_headsign) || stationLabel(first?.route_long_name) || "Rail departures";
                 return (
-                  <article key={first?.trip_headsign || first?.route_id} className="border-t border-border pt-5">
+                  <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="border-t border-border pt-5">
                     <h2 className="text-lg font-semibold">To {directionName}</h2>
                     <ol className="mt-3 divide-y divide-border">
                       {direction.map((departure) => {
