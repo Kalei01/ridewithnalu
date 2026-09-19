@@ -545,9 +545,7 @@ function Index() {
                           <span className="text-xl font-semibold tabular-nums text-foreground">
                             {clockFromSeconds(departure.departure_seconds)}
                           </span>
-                          <span className="text-sm text-muted-foreground">
-                            {departure.departure_time.slice(0, 5)} schedule
-                          </span>
+                          <span className="text-sm text-muted-foreground">Scheduled</span>
                         </li>
                       ))}
                     </ol>
