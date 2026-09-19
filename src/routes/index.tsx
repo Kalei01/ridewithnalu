@@ -279,6 +279,8 @@ function Index() {
   const [parked, setParked] = useState<ParkedCar | null>(null);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
+  const [trip, setTrip] = useState<ActiveTrip | null>(null);
+  const [position, setPosition] = useState<Coords | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -299,6 +301,10 @@ function Index() {
     setBrowseLocationDenied(window.localStorage.getItem(BROWSE_LOCATION_DENIED_KEY) === "1");
     setOverride(readJson<DirectionOverride>(DIRECTION_KEY));
     setParked(readJson<ParkedCar>(PARKED_KEY));
+    // A trip older than three hours is over, whatever the phone last saw.
+    const saved = readJson<ActiveTrip>(ACTIVE_TRIP_KEY);
+    if (saved && Date.now() - saved.startedAt < TRIP_MAX_MS) setTrip(saved);
+    else window.localStorage.removeItem(ACTIVE_TRIP_KEY);
     setHydrated(true);
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
