@@ -127,6 +127,9 @@ type BrowseDeparture = {
   trip_headsign: string;
   direction_id: number | null;
   trip_id: string;
+  direction_terminus: string;
+  ride_minutes: number;
+  terminus_lon: number | null;
 };
 
 /** A trip the rider is actually on: the plan they boarded plus when it started. */
@@ -276,6 +279,14 @@ function expandName(value: string | null | undefined) {
 function stationLabel(value: string | null | undefined) {
   const expanded = expandName(value).replace(/\s*\bSkyline\b\s*(Station)?\s*$/i, "").replace(/\s*\bStation\b\s*$/i, "");
   return titleCase(expanded.trim() || expandName(value));
+}
+
+/** Full line endpoint: remove the redundant brand while retaining useful place type. */
+function terminusLabel(value: string | null | undefined) {
+  const expanded = expandName(value)
+    .replace(/\bSkyline\b\s*/gi, "")
+    .replace(/\bTransit Center Station\b/gi, "Transit Center");
+  return titleCase(expanded.trim());
 }
 
 
@@ -1027,6 +1038,10 @@ function Index() {
     const trafficLoading = eastboundTrafficLoading || westboundTrafficLoading;
     const trafficUnavailable =
       eastboundTrafficFailed || westboundTrafficFailed || (!trafficLoading && (!eastboundTraffic || !westboundTraffic));
+    const h1HasMeaningfulDelay =
+      !trafficUnavailable &&
+      !trafficLoading &&
+      Math.max(eastboundTraffic?.delayMinutes ?? 0, westboundTraffic?.delayMinutes ?? 0) > 10;
 
     function trafficStatus(delayMinutes: number) {
       const delay = Math.max(0, Math.round(delayMinutes));
@@ -1076,7 +1091,6 @@ function Index() {
                 })}
               </div>
             )}
-            <p className="mt-3 border-t border-border pt-4 text-sm text-muted-foreground">Skyline avoids the H-1 entirely.</p>
           </section>
 
           <Button onClick={() => setOnboardingOpen(true)} className="mt-5 min-h-13 w-full rounded-lg px-5 text-sm font-semibold shadow-none">
@@ -1084,10 +1098,14 @@ function Index() {
           </Button>
 
           <section className="pb-5 pt-9">
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Nearest rail station</p>
-            <h2 className="mt-2 truncate text-xl font-medium text-foreground">
-              {browseStation ? stationLabel(browseStation.stopName) : "Finding your station…"}
+            <h2 className="text-xl font-semibold text-foreground">
+              {browseStation ? `Next trains from ${stationLabel(browseStation.stopName)}` : "Finding your station…"}
             </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {h1HasMeaningfulDelay
+                ? "Skyline runs every 10 min and bypasses the H-1 delay right now."
+                : "Skyline rail runs every 10 minutes."}
+            </p>
             {browseLocationDenied && browseStation && (
               <p className="mt-1 text-xs text-muted-foreground">Estimated from West Oahu · choose another station below</p>
             )}
@@ -1134,12 +1152,17 @@ function Index() {
               )}
               {browseDirections.map((direction) => {
                 const first = direction[0];
-                // The agency headsign already names the direction; don't dress it up.
-                const directionName =
-                  stationLabel(first?.trip_headsign) || stationLabel(first?.route_long_name) || "Rail departures";
+                const towardDowntown =
+                  first?.terminus_lon !== null &&
+                  first?.terminus_lon !== undefined &&
+                  first.terminus_lon > browseStation.lon;
+                const directionName = towardDowntown ? "Downtown Honolulu" : "Kapolei";
+                const endpoint =
+                  terminusLabel(first?.direction_terminus) || stationLabel(first?.trip_headsign) || "the end of the line";
                 return (
                   <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="border-t border-border pt-5">
-                    <h2 className="text-lg font-semibold">To {directionName}</h2>
+                    <h3 className="text-lg font-semibold">toward {directionName}</h3>
+                    <p className="mt-0.5 text-sm text-muted-foreground">ends at {endpoint}</p>
                     <ol className="mt-3 divide-y divide-border">
                       {direction.map((departure) => {
                         const secondsAway = departure.departure_seconds - nowSeconds;
@@ -1147,18 +1170,23 @@ function Index() {
                         const nowDeparture = secondsAway >= -30 && secondsAway < 60;
                         const soon = secondsAway >= 60 && secondsAway < 20 * 60;
                         return (
-                          <li key={departure.trip_id} className="flex min-h-14 items-center justify-between gap-4 py-2">
-                            {nowDeparture ? (
-                              <span className="text-xl font-semibold tabular-nums text-foreground">Now</span>
-                            ) : soon ? (
-                              <span className="text-xl font-semibold tabular-nums text-foreground">
-                                in {minutesAway} min <span className="text-sm font-normal text-muted-foreground">· {clockFromSeconds(departure.departure_seconds)}</span>
-                              </span>
-                            ) : (
-                              <span className="text-xl font-semibold tabular-nums text-foreground">
-                                {clockFromSeconds(departure.departure_seconds)}
-                              </span>
-                            )}
+                          <li key={departure.trip_id} className="min-h-14 py-3">
+                            <div>
+                              {nowDeparture ? (
+                                <span className="text-xl font-semibold tabular-nums text-foreground">Now</span>
+                              ) : soon ? (
+                                <span className="text-xl font-semibold tabular-nums text-foreground">
+                                  in {minutesAway} min <span className="text-sm font-normal text-muted-foreground">· {clockFromSeconds(departure.departure_seconds)}</span>
+                                </span>
+                              ) : (
+                                <span className="text-xl font-semibold tabular-nums text-foreground">
+                                  {clockFromSeconds(departure.departure_seconds)}
+                                </span>
+                              )}
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Skyline rail · toward {directionName} · {departure.ride_minutes} min to {towardDowntown ? "downtown" : "Kapolei"}
+                              </p>
+                            </div>
                           </li>
                         );
                       })}
