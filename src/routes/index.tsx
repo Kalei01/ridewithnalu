@@ -1255,6 +1255,37 @@ function Index() {
 
   const driveWeatherLines = weatherLines.get(-2) ?? [];
 
+  // Browse mode gets one line only, read at wherever the rider is standing now.
+  const { data: browseWeather } = useQuery({
+    queryKey: ["browse-weather", browseStation?.lat?.toFixed(2), browseStation?.lon?.toFixed(2)],
+    enabled: browseActive && Boolean(browseStation),
+    staleTime: 20 * 60_000,
+    refetchInterval: 20 * 60_000,
+    retry: false,
+    queryFn: () =>
+      fetchWeather({
+        data: {
+          points: [{ id: "browse", lat: browseStation!.lat, lon: browseStation!.lon, offsetMinutes: 0 }],
+          airLat: browseStation!.lat,
+          airLon: browseStation!.lon,
+        },
+      }),
+  });
+
+  const browseWeatherLine = useMemo<WeatherLine | null>(() => {
+    const reading = browseWeather?.moments[0];
+    if (!reading) return null;
+    if ((reading.precipPercent ?? 0) > 40) {
+      return { text: "Rain in the area · good day for the train", tone: "rain", source: "NWS" };
+    }
+    const feels = reading.heatIndexF;
+    const hot = feels !== null && feels > 88;
+    const humid = (reading.humidityPercent ?? 0) > 75;
+    if (hot && humid) return { text: `Hot and humid · feels like ${feels}°F`, tone: "heat", source: "NWS" };
+    if (hot) return { text: `Hot out · feels like ${feels}°F`, tone: "heat", source: "NWS" };
+    return airLine(browseWeather?.air?.category ?? 0);
+  }, [browseWeather]);
+
   async function refresh() {
     setRefreshing(true);
     setNow(new Date());
