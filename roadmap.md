@@ -38,3 +38,4 @@
 - [x] Return planned independently by `plan_inbound` (bus/walk to boarding stop, rail to home station, last leg home)
 - [x] Outbound drive to the station is remembered (`kine-parked-v1`, per date + station) so the evening last leg drives home; otherwise driving is not offered on the return
 - [x] "Home rail station" relabelled "Home station" with helper text
+- [x] Setup can be dismissed without breaking the app; browse mode shows location-based rail departures in both directions, a persistent setup button, and a station picker when location is unavailable

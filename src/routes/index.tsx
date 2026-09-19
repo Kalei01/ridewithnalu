@@ -71,6 +71,9 @@ type Option = {
 };
 
 const STORAGE_KEY = "kine-setup-v3";
+const SETUP_DISMISSED_KEY = "kine-setup-dismissed-v1";
+const BROWSE_STATION_KEY = "kine-browse-station-v1";
+const BROWSE_LOCATION_DENIED_KEY = "kine-browse-location-denied-v1";
 const DIRECTION_KEY = "kine-direction-v1";
 const PARKED_KEY = "kine-parked-v1";
 const OVERRIDE_MS = 2 * 60 * 60 * 1000;
@@ -79,6 +82,17 @@ const DRIVE_MINUTES = 54;
 type DirectionOverride = { inbound: boolean; at: number };
 /** Set when the morning trip drove to the station: the car waits there for the return leg. */
 type ParkedCar = { date: string; station: string };
+type BrowseStation = { stopId: string; stopName: string; lat: number; lon: number };
+type BrowseDeparture = {
+  departure_seconds: number;
+  departure_time: string;
+  route_id: string;
+  route_long_name: string;
+  route_short_name: string;
+  stop_name: string;
+  trip_headsign: string;
+  trip_id: string;
+};
 
 function readJson<T>(key: string): T | null {
   try {
@@ -185,9 +199,12 @@ function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const [override, setOverride] = useState<DirectionOverride | null>(null);
   const [parked, setParked] = useState<ParkedCar | null>(null);
+  const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
+  const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
+    const setupDismissed = window.localStorage.getItem(SETUP_DISMISSED_KEY) === "1";
     if (stored) {
       try {
         const saved = { ...emptySetup, ...(JSON.parse(stored) as Partial<Setup>) };
@@ -195,11 +212,13 @@ function Index() {
         setSetup({ ...saved, destinationName: saved.destinationName || saved.destinationAddress });
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
-        setOnboardingOpen(true);
+        if (!setupDismissed) setOnboardingOpen(true);
       }
-    } else {
+    } else if (!setupDismissed) {
       setOnboardingOpen(true);
     }
+    setBrowseStation(readJson<BrowseStation>(BROWSE_STATION_KEY));
+    setBrowseLocationDenied(window.localStorage.getItem(BROWSE_LOCATION_DENIED_KEY) === "1");
     setOverride(readJson<DirectionOverride>(DIRECTION_KEY));
     setParked(readJson<ParkedCar>(PARKED_KEY));
     setHydrated(true);
@@ -234,12 +253,89 @@ function Index() {
   );
 
   const configured = Boolean(setup.homeStopId && setup.destStopId && setup.destLat && setup.homeLat);
+  const browseActive = hydrated && !configured;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
   // The car only helps on the way home if this morning's trip drove to this station.
   const carAtStation = Boolean(
     setup.allowDrive && parked && parked.station === setup.homeStopId && parked.date === honoluluDateKey(now),
   );
+
+  function rememberBrowseStation(next: BrowseStation) {
+    setBrowseStation(next);
+    window.localStorage.setItem(BROWSE_STATION_KEY, JSON.stringify(next));
+  }
+
+  // Dismissed setup still works: use location only to choose the closest rail station.
+  useEffect(() => {
+    if (!browseActive || onboardingOpen || browseStation || browseLocationDenied) return;
+    if (!navigator.geolocation) {
+      setBrowseLocationDenied(true);
+      window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const { data, error } = await supabase.rpc("nearest_stop", { p_lat: lat, p_lon: lon, p_rail_only: true });
+        const nearest = data?.[0];
+        if (error || !nearest) {
+          setBrowseLocationDenied(true);
+          window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
+          return;
+        }
+        rememberBrowseStation({
+          stopId: nearest.stop_id,
+          stopName: nearest.stop_name ?? "",
+          lat,
+          lon,
+        });
+      },
+      () => {
+        setBrowseLocationDenied(true);
+        window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
+      },
+      { timeout: 10_000 },
+    );
+  }, [browseActive, onboardingOpen, browseStation, browseLocationDenied]);
+
+  const { data: browseStations = [] } = useQuery({
+    queryKey: ["browse-rail-stations"],
+    enabled: browseActive,
+    staleTime: 6 * 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rail_stations");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: browseDepartures = [], isLoading: browseDeparturesLoading } = useQuery({
+    queryKey: ["browse-departures", browseStation?.stopId, Math.floor(afterSeconds / 60)],
+    enabled: browseActive && Boolean(browseStation?.stopId),
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rail_departures", {
+        p_home_stop: browseStation?.stopId as string,
+        p_after_seconds: afterSeconds,
+        p_limit: 4,
+      });
+      if (error) throw error;
+      return (data ?? []) as BrowseDeparture[];
+    },
+  });
+
+  const browseDirections = useMemo(() => {
+    const groups = new Map<string, BrowseDeparture[]>();
+    for (const departure of browseDepartures) {
+      const key = departure.trip_headsign || departure.route_long_name || departure.route_id;
+      const group = groups.get(key) ?? [];
+      if (group.length < 4) group.push(departure);
+      groups.set(key, group);
+    }
+    return Array.from(groups.values()).slice(0, 2);
+  }, [browseDepartures]);
 
   const { data: options = [], isLoading: optionsLoading } = useQuery({
     queryKey: [
@@ -343,6 +439,131 @@ function Index() {
       setNow(new Date());
       setRefreshing(false);
     }, 450);
+  }
+
+  function closeSetup() {
+    if (!configured) window.localStorage.setItem(SETUP_DISMISSED_KEY, "1");
+    setOnboardingOpen(false);
+    setSettingsOpen(false);
+  }
+
+  function saveSetup(next: Setup) {
+    persist(next);
+    window.localStorage.removeItem(SETUP_DISMISSED_KEY);
+    setOnboardingOpen(false);
+    setSettingsOpen(false);
+  }
+
+  const setupDialog = (
+    <SetupDialog open={onboardingOpen || settingsOpen} firstRun={onboardingOpen} setup={setup} onClose={closeSetup} onSave={saveSetup} />
+  );
+
+  if (browseActive) {
+    return (
+      <main className="min-h-dvh bg-background px-5 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+        <div className="mx-auto flex w-full max-w-[440px] flex-col">
+          <header className="flex min-h-11 items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Rail departures</p>
+              <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Refresh departures"
+              onClick={refresh}
+              disabled={refreshing}
+              className="rounded-full text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className={refreshing ? "animate-spin" : ""} />
+            </Button>
+          </header>
+
+          <section className="py-10">
+            <h1 className="text-[clamp(2.6rem,11vw,3.8rem)] font-bold leading-[0.95] text-foreground">
+              {browseStation ? titleCase(browseStation.stopName) : "CHOOSE STATION"}
+            </h1>
+            <p className="mt-4 text-base font-medium text-muted-foreground">
+              Add a destination to unlock the rail-versus-drive comparison.
+            </p>
+          </section>
+
+          {browseLocationDenied && (
+            <section className="pb-6" aria-labelledby="browse-station-title">
+              <h2 id="browse-station-title" className="text-sm font-semibold text-foreground">
+                Choose your nearest station
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">Location is unavailable, so pick a station instead.</p>
+              <Select
+                value={browseStation?.stopId ?? ""}
+                onValueChange={(stopId) => {
+                  const station = browseStations.find((item) => item.stop_id === stopId);
+                  if (!station) return;
+                  rememberBrowseStation({
+                    stopId: station.stop_id,
+                    stopName: station.stop_name ?? "",
+                    lat: Number(station.stop_lat),
+                    lon: Number(station.stop_lon),
+                  });
+                }}
+              >
+                <SelectTrigger className="mt-3 h-12 bg-surface-raised">
+                  <SelectValue placeholder="Choose a station" />
+                </SelectTrigger>
+                <SelectContent>
+                  {browseStations.map((station) => (
+                    <SelectItem key={station.stop_id} value={station.stop_id}>
+                      {titleCase(station.stop_name)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </section>
+          )}
+
+          {!browseStation && !browseLocationDenied && (
+            <p className="pb-6 text-sm text-muted-foreground">Finding your nearest station…</p>
+          )}
+
+          {browseStation && (
+            <section className="space-y-8" aria-label={`Departures from ${browseStation.stopName}`}>
+              {browseDeparturesLoading && <p className="text-sm text-muted-foreground">Loading departures…</p>}
+              {!browseDeparturesLoading && browseDirections.length === 0 && (
+                <p className="text-sm text-muted-foreground">No rail departures are scheduled from this station right now.</p>
+              )}
+              {browseDirections.map((direction) => {
+                const first = direction[0];
+                const directionName = first?.trip_headsign
+                  ? `${titleCase(first.route_long_name)} to ${titleCase(first.trip_headsign)}`
+                  : titleCase(first?.route_long_name) || "Rail departures";
+                return (
+                  <article key={first?.trip_headsign || first?.route_id} className="border-t border-border pt-5">
+                    <h2 className="text-lg font-semibold">{directionName}</h2>
+                    <ol className="mt-3 divide-y divide-border">
+                      {direction.map((departure) => (
+                        <li key={departure.trip_id} className="flex min-h-14 items-center justify-between gap-4 py-2">
+                          <span className="text-xl font-semibold tabular-nums text-foreground">
+                            {clockFromSeconds(departure.departure_seconds)}
+                          </span>
+                          <span className="text-sm text-muted-foreground">Scheduled</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </article>
+                );
+              })}
+            </section>
+          )}
+        </div>
+
+        <div className="fixed inset-x-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] mx-auto max-w-[440px]">
+          <Button onClick={() => setOnboardingOpen(true)} className="h-13 w-full rounded-full text-base shadow-none">
+            Set up my commute
+          </Button>
+        </div>
+        {setupDialog}
+      </main>
+    );
   }
 
   return (
@@ -554,20 +775,7 @@ function Index() {
         </footer>
       </div>
 
-      <SetupDialog
-        open={onboardingOpen || settingsOpen}
-        firstRun={onboardingOpen}
-        setup={setup}
-        onClose={() => {
-          setOnboardingOpen(false);
-          setSettingsOpen(false);
-        }}
-        onSave={(next) => {
-          persist(next);
-          setOnboardingOpen(false);
-          setSettingsOpen(false);
-        }}
-      />
+      {setupDialog}
     </main>
   );
 }
@@ -720,7 +928,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next && !firstRun) onClose();
+        if (!next) onClose();
       }}
     >
       <DialogContent className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">

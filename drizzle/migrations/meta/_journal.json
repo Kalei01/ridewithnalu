@@ -85,6 +85,13 @@
       "when": 1789821231650,
       "tag": "0011_us_customary_walk_and_radii",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789822788733,
+      "tag": "0012_rail_departures_per_direction",
+      "breakpoints": true
     }
   ]
 }
