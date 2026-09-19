@@ -2662,6 +2662,13 @@ function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   const [sent, setSent] = useState(false);
   const [failed, setFailed] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setSent(false);
+      setFailed(false);
+    }
+  }, [open]);
+
   async function submit() {
     if (!message.trim() || sending) return;
     setSending(true);
