@@ -39,6 +39,7 @@ type Setup = {
   homeStopName: string;
   homeLat: number | null;
   homeLon: number | null;
+  destinationName: string;
   destinationAddress: string;
   destLat: number | null;
   destLon: number | null;
@@ -93,6 +94,7 @@ const emptySetup: Setup = {
   homeStopName: "",
   homeLat: null,
   homeLon: null,
+  destinationName: "",
   destinationAddress: "",
   destLat: null,
   destLon: null,
