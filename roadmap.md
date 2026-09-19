@@ -46,14 +46,13 @@
 - [x] Screen shows the stop for the active direction ("Bus stop near X when you arrive" / "Bus stop you board near X")
 - [x] Every distance names both ends (station near you, walk from destination, walk/drive leg from A to B)
 
-## Real verdict: live drive time, car availability, ranges, cost (done)
+## Real verdict: live drive time, car availability, ranges (done)
 - [x] `driveTime` server function (`src/lib/drive.functions.ts`): TomTom routing with traffic + no-traffic times, traffic incidents in a padded bounding box, 3-minute cache, key stays server-side
 - [x] Drive is queried for the current direction (outbound: home → destination, return: destination → home) and refetched every 3 minutes
 - [x] Car tracking (`kine-parked-v1`): home / station / destination; driving offered only when the car is where the trip starts, otherwise a plain reason is shown ("Your car is at …")
 - [x] Verdict: rail total + 3 min buffer vs TomTom drive time only; under 5 min gap = "About the same"; long wait (>25 min) + car available = drive
 - [x] Ranges instead of single numbers, worst case emphasised (drive: no-traffic → traffic; rail: transfer slip)
 - [x] Reasoning line names the bottleneck (incident, long wait, worst connection wait, traffic delay)
-- [x] Rail fare and parking cost fields in settings, shown beside each column, not folded into the verdict
 - [x] Transfer radius raised to 0.75 mile (1207 m); a transfer walk over a quarter mile adds its walking time (3 mph) to the chain and appears as its own leg
 
 ## Trip progress awareness (done)
