@@ -71,6 +71,9 @@ type Option = {
 };
 
 const STORAGE_KEY = "kine-setup-v3";
+const SETUP_DISMISSED_KEY = "kine-setup-dismissed-v1";
+const BROWSE_STATION_KEY = "kine-browse-station-v1";
+const BROWSE_LOCATION_DENIED_KEY = "kine-browse-location-denied-v1";
 const DIRECTION_KEY = "kine-direction-v1";
 const PARKED_KEY = "kine-parked-v1";
 const OVERRIDE_MS = 2 * 60 * 60 * 1000;
@@ -79,6 +82,17 @@ const DRIVE_MINUTES = 54;
 type DirectionOverride = { inbound: boolean; at: number };
 /** Set when the morning trip drove to the station: the car waits there for the return leg. */
 type ParkedCar = { date: string; station: string };
+type BrowseStation = { stopId: string; stopName: string; lat: number; lon: number };
+type BrowseDeparture = {
+  departure_seconds: number;
+  departure_time: string;
+  route_id: string;
+  route_long_name: string;
+  route_short_name: string;
+  stop_name: string;
+  trip_headsign: string;
+  trip_id: string;
+};
 
 function readJson<T>(key: string): T | null {
   try {
