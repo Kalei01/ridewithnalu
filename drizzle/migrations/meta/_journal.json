@@ -134,6 +134,13 @@
       "when": 1789849489597,
       "tag": "0018_plan_by_earliest_arrival",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789849677963,
+      "tag": "0019_plan_outbound_faster_links",
+      "breakpoints": true
     }
   ]
 }
