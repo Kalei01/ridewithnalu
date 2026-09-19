@@ -219,37 +219,15 @@ function Index() {
               <h2 id="departures-title" className="text-lg font-semibold">Next departures</h2>
               <p className="mt-1 truncate text-sm text-muted-foreground">{preferences.station}</p>
             </div>
-            <span className="shrink-0 text-xs font-bold uppercase text-muted-foreground">
-              {realtimeActive ? "Live" : "Scheduled"}
-            </span>
           </div>
           <ol className="divide-y divide-border">
             {departures.map((departure, index) => (
-              <li key={`${departure.time}-${index}`} className="flex min-h-14 items-center justify-between gap-3">
-                <span className="flex items-baseline gap-2">
-                  <span
-                    className={
-                      departure.liveTime
-                        ? "text-muted-foreground line-through"
-                        : index === 0
-                          ? "font-semibold text-recommended"
-                          : "font-medium text-foreground"
-                    }
-                  >
-                    {departure.time}
-                  </span>
-                  {departure.liveTime && (
-                    <span className={index === 0 ? "font-semibold text-recommended" : "font-medium text-foreground"}>
-                      {departure.liveTime}
-                    </span>
-                  )}
-                  {departure.liveTime && (
-                    <span className="text-xs text-muted-foreground">{departure.delayMinutes} min late</span>
-                  )}
-                </span>
-                <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">{departure.away} min <ChevronRight className="size-4" /></span>
+              <li key={`${departure.time}-${index}`} className="flex min-h-14 items-center justify-between">
+                <span className={index === 0 ? "font-semibold text-recommended" : "font-medium text-foreground"}>{departure.time}</span>
+                <span className="flex items-center gap-1 text-sm text-muted-foreground">{departure.away} min <ChevronRight className="size-4" /></span>
               </li>
             ))}
+
 
             {departures.length === 0 && (
               <li className="flex min-h-14 items-center text-sm text-muted-foreground">
