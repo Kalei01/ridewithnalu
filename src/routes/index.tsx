@@ -586,13 +586,30 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
   const [placeQuery, setPlaceQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
-
   useEffect(() => {
     if (open) {
       setDraft(setup);
       setStatus(null);
+      setPlaceQuery("");
+      setDebouncedQuery("");
     }
   }, [open, setup]);
+
+  // 300ms debounce so typing does not fire a search per keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(placeQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [placeQuery]);
+
+  const { data: suggestions = [], isFetching: searching } = useQuery({
+    queryKey: ["place-search", debouncedQuery],
+    enabled: open && debouncedQuery.length >= 2,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const result = await findPlaces({ data: { query: debouncedQuery } });
+      return result.results;
+    },
+  });
 
   const { data: stations = [] } = useQuery({
     queryKey: ["rail-stations"],
