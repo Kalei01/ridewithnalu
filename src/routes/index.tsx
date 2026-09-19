@@ -74,20 +74,6 @@ function formatDepartureTime(departure: string) {
   return `${hour12}:${minutes} ${suffix}`;
 }
 
-/** Realtime data older than this is ignored and the timetable is shown instead. */
-const REALTIME_MAX_AGE_MS = 5 * 60_000;
-/** Only surface a live time once the trip runs more than 2 minutes late. */
-const DELAY_THRESHOLD_SECONDS = 120;
-
-/** Shifts a GTFS "HH:MM:SS" time by a delay in seconds. */
-function shiftTime(departure: string, seconds: number) {
-  const [hours = "0", minutes = "0", secs = "0"] = departure.split(":");
-  const total = Number(hours) * 3600 + Number(minutes) * 60 + Number(secs) + seconds;
-  const safe = Math.max(0, total);
-  const hh = Math.floor(safe / 3600);
-  const mm = Math.floor((safe % 3600) / 60);
-  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
-}
 
 
 

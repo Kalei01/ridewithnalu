@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicImportGtfsRouteImport } from './routes/api/public/import-gtfs'
-import { Route as ApiPublicRealtimeProxyRouteImport } from './routes/api/public/realtime-proxy'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,41 +22,31 @@ const ApiPublicImportGtfsRoute = ApiPublicImportGtfsRouteImport.update({
   path: '/api/public/import-gtfs',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicRealtimeProxyRoute = ApiPublicRealtimeProxyRouteImport.update({
-  id: '/api/public/realtime-proxy',
-  path: '/api/public/realtime-proxy',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
-  '/api/public/realtime-proxy': typeof ApiPublicRealtimeProxyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
-  '/api/public/realtime-proxy': typeof ApiPublicRealtimeProxyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
-  '/api/public/realtime-proxy': typeof ApiPublicRealtimeProxyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/import-gtfs' | '/api/public/realtime-proxy'
+  fullPaths: '/' | '/api/public/import-gtfs'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/import-gtfs' | '/api/public/realtime-proxy'
-  id:
-    '__root__' | '/' | '/api/public/import-gtfs' | '/api/public/realtime-proxy'
+  to: '/' | '/api/public/import-gtfs'
+  id: '__root__' | '/' | '/api/public/import-gtfs'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiPublicImportGtfsRoute: typeof ApiPublicImportGtfsRoute
-  ApiPublicRealtimeProxyRoute: typeof ApiPublicRealtimeProxyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -76,20 +65,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicImportGtfsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/realtime-proxy': {
-      id: '/api/public/realtime-proxy'
-      path: '/api/public/realtime-proxy'
-      fullPath: '/api/public/realtime-proxy'
-      preLoaderRoute: typeof ApiPublicRealtimeProxyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiPublicImportGtfsRoute: ApiPublicImportGtfsRoute,
-  ApiPublicRealtimeProxyRoute: ApiPublicRealtimeProxyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
