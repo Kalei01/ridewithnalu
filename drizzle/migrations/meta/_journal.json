@@ -22,6 +22,13 @@
       "when": 1789815509529,
       "tag": "0002_create_trip_updates_realtime_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789815888257,
+      "tag": "0003_departures_schedule_only",
+      "breakpoints": true
     }
   ]
 }
