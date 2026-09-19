@@ -155,7 +155,7 @@ function Index() {
         p_dest_stop: setup.destStopId,
         p_after_seconds: afterSeconds,
         p_limit: 4,
-        p_bus_route_id: setup.busRouteId ?? undefined,
+        ...(setup.busRouteId ? { p_bus_route_id: setup.busRouteId } : {}),
       });
       if (error) throw error;
       return data ?? [];
