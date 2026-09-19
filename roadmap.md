@@ -39,6 +39,7 @@
 - [x] Outbound drive to the station is remembered (`nalu-parked-v1`, per date + station) so the evening last leg drives home; otherwise driving is not offered on the return
 - [x] "Home rail station" relabelled "Home station" with helper text
 - [x] Setup can be dismissed without breaking the app; browse mode shows location-based rail departures in both directions, a persistent setup button, and a station picker when location is unavailable
+- [x] Planned-trip timeline explicitly names access/rail stations and mode-aware final legs; return stop banner follows the selected first leg
 
 ## Directional destination stops + clearer distances (done)
 - [x] `directional_dest_stop(lat, lon, toward_rail)` picks the nearest stop whose active bus trips also touch a rail-near stop, in the right sequence/direction; outbound and return resolve to different stop_ids
