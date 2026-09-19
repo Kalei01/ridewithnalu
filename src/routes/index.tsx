@@ -498,12 +498,13 @@ function Index() {
 
   const browseDirections = useMemo(() => {
     const here = stationLabel(browseStation?.stopName).toLowerCase();
+    // One section per physical line direction; headsign variants are not directions.
     const groups = new Map<string, BrowseDeparture[]>();
     for (const departure of browseDepartures) {
       // Never head a direction with the station the rider is standing at.
       const label = stationLabel(departure.trip_headsign).toLowerCase();
       if (here && label && label === here) continue;
-      const key = departure.trip_headsign || departure.route_long_name || departure.route_id;
+      const key = `${departure.route_id}-${departure.direction_id ?? "x"}`;
       const group = groups.get(key) ?? [];
       if (group.length < 3) group.push(departure);
       groups.set(key, group);
