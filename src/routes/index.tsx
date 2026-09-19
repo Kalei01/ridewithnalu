@@ -157,7 +157,95 @@ type ConnectingDeparture = {
   dest_stop_name: string | null;
 };
 
-/** Straight-line metres between two points; good enough to tell "am I there yet". */
+/** A stretch of the trip spent outside, with where and when it happens. */
+type OutdoorMoment = {
+  id: string;
+  /** Index of the leg this sits under; -2 is the drive comparison. */
+  legIndex: number;
+  kind:
+    | "wait-feeder"
+    | "drive-station"
+    | "platform"
+    | "transfer-walk"
+    | "wait-connect"
+    | "final-walk"
+    | "drive-route";
+  lat: number;
+  lon: number;
+  offsetMinutes: number;
+  outdoorMinutes: number;
+  minutes?: number;
+  label?: string | null;
+};
+
+type WeatherLine = { text: string; tone: "rain" | "heat" | "air" };
+
+/** Rain is worth a word above 40%, or above 50% when the rider is driving. */
+function rainLine(moment: OutdoorMoment, reading: MomentConditions): string | null {
+  const chance = reading.precipPercent;
+  if (chance === null) return null;
+  const driving = moment.kind === "drive-station" || moment.kind === "drive-route";
+  if (chance <= (driving ? 50 : 40)) return null;
+  switch (moment.kind) {
+    case "wait-feeder":
+      return "Rain likely while waiting for your bus";
+    case "drive-station":
+      return `Light rain at ${moment.label || "the station"} when you arrive`;
+    case "platform":
+      return "Showers likely on the platform";
+    case "transfer-walk":
+      return `Rain during your ${moment.minutes ?? 0} min transfer walk`;
+    case "wait-connect":
+      return moment.label
+        ? `Showers possible while waiting for Route ${moment.label}`
+        : "Showers possible while waiting for your bus";
+    case "final-walk":
+      return `Rain likely during your ${moment.minutes ?? 0} min walk`;
+    case "drive-route":
+      return "Rain on the H-1 · allow extra time";
+    default:
+      return null;
+  }
+}
+
+/** Heat and humidity always arrive as a single line, never two. */
+function heatLine(reading: MomentConditions): WeatherLine | null {
+  const feels = reading.heatIndexF;
+  const humid = (reading.humidityPercent ?? 0) > 75;
+  const hot = feels !== null && feels > 88;
+  if (hot && humid) {
+    return { text: `Hot and humid · feels like ${feels}°F · limit time outdoors`, tone: "heat" };
+  }
+  if (hot) return { text: `Hot · feels like ${feels}°F`, tone: "heat" };
+  if (humid) {
+    return {
+      text: feels !== null ? `Humid · feels like ${feels}°F` : "Humid outside right now",
+      tone: "rain",
+    };
+  }
+  return null;
+}
+
+function airLine(category: number): WeatherLine | null {
+  if (category === 2) {
+    return { text: "Air quality: Moderate · sensitive groups limit outdoor time", tone: "rain" };
+  }
+  if (category === 3) {
+    return { text: "Air quality: Poor · limit outdoor exposure if sensitive", tone: "air" };
+  }
+  if (category >= 4) {
+    return { text: "Air quality: Unhealthy · minimize time outdoors", tone: "air" };
+  }
+  return null;
+}
+
+const TONE_CLASS: Record<WeatherLine["tone"], string> = {
+  rain: "text-alert-rain",
+  heat: "text-alert-heat",
+  air: "text-alert-air",
+};
+
+/** Straight-line metros between two points; good enough to tell "am I there yet". */
 function distanceM(a: Coords, b: Coords) {
   const toRad = Math.PI / 180;
   const dLat = (b.lat - a.lat) * toRad;
