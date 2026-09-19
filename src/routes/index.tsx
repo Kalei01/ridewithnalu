@@ -120,6 +120,10 @@ const emptySetup: Setup = {
   destLon: null,
   destStopId: "",
   destStopName: "",
+  destStopWalkM: null,
+  destReturnStopId: "",
+  destReturnStopName: "",
+  destReturnWalkM: null,
   allowDrive: false,
   busRouteId: null,
 };
