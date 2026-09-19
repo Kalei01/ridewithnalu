@@ -560,10 +560,10 @@ function Index() {
   // earlier plan is stale and must not suppress the drive option or contradict
   // a drive-to-station first leg.
   useEffect(() => {
-    if (!hydrated || inbound || tripActive || carPlace === "home") return;
+    if (!hydrated || inbound || trip || carPlace === "home") return;
     setParked(null);
     window.localStorage.removeItem(PARKED_KEY);
-  }, [hydrated, inbound, tripActive, carPlace]);
+  }, [hydrated, inbound, trip, carPlace]);
 
   function setCarPlace(place: CarPlace) {
     const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place };
@@ -714,6 +714,7 @@ function Index() {
       setup.destStopId,
       setup.allowDrive,
       carAtStation,
+      driveAvailable,
       Math.floor(afterSeconds / 60),
     ],
     enabled: hydrated && configured,
