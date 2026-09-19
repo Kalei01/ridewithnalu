@@ -54,10 +54,6 @@ type Setup = {
   destReturnStopName: string;
   destReturnWalkM: number | null;
   allowDrive: boolean;
-  busRouteId: string | null;
-  /** Shown beside each option; never folded into the verdict. */
-  parkingCost: number | null;
-  railFare: number | null;
 };
 
 type Leg = {
@@ -195,9 +191,6 @@ const emptySetup: Setup = {
   destReturnStopName: "",
   destReturnWalkM: null,
   allowDrive: false,
-  busRouteId: null,
-  parkingCost: null,
-  railFare: null,
 };
 
 function honoluluParts(date: Date) {
@@ -559,7 +552,6 @@ function Index() {
       inbound ? "inbound" : "outbound",
       setup.homeStopId,
       setup.destStopId,
-      setup.busRouteId,
       setup.allowDrive,
       carAtStation,
       Math.floor(afterSeconds / 60),
@@ -592,7 +584,6 @@ function Index() {
         // Any stop within a quarter mile of the door is fair game, walk included.
         p_dest_lat: setup.destLat as number,
         p_dest_lon: setup.destLon as number,
-        ...(setup.busRouteId ? { p_bus_route_id: setup.busRouteId } : {}),
       });
       if (error) throw error;
       return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] })) as Option[];
@@ -971,11 +962,6 @@ function Index() {
   const rawWalkM = inbound ? (setup.destReturnWalkM ?? setup.destStopWalkM) : setup.destStopWalkM;
   const activeDestWalkM = typeof rawWalkM === "number" ? rawWalkM : null;
 
-  function money(value: number | null) {
-    if (value === null || Number.isNaN(value)) return null;
-    return `$${value.toFixed(2)}`;
-  }
-
   const timeline = useMemo(() => {
     if (!best) return [];
     const rows = best.legs.map((leg) => ({
@@ -1329,10 +1315,6 @@ function Index() {
                   {best?.legs[0] ? vehicleName(best.legs[0]) : "—"}
                 </dd>
               </div>
-              <div>
-                <dt className="text-muted-foreground">Fare</dt>
-                <dd className="mt-1 font-semibold text-foreground">{money(setup.railFare) ?? "Not set"}</dd>
-              </div>
             </dl>
           </article>
           <article className={`py-7 pl-5 ${verdict === "drive" ? "" : "opacity-55"}`}>
@@ -1382,12 +1364,6 @@ function Index() {
                   {inbound
                     ? setup.destinationName || setup.destinationAddress || "Your destination"
                     : setup.destinationName || setup.destinationAddress || "Your destination"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Parking</dt>
-                <dd className="mt-1 font-semibold text-foreground">
-                  {inbound ? "None at home" : (money(setup.parkingCost) ?? "Not set")}
                 </dd>
               </div>
             </dl>
@@ -1875,17 +1851,6 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
     },
   });
 
-  const { data: destRoutes = [] } = useQuery({
-    queryKey: ["dest-routes", draft.destStopId],
-    enabled: open && Boolean(draft.destStopId),
-    staleTime: 60 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("routes_serving_stop", { p_stop_id: draft.destStopId });
-      if (error) throw error;
-      return (data ?? []).filter((route) => route.route_type !== 1);
-    },
-  });
-
   async function useMyLocation() {
     if (!navigator.geolocation) {
       setStatus("This device cannot share its location. Pick your station below.");
@@ -1953,7 +1918,6 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
         destReturnStopId: back.stop_id,
         destReturnStopName: back.stop_name ?? "",
         destReturnWalkM: Number(back.distance_m),
-        busRouteId: null,
       }));
       setPlaceQuery("");
       setDebouncedQuery("");
@@ -2107,72 +2071,6 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               onCheckedChange={(checked) => setDraft((current) => ({ ...current, allowDrive: checked }))}
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="fare">Rail fare</Label>
-              <Input
-                id="fare"
-                type="number"
-                inputMode="decimal"
-                step="0.25"
-                min="0"
-                className="h-12 bg-surface-raised"
-                value={draft.railFare ?? ""}
-                placeholder="3.00"
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    railFare: event.target.value === "" ? null : Number(event.target.value),
-                  }))
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="parking-cost">Parking cost</Label>
-              <Input
-                id="parking-cost"
-                type="number"
-                inputMode="decimal"
-                step="0.25"
-                min="0"
-                className="h-12 bg-surface-raised"
-                value={draft.parkingCost ?? ""}
-                placeholder="15.00"
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    parkingCost: event.target.value === "" ? null : Number(event.target.value),
-                  }))
-                }
-              />
-            </div>
-          </div>
-
-          {draft.destStopId && (
-            <div className="grid gap-2">
-              <Label>Connecting route</Label>
-              <Select
-                value={draft.busRouteId ?? "auto"}
-                onValueChange={(value) =>
-                  setDraft((current) => ({ ...current, busRouteId: value === "auto" ? null : value }))
-                }
-              >
-                <SelectTrigger className="h-12 bg-surface-raised">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Automatic (fastest connection)</SelectItem>
-                  {destRoutes.map((route) => (
-                    <SelectItem key={route.route_id} value={route.route_id}>
-                      {route.route_short_name ? `Route ${route.route_short_name}` : route.route_id}
-                      {route.sample_headsign ? ` to ${titleCase(route.sample_headsign)}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           {status && <p className="text-sm text-muted-foreground">{status}</p>}
         </div>
