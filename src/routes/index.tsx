@@ -86,6 +86,8 @@ const STORAGE_KEY = "kine-setup-v3";
 const SETUP_DISMISSED_KEY = "kine-setup-dismissed-v1";
 const BROWSE_STATION_KEY = "kine-browse-station-v1";
 const BROWSE_LOCATION_DENIED_KEY = "kine-browse-location-denied-v1";
+const KAPOLEI_POINT = { lat: 21.3358, lon: -158.0798 };
+const DOWNTOWN_POINT = { lat: 21.3099, lon: -157.8644 };
 const DIRECTION_KEY = "kine-direction-v1";
 const PARKED_KEY = "kine-parked-v1";
 const OVERRIDE_MS = 2 * 60 * 60 * 1000;
@@ -481,7 +483,31 @@ function Index() {
     },
   });
 
-  const { data: browseDepartures = [], isLoading: browseDeparturesLoading } = useQuery({
+  // If location is unavailable, derive the west-side default from live station
+  // coordinates rather than pinning a station name or id into the app.
+  useEffect(() => {
+    if (!browseActive || !browseLocationDenied || browseStation || browseStations.length === 0) return;
+    const nearest = browseStations
+      .filter((station) => station.stop_lat !== null && station.stop_lon !== null)
+      .map((station) => ({
+        station,
+        distance: distanceM(KAPOLEI_POINT, { lat: Number(station.stop_lat), lon: Number(station.stop_lon) }),
+      }))
+      .sort((a, b) => a.distance - b.distance)[0]?.station;
+    if (!nearest) return;
+    rememberBrowseStation({
+      stopId: nearest.stop_id,
+      stopName: nearest.stop_name ?? "",
+      lat: Number(nearest.stop_lat),
+      lon: Number(nearest.stop_lon),
+    });
+  }, [browseActive, browseLocationDenied, browseStation, browseStations]);
+
+  const {
+    data: browseDepartures = [],
+    isLoading: browseDeparturesLoading,
+    refetch: refetchBrowseDepartures,
+  } = useQuery({
     queryKey: ["browse-departures", browseStation?.stopId, Math.floor(afterSeconds / 60)],
     enabled: browseActive && Boolean(browseStation?.stopId),
     staleTime: 30_000,
@@ -745,6 +771,50 @@ function Index() {
       }),
   });
 
+  const {
+    data: eastboundTraffic,
+    isLoading: eastboundTrafficLoading,
+    isError: eastboundTrafficFailed,
+    refetch: refetchEastboundTraffic,
+  } = useQuery({
+    queryKey: ["browse-h1", "eastbound"],
+    enabled: browseActive,
+    staleTime: 3 * 60_000,
+    refetchInterval: 3 * 60_000,
+    retry: 1,
+    queryFn: () =>
+      fetchDriveTime({
+        data: {
+          fromLat: KAPOLEI_POINT.lat,
+          fromLon: KAPOLEI_POINT.lon,
+          toLat: DOWNTOWN_POINT.lat,
+          toLon: DOWNTOWN_POINT.lon,
+        },
+      }),
+  });
+
+  const {
+    data: westboundTraffic,
+    isLoading: westboundTrafficLoading,
+    isError: westboundTrafficFailed,
+    refetch: refetchWestboundTraffic,
+  } = useQuery({
+    queryKey: ["browse-h1", "westbound"],
+    enabled: browseActive,
+    staleTime: 3 * 60_000,
+    refetchInterval: 3 * 60_000,
+    retry: 1,
+    queryFn: () =>
+      fetchDriveTime({
+        data: {
+          fromLat: DOWNTOWN_POINT.lat,
+          fromLon: DOWNTOWN_POINT.lon,
+          toLat: KAPOLEI_POINT.lat,
+          toLon: KAPOLEI_POINT.lon,
+        },
+      }),
+  });
+
   // Real service hours for the rail station, used when nothing is reachable.
   const { data: railHours = [] } = useQuery({
     queryKey: ["service-hours", setup.homeStopId],
@@ -878,12 +948,17 @@ function Index() {
     return rows;
   }, [best, inbound, setup.destinationName, setup.destinationAddress]);
 
-  function refresh() {
+  async function refresh() {
     setRefreshing(true);
-    window.setTimeout(() => {
-      setNow(new Date());
-      setRefreshing(false);
-    }, 450);
+    setNow(new Date());
+    if (browseActive) {
+      await Promise.allSettled([
+        refetchBrowseDepartures(),
+        refetchEastboundTraffic(),
+        refetchWestboundTraffic(),
+      ]);
+    }
+    window.setTimeout(() => setRefreshing(false), 250);
   }
 
   function closeSetup() {
@@ -904,41 +979,78 @@ function Index() {
   );
 
   if (browseActive) {
+    const trafficLoading = eastboundTrafficLoading || westboundTrafficLoading;
+    const trafficUnavailable =
+      eastboundTrafficFailed || westboundTrafficFailed || (!trafficLoading && (!eastboundTraffic || !westboundTraffic));
+
+    function trafficStatus(delayMinutes: number) {
+      const delay = Math.max(0, Math.round(delayMinutes));
+      if (delay === 0) return { label: "Clear", className: "text-primary" };
+      if (delay > 20) return { label: `${delay} min slower than usual`, className: "text-destructive" };
+      if (delay >= 10) return { label: `${delay} min slower than usual`, className: "text-chart-4" };
+      return { label: `${delay} min slower than usual`, className: "text-foreground" };
+    }
+
     return (
-      <main className="min-h-dvh bg-page-gradient px-5 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+      <main className="min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
-          <header className="flex min-h-11 items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase text-muted-foreground">Rail departures</p>
-              <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
+          <header className="flex min-h-11 items-start justify-between gap-4">
+            <p className="pt-1 text-xs font-semibold uppercase text-muted-foreground">Oahu commute conditions</p>
+            <div className="flex items-center gap-1">
+              <p className="text-right text-sm font-medium text-foreground">{timeText}</p>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Refresh commute conditions"
+                onClick={() => void refresh()}
+                disabled={refreshing}
+                className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+              >
+                <RefreshCw />
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Refresh departures"
-              onClick={refresh}
-              disabled={refreshing}
-              className="rounded-full text-muted-foreground hover:text-foreground"
-            >
-              <RefreshCw className={refreshing ? "animate-spin" : ""} />
-            </Button>
           </header>
 
-          <section className="pb-6 pt-7">
-            <h1 className="truncate text-xl font-medium text-foreground">
-              {browseStation ? stationLabel(browseStation.stopName) : "Choose a station"}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Add a destination to unlock the rail-versus-drive comparison.
-            </p>
+          <section className={`verdict-lift mt-7 rounded-lg border border-border p-5 ${refreshing ? "animate-in fade-in duration-300" : ""}`} aria-labelledby="h1-conditions-title">
+            <h1 id="h1-conditions-title" className="text-lg font-semibold">H-1 conditions</h1>
+            {trafficLoading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
+            {trafficUnavailable && <p className="mt-4 text-sm text-muted-foreground">Traffic data unavailable</p>}
+            {!trafficLoading && !trafficUnavailable && eastboundTraffic && westboundTraffic && (
+              <div className="mt-3 divide-y divide-border">
+                {[
+                  { label: "H-1 Eastbound (toward town)", data: eastboundTraffic },
+                  { label: "H-1 Westbound (toward Kapolei)", data: westboundTraffic },
+                ].map((item) => {
+                  const status = trafficStatus(item.data.delayMinutes);
+                  return (
+                    <div key={item.label} className="flex min-h-14 items-center justify-between gap-4 py-3">
+                      <span className="text-sm text-foreground">{item.label}</span>
+                      <span className={`shrink-0 text-right text-sm font-semibold tabular-nums ${status.className}`}>{status.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <p className="mt-3 border-t border-border pt-4 text-sm text-muted-foreground">Skyline avoids the H-1 entirely.</p>
+          </section>
+
+          <Button onClick={() => setOnboardingOpen(true)} className="mt-5 min-h-13 w-full rounded-lg px-5 text-sm font-semibold shadow-none">
+            Set up my commute for a door-to-door comparison
+          </Button>
+
+          <section className="pb-5 pt-9">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Nearest rail station</p>
+            <h2 className="mt-2 truncate text-xl font-medium text-foreground">
+              {browseStation ? stationLabel(browseStation.stopName) : "Finding your station…"}
+            </h2>
+            {browseLocationDenied && browseStation && (
+              <p className="mt-1 text-xs text-muted-foreground">Estimated from West Oahu · choose another station below</p>
+            )}
           </section>
 
           {browseLocationDenied && (
-            <section className="pb-6" aria-labelledby="browse-station-title">
-              <h2 id="browse-station-title" className="text-sm font-semibold text-foreground">
-                Choose your nearest station
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">Location is unavailable, so pick a station instead.</p>
+            <section className="pb-7" aria-labelledby="browse-station-title">
+              <h3 id="browse-station-title" className="sr-only">Choose another rail station</h3>
               <Select
                 value={browseStation?.stopId ?? ""}
                 onValueChange={(stopId) => {
@@ -952,8 +1064,8 @@ function Index() {
                   });
                 }}
               >
-                <SelectTrigger className="mt-3 h-12 bg-surface-raised">
-                  <SelectValue placeholder="Choose a station" />
+                <SelectTrigger className="h-11 bg-surface-raised">
+                  <SelectValue placeholder="Choose another station" />
                 </SelectTrigger>
                 <SelectContent>
                   {browseStations.map((station) => (
@@ -966,13 +1078,9 @@ function Index() {
             </section>
           )}
 
-          {!browseStation && !browseLocationDenied && (
-            <p className="pb-6 text-sm text-muted-foreground">Finding your nearest station…</p>
-          )}
-
           {browseStation && (
             <section
-              className="departures-fade space-y-8 animate-in fade-in duration-300"
+              className={`departures-fade space-y-8 ${refreshing ? "animate-in fade-in duration-300" : ""}`}
               aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
             >
               {browseDeparturesLoading && <p className="text-sm text-muted-foreground">Loading departures…</p>}
@@ -989,18 +1097,17 @@ function Index() {
                     <h2 className="text-lg font-semibold">To {directionName}</h2>
                     <ol className="mt-3 divide-y divide-border">
                       {direction.map((departure) => {
-                        const minutesAway = Math.round((departure.departure_seconds - nowSeconds) / 60);
-                        const soon = minutesAway >= 0 && minutesAway < 20;
+                        const secondsAway = departure.departure_seconds - nowSeconds;
+                        const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
+                        const nowDeparture = secondsAway >= -30 && secondsAway < 60;
+                        const soon = secondsAway >= 60 && secondsAway < 20 * 60;
                         return (
                           <li key={departure.trip_id} className="flex min-h-14 items-center justify-between gap-4 py-2">
-                            {soon ? (
-                              <span className="flex flex-col">
-                                <span className="text-xl font-semibold tabular-nums text-foreground">
-                                  in {minutesAway} min
-                                </span>
-                                <span className="text-xs tabular-nums text-muted-foreground">
-                                  {clockFromSeconds(departure.departure_seconds)}
-                                </span>
+                            {nowDeparture ? (
+                              <span className="text-xl font-semibold tabular-nums text-foreground">Now</span>
+                            ) : soon ? (
+                              <span className="text-xl font-semibold tabular-nums text-foreground">
+                                in {minutesAway} min <span className="text-sm font-normal text-muted-foreground">· {clockFromSeconds(departure.departure_seconds)}</span>
                               </span>
                             ) : (
                               <span className="text-xl font-semibold tabular-nums text-foreground">
@@ -1016,13 +1123,6 @@ function Index() {
               })}
             </section>
           )}
-        </div>
-
-
-        <div className="fixed inset-x-5 bottom-[max(1.25rem,env(safe-area-inset-bottom))] mx-auto max-w-[440px]">
-          <Button onClick={() => setOnboardingOpen(true)} className="h-13 w-full rounded-full text-base shadow-none">
-            Set up my commute
-          </Button>
         </div>
         {setupDialog}
       </main>
