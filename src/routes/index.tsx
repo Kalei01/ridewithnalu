@@ -198,7 +198,7 @@ function Index() {
             <p className="text-xs font-bold uppercase text-recommended">Rail</p>
             <p className="mt-3 text-5xl font-semibold leading-none text-recommended">42<span className="ml-1 text-base font-medium">min</span></p>
             <dl className="mt-7 space-y-4 text-sm">
-              <div><dt className="text-muted-foreground">Next train</dt><dd className="mt-1 font-semibold text-foreground">{nextDeparture ? nextDeparture.liveTime ?? nextDeparture.time : departuresLoading ? "…" : "—"}</dd></div>
+              <div><dt className="text-muted-foreground">Next train</dt><dd className="mt-1 font-semibold text-foreground">{nextDeparture ? nextDeparture.time : departuresLoading ? "…" : "—"}</dd></div>
               <div className="flex items-center gap-2 text-muted-foreground"><Clock3 className="size-4 text-recommended" /><span>{nextDeparture ? `${nextDeparture.away} min away` : "No more trains today"}</span></div>
               <div className="flex items-center gap-2 text-muted-foreground"><Footprints className="size-4 text-recommended" /><span>{preferences.walkMinutes} min walk</span></div>
             </dl>
