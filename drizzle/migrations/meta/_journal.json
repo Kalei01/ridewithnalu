@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789814693863,
+      "tag": "0000_create_gtfs_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789815012282,
+      "tag": "0001_next_departures_normalized_match",
+      "breakpoints": true
+    }
+  ]
+}

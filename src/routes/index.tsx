@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronRight, Clock3, Footprints, RefreshCw, Settings } from "lucide-react";
 
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -37,14 +40,40 @@ type Preferences = {
 };
 
 const stations = [
-  "Kualakaʻi · East Kapolei",
-  "Keoneʻae · UH West Oahu",
-  "Honouliuli · Hoʻopili",
-  "Hōʻaeʻae · West Loch",
-  "Pouhala · Waipahu Transit Center",
-  "Hālaulani · Leeward Community College",
-  "Waiawa · Pearl Highlands",
+  { label: "Kualakaʻi · East Kapolei", query: "East Kapolei" },
+  { label: "Keoneʻae · UH West Oahu", query: "UH West Oahu" },
+  { label: "Honouliuli · Hoʻopili", query: "Hoopili" },
+  { label: "Hōʻaeʻae · West Loch", query: "West Loch" },
+  { label: "Pouhala · Waipahu Transit Center", query: "Waipahu Transit Center" },
+  { label: "Hālaulani · Leeward Community College", query: "Leeward Community College" },
+  { label: "Waiawa · Pearl Highlands", query: "Pearl Highlands" },
 ];
+
+function stationQuery(label: string) {
+  return stations.find((station) => station.label === label)?.query ?? label;
+}
+
+/** Minutes from now (Honolulu) until a GTFS "HH:MM:SS" departure time. */
+function minutesAway(departure: string, from: Date) {
+  const [hours = "0", minutes = "0"] = departure.split(":");
+  const nowParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Pacific/Honolulu",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(from).split(":");
+  const nowMinutes = Number(nowParts[0]) * 60 + Number(nowParts[1]);
+  return Math.max(0, Number(hours) * 60 + Number(minutes) - nowMinutes);
+}
+
+function formatDepartureTime(departure: string) {
+  const [hours = "0", minutes = "00"] = departure.split(":");
+  const hour24 = Number(hours) % 24;
+  const suffix = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${minutes} ${suffix}`;
+}
+
 
 const defaults: Preferences = {
   station: "Honouliuli · Hoʻopili",
@@ -90,12 +119,25 @@ function Index() {
     [now],
   );
 
-  const departures = [
-    { time: "6:50 AM", away: 8 },
-    { time: "7:00 AM", away: 18 },
-    { time: "7:10 AM", away: 28 },
-    { time: "7:20 AM", away: 38 },
-  ];
+  const { data: departures = [], isLoading: departuresLoading } = useQuery({
+    queryKey: ["departures", preferences.station, updatedAt.getTime()],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("next_departures", {
+        p_station_query: stationQuery(preferences.station),
+        p_limit: 4,
+      });
+      if (error) throw error;
+      return (data ?? []).map((row) => ({
+        time: formatDepartureTime(row.departure_time ?? ""),
+        away: minutesAway(row.departure_time ?? "", new Date()),
+        headsign: row.trip_headsign ?? "",
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const nextDeparture = departures[0];
+
 
   function refresh() {
     setRefreshing(true);
@@ -140,7 +182,9 @@ function Index() {
             <span className="text-xs font-bold uppercase">Best option</span>
           </div>
           <h1 id="verdict-title" className="max-w-[360px] text-[clamp(3.4rem,15vw,4.5rem)] font-bold leading-[0.9] text-foreground">TAKE THE RAIL</h1>
-          <p className="mt-5 text-lg font-medium text-muted-foreground">12 min faster · leaves in 8 min</p>
+          <p className="mt-5 text-lg font-medium text-muted-foreground">
+            12 min faster{nextDeparture ? ` · leaves in ${nextDeparture.away} min` : ""}
+          </p>
         </section>
 
         <section aria-label="Commute comparison" className="grid grid-cols-2 border-y border-border">
@@ -148,8 +192,8 @@ function Index() {
             <p className="text-xs font-bold uppercase text-recommended">Rail</p>
             <p className="mt-3 text-5xl font-semibold leading-none text-recommended">42<span className="ml-1 text-base font-medium">min</span></p>
             <dl className="mt-7 space-y-4 text-sm">
-              <div><dt className="text-muted-foreground">Next train</dt><dd className="mt-1 font-semibold text-foreground">6:50 AM</dd></div>
-              <div className="flex items-center gap-2 text-muted-foreground"><Clock3 className="size-4 text-recommended" /><span>8 min away</span></div>
+              <div><dt className="text-muted-foreground">Next train</dt><dd className="mt-1 font-semibold text-foreground">{nextDeparture ? nextDeparture.time : departuresLoading ? "…" : "—"}</dd></div>
+              <div className="flex items-center gap-2 text-muted-foreground"><Clock3 className="size-4 text-recommended" /><span>{nextDeparture ? `${nextDeparture.away} min away` : "No more trains today"}</span></div>
               <div className="flex items-center gap-2 text-muted-foreground"><Footprints className="size-4 text-recommended" /><span>{preferences.walkMinutes} min walk</span></div>
             </dl>
           </article>
@@ -172,12 +216,18 @@ function Index() {
           </div>
           <ol className="divide-y divide-border">
             {departures.map((departure, index) => (
-              <li key={departure.time} className="flex min-h-14 items-center justify-between">
+              <li key={`${departure.time}-${index}`} className="flex min-h-14 items-center justify-between">
                 <span className={index === 0 ? "font-semibold text-recommended" : "font-medium text-foreground"}>{departure.time}</span>
                 <span className="flex items-center gap-1 text-sm text-muted-foreground">{departure.away} min <ChevronRight className="size-4" /></span>
               </li>
             ))}
+            {departures.length === 0 && (
+              <li className="flex min-h-14 items-center text-sm text-muted-foreground">
+                {departuresLoading ? "Loading schedule…" : "No scheduled departures found."}
+              </li>
+            )}
           </ol>
+
         </section>
 
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
@@ -195,7 +245,7 @@ function Index() {
             <DialogDescription>Set the trip Kine compares each morning.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-5">
-            <div className="grid gap-2"><Label htmlFor="station">Home station</Label><Select value={draft.station} onValueChange={(station) => setDraft((current) => ({ ...current, station }))}><SelectTrigger id="station" className="h-12 bg-surface-raised"><SelectValue /></SelectTrigger><SelectContent>{stations.map((station) => <SelectItem key={station} value={station}>{station}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid gap-2"><Label htmlFor="station">Home station</Label><Select value={draft.station} onValueChange={(station) => setDraft((current) => ({ ...current, station }))}><SelectTrigger id="station" className="h-12 bg-surface-raised"><SelectValue /></SelectTrigger><SelectContent>{stations.map((station) => <SelectItem key={station.label} value={station.label}>{station.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="grid gap-2"><Label htmlFor="destination">Work destination</Label><Input id="destination" className="h-12 bg-surface-raised" value={draft.destination} onChange={(event) => setDraft((current) => ({ ...current, destination: event.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2"><Label htmlFor="departure">Usual departure</Label><Input id="departure" type="time" className="h-12 bg-surface-raised" value={draft.departureTime} onChange={(event) => setDraft((current) => ({ ...current, departureTime: event.target.value }))} /></div>
