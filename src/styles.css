@@ -63,6 +63,9 @@
   --color-recommended-foreground: var(--recommended-foreground);
   --color-surface-raised: var(--surface-raised);
   --color-warning: var(--warning);
+  --color-alert-rain: var(--alert-rain);
+  --color-alert-heat: var(--alert-heat);
+  --color-alert-air: var(--alert-air);
 }
 
 :root {
@@ -91,6 +94,10 @@
   --recommended-foreground: oklch(0.16 0.025 150);
   --surface-raised: oklch(0.19 0.014 255);
   --warning: oklch(0.79 0.16 75);
+  /* Muted amber, orange and red for inline outdoor-condition notes. */
+  --alert-rain: oklch(0.76 0.1 78);
+  --alert-heat: oklch(0.74 0.12 55);
+  --alert-air: oklch(0.7 0.12 25);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
