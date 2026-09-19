@@ -178,7 +178,7 @@ type OutdoorMoment = {
   label?: string | null;
 };
 
-type WeatherLine = { text: string; tone: "rain" | "heat" | "air" };
+type WeatherLine = { text: string; tone: "rain" | "heat" | "air"; source: string };
 
 /** Rain is worth a word above 40%, or above 50% when the rider is driving. */
 function rainLine(moment: OutdoorMoment, reading: MomentConditions): string | null {
@@ -216,17 +216,18 @@ function heatLine(moment: OutdoorMoment, reading: MomentConditions): WeatherLine
   const humid = (reading.humidityPercent ?? 0) > 75;
   const hot = feels !== null && feels > 88;
   if (hot && humid) {
-    return { text: `Hot and humid · feels like ${feels}°F · limit time outdoors`, tone: "heat" };
+    return { text: `Hot and humid · feels like ${feels}°F · limit time outdoors`, tone: "heat", source: "NWS" };
   }
   if (hot) {
     const where =
       moment.kind === "wait-feeder" ? "Hot at bus stop" : moment.kind === "platform" ? "Hot on the platform" : "Hot";
-    return { text: `${where} · feels like ${feels}°F`, tone: "heat" };
+    return { text: `${where} · feels like ${feels}°F`, tone: "heat", source: "NWS" };
   }
   if (humid) {
     return {
       text: feels !== null ? `Humid · feels like ${feels}°F` : "Humid outside right now",
       tone: "rain",
+      source: "NWS",
     };
   }
   return null;
@@ -234,13 +235,13 @@ function heatLine(moment: OutdoorMoment, reading: MomentConditions): WeatherLine
 
 function airLine(category: number): WeatherLine | null {
   if (category === 2) {
-    return { text: "Air quality: Moderate · sensitive groups limit outdoor time", tone: "rain" };
+    return { text: "Air quality: Moderate · sensitive groups limit outdoor time", tone: "rain", source: "AirNow / EPA" };
   }
   if (category === 3) {
-    return { text: "Air quality: Poor · limit outdoor exposure if sensitive", tone: "air" };
+    return { text: "Air quality: Poor · limit outdoor exposure if sensitive", tone: "air", source: "AirNow / EPA" };
   }
   if (category >= 4) {
-    return { text: "Air quality: Unhealthy · minimize time outdoors", tone: "air" };
+    return { text: "Air quality: Unhealthy · minimize time outdoors", tone: "air", source: "AirNow / EPA" };
   }
   return null;
 }
@@ -1233,7 +1234,7 @@ function Index() {
       if (!reading) continue;
       const lines: WeatherLine[] = [];
       const rain = rainLine(moment, reading);
-      if (rain) lines.push({ text: rain, tone: "rain" });
+      if (rain) lines.push({ text: rain, tone: "rain", source: "NWS" });
       const heat = heatLine(moment, reading);
       if (heat) lines.push(heat);
       if (airMoment && moment.id === airMoment.id) {
@@ -1316,7 +1317,10 @@ function Index() {
           </header>
 
           <section className={`verdict-lift mt-7 rounded-lg border border-border p-5 ${refreshing ? "animate-in fade-in duration-300" : ""}`} aria-labelledby="h1-conditions-title">
-            <h1 id="h1-conditions-title" className="text-lg font-semibold">H-1 conditions</h1>
+            <div className="flex items-baseline justify-between gap-3">
+              <h1 id="h1-conditions-title" className="text-lg font-semibold">H-1 conditions</h1>
+              <span className="shrink-0 text-[10px] text-muted-foreground">TomTom</span>
+            </div>
             {trafficLoading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
             {trafficUnavailable && <p className="mt-4 text-sm text-muted-foreground">Traffic data unavailable</p>}
             {!trafficLoading && !trafficUnavailable && eastboundTraffic && westboundTraffic && (
@@ -1342,9 +1346,12 @@ function Index() {
           </Button>
 
           <section className="pb-5 pt-9">
-            <h2 className="text-xl font-semibold text-foreground">
-              {browseStation ? `Next trains from ${stationLabel(browseStation.stopName)}` : "Finding your station…"}
-            </h2>
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-xl font-semibold text-foreground">
+                {browseStation ? `Next trains from ${stationLabel(browseStation.stopName)}` : "Finding your station…"}
+              </h2>
+              <span className="shrink-0 text-[10px] text-muted-foreground">TheBus / DTS</span>
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {h1HasMeaningfulDelay
                 ? "Skyline runs every 10 min and bypasses the H-1 delay right now."
@@ -1596,6 +1603,7 @@ function Index() {
                 {driveWeatherLines.map((line) => (
                   <p key={line.text} className={`mt-1 text-xs ${TONE_CLASS[line.tone]}`}>
                     {line.text}
+                    <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
                   </p>
                 ))}
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -1605,6 +1613,7 @@ function Index() {
                       ? `${drive.trafficMinutes} min now, ${Math.abs(drive.delayMinutes)} min faster than usual`
                       : `${drive.trafficMinutes} min now, about usual for this time`}
                 </p>
+                <p className="mt-1 text-[10px] text-muted-foreground">Drive time: TomTom</p>
               </>
             )}
             {!driveAvailable && carAwayReason && (
@@ -1739,6 +1748,7 @@ function Index() {
                       {(weatherLines.get(row.legIndex) ?? []).map((line) => (
                         <span key={line.text} className={`mt-1 block text-xs ${TONE_CLASS[line.tone]}`}>
                           {line.text}
+                          <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
                         </span>
                       ))}
                     </span>
@@ -2343,6 +2353,30 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               checked={draft.allowDrive}
               onCheckedChange={(checked) => setDraft((current) => ({ ...current, allowDrive: checked }))}
             />
+          </div>
+
+          <div className="border-t border-border pt-5">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Data sources</p>
+            <ul className="mt-3 grid gap-2.5 text-xs text-muted-foreground">
+              {[
+                { label: "Transit schedules and routes: TheBus / Oahu Transit Services", href: "https://www.thebus.org" },
+                { label: "Live bus arrivals: TheBus HEA API / Oahu Transit Services", href: "https://hea.thebus.org" },
+                { label: "Traffic and drive times: TomTom", href: "https://www.tomtom.com" },
+                { label: "Weather and forecasts: National Weather Service / NOAA", href: "https://www.weather.gov" },
+                { label: "Air quality: AirNow / US EPA", href: "https://www.airnow.gov" },
+              ].map((source) => (
+                <li key={source.href}>
+                  <a
+                    href={source.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                  >
+                    {source.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {status && <p className="text-sm text-muted-foreground">{status}</p>}
