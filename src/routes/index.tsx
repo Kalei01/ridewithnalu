@@ -419,6 +419,10 @@ function Index() {
   const railMinutes = best?.total_minutes ?? null;
   const railWins = railMinutes !== null && railMinutes < DRIVE_MINUTES;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
+  const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
+  // A stop serves one direction, so the arriving stop and the boarding stop differ.
+  const activeDestStopName = inbound ? setup.destReturnStopName || setup.destStopName : setup.destStopName;
+  const activeDestWalkM = inbound ? (setup.destReturnWalkM ?? setup.destStopWalkM) : setup.destStopWalkM;
 
   const timeline = useMemo(() => {
     if (!best) return [];
