@@ -117,6 +117,7 @@ type BrowseDeparture = {
   route_short_name: string;
   stop_name: string;
   trip_headsign: string;
+  direction_id: number | null;
   trip_id: string;
 };
 
