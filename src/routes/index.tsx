@@ -894,12 +894,10 @@ function Index() {
             {driveAvailable && driveFailed && (
               <p className="mt-2 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>
             )}
-            {driveAvailable && drive?.incidents.length ? (
+            {driveAvailable && drive?.incidents[0] ? (
               <p className="mt-3 rounded-lg bg-surface-raised px-3 py-2 text-sm text-foreground">
-                {drive.incidents[0]?.road
-                  ? `${drive.incidents[0]?.description} on ${drive.incidents[0]?.road}`
-                  : drive.incidents[0]?.description}
-                {drive.incidents[0]?.delayMinutes ? ` · +${drive.incidents[0]?.delayMinutes} min` : ""}
+                {incidentText(drive.incidents[0])}
+                {drive.incidents[0].delayMinutes ? ` · +${drive.incidents[0].delayMinutes} min` : ""}
               </p>
             ) : null}
             <dl className="mt-7 space-y-4 text-sm">
