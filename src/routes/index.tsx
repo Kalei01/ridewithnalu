@@ -761,16 +761,57 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
 
           <div className="grid gap-2">
             <Label htmlFor="destination">Destination</Label>
-            <Input
-              id="destination"
-              className="h-12 bg-surface-raised"
-              placeholder="1000 Bishop St, Honolulu"
-              value={draft.destinationAddress}
-              onChange={(event) => setDraft((current) => ({ ...current, destinationAddress: event.target.value }))}
-            />
-            <Button variant="outline" onClick={findDestinationStop} disabled={busy} className="h-12">
-              Find nearest stop
-            </Button>
+            {draft.destinationName ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{draft.destinationName}</p>
+                  {draft.destinationAddress !== draft.destinationName && (
+                    <p className="truncate text-xs text-muted-foreground">{draft.destinationAddress}</p>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  className="shrink-0"
+                  onClick={() => setDraft((current) => ({ ...current, destinationName: "" }))}
+                >
+                  Change
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Input
+                  id="destination"
+                  className="h-12 bg-surface-raised"
+                  placeholder="Ala Moana Center, 1000 Bishop St…"
+                  autoComplete="off"
+                  value={placeQuery}
+                  onChange={(event) => setPlaceQuery(event.target.value)}
+                />
+                {searching && <p className="text-sm text-muted-foreground">Searching…</p>}
+                {suggestions.length > 0 && (
+                  <ul className="divide-y divide-border overflow-hidden rounded-lg bg-surface-raised">
+                    {suggestions.map((place) => (
+                      <li key={place.id}>
+                        <button
+                          type="button"
+                          onClick={() => selectPlace(place)}
+                          disabled={busy}
+                          className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                        >
+                          <span className="block truncate font-medium">{place.name}</span>
+                          {place.address && place.address !== place.name && (
+                            <span className="block truncate text-xs text-muted-foreground">{place.address}</span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {!searching && debouncedQuery.length >= 2 && suggestions.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No places matched. Try a different name.</p>
+                )}
+              </>
+            )}
             {draft.destStopName && (
               <p className="text-sm text-muted-foreground">Destination stop: {titleCase(draft.destStopName)}</p>
             )}
