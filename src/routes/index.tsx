@@ -1379,6 +1379,12 @@ function Index() {
                 })}
               </div>
             )}
+            {browseWeatherLine && (
+              <p className={`mt-4 text-xs ${TONE_CLASS[browseWeatherLine.tone]}`}>
+                {browseWeatherLine.text}
+                <span className="ml-1 text-[10px] text-muted-foreground">{browseWeatherLine.source}</span>
+              </p>
+            )}
           </section>
 
           <Button onClick={() => setOnboardingOpen(true)} className="mt-5 min-h-13 w-full rounded-lg px-5 text-sm font-semibold shadow-none">
