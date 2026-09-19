@@ -1,7 +1,7 @@
 {
-  "name": "Kine",
-  "short_name": "Kine",
-  "description": "Your quick rail-or-drive decision for Oahu.",
+  "name": "Nalu",
+  "short_name": "Nalu",
+  "description": "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
   "start_url": "/",
   "id": "/",
   "scope": "/",
