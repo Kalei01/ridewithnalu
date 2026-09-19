@@ -1091,11 +1091,6 @@ function Index() {
                 })}
               </div>
             )}
-            <p className="mt-3 border-t border-border pt-4 text-sm text-muted-foreground">
-              {h1HasMeaningfulDelay
-                ? "Skyline runs every 10 min and bypasses the H-1 delay right now."
-                : "Skyline rail runs every 10 minutes."}
-            </p>
           </section>
 
           <Button onClick={() => setOnboardingOpen(true)} className="mt-5 min-h-13 w-full rounded-lg px-5 text-sm font-semibold shadow-none">
