@@ -1061,13 +1061,13 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               <p className="text-sm text-muted-foreground">
                 Bus stop near {draft.destinationName || "your destination"} when you arrive:{" "}
                 {titleCase(draft.destStopName)}
-                {draft.destStopWalkM !== null ? `, a ${formatDistance(draft.destStopWalkM)} walk` : ""}
+                {typeof draft.destStopWalkM === "number" ? `, a ${formatDistance(draft.destStopWalkM)} walk` : ""}
               </p>
             )}
             {draft.destReturnStopName && (
               <p className="text-sm text-muted-foreground">
                 Stop you board for the trip home: {titleCase(draft.destReturnStopName)}
-                {draft.destReturnWalkM !== null
+                {typeof draft.destReturnWalkM === "number"
                   ? `, a ${formatDistance(draft.destReturnWalkM)} walk from ${draft.destinationName || "your destination"}`
                   : ""}
               </p>
