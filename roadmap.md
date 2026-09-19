@@ -89,3 +89,14 @@
 - [x] Location-derived station with a data-derived West Oahu estimate and selector when location is unavailable
 - [x] Three rail-only departures per physical direction, Honolulu time, compact countdown formatting, and no scheduled labels
 - [x] Beginner-friendly train headings, data-derived line endpoints and ride times, plus H-1-aware Skyline context
+
+## Weather awareness on outdoor legs (done)
+- [x] `outdoorConditions` server fn: National Weather Service hourly forecast per coordinate
+  (20-min cache, required User-Agent) plus AirNow current observation (1-hour cache,
+  AIRNOW_API_KEY server-side). Every failure returns empty data; never blocks the plan.
+- [x] Moments checked: feeder-bus wait, drive to station, rail platform wait, transfer walk,
+  connecting-bus wait, final walk, full drive corridor. Rain >40% (>50% for driving),
+  heat index >88°F, humidity >75% combined into one heat-and-humid line.
+- [x] One air-quality line on the longest outdoor stretch over 5 min, Moderate or worse,
+  never the raw number. Inline muted lines only (amber rain/humidity, orange heat,
+  red/amber air) under the relevant leg; no cards, widgets or icons.
