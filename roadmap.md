@@ -69,3 +69,16 @@
   feeder/first leg already evaluated all stops within 0.5 mi with walk included.
 - Drive range is traffic-centred: TomTom historic (typical) time is the low end,
   never free-flow. Delay shown plainly; verdict compares the displayed worst cases.
+
+## Earliest arrival + door-to-door audit (done)
+- Audit: every rail total already ran door to door (leave_by -> final arrival):
+  planner total_minutes, the verdict range, the leave-by line and the timeline all
+  include the first leg and the final walk. Browse mode lists station departures
+  only, so it has no trip total to correct. Nothing measured station-to-destination.
+- plan_outbound / plan_inbound now order options by earliest door arrival, latest
+  possible leave-by breaking ties (0018). A later-departure option that arrives
+  within 10 min is offered as a chip the rider can pick; never auto-selected.
+- Peak-hour planning hit the 3s read timeout (the earlier intermittent failures).
+  Transfer search is narrowed to stops actually served by routes reaching the
+  destination, sampling 12 trips per route/direction to keep variant patterns
+  (0019, 0020); read timeout raised to 10s (0021). 6:45 AM now answers in ~1s.

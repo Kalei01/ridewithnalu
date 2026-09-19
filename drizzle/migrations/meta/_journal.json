@@ -127,6 +127,34 @@
       "when": 1789848945087,
       "tag": "0017_plan_outbound_multi_dest_fast",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789849489597,
+      "tag": "0018_plan_by_earliest_arrival",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789849677963,
+      "tag": "0019_plan_outbound_faster_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789849748006,
+      "tag": "0020_plan_outbound_pattern_coverage",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789849817062,
+      "tag": "0021_raise_anon_statement_timeout",
+      "breakpoints": true
     }
   ]
 }

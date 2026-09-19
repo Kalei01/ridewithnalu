@@ -252,8 +252,10 @@ function vehicleName(leg: Leg) {
     return leg.headsign ? `${label} to ${titleCase(leg.headsign)}` : label;
   }
   const verb = leg.mode === "drive" ? "Drive" : "Walk";
-  if (leg.kind === "egress") return `${verb} home`;
-  return `${verb} to ${titleCase(leg.to)}`;
+  // Name both ends: the last leg is only "home" when the trip ends at home.
+  const to = titleCase(leg.to);
+  if (!to) return leg.kind === "egress" ? `${verb} home` : verb;
+  return `${verb} to ${to}`;
 }
 
 function modeIcon(mode: Leg["mode"]) {
@@ -714,7 +716,26 @@ function Index() {
   });
 
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
-  const best = options[0];
+  // Options arrive in earliest-door-arrival order, so the first one is the
+  // recommendation. A later departure that lands barely later is offered, never
+  // chosen for the rider.
+  const earliest = options[0];
+  const alternative = useMemo(() => {
+    if (!earliest) return null;
+    let pick: Option | null = null;
+    for (const option of options.slice(1)) {
+      const laterLeave = option.leave_by_seconds - earliest.leave_by_seconds;
+      const laterArrive = option.arrive_seconds - earliest.arrive_seconds;
+      if (laterLeave < 5 * 60 || laterArrive > 10 * 60) continue;
+      if (!pick || option.leave_by_seconds > pick.leave_by_seconds) pick = option;
+    }
+    return pick;
+  }, [options, earliest]);
+  const [preferLater, setPreferLater] = useState(false);
+  useEffect(() => {
+    setPreferLater(false);
+  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
+  const best = preferLater && alternative ? alternative : earliest;
   // Rail total carries a safety buffer, and a range for transfers that slip.
   const railMinutes = best ? best.total_minutes + RAIL_BUFFER_MIN : null;
   const railRange = railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
@@ -1183,7 +1204,39 @@ function Index() {
             <h2 id="chain-title" className="text-lg font-semibold">
               Your next trip
             </h2>
+            {earliest && alternative && (
+              <div className="mt-4 flex gap-2" role="group" aria-label="Choose a trip">
+                <button
+                  type="button"
+                  aria-pressed={!preferLater}
+                  onClick={() => setPreferLater(false)}
+                  className={`min-h-11 flex-1 rounded-2xl border px-3 py-2 text-left text-sm ${
+                    preferLater ? "border-border text-muted-foreground" : "border-recommended text-foreground"
+                  }`}
+                >
+                  <span className="block font-semibold">Arrive {clockFromSeconds(earliest.arrive_seconds)}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Leave {clockFromSeconds(earliest.leave_by_seconds)} · earliest arrival
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={preferLater}
+                  onClick={() => setPreferLater(true)}
+                  className={`min-h-11 flex-1 rounded-2xl border px-3 py-2 text-left text-sm ${
+                    preferLater ? "border-recommended text-foreground" : "border-border text-muted-foreground"
+                  }`}
+                >
+                  <span className="block font-semibold">Arrive {clockFromSeconds(alternative.arrive_seconds)}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Leave {Math.round((alternative.leave_by_seconds - earliest.leave_by_seconds) / 60)} min later,
+                    arrive {Math.round((alternative.arrive_seconds - earliest.arrive_seconds) / 60)} min later
+                  </span>
+                </button>
+              </div>
+            )}
             <ol className="mt-5">
+
               {timeline.map((row, index) => {
                 const Icon = modeIcon(row.mode);
                 return (
@@ -1230,7 +1283,7 @@ function Index() {
             </p>
           </div>
           <ol className="divide-y divide-border">
-            {options.slice(1).map((option, index) => (
+            {options.filter((option) => option !== best).map((option, index) => (
               <li key={`${option.leave_by_seconds}-${index}`} className="flex min-h-14 items-center justify-between gap-3 py-2">
                 <span className="font-medium tabular-nums text-foreground">
                   Leave {clockFromSeconds(option.leave_by_seconds)}
@@ -1238,7 +1291,9 @@ function Index() {
                 <span className="truncate text-sm text-muted-foreground">
                   {option.legs[0] ? vehicleName(option.legs[0]) : ""}
                 </span>
-                <span className="shrink-0 text-sm text-muted-foreground">{option.total_minutes} min</span>
+                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                  Arrive {clockFromSeconds(option.arrive_seconds)} · {option.total_minutes} min
+                </span>
               </li>
             ))}
             {options.length <= 1 && (
