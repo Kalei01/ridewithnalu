@@ -908,6 +908,7 @@ function Index() {
   });
 
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
+  const distanceTrend = useRef<number[]>([]);
   useEffect(() => {
     if (!activeTransitLeg || !navigator.geolocation) {
       setRiderPoint(null);
@@ -921,66 +922,61 @@ function Index() {
     return () => navigator.geolocation.clearWatch(watch);
   }, [activeTransitLeg]);
 
+  // Legs change: start the distance history over so an old ride cannot trigger
+  // a "passed your stop" notice on the next one.
+  const legKey = activeTransitLeg ? `${activeTransitLeg.from}-${activeTransitLeg.depart_seconds}` : null;
+  useEffect(() => {
+    distanceTrend.current = [];
+  }, [legKey]);
+
+  const alightPoint = useMemo(() => {
+    const alight = legStops.find((stop) => stop.isAlight) ?? legStops[legStops.length - 1];
+    return alight && alight.lat !== null && alight.lon !== null ? { lat: alight.lat, lon: alight.lon } : null;
+  }, [legStops]);
+  if (riderPoint && alightPoint) {
+    const distance = distanceM(riderPoint, alightPoint);
+    const trend = distanceTrend.current;
+    if (trend[trend.length - 1] !== distance) {
+      distanceTrend.current = [...trend, distance].slice(-4);
+    }
+  }
+
+  const previousApproachState = useRef<ApproachState | null>(null);
   // Where the rider is along the leg, by GPS when available, otherwise by clock.
   const approach = useMemo(() => {
     if (!activeTransitLeg || legStops.length < 2) return null;
-    const alightIndex = legStops.findIndex((stop) => stop.isAlight);
-    const endIndex = alightIndex >= 0 ? alightIndex : legStops.length - 1;
-    const alight = legStops[endIndex];
-    if (!alight) return null;
-
-    let currentIndex = 0;
-    let metersToAlight: number | null = null;
-    const gpsFix = riderPoint
-      ? legStops
-          .map((stop, index) => ({
-            index,
-            distance: stop.lat === null || stop.lon === null
-              ? Number.POSITIVE_INFINITY
-              : distanceM(riderPoint, { lat: stop.lat, lon: stop.lon }),
-          }))
-          .sort((a, b) => a.distance - b.distance)[0]
-      : null;
-    if (gpsFix && Number.isFinite(gpsFix.distance) && gpsFix.distance < 3000) {
-      currentIndex = gpsFix.index;
-      if (riderPoint && alight.lat !== null && alight.lon !== null) {
-        metersToAlight = distanceM(riderPoint, { lat: alight.lat, lon: alight.lon });
-      }
-    } else {
-      for (let index = 0; index <= endIndex; index += 1) {
-        const seconds = legStops[index]?.arriveSeconds;
-        if (seconds !== null && seconds !== undefined && seconds <= nowSeconds) currentIndex = index;
-      }
-    }
-
-    const stopsAway = Math.max(0, endIndex - currentIndex);
-    const secondsToAlight = alight.arriveSeconds === null || alight.arriveSeconds === undefined
-      ? null
-      : alight.arriveSeconds - nowSeconds;
-    const minutesToAlight = secondsToAlight === null ? null : Math.round(secondsToAlight / 60);
-    const nextStop = legStops[Math.min(currentIndex + 1, endIndex)] ?? alight;
-
-    const urgent =
-      stopsAway <= 1
-      || (metersToAlight !== null && metersToAlight <= 350)
-      || (metersToAlight === null && minutesToAlight !== null && minutesToAlight <= 2);
-    const getReady =
-      !urgent
-      && (stopsAway <= 2
-        || (metersToAlight !== null && metersToAlight <= 800)
-        || (metersToAlight === null && minutesToAlight !== null && minutesToAlight <= 4));
-
+    const result = evaluateApproach({
+      stops: legStops.map((stop) => ({
+        stopName: stop.stopName,
+        lat: stop.lat,
+        lon: stop.lon,
+        arriveSeconds: stop.arriveSeconds,
+        isAlight: stop.isAlight,
+      })),
+      nowSeconds,
+      rider: riderPoint,
+      distanceTrend: distanceTrend.current,
+      previousState: previousApproachState.current,
+    });
+    if (!result) return null;
     return {
+      ...result,
       key: `${activeTransitLeg.from}-${activeTransitLeg.depart_seconds}`,
-      state: (urgent ? "urgent" : getReady ? "ready" : "cruising") as "urgent" | "ready" | "cruising",
-      stopsAway,
-      minutesToAlight,
-      nextStopName: nextStop?.stopName ?? alight.stopName,
-      alightName: alight.stopName,
       vehicle: (activeTransitLeg.mode === "rail" ? "rail" : "bus") as "bus" | "rail",
-      live: Boolean(riderPoint),
     };
   }, [activeTransitLeg, legStops, riderPoint, nowSeconds]);
+  useEffect(() => {
+    previousApproachState.current = approach?.state ?? null;
+  }, [approach?.state]);
+
+  const [alertPrefs, setAlertPrefs] = useState<AlertPrefs>(defaultAlertPrefs);
+  useEffect(() => {
+    setAlertPrefs(parseAlertPrefs(window.localStorage.getItem(ALERT_PREFS_KEY)));
+  }, []);
+  function saveAlertPrefs(next: AlertPrefs) {
+    setAlertPrefs(next);
+    window.localStorage.setItem(ALERT_PREFS_KEY, JSON.stringify(next));
+  }
 
   const [approachDismissed, setApproachDismissed] = useState<string | null>(null);
   const lastPulse = useRef<string | null>(null);
@@ -989,9 +985,17 @@ function Index() {
     const pulseKey = `${approach.key}-urgent`;
     if (lastPulse.current === pulseKey) return;
     lastPulse.current = pulseKey;
-    navigator.vibrate?.([200, 100, 200]);
-  }, [approach]);
-  const showApproach = Boolean(approach) && approachDismissed !== `${approach?.key}-${approach?.state}`;
+    if (alertPrefs.haptics) navigator.vibrate?.([200, 100, 200]);
+    if (alertPrefs.sound) playChime();
+  }, [approach, alertPrefs.haptics, alertPrefs.sound]);
+  // On a leg change the banner clears unless the rider asked to keep it.
+  useEffect(() => {
+    if (!alertPrefs.keepOnTransfer) setApproachDismissed(null);
+  }, [legKey, alertPrefs.keepOnTransfer]);
+  const showApproach =
+    Boolean(approach)
+    && approachDismissed !== `${approach?.key}-${approach?.state}`
+    && (alertPrefs.keepOnTransfer || approachDismissed?.startsWith(`${approach?.key}-`) !== true);
 
   // Real driving time between the two points that matter for this direction.
   const driveFrom = inbound
