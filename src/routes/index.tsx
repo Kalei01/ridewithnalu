@@ -718,9 +718,10 @@ function Index() {
           userLon: lon,
         });
       },
-      () => {
+      (error) => {
         setBrowseLocationDenied(true);
         window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
+        if (isPermissionDeniedError(error)) recordLocationDenied();
       },
       { timeout: 10_000 },
     );
