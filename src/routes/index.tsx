@@ -1048,7 +1048,7 @@ function Index() {
 
   const moments = useMemo<OutdoorMoment[]>(() => {
     if (!best) return [];
-    const originPoint = inbound ? destPoint : (position ?? homePoint);
+    const originPoint = inbound ? destPoint : homePoint;
     const arrivalPoint = inbound ? homePoint : destPoint;
     const railLegHere = best.legs.find((leg) => leg.kind === "rail") ?? null;
     const boardStation = stationPoint(railLegHere?.from);
@@ -1147,7 +1147,7 @@ function Index() {
       });
     }
     return list;
-  }, [best, inbound, position, homePoint, destPoint, nowSeconds, stationCoords, setup.homeStopName]);
+  }, [best, inbound, homePoint, destPoint, nowSeconds, stationCoords, setup.homeStopName]);
 
   const fetchWeather = useServerFn(outdoorConditions);
   // Runs alongside the plan, never in front of it: the trip renders regardless.
@@ -1506,20 +1506,17 @@ function Index() {
 
         <DataExpiryNotice />
 
-        {!tripActive && (
-          <H1ConditionsCard
-            eastbound={eastboundTraffic}
-            westbound={westboundTraffic}
-            loading={eastboundTrafficLoading || westboundTrafficLoading}
-            unavailable={
-              eastboundTrafficFailed ||
-              westboundTrafficFailed ||
-              (!(eastboundTrafficLoading || westboundTrafficLoading) && (!eastboundTraffic || !westboundTraffic))
-            }
-          />
-        )}
+        <H1ConditionsCard
+          eastbound={eastboundTraffic}
+          westbound={westboundTraffic}
+          loading={eastboundTrafficLoading || westboundTrafficLoading}
+          unavailable={
+            eastboundTrafficFailed ||
+            westboundTrafficFailed ||
+            (!(eastboundTrafficLoading || westboundTrafficLoading) && (!eastboundTraffic || !westboundTraffic))
+          }
+        />
 
-        {!tripActive && (
         <section
           className="verdict-lift -mx-3 mt-4 rounded-3xl px-3 py-9 animate-in fade-in duration-300"
           aria-labelledby="verdict-title"
@@ -1583,9 +1580,7 @@ function Index() {
             </p>
           )}
         </section>
-        )}
 
-        {!tripActive && (
         <section aria-label="Comparison" className="grid grid-cols-2 border-y border-border">
           <article className={`border-r border-border py-7 pr-5 ${verdict === "drive" ? "opacity-55" : ""}`}>
             <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-muted-foreground" : "text-recommended"}`}>
@@ -1779,13 +1774,9 @@ function Index() {
                 );
               })}
             </ol>
-            <Button onClick={() => startTrip(best)} className="h-12 w-full rounded-full text-base shadow-none">
-              I'm on my way
-            </Button>
           </section>
         )}
 
-        {!tripActive && (
         <section className="pb-8" aria-labelledby="later-title">
           <div className="mb-4">
             <h2 id="later-title" className="text-lg font-semibold">
