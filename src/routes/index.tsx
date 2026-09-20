@@ -949,17 +949,6 @@ function Index() {
   // Options arrive in earliest-door-arrival order. A slightly later trip is
   // available by choice, but is never silently preferred.
   const earliest = options[0];
-  const alternative = useMemo(() => {
-    if (!earliest) return null;
-    let pick: Option | null = null;
-    for (const option of options.slice(1)) {
-      const laterLeave = option.leave_by_seconds - earliest.leave_by_seconds;
-      const laterArrive = option.arrive_seconds - earliest.arrive_seconds;
-      if (laterLeave < 5 * 60 || laterArrive > 10 * 60) continue;
-      if (!pick || option.leave_by_seconds > pick.leave_by_seconds) pick = option;
-    }
-    return pick;
-  }, [options, earliest]);
   const [selectedDeparture, setSelectedDeparture] = useState<number | null>(null);
   useEffect(() => {
     setSelectedDeparture(null);
@@ -2130,22 +2119,25 @@ function Index() {
                 : 0;
               return (
               <li key={`${option.leave_by_seconds}-${index}`}>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   aria-pressed={selected}
                   onClick={() => setSelectedDeparture(selected ? null : option.leave_by_seconds)}
-                  className={`w-full rounded-lg border p-4 text-left transition-colors ${selected ? "border-recommended bg-recommended/10" : "border-border bg-background/40 hover:border-muted-foreground"}`}
+                  className={`h-auto w-full justify-start whitespace-normal rounded-lg border p-4 text-left transition-colors ${selected ? "border-recommended bg-recommended/10" : "border-border bg-background/40 hover:border-muted-foreground"}`}
                 >
+                  <span className="block w-full">
                   <span className="flex items-center justify-between gap-3">
                     <span className="text-lg font-bold tabular-nums text-foreground">Leave {clockFromSeconds(option.leave_by_seconds)}</span>
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">+{difference} min</span>
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">+{difference} min arrival</span>
                   </span>
                   <span className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
                     <span><span className="block text-xs text-muted-foreground">Arrival ETA</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{clockFromSeconds(option.arrive_seconds)}</span></span>
                     <span><span className="block text-xs text-muted-foreground">Total duration</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{option.total_minutes} min</span></span>
                   </span>
                   {option.legs[0] && <span className="mt-3 block truncate text-xs text-muted-foreground">{vehicleName(option.legs[0])}</span>}
-                </button>
+                  </span>
+                </Button>
               </li>
               );
             })}

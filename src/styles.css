@@ -197,10 +197,6 @@
   transform: rotate(-45deg);
 }
 
-.nalu-journey-marker-start::first-line {
-  line-height: 1;
-}
-
 .nalu-journey-marker-end {
   border-color: var(--color-foreground);
   border-radius: 999px 999px 0 999px;
@@ -217,13 +213,11 @@
   box-shadow: 0 3px 14px oklch(0 0 0 / 60%);
 }
 
-.nalu-journey-marker-start::after,
-.nalu-journey-marker-end::after {
-  content: attr(aria-label);
+.nalu-journey-marker-start .nalu-journey-marker-label {
   transform: rotate(45deg);
 }
 
-.nalu-journey-marker-end::after {
+.nalu-journey-marker-end .nalu-journey-marker-label {
   transform: rotate(-45deg);
 }
 
