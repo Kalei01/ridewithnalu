@@ -2,7 +2,7 @@ import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, Car, Check, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Settings, TrainFront, X } from "lucide-react";
+import { Bus, Car, Check, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Search, Settings, TrainFront, X } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
@@ -1623,6 +1623,19 @@ function Index() {
     return airLine(browseWeather?.air?.category ?? 0);
   }, [browseWeather]);
 
+  const browseWeatherSummary = useMemo(() => {
+    const reading = browseWeather?.moments[0];
+    const parts: string[] = [];
+    if (reading?.heatIndexF !== null && reading?.heatIndexF !== undefined) parts.push(`${reading.heatIndexF}°`);
+    if (reading?.shortForecast) parts.push(reading.shortForecast);
+    const airCategory = browseWeather?.air?.category;
+    if (airCategory === 1) parts.push("Good AQI");
+    else if (airCategory === 2) parts.push("Moderate AQI");
+    else if (airCategory === 3) parts.push("Poor AQI");
+    else if (typeof airCategory === "number" && airCategory >= 4) parts.push("Unhealthy AQI");
+    return parts.join(" · ") || "Weather unavailable";
+  }, [browseWeather]);
+
   async function refresh() {
     setRefreshing(true);
     setNow(new Date());
@@ -1708,9 +1721,19 @@ function Index() {
 
           <DataExpiryNotice />
 
+          <Button
+            onClick={() => setOnboardingOpen(true)}
+            variant="secondary"
+            className="mt-5 min-h-16 w-full justify-start gap-3 rounded-lg border border-border bg-surface-raised px-5 text-left text-lg font-semibold shadow-lg"
+            aria-label="Where to? Set up a trip"
+          >
+            <Search className="size-6 text-primary" />
+            <span>WHERE TO</span>
+            <ChevronRight className="ml-auto size-5 text-muted-foreground" />
+          </Button>
 
           {browseUserPoint && (
-            <section className="relative mt-6 h-[min(58dvh,560px)] min-h-[430px] overflow-hidden rounded-lg border border-border bg-surface-raised" aria-label="Nearby transit">
+            <section className="relative mt-4 h-[44dvh] min-h-[320px] max-h-[470px] overflow-hidden rounded-lg border border-border bg-surface-raised" aria-label="Nearby transit map">
               <ClientOnly fallback={<div className="h-full animate-pulse bg-muted" aria-label="Loading nearby transit map" />}>
                 <Suspense fallback={<div className="h-full animate-pulse bg-muted" aria-label="Loading nearby transit map" />}>
                   <NearbyTransitMap
@@ -1728,152 +1751,70 @@ function Index() {
                 </Suspense>
               </ClientOnly>
 
-              <div className="absolute inset-x-3 top-3 z-[500] flex items-center justify-between gap-3 rounded-lg border border-border bg-background/90 px-3 py-2 backdrop-blur-md">
-                <div>
-                  <p className="text-xs font-bold uppercase text-muted-foreground">Near you</p>
-                  <p className="text-sm font-semibold text-foreground">Skyline and bus stops</p>
-                </div>
+              <div className="absolute left-3 top-3 z-[500] flex items-center gap-2 rounded-md border border-border bg-background/90 px-3 py-2 backdrop-blur-md">
                 <span className="size-3 rounded-full border-2 border-foreground bg-location shadow-[0_0_10px_var(--color-location)]" aria-label="Your location" />
-              </div>
-
-              <div className="absolute inset-x-3 bottom-3 z-[500] rounded-lg border border-border bg-background/94 p-4 shadow-2xl backdrop-blur-md">
-                <div className="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Choose a nearby stop">
-                  {nearbyStops.map((stop) => {
-                    const Icon = stop.routeType === 1 ? TrainFront : Bus;
-                    return (
-                      <Button
-                        key={stop.stopId}
-                        variant={selectedNearbyStop?.stopId === stop.stopId ? "default" : "secondary"}
-                        size="sm"
-                        onClick={() => setSelectedNearbyStopId(stop.stopId)}
-                        className="shrink-0"
-                        aria-label={`Show ${titleCase(stop.stopName)}`}
-                      >
-                        <Icon className="size-4" />
-                        {stop.routeType === 1 ? "Rail" : "Bus"}
-                      </Button>
-                    );
-                  })}
-                </div>
-                {nearbyStopsLoading && <p className="text-sm text-muted-foreground">Finding nearby transit…</p>}
-                {selectedNearbyStop && (
-                  <div>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          {selectedNearbyStop.routeType === 1 ? `${stationLabel(selectedNearbyStop.stopName)} Station` : titleCase(selectedNearbyStop.stopName)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Walk {walkingEstimate(browseUserPoint, selectedNearbyStop).minutes} min · {formatDistance(selectedNearbyStop.distanceM)}
-                          {selectedNearbyStop.routeType === 1
-                            ? ` · Drive about ${Math.max(1, Math.ceil(selectedNearbyStop.distanceM / 670))} min`
-                            : ""}
-                        </p>
-                      </div>
-                      {selectedNearbyStop.arrivals[0] && (
-                        <p className="shrink-0 text-right text-sm font-bold text-primary">
-                          {Math.max(0, Math.ceil((selectedNearbyStop.arrivals[0].departure_seconds - nowSeconds) / 60))} min
-                        </p>
-                      )}
-                    </div>
-                    <div className="mt-3 border-t border-border pt-3">
-                      {selectedNearbyStop.arrivals.length ? (
-                        selectedNearbyStop.arrivals.slice(0, 3).map((arrival, index) => (
-                          <p key={`${arrival.departure_seconds}-${index}`} className="mt-1 text-xs text-foreground first:mt-0">
-                            <span className="font-semibold">
-                              {selectedNearbyStop.routeType === 1
-                                ? "Skyline"
-                                : arrival.route_short_name ? `Route ${arrival.route_short_name}` : "Bus"}
-                            </span>
-                            {arrival.headsign ? ` toward ${titleCase(arrival.headsign)}` : ""} · {clockFromSeconds(arrival.departure_seconds)}
-                          </p>
-                        ))
-                      ) : (
-                        <p className="text-xs text-muted-foreground">No upcoming scheduled arrivals right now.</p>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <span className="text-xs font-semibold text-foreground">You</span>
               </div>
             </section>
           )}
 
-          <Button onClick={() => setOnboardingOpen(true)} className="mt-5 min-h-14 w-full rounded-lg px-5 text-base font-bold shadow-none">
-            WHERE TO
-          </Button>
-
-          <H1ConditionsCard
-            eastbound={eastboundTraffic}
-            westbound={westboundTraffic}
-            loading={trafficLoading}
-            unavailable={trafficUnavailable}
-            weatherLine={browseWeatherLine}
-          />
-
-          <section className="pb-5 pt-9">
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-xl font-semibold text-foreground">
-                {browseStation ? `Next trains from ${stationLabel(browseStation.stopName)}` : "Finding your station…"}
-              </h2>
-              <span className="shrink-0 text-[10px] text-muted-foreground">TheBus / DTS</span>
+          <section className="mt-4 rounded-lg border border-border bg-surface-raised p-4" aria-labelledby="browse-station-title">
+            <div className="flex items-center gap-3">
+              <TrainFront className="size-6 shrink-0 text-primary" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Closest Skyline station</p>
+                <h2 id="browse-station-title" className="truncate text-xl font-semibold text-foreground">
+                  {browseStation ? `${stationLabel(browseStation.stopName)} Station` : "Finding your station…"}
+                </h2>
+              </div>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {h1HasMeaningfulDelay
-                ? "Skyline runs every 10 min and bypasses the H-1 delay right now."
-                : "Skyline rail runs every 10 minutes."}
-            </p>
+            {browseStation && browseUserPoint && (
+              <p className="mt-3 text-sm font-medium text-foreground">
+                Walk {walkingEstimate(browseUserPoint, browseStation).minutes} min · {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
+                {` · Drive about ${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min`}
+              </p>
+            )}
             {browseLocationDenied && browseStation && (
-              <p className="mt-1 text-xs text-muted-foreground">Estimated from West Oahu · choose another station below</p>
+              <p className="mt-2 text-xs text-muted-foreground">Location unavailable · showing a data-derived West Oahu station</p>
             )}
             {browseLocationDenied && locationDenied && (
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(true)}
-                className="mt-1 block text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-              >
-                Location is blocked in your browser · how to allow it
-              </button>
+              <Button variant="link" onClick={() => setSettingsOpen(true)} className="mt-1 h-auto px-0 text-xs text-muted-foreground">
+                Location blocked · see how to allow it
+              </Button>
             )}
-          </section>
-
-          {browseLocationDenied && (
-            <section className="pb-7" aria-labelledby="browse-station-title">
-              <h3 id="browse-station-title" className="sr-only">Choose another rail station</h3>
-              <Select
-                value={browseStation?.stopId ?? ""}
-                onValueChange={(stopId) => {
-                  const station = browseStations.find((item) => item.stop_id === stopId);
-                  if (!station) return;
-                  rememberBrowseStation({
-                    stopId: station.stop_id,
-                    stopName: station.stop_name ?? "",
-                    lat: Number(station.stop_lat),
-                    lon: Number(station.stop_lon),
-                  });
-                }}
-              >
-                <SelectTrigger className="h-11 bg-surface-raised">
-                  <SelectValue placeholder="Choose another station" />
-                </SelectTrigger>
-                <SelectContent>
-                  {browseStations.map((station) => (
-                    <SelectItem key={station.stop_id} value={station.stop_id}>
-                      {stationLabel(station.stop_name)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </section>
-          )}
-
-          {browseStation && (
-            <section
-              className={`departures-fade space-y-8 ${refreshing ? "animate-in fade-in duration-300" : ""}`}
-              aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
+            <Select
+              value={browseStation?.stopId ?? ""}
+              onValueChange={(stopId) => {
+                const station = browseStations.find((item) => item.stop_id === stopId);
+                if (!station) return;
+                rememberBrowseStation({
+                  stopId: station.stop_id,
+                  stopName: station.stop_name ?? "",
+                  lat: Number(station.stop_lat),
+                  lon: Number(station.stop_lon),
+                  userLat: browseStation?.userLat,
+                  userLon: browseStation?.userLon,
+                });
+              }}
             >
+              <SelectTrigger className="mt-4 h-12 w-full bg-background" aria-label="Choose Skyline station">
+                <SelectValue placeholder="Choose a station" />
+              </SelectTrigger>
+              <SelectContent>
+                {browseStations.map((station) => (
+                  <SelectItem key={station.stop_id} value={station.stop_id}>{stationLabel(station.stop_name)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {browseStation && (
+              <div
+                className={`mt-4 grid grid-cols-2 gap-3 ${refreshing ? "animate-in fade-in duration-300" : ""}`}
+                aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
+              >
               {browseDeparturesLoading && <p className="text-sm text-muted-foreground">Loading departures…</p>}
               {!browseDeparturesLoading && browseDirections.length === 0 && (
-                <p className="text-sm text-muted-foreground">No rail departures are scheduled from this station right now.</p>
+                <p className="col-span-2 text-sm text-muted-foreground">No rail departures are scheduled from this station right now.</p>
               )}
               {browseDirections.map((direction) => {
                 const first = direction[0];
@@ -1889,16 +1830,7 @@ function Index() {
                 const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
                 const nowDeparture = secondsAway >= -30 && secondsAway < 60;
                 const soon = secondsAway >= 60 && secondsAway < 20 * 60;
-                const userLoc =
-                  browseStation.userLat != null && browseStation.userLon != null
-                    ? { lat: browseStation.userLat, lon: browseStation.userLon }
-                    : null;
-                const stationRow = browseStations.find((s) => s.stop_id === browseStation.stopId);
-                const stationCoords =
-                  stationRow?.stop_lat != null && stationRow?.stop_lon != null
-                    ? { lat: Number(stationRow.stop_lat), lon: Number(stationRow.stop_lon) }
-                    : null;
-                const walk = userLoc && stationCoords ? walkingEstimate(userLoc, stationCoords) : null;
+                const walk = browseUserPoint ? walkingEstimate(browseUserPoint, browseStation) : null;
                 const walkState = walk
                   ? walk.minutes + 2 <= minutesAway
                     ? "ok"
@@ -1907,23 +1839,23 @@ function Index() {
                       : "miss"
                   : null;
                 return (
-                  <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="border-t border-border pt-5">
-                    <h3 className="text-lg font-semibold">toward {directionName}</h3>
-                    <p className="mt-0.5 text-sm text-muted-foreground">ends at {endpoint}</p>
+                  <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="min-w-0 rounded-md bg-background p-3">
+                    <h3 className="text-sm font-semibold text-foreground">{towardDowntown ? "Eastbound" : "Westbound"}</h3>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">to {directionName} · {endpoint}</p>
                     {first && (
-                      <div className="mt-4">
-                        <p className="text-3xl font-semibold tabular-nums text-foreground">
+                      <div className="mt-3">
+                        <p className="text-2xl font-semibold tabular-nums text-primary">
                           {nowDeparture ? (
                             <>
                               Now{" "}
-                              <span className="text-lg font-normal text-muted-foreground">
+                                <span className="block text-xs font-normal text-muted-foreground">
                                 · {clockFromSeconds(first.departure_seconds)}
                               </span>
                             </>
                           ) : soon ? (
                             <>
                               in {minutesAway} min{" "}
-                              <span className="text-lg font-normal text-muted-foreground">
+                                <span className="block text-xs font-normal text-muted-foreground">
                                 · {clockFromSeconds(first.departure_seconds)}
                               </span>
                             </>
@@ -1931,13 +1863,9 @@ function Index() {
                             clockFromSeconds(first.departure_seconds)
                           )}
                         </p>
-                        <p className="mt-1.5 text-xs text-muted-foreground">
-                          Skyline rail · toward {directionName} · {first.ride_minutes} min to {towardDowntown ? "downtown" : "Kapolei"}
-                        </p>
                         {walk && walkState && (
-                          <p className={`mt-2.5 text-sm font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}>
-                            You have {minutesAway} min · Walk {walk.minutes} min ({formatDistance(walk.meters)}) to{" "}
-                            {stationLabel(browseStation.stopName)} Station
+                          <p className={`mt-2 text-xs font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}>
+                            {walk.minutes} min walk
                             {walkState === "tight" ? " · Tight" : walkState === "miss" ? " · You'll miss this one." : ""}
                           </p>
                         )}
@@ -1951,8 +1879,69 @@ function Index() {
                   </article>
                 );
               })}
-            </section>
+              </div>
+            )}
+            <p className="mt-3 text-[10px] text-muted-foreground">
+              TheBus / DTS{h1HasMeaningfulDelay ? " · H-1 is delayed, so Skyline may be especially useful" : ""}
+            </p>
+          </section>
+
+          {browseUserPoint && (
+            <details className="mt-3 rounded-lg border border-border bg-surface-raised/70">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <Bus className="size-5 text-primary" />
+                <span className="font-semibold text-foreground">Nearby stops & arrivals</span>
+                <span className="ml-auto text-xs text-muted-foreground">{nearbyStops.length} stops</span>
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </summary>
+              <div className="border-t border-border p-4">
+                <div className="flex gap-2 overflow-x-auto pb-3" aria-label="Choose a nearby stop">
+                  {nearbyStops.map((stop) => {
+                    const Icon = stop.routeType === 1 ? TrainFront : Bus;
+                    return (
+                      <Button key={stop.stopId} variant={selectedNearbyStop?.stopId === stop.stopId ? "default" : "secondary"} size="sm" onClick={() => setSelectedNearbyStopId(stop.stopId)} className="shrink-0" aria-label={`Show ${titleCase(stop.stopName)}`}>
+                        <Icon className="size-4" />{stop.routeType === 1 ? "Rail" : "Bus"}
+                      </Button>
+                    );
+                  })}
+                </div>
+                {nearbyStopsLoading && <p className="text-sm text-muted-foreground">Finding nearby transit…</p>}
+                {selectedNearbyStop && (
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-foreground">{selectedNearbyStop.routeType === 1 ? `${stationLabel(selectedNearbyStop.stopName)} Station` : titleCase(selectedNearbyStop.stopName)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Walk {walkingEstimate(browseUserPoint, selectedNearbyStop).minutes} min · {formatDistance(selectedNearbyStop.distanceM)}</p>
+                      </div>
+                      {selectedNearbyStop.arrivals[0] && <p className="text-lg font-bold tabular-nums text-primary">{Math.max(0, Math.ceil((selectedNearbyStop.arrivals[0].departure_seconds - nowSeconds) / 60))} min</p>}
+                    </div>
+                    <div className="mt-3 divide-y divide-border">
+                      {selectedNearbyStop.arrivals.length ? selectedNearbyStop.arrivals.slice(0, 3).map((arrival, index) => (
+                        <p key={`${arrival.departure_seconds}-${index}`} className="py-2 text-sm text-foreground">
+                          <span className="font-semibold">{selectedNearbyStop.routeType === 1 ? "Skyline" : arrival.route_short_name ? `Route ${arrival.route_short_name}` : "Bus"}</span>
+                          {arrival.headsign ? ` toward ${titleCase(arrival.headsign)}` : ""} · {clockFromSeconds(arrival.departure_seconds)}
+                        </p>
+                      )) : <p className="text-sm text-muted-foreground">No upcoming scheduled arrivals right now.</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </details>
           )}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <H1ConditionsCard eastbound={eastboundTraffic} westbound={westboundTraffic} loading={trafficLoading} unavailable={trafficUnavailable} compact />
+            <details className="mt-4 rounded-lg border border-border bg-surface-raised/70">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 truncate text-sm font-semibold text-foreground">{browseWeatherSummary}</span>
+                <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
+              </summary>
+              <div className="border-t border-border px-4 py-3">
+                {browseWeatherLine ? <p className={`text-sm ${TONE_CLASS[browseWeatherLine.tone]}`}>{browseWeatherLine.text}</p> : <p className="text-sm text-muted-foreground">No weather or air-quality concerns right now.</p>}
+                <p className="mt-2 text-[10px] text-muted-foreground">Weather: NWS · Air quality: AirNow / EPA</p>
+              </div>
+            </details>
+          </div>
         </div>
         {setupDialog}
       </main>
