@@ -858,6 +858,140 @@ function Index() {
     queryFn: () => fetchBusArrivals({ data: busTarget as BusStopTarget }),
   });
 
+  // --- Automatic "approaching your stop" tracking -------------------------
+  // No button: whenever the current plan has a transit leg underway, follow it
+  // with GPS when granted and fall back to the timetable when it is not.
+  const activeTransitLeg = useMemo(() => {
+    if (!best) return null;
+    return (
+      best.legs.find(
+        (leg) =>
+          (leg.mode === "bus" || leg.mode === "rail")
+          && leg.depart_seconds !== null
+          && leg.arrive_seconds !== null
+          && nowSeconds >= leg.depart_seconds - 60
+          && nowSeconds <= leg.arrive_seconds + 60,
+      ) ?? null
+    );
+  }, [best, nowSeconds]);
+
+  const { data: legStops = [] } = useQuery({
+    queryKey: [
+      "leg-stop-sequence",
+      activeTransitLeg?.from,
+      activeTransitLeg?.to,
+      activeTransitLeg?.depart_seconds,
+      activeTransitLeg?.route_short,
+      activeTransitLeg?.mode,
+    ],
+    enabled: Boolean(activeTransitLeg?.from && activeTransitLeg?.to && activeTransitLeg?.depart_seconds !== null),
+    staleTime: 30 * 60_000,
+    queryFn: async () => {
+      const leg = activeTransitLeg as Leg;
+      const { data, error } = await supabase.rpc("leg_stop_sequence", {
+        p_from_name: leg.from as string,
+        p_to_name: leg.to as string,
+        p_depart_seconds: leg.depart_seconds as number,
+        p_route_short: leg.mode === "bus" ? leg.route_short : null,
+        p_rail: leg.mode === "rail",
+      });
+      if (error) throw error;
+      return (data ?? []).map((row) => ({
+        stopId: row.stop_id,
+        stopName: row.stop_name ?? "",
+        lat: row.stop_lat === null ? null : Number(row.stop_lat),
+        lon: row.stop_lon === null ? null : Number(row.stop_lon),
+        arriveSeconds: row.arrival_seconds,
+        isAlight: row.is_alight,
+      }));
+    },
+  });
+
+  const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
+  useEffect(() => {
+    if (!activeTransitLeg || !navigator.geolocation) {
+      setRiderPoint(null);
+      return;
+    }
+    const watch = navigator.geolocation.watchPosition(
+      (position) => setRiderPoint({ lat: position.coords.latitude, lon: position.coords.longitude }),
+      () => setRiderPoint(null),
+      { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
+    );
+    return () => navigator.geolocation.clearWatch(watch);
+  }, [activeTransitLeg]);
+
+  // Where the rider is along the leg, by GPS when available, otherwise by clock.
+  const approach = useMemo(() => {
+    if (!activeTransitLeg || legStops.length < 2) return null;
+    const alightIndex = legStops.findIndex((stop) => stop.isAlight);
+    const alight = alightIndex >= 0 ? legStops[alightIndex] : legStops[legStops.length - 1];
+    const endIndex = alightIndex >= 0 ? alightIndex : legStops.length - 1;
+
+    let currentIndex = 0;
+    let metersToAlight: number | null = null;
+    const gpsFix = riderPoint
+      ? legStops
+          .map((stop, index) => ({
+            index,
+            distance: stop.lat === null || stop.lon === null
+              ? Number.POSITIVE_INFINITY
+              : distanceM(riderPoint, { lat: stop.lat, lon: stop.lon }),
+          }))
+          .sort((a, b) => a.distance - b.distance)[0]
+      : null;
+    if (gpsFix && Number.isFinite(gpsFix.distance) && gpsFix.distance < 3000) {
+      currentIndex = gpsFix.index;
+      if (riderPoint && alight.lat !== null && alight.lon !== null) {
+        metersToAlight = distanceM(riderPoint, { lat: alight.lat, lon: alight.lon });
+      }
+    } else {
+      for (let index = 0; index <= endIndex; index += 1) {
+        const seconds = legStops[index]?.arriveSeconds;
+        if (seconds !== null && seconds !== undefined && seconds <= nowSeconds) currentIndex = index;
+      }
+    }
+
+    const stopsAway = Math.max(0, endIndex - currentIndex);
+    const secondsToAlight = alight.arriveSeconds === null || alight.arriveSeconds === undefined
+      ? null
+      : alight.arriveSeconds - nowSeconds;
+    const minutesToAlight = secondsToAlight === null ? null : Math.round(secondsToAlight / 60);
+    const nextStop = legStops[Math.min(currentIndex + 1, endIndex)] ?? alight;
+
+    const urgent =
+      stopsAway <= 1
+      || (metersToAlight !== null && metersToAlight <= 350)
+      || (metersToAlight === null && minutesToAlight !== null && minutesToAlight <= 2);
+    const getReady =
+      !urgent
+      && (stopsAway <= 2
+        || (metersToAlight !== null && metersToAlight <= 800)
+        || (metersToAlight === null && minutesToAlight !== null && minutesToAlight <= 4));
+
+    return {
+      key: `${activeTransitLeg.from}-${activeTransitLeg.depart_seconds}`,
+      state: (urgent ? "urgent" : getReady ? "ready" : "cruising") as "urgent" | "ready" | "cruising",
+      stopsAway,
+      minutesToAlight,
+      nextStopName: nextStop.stopName,
+      alightName: alight.stopName,
+      vehicle: activeTransitLeg.mode === "rail" ? "rail" : "bus",
+      live: Boolean(riderPoint),
+    };
+  }, [activeTransitLeg, legStops, riderPoint, nowSeconds]);
+
+  const [approachDismissed, setApproachDismissed] = useState<string | null>(null);
+  const lastPulse = useRef<string | null>(null);
+  useEffect(() => {
+    if (!approach || approach.state !== "urgent") return;
+    const pulseKey = `${approach.key}-urgent`;
+    if (lastPulse.current === pulseKey) return;
+    lastPulse.current = pulseKey;
+    navigator.vibrate?.([200, 100, 200]);
+  }, [approach]);
+  const showApproach = Boolean(approach) && approachDismissed !== `${approach?.key}-${approach?.state}`;
+
   // Real driving time between the two points that matter for this direction.
   const driveFrom = inbound
     ? { lat: setup.destLat, lon: setup.destLon }
