@@ -1423,6 +1423,19 @@ function Index() {
     return points;
   }, [best, homePoint, destPoint, inbound, destinationLabel, itineraryStopCoords, stationCoords]);
 
+  // Drive view: straight door-to-door, no rail station or transit stops.
+  const driveMapPoints = useMemo(() => {
+    if (!homePoint || !destPoint) return [];
+    const origin = inbound ? destPoint : homePoint;
+    const destination = inbound ? homePoint : destPoint;
+    return [
+      { id: "start", name: inbound ? destinationLabel : "Home", ...origin, kind: "start" as const },
+      { id: "end", name: inbound ? "Home" : destinationLabel, ...destination, kind: "end" as const },
+    ];
+  }, [homePoint, destPoint, inbound, destinationLabel]);
+
+  const mapPoints = selectedMode === "drive" ? driveMapPoints : commuteMapPoints;
+
   const moments = useMemo<OutdoorMoment[]>(() => {
     if (!best) return [];
     const originPoint = inbound ? destPoint : homePoint;
