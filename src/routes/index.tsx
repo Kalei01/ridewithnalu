@@ -2664,6 +2664,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
             <Button variant="outline" onClick={useMyLocation} disabled={busy} className="h-12 justify-start">
               <LocateFixed className="size-4" /> Use my location
             </Button>
+            {permissionBlocked && <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />}
             <Select
               value={draft.homeStopId}
               onValueChange={(stopId) =>
@@ -2770,6 +2771,13 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
               onCheckedChange={(checked) => setDraft((current) => ({ ...current, allowDrive: checked }))}
             />
           </div>
+
+          {!firstRun && permissionBlocked && (
+            <section className="space-y-2 border-t border-border pt-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</p>
+              <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
+            </section>
+          )}
 
           {!firstRun && <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />}
 
