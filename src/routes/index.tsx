@@ -403,6 +403,12 @@ function formatDistance(meters: number) {
   return `${miles.toFixed(1)} miles`;
 }
 
+/** Walking estimate at 3 mph, matching the trip planner's access-leg pace. */
+function walkingEstimate(from: Coords, to: Coords) {
+  const meters = distanceM(from, to);
+  return { meters, minutes: Math.max(1, Math.ceil(meters / 80.47)) };
+}
+
 function vehicleName(leg: Leg) {
   if (leg.mode === "rail") {
     const line = stationLabel(leg.route_long) || "Skyline";
@@ -1231,10 +1237,16 @@ function Index() {
             ? followsTransit
               ? `${vehicleName(leg)} · ${leg.minutes} min to ${
                   titleCase(leg.to) || (inbound ? "home" : "your destination")
-                }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
-              : `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
-                  titleCase(leg.to) || (inbound ? "home" : "your destination")
-                }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
+                }${leg.mode === "walk" && leg.minutes !== null ? ` · ${formatDistance(leg.minutes * 80.47)}` : ""}${
+                  leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""
+                }`
+              : leg.kind === "access" && leg.mode === "walk"
+                ? `Walk to ${stationLabel(leg.to) || titleCase(leg.to) || "the station"} Station · ${leg.minutes} min${
+                    leg.minutes !== null ? ` · ${formatDistance(leg.minutes * 80.47)}` : ""
+                  } · arrive platform ${clockFromSeconds(leg.arrive_seconds)}`
+                : `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
+                    titleCase(leg.to) || (inbound ? "home" : "your destination")
+                  }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
             : "",
         boardAt: isTransit ? transitStopName(leg, "from") : null,
         getOffAt: isTransit ? transitStopName(leg, "to") : null,
@@ -1640,8 +1652,8 @@ function Index() {
                   stationRow?.stop_lat != null && stationRow?.stop_lon != null
                     ? { lat: Number(stationRow.stop_lat), lon: Number(stationRow.stop_lon) }
                     : null;
-                const access =
-                  userLoc && stationCoords ? stationAccess(userLoc, stationCoords, minutesAway) : null;
+                const access = userLoc && stationCoords ? stationAccess(userLoc, stationCoords, minutesAway) : null;
+                const walk = userLoc && stationCoords ? walkingEstimate(userLoc, stationCoords) : null;
                 return (
                   <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="border-t border-border pt-5">
                     <h3 className="text-lg font-semibold">toward {directionName}</h3>
@@ -1670,10 +1682,10 @@ function Index() {
                         <p className="mt-1.5 text-xs text-muted-foreground">
                           Skyline rail · toward {directionName} · {first.ride_minutes} min to {towardDowntown ? "downtown" : "Kapolei"}
                         </p>
-                        {access && (
+                        {walk && access && (
                           <p className={`mt-2.5 text-sm font-medium ${access.state === "ok" ? "text-primary" : "text-warning"}`}>
-                            You have {minutesAway} min · {stationLabel(browseStation.stopName)} is {access.minutes} min away by{" "}
-                            {access.mode}
+                            You have {minutesAway} min · Walk {walk.minutes} min ({formatDistance(walk.meters)}) to{" "}
+                            {stationLabel(browseStation.stopName)} Station
                             {access.state === "tight" ? " · Tight" : access.state === "miss" ? " · You'll miss this one." : ""}
                           </p>
                         )}
@@ -2116,7 +2128,9 @@ function RailTripBreakdown({
         const legMinutes = duration(leg);
         const stationName = stationLabel(leg.to);
         const label = leg.kind === "access"
-          ? stationName ? `To ${stationName} Station` : "To the station"
+          ? leg.mode === "walk"
+            ? `Walk to ${stationName || "the station"} Station`
+            : stationName ? `To ${stationName} Station` : "To the station"
           : leg.kind === "rail"
             ? "Skyline"
             : leg.kind === "connect"
@@ -2182,9 +2196,12 @@ function RailTripBreakdown({
                   </p>
                 </div>
               ) : (
-                <p className="mt-1 text-xs font-semibold leading-relaxed text-foreground">
-                  {`Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}
-                </p>
+                <div className="mt-1 text-xs font-semibold leading-relaxed text-foreground">
+                  {leg.mode === "walk" && legMinutes !== null && (
+                    <p>{formatDistance(legMinutes * 80.47)} walk · {legMinutes} min</p>
+                  )}
+                  <p>{`Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}</p>
+                </div>
               )}
             </div>
           </li>
@@ -2719,6 +2736,19 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
   }
 
   const canSave = Boolean(draft.homeStopId && draft.destStopId && draft.destLat);
+  const selectedStation = stations.find((station) => station.stop_id === draft.homeStopId);
+  const setupWalk =
+    draft.homeLat !== null &&
+    draft.homeLon !== null &&
+    selectedStation?.stop_lat !== null &&
+    selectedStation?.stop_lat !== undefined &&
+    selectedStation.stop_lon !== null &&
+    selectedStation.stop_lon !== undefined
+      ? walkingEstimate(
+          { lat: draft.homeLat, lon: draft.homeLon },
+          { lat: Number(selectedStation.stop_lat), lon: Number(selectedStation.stop_lon) },
+        )
+      : null;
 
   return (
     <Dialog
@@ -2765,6 +2795,11 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
                 ))}
               </SelectContent>
             </Select>
+            {setupWalk && (
+              <p className="text-sm font-semibold text-foreground">
+                Walk to {stationLabel(draft.homeStopName)} Station · {setupWalk.minutes} min · {formatDistance(setupWalk.meters)}
+              </p>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -2852,7 +2887,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
           </div>
 
           <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
-            Save trip
+            GO
           </Button>
 
           {!firstRun && permissionBlocked && (

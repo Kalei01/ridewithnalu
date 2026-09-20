@@ -120,3 +120,8 @@
 - [x] Translate TomTom state-route codes into familiar Oahu road names.
 - [x] Show contextual incident badges only in the Drive column; use incidents in verdict
   reasoning only when they support a rail recommendation.
+
+## Walking station access (done)
+- [x] Rename the setup action to GO.
+- [x] Show a 3 mph walk estimate and distance to the selected station in setup and browse mode.
+- [x] Show walking duration, distance, and platform arrival on commute access legs.
