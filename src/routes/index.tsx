@@ -39,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
+const CommuteRouteMap = lazy(() => import("@/components/CommuteRouteMap"));
 
 function WaveMark({ className }: { className?: string }) {
   return (
@@ -938,6 +939,24 @@ function Index() {
     return { lat: Number(hit.stop_lat), lon: Number(hit.stop_lon) };
   }
 
+  const itineraryStopNames = useMemo(
+    () => Array.from(new Set((best?.legs ?? []).flatMap((leg) => [leg.from, leg.to]).filter((name): name is string => Boolean(name)))),
+    [best],
+  );
+  const { data: itineraryStopCoords = [] } = useQuery({
+    queryKey: ["itinerary-stop-coords", itineraryStopNames],
+    enabled: configured && itineraryStopNames.length > 0,
+    staleTime: 6 * 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stops")
+        .select("stop_id,stop_name,stop_lat,stop_lon")
+        .in("stop_name", itineraryStopNames);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const plannedBusLeg = best?.legs.find((leg) => leg.mode === "bus" && leg.kind === "connect")
     ?? best?.legs.find((leg) => leg.mode === "bus")
     ?? null;
@@ -1022,17 +1041,20 @@ function Index() {
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
   const distanceTrend = useRef<number[]>([]);
   useEffect(() => {
-    if (!activeTransitLeg || !navigator.geolocation) {
+    if (!configured || !navigator.geolocation) {
       setRiderPoint(null);
       return;
     }
     const watch = navigator.geolocation.watchPosition(
       (position) => setRiderPoint({ lat: position.coords.latitude, lon: position.coords.longitude }),
-      () => setRiderPoint(null),
+      (error) => {
+        setRiderPoint(null);
+        if (isPermissionDeniedError(error)) recordLocationDenied();
+      },
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
     );
     return () => navigator.geolocation.clearWatch(watch);
-  }, [activeTransitLeg]);
+  }, [configured]);
 
   // Legs change: start the distance history over so an old ride cannot trigger
   // a "passed your stop" notice on the next one.
@@ -1322,6 +1344,46 @@ function Index() {
   const destPoint = setup.destLat !== null && setup.destLon !== null
     ? { lat: setup.destLat, lon: setup.destLon }
     : null;
+
+  const commuteMapPoints = useMemo(() => {
+    if (!best || !homePoint || !destPoint) return [];
+    const origin = inbound ? destPoint : homePoint;
+    const destination = inbound ? homePoint : destPoint;
+    const originName = inbound ? destinationLabel : "Home";
+    const destinationName = inbound ? "Home" : destinationLabel;
+    const points: Array<{ id: string; name: string; lat: number; lon: number; kind: "start" | "rail" | "bus" | "end" }> = [
+      { id: "start", name: originName, ...origin, kind: "start" },
+    ];
+
+    const stopPoint = (name: string | null) => {
+      if (!name) return null;
+      const normalized = name.trim().toLowerCase();
+      const station = stationPoint(name);
+      if (station) return station;
+      const stop = itineraryStopCoords.find((row) => (row.stop_name ?? "").trim().toLowerCase() === normalized);
+      if (!stop || stop.stop_lat === null || stop.stop_lon === null) return null;
+      return { lat: Number(stop.stop_lat), lon: Number(stop.stop_lon) };
+    };
+
+    best.legs.forEach((leg, index) => {
+      if (leg.mode !== "rail" && leg.mode !== "bus") return;
+      const transitKind: "rail" | "bus" = leg.mode;
+      [leg.from, leg.to].forEach((name, endpointIndex) => {
+        const point = stopPoint(name);
+        if (!name || !point) return;
+        const last = points[points.length - 1];
+        if (last && distanceM(last, point) < 20) return;
+        points.push({
+          id: `${leg.kind}-${index}-${endpointIndex}`,
+          name: leg.mode === "rail" ? `${stationLabel(name)} Station` : titleCase(name),
+          ...point,
+          kind: transitKind,
+        });
+      });
+    });
+    points.push({ id: "end", name: destinationName, ...destination, kind: "end" });
+    return points;
+  }, [best, homePoint, destPoint, inbound, destinationLabel, itineraryStopCoords, stationCoords]);
 
   const moments = useMemo<OutdoorMoment[]>(() => {
     if (!best) return [];
@@ -1918,6 +1980,25 @@ function Index() {
             (!(eastboundTrafficLoading || westboundTrafficLoading) && (!eastboundTraffic || !westboundTraffic))
           }
         />
+
+        {best && commuteMapPoints.length >= 2 && (
+          <section className="mt-4 overflow-hidden rounded-lg border border-border bg-surface-raised" aria-labelledby="trip-map-title">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div>
+                <h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p>
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground">{commuteMapPoints.length - 2} transit points</span>
+            </div>
+            <div className="h-72 border-t border-border sm:h-80">
+              <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
+                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
+                  <CommuteRouteMap points={commuteMapPoints} livePoint={riderPoint} />
+                </Suspense>
+              </ClientOnly>
+            </div>
+          </section>
+        )}
 
         <section
           className="verdict-lift -mx-3 mt-4 rounded-3xl px-3 py-9 animate-in fade-in duration-300"
