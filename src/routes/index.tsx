@@ -2539,6 +2539,15 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
       setStatus("This device cannot share its location. Pick your station below.");
       return;
     }
+    // Check without prompting first: if it is already blocked, skip the request
+    // and show the recovery steps right away.
+    const permission = await queryLocationPermission();
+    if (permission === "denied") {
+      setPermissionBlocked(true);
+      window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+      setStatus("Location is blocked in your browser. Follow the steps below to allow it, or pick your station from the list.");
+      return;
+    }
     setBusy(true);
     setStatus("Finding your nearest rail station…");
     navigator.geolocation.getCurrentPosition(
@@ -2563,8 +2572,14 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
           `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
         );
       },
-      () => {
+      (error) => {
         setBusy(false);
+        if (isPermissionDeniedError(error)) {
+          setPermissionBlocked(true);
+          window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+          setStatus("Location is blocked in your browser. Follow the steps below to allow it, or pick your station from the list.");
+          return;
+        }
         setStatus("Location was not shared. Pick your station below.");
       },
       { timeout: 10_000 },
