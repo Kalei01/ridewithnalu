@@ -817,91 +817,15 @@ function Index() {
     return { lat: Number(hit.stop_lat), lon: Number(hit.stop_lon) };
   }
 
-  const boardPoint = stationPoint(railLeg?.from);
-  const transferPoint = stationPoint(railLeg?.to);
-  const endPoint = trip?.inbound
-    ? setup.homeLat && setup.homeLon
-      ? { lat: setup.homeLat, lon: setup.homeLon }
-      : null
-    : setup.destLat && setup.destLon
-      ? { lat: setup.destLat, lon: setup.destLon }
-      : null;
-
-  // Which leg the rider is on, read from where they actually are, with the
-  // schedule as a fallback when location is unavailable.
-  const phase: TripPhase = useMemo(() => {
-    if (!trip) return "boarding";
-    if (position) {
-      if (endPoint && distanceM(position, endPoint) <= AT_PLACE_M) return "arrived";
-      if (transferPoint && distanceM(position, transferPoint) <= AT_PLACE_M) return "transfer";
-      if (boardPoint && distanceM(position, boardPoint) <= AT_PLACE_M) return "boarding";
-      if (railLeg?.depart_seconds && nowSeconds >= railLeg.depart_seconds) return "rail";
-      return "boarding";
-    }
-    if (nowSeconds >= trip.arriveSeconds) return "arrived";
-    if (railLeg?.arrive_seconds && nowSeconds >= railLeg.arrive_seconds) return "transfer";
-    if (railLeg?.depart_seconds && nowSeconds >= railLeg.depart_seconds) return "rail";
-    return "boarding";
-  }, [trip, position, endPoint, transferPoint, boardPoint, railLeg, nowSeconds]);
-
-  // Coming home, the connecting stop is near home, so resolve that stop once.
-  const { data: inboundEndStop } = useQuery({
-    queryKey: ["inbound-end-stop", setup.homeLat, setup.homeLon],
-    enabled: tripActive && Boolean(trip?.inbound) && setup.homeLat !== null && setup.homeLon !== null,
-    staleTime: 60 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("nearest_stop", {
-        p_lat: setup.homeLat as number,
-        p_lon: setup.homeLon as number,
-      });
-      if (error) throw error;
-      return data?.[0]?.stop_id ?? null;
-    },
-  });
-
-  const connectDestStop = trip?.inbound ? (inboundEndStop ?? "") : (trip?.destStopId || setup.destStopId);
-
-  // At the transfer station the plan is stale: recompute from here and now.
-  const { data: connecting = [], isLoading: connectingLoading } = useQuery({
-    queryKey: [
-      "connecting",
-      connectDestStop,
-      position?.lat?.toFixed(4),
-      position?.lon?.toFixed(4),
-      Math.floor(afterSeconds / 60),
-    ],
-    enabled: phase === "transfer" && Boolean(connectDestStop) && Boolean(position ?? transferPoint),
-    staleTime: 60_000,
-    queryFn: async () => {
-      const at = position ?? (transferPoint as Coords);
-      const { data, error } = await supabase.rpc("connecting_departures", {
-        p_lat: at.lat,
-        p_lon: at.lon,
-        p_dest_stop: connectDestStop,
-        p_after_seconds: afterSeconds,
-        p_limit: 4,
-      });
-      if (error) throw error;
-      return (data ?? []) as ConnectingDeparture[];
-    },
-  });
-
-  const activeBusLeg = trip?.legs.find((leg) => leg.mode === "bus" && (
-    phase === "boarding" ? leg.kind === "access" : phase === "transfer" ? leg.kind !== "access" : false
-  )) ?? null;
-  const plannedBusLeg = !tripActive
-    ? best?.legs.find((leg) => leg.mode === "bus" && leg.kind === "connect")
-      ?? best?.legs.find((leg) => leg.mode === "bus")
-      ?? null
-    : null;
-  const trackedBusLeg = activeBusLeg ?? plannedBusLeg;
-  const busStopName = phase === "transfer" && tripActive ? connecting[0]?.stop_name : trackedBusLeg?.from;
+  const plannedBusLeg = best?.legs.find((leg) => leg.mode === "bus" && leg.kind === "connect")
+    ?? best?.legs.find((leg) => leg.mode === "bus")
+    ?? null;
+  const busStopName = plannedBusLeg?.from;
   const { data: activeBusStopId = null } = useQuery({
     queryKey: ["active-bus-stop", busStopName],
     enabled: Boolean(busStopName),
     staleTime: 3 * 60 * 60_000,
     queryFn: async () => {
-      if (tripActive && phase === "transfer" && connecting[0]?.stop_id) return connecting[0].stop_id;
       const { data, error } = await supabase.from("stops").select("stop_id").eq("stop_name", busStopName as string).limit(1);
       if (error) throw error;
       return data?.[0]?.stop_id ?? null;
@@ -909,17 +833,11 @@ function Index() {
   });
   const busTarget: BusStopTarget | null = activeBusStopId ? {
     stopId: activeBusStopId,
-    scheduled: tripActive && phase === "transfer"
-      ? connecting.slice(0, 4).map((bus) => ({
-          routeShortName: bus.route_short_name,
-          headsign: bus.headsign,
-          scheduledSeconds: bus.depart_seconds,
-        }))
-      : trackedBusLeg?.depart_seconds ? [{
-          routeShortName: trackedBusLeg.route_short,
-          headsign: trackedBusLeg.headsign,
-          scheduledSeconds: trackedBusLeg.depart_seconds,
-        }] : [],
+    scheduled: plannedBusLeg?.depart_seconds ? [{
+        routeShortName: plannedBusLeg.route_short,
+        headsign: plannedBusLeg.headsign,
+        scheduledSeconds: plannedBusLeg.depart_seconds,
+      }] : [],
   } : null;
   const fetchBusArrivals = useServerFn(busArrivals);
   const { data: liveBus, isFetching: liveBusRefreshing } = useQuery({
