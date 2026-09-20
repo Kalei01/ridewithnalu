@@ -1367,6 +1367,7 @@ function Index() {
 
     best.legs.forEach((leg, index) => {
       if (leg.mode !== "rail" && leg.mode !== "bus") return;
+      const transitKind: "rail" | "bus" = leg.mode;
       [leg.from, leg.to].forEach((name, endpointIndex) => {
         const point = stopPoint(name);
         if (!name || !point) return;
@@ -1376,7 +1377,7 @@ function Index() {
           id: `${leg.kind}-${index}-${endpointIndex}`,
           name: leg.mode === "rail" ? `${stationLabel(name)} Station` : titleCase(name),
           ...point,
-          kind: leg.mode,
+          kind: transitKind,
         });
       });
     });
