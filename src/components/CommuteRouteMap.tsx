@@ -188,12 +188,17 @@ export default function CommuteRouteMap({ points, livePoint, path }: CommuteRout
   const fitRoute = () => {
     const map = mapRef.current;
     if (!map || points.length < 2) return;
-    map.flyToBounds(L.latLngBounds(points.map((point) => [point.lat, point.lon] as L.LatLngTuple)), {
+    const corridor: L.LatLngTuple[] = [
+      ...(path ?? []).map((point) => [point.lat, point.lon] as L.LatLngTuple),
+      ...points.map((point) => [point.lat, point.lon] as L.LatLngTuple),
+    ];
+    map.flyToBounds(L.latLngBounds(corridor), {
       padding: [42, 42],
       maxZoom: 15,
       duration: 0.7,
     });
   };
+
 
   return (
     <div className="relative z-0 isolate h-full w-full">
