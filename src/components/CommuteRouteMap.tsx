@@ -20,8 +20,8 @@ type Basemap = "standard" | "satellite";
 
 const BASEMAPS = {
   standard: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: "&copy; OpenStreetMap &copy; CARTO",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -30,13 +30,14 @@ const BASEMAPS = {
 } as const;
 
 function journeyIcon(point: JourneyPoint) {
-  const glyph = point.kind === "start" ? "S" : point.kind === "end" ? "E" : point.kind === "rail" ? "▰" : "●";
+  const glyph = point.kind === "start" ? "START" : point.kind === "end" ? "END" : point.kind === "rail" ? "▰" : "●";
   const label = point.kind === "start" ? "Start" : point.kind === "end" ? "End" : point.kind === "rail" ? "Rail station" : "Bus stop";
+  const endpoint = point.kind === "start" || point.kind === "end";
   return L.divIcon({
     className: "nalu-marker-shell",
-    html: `<span class="nalu-journey-marker nalu-journey-marker-${point.kind}" aria-label="${label}">${glyph}</span>`,
-    iconSize: point.kind === "start" || point.kind === "end" ? [38, 38] : [30, 30],
-    iconAnchor: point.kind === "start" || point.kind === "end" ? [19, 19] : [15, 15],
+    html: `<span class="nalu-journey-marker nalu-journey-marker-${point.kind}" aria-label="${label}"><span class="nalu-journey-marker-label">${glyph}</span></span>`,
+    iconSize: endpoint ? [58, 34] : [30, 30],
+    iconAnchor: endpoint ? [29, 17] : [15, 15],
   });
 }
 
@@ -109,6 +110,7 @@ export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapPr
         icon: journeyIcon(point),
         title: `${point.kind === "start" ? "Start: " : point.kind === "end" ? "End: " : ""}${point.name}`,
         keyboard: true,
+        zIndexOffset: point.kind === "start" || point.kind === "end" ? 1500 : 0,
       })
         .bindTooltip(
           `<strong>${point.kind === "start" ? "Start" : point.kind === "end" ? "End" : point.kind === "rail" ? "Rail" : "Bus"}</strong><br>${point.name}`,

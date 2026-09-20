@@ -147,3 +147,9 @@
 - [x] Consolidate station access and two-way departures into one glanceable card
 - [x] Move nearby arrivals, H-1 details, and weather/AQI into compact expandable sections
 - [x] Keep all dialogs and popup controls above Browse and commute maps
+
+## Map and departure polish
+- [x] Use key-free OpenStreetMap standard tiles while retaining Esri satellite imagery
+- [x] Default newly saved trips to outbound and clarify the WHERE TO? action
+- [x] Keep labeled Start/End map pins above intermediate stops
+- [x] Make alternative departures selectable with leave, arrival, duration, and delay details
