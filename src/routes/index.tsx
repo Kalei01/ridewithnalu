@@ -2870,12 +2870,6 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
 
           {status && <p className="text-sm text-muted-foreground">{status}</p>}
         </div>
-
-        <DialogFooter>
-          <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
-            Save trip
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
