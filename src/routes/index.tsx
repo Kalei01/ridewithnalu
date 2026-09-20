@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ClientOnly, createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Bus, Car, Check, ChevronRight, Footprints, LocateFixed, RefreshCw, Settings, TrainFront, X } from "lucide-react";
@@ -37,6 +37,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+
+const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 
 function WaveMark({ className }: { className?: string }) {
   return (
@@ -157,6 +159,24 @@ type BrowseDeparture = {
   direction_terminus: string;
   ride_minutes: number;
   terminus_lon: number | null;
+};
+
+type NearbyArrival = {
+  departure_seconds: number;
+  departure_time: string;
+  route_short_name: string | null;
+  route_long_name: string | null;
+  headsign: string | null;
+};
+
+type NearbyStop = {
+  stopId: string;
+  stopName: string;
+  lat: number;
+  lon: number;
+  routeType: number;
+  distanceM: number;
+  arrivals: NearbyArrival[];
 };
 
 type Coords = { lat: number; lon: number };
@@ -499,6 +519,7 @@ function Index() {
   const [override, setOverride] = useState<DirectionOverride | null>(null);
   const [parked, setParked] = useState<ParkedCar | null>(null);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
+  const [selectedNearbyStopId, setSelectedNearbyStopId] = useState<string | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
 
@@ -711,8 +732,8 @@ function Index() {
         rememberBrowseStation({
           stopId: nearest.stop_id,
           stopName: nearest.stop_name ?? "",
-          lat,
-          lon,
+          lat: Number(nearest.stop_lat),
+          lon: Number(nearest.stop_lon),
           userLat: lat,
           userLon: lon,
         });
@@ -791,6 +812,47 @@ function Index() {
     }
     return Array.from(groups.values());
   }, [browseDepartures, browseStation?.stopName]);
+
+  const browseUserPoint = useMemo(() => {
+    if (browseStation?.userLat == null || browseStation.userLon == null) return null;
+    return { lat: browseStation.userLat, lon: browseStation.userLon };
+  }, [browseStation?.userLat, browseStation?.userLon]);
+
+  const { data: nearbyStops = [], isLoading: nearbyStopsLoading } = useQuery({
+    queryKey: ["nearby-transit-stops", browseUserPoint?.lat.toFixed(5), browseUserPoint?.lon.toFixed(5), Math.floor(afterSeconds / 60)],
+    enabled: browseActive && Boolean(browseUserPoint),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const point = browseUserPoint as Coords;
+      const { data, error } = await supabase.rpc("nearby_transit_stops", {
+        p_lat: point.lat,
+        p_lon: point.lon,
+        p_after_seconds: afterSeconds,
+        p_rail_limit: 2,
+        p_bus_limit: 5,
+      });
+      if (error) throw error;
+      return (data ?? []).map((row): NearbyStop => ({
+        stopId: row.stop_id,
+        stopName: row.stop_name ?? "",
+        lat: Number(row.stop_lat),
+        lon: Number(row.stop_lon),
+        routeType: row.route_type,
+        distanceM: Number(row.distance_m),
+        arrivals: Array.isArray(row.arrivals) ? (row.arrivals as NearbyArrival[]) : [],
+      }));
+    },
+  });
+
+  useEffect(() => {
+    if (!nearbyStops.length) return;
+    if (!selectedNearbyStopId || !nearbyStops.some((stop) => stop.stopId === selectedNearbyStopId)) {
+      setSelectedNearbyStopId(nearbyStops[0]?.stopId ?? null);
+    }
+  }, [nearbyStops, selectedNearbyStopId]);
+
+  const selectedNearbyStop = nearbyStops.find((stop) => stop.stopId === selectedNearbyStopId) ?? nearbyStops[0] ?? null;
 
 
   const { data: options = [], isLoading: optionsLoading } = useQuery({
@@ -1536,6 +1598,99 @@ function Index() {
           <DataExpiryNotice />
 
 
+          {browseUserPoint && (
+            <section className="relative mt-6 h-[min(58dvh,560px)] min-h-[430px] overflow-hidden rounded-lg border border-border bg-surface-raised" aria-label="Nearby transit">
+              <ClientOnly fallback={<div className="h-full animate-pulse bg-muted" aria-label="Loading nearby transit map" />}>
+                <Suspense fallback={<div className="h-full animate-pulse bg-muted" aria-label="Loading nearby transit map" />}>
+                  <NearbyTransitMap
+                    userPoint={browseUserPoint}
+                    stops={nearbyStops.map((stop) => ({
+                      stopId: stop.stopId,
+                      stopName: stop.stopName,
+                      lat: stop.lat,
+                      lon: stop.lon,
+                      kind: stop.routeType === 1 ? "rail" : "bus",
+                    }))}
+                    selectedStopId={selectedNearbyStop?.stopId ?? null}
+                    onSelectStop={setSelectedNearbyStopId}
+                  />
+                </Suspense>
+              </ClientOnly>
+
+              <div className="absolute inset-x-3 top-3 z-[500] flex items-center justify-between gap-3 rounded-lg border border-border bg-background/90 px-3 py-2 backdrop-blur-md">
+                <div>
+                  <p className="text-xs font-bold uppercase text-muted-foreground">Near you</p>
+                  <p className="text-sm font-semibold text-foreground">Skyline and bus stops</p>
+                </div>
+                <span className="size-3 rounded-full border-2 border-foreground bg-location shadow-[0_0_10px_var(--color-location)]" aria-label="Your location" />
+              </div>
+
+              <div className="absolute inset-x-3 bottom-3 z-[500] rounded-lg border border-border bg-background/94 p-4 shadow-2xl backdrop-blur-md">
+                <div className="mb-3 flex gap-2 overflow-x-auto pb-1" aria-label="Choose a nearby stop">
+                  {nearbyStops.map((stop) => {
+                    const Icon = stop.routeType === 1 ? TrainFront : Bus;
+                    return (
+                      <Button
+                        key={stop.stopId}
+                        variant={selectedNearbyStop?.stopId === stop.stopId ? "default" : "secondary"}
+                        size="sm"
+                        onClick={() => setSelectedNearbyStopId(stop.stopId)}
+                        className="shrink-0"
+                        aria-label={`Show ${titleCase(stop.stopName)}`}
+                      >
+                        <Icon className="size-4" />
+                        {stop.routeType === 1 ? "Rail" : "Bus"}
+                      </Button>
+                    );
+                  })}
+                </div>
+                {nearbyStopsLoading && <p className="text-sm text-muted-foreground">Finding nearby transit…</p>}
+                {selectedNearbyStop && (
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {selectedNearbyStop.routeType === 1 ? `${stationLabel(selectedNearbyStop.stopName)} Station` : titleCase(selectedNearbyStop.stopName)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Walk {walkingEstimate(browseUserPoint, selectedNearbyStop).minutes} min · {formatDistance(selectedNearbyStop.distanceM)}
+                          {selectedNearbyStop.routeType === 1
+                            ? ` · Drive about ${Math.max(1, Math.ceil(selectedNearbyStop.distanceM / 670))} min`
+                            : ""}
+                        </p>
+                      </div>
+                      {selectedNearbyStop.arrivals[0] && (
+                        <p className="shrink-0 text-right text-sm font-bold text-primary">
+                          {Math.max(0, Math.ceil((selectedNearbyStop.arrivals[0].departure_seconds - nowSeconds) / 60))} min
+                        </p>
+                      )}
+                    </div>
+                    <div className="mt-3 border-t border-border pt-3">
+                      {selectedNearbyStop.arrivals.length ? (
+                        selectedNearbyStop.arrivals.slice(0, 3).map((arrival, index) => (
+                          <p key={`${arrival.departure_seconds}-${index}`} className="mt-1 text-xs text-foreground first:mt-0">
+                            <span className="font-semibold">
+                              {selectedNearbyStop.routeType === 1
+                                ? "Skyline"
+                                : arrival.route_short_name ? `Route ${arrival.route_short_name}` : "Bus"}
+                            </span>
+                            {arrival.headsign ? ` toward ${titleCase(arrival.headsign)}` : ""} · {clockFromSeconds(arrival.departure_seconds)}
+                          </p>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground">No upcoming scheduled arrivals right now.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          <Button onClick={() => setOnboardingOpen(true)} className="mt-5 min-h-14 w-full rounded-lg px-5 text-base font-bold shadow-none">
+            WHERE TO
+          </Button>
+
           <H1ConditionsCard
             eastbound={eastboundTraffic}
             westbound={westboundTraffic}
@@ -1543,10 +1698,6 @@ function Index() {
             unavailable={trafficUnavailable}
             weatherLine={browseWeatherLine}
           />
-
-          <Button onClick={() => setOnboardingOpen(true)} className="mt-5 min-h-13 w-full rounded-lg px-5 text-sm font-semibold shadow-none">
-            Set up my commute for a door-to-door comparison
-          </Button>
 
           <section className="pb-5 pt-9">
             <div className="flex items-baseline justify-between gap-3">
@@ -1783,7 +1934,7 @@ function Index() {
             className="max-w-[360px] text-[clamp(3.1rem,13vw,4.2rem)] font-bold leading-[0.9] text-foreground"
           >
             {!configured
-              ? "SET UP NALU"
+              ? "WHERE TO"
               : verdict === "none"
                 ? "RAIL UNAVAILABLE"
                 : verdict === "same"
@@ -2750,7 +2901,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
       <DialogContent className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
         <SettingsExpiryBanner />
         <DialogHeader className="text-left">
-          <DialogTitle className="text-2xl">{firstRun ? "Set up your trip" : "Your trip"}</DialogTitle>
+          <DialogTitle className="text-2xl">{firstRun ? "WHERE TO" : "Your trip"}</DialogTitle>
           <DialogDescription>
             Nalu needs your starting point and destination once. Everything stays on this device.
           </DialogDescription>

@@ -127,7 +127,7 @@
 - [x] Show walking duration, distance, and platform arrival on commute access legs.
 
 ## Browse map and nearby transit
-- [ ] Replace browse setup CTAs with “WHERE TO”
-- [ ] Add a lightweight location map with current-position, rail, and bus markers
-- [ ] Show nearby stop distance, walk/drive ETA, and next scheduled arrivals
+- [x] Replace browse setup CTAs with “WHERE TO”
+- [x] Add a lightweight location map with current-position, rail, and bus markers
+- [x] Show nearby stop distance, walk/drive ETA, and next scheduled arrivals
 - [ ] Verify mobile browse interactions, tests, and production build
