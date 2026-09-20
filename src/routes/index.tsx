@@ -2,7 +2,7 @@ import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, Car, Check, ChevronRight, Footprints, LocateFixed, RefreshCw, Settings, TrainFront, X } from "lucide-react";
+import { Bus, Car, Check, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Settings, TrainFront, X } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
@@ -460,13 +460,57 @@ function H1ConditionsCard({
   loading,
   unavailable,
   weatherLine,
+  compact = false,
 }: {
   eastbound: DriveTime | undefined;
   westbound: DriveTime | undefined;
   loading: boolean;
   unavailable: boolean;
   weatherLine?: WeatherLine | null;
+  compact?: boolean;
 }) {
+  if (compact) {
+    const rows = [
+      { label: "Eastbound", data: eastbound },
+      { label: "Westbound", data: westbound },
+    ];
+    return (
+      <details className="mt-4 rounded-lg border border-border bg-surface-raised/70">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
+          <span className="font-semibold text-foreground">H-1 live</span>
+          <span className="ml-auto flex flex-wrap justify-end gap-2">
+            {loading ? (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Checking traffic…</span>
+            ) : unavailable ? (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Unavailable</span>
+            ) : rows.map(({ label, data }) => {
+              const status = data ? trafficStatus(data.delayMinutes) : null;
+              return (
+                <span key={label} className={`rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${status?.className ?? "text-muted-foreground"}`}>
+                  {label} · {status?.label ?? "—"}
+                </span>
+              );
+            })}
+          </span>
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+        </summary>
+        {!loading && !unavailable && eastbound && westbound && (
+          <div className="border-t border-border px-4 pb-4">
+            {rows.map(({ label, data }) => {
+              const incident = data?.incidents[0];
+              return incident ? (
+                <p key={label} className="mt-3 text-sm text-foreground">
+                  <span className="font-semibold">{label}:</span> {incidentText(incident)}
+                  {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
+                </p>
+              ) : null;
+            })}
+            <p className="mt-3 text-[10px] text-muted-foreground">Traffic: TomTom</p>
+          </div>
+        )}
+      </details>
+    );
+  }
   return (
     <section className="verdict-lift mt-7 rounded-lg border border-border p-5" aria-labelledby="h1-conditions-title">
       <div className="flex items-baseline justify-between gap-3">
@@ -523,6 +567,7 @@ function Index() {
   const [selectedNearbyStopId, setSelectedNearbyStopId] = useState<string | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<"rail" | "drive">("rail");
 
   useEffect(() => {
     const migrateStorage = (key: string, legacySuffix: string) => {
@@ -1244,6 +1289,10 @@ function Index() {
               : (gap ?? 0) > 0
                 ? "rail"
                 : "drive";
+  useEffect(() => {
+    if (verdict === "drive") setSelectedMode("drive");
+    else if (verdict === "rail") setSelectedMode("rail");
+  }, [verdict, inbound]);
   // One line naming the single thing that decides it.
   const reasoning = useMemo(() => {
     const incident = drive?.incidents[0];
