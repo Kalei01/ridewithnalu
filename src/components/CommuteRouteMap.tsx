@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
+import { LocateFixed, Map, Maximize, Satellite } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type JourneyPoint = {
   id: string;
@@ -14,6 +16,19 @@ type CommuteRouteMapProps = {
   livePoint: { lat: number; lon: number } | null;
 };
 
+type Basemap = "standard" | "satellite";
+
+const BASEMAPS = {
+  standard: {
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution: "&copy; OpenStreetMap &copy; CARTO",
+  },
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+  },
+} as const;
+
 function journeyIcon(point: JourneyPoint) {
   const glyph = point.kind === "start" ? "S" : point.kind === "end" ? "E" : point.kind === "rail" ? "▰" : "●";
   const label = point.kind === "start" ? "Start" : point.kind === "end" ? "End" : point.kind === "rail" ? "Rail station" : "Bus stop";
@@ -26,8 +41,10 @@ function journeyIcon(point: JourneyPoint) {
 }
 
 export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapProps) {
+  const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const liveLayerRef = useRef<L.LayerGroup | null>(null);
 
@@ -43,9 +60,9 @@ export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapPr
       dragging: true,
     }).setView([first.lat, first.lon], 12);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    tileLayerRef.current = L.tileLayer(BASEMAPS.standard.url, {
       maxZoom: 19,
-      attribution: "&copy; OpenStreetMap &copy; CARTO",
+      attribution: BASEMAPS.standard.attribution,
     }).addTo(map);
     L.control.zoom({ position: "bottomright" }).addTo(map);
     routeLayerRef.current = L.layerGroup().addTo(map);
@@ -55,10 +72,21 @@ export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapPr
     return () => {
       map.remove();
       mapRef.current = null;
+      tileLayerRef.current = null;
       routeLayerRef.current = null;
       liveLayerRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const previousLayer = tileLayerRef.current;
+    if (previousLayer) map.removeLayer(previousLayer);
+    const next = BASEMAPS[basemap];
+    tileLayerRef.current = L.tileLayer(next.url, { maxZoom: 19, attribution: next.attribution }).addTo(map);
+    tileLayerRef.current.bringToBack();
+  }, [basemap]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -109,5 +137,61 @@ export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapPr
       .addTo(liveLayer);
   }, [livePoint]);
 
-  return <div ref={nodeRef} className="h-full w-full" aria-label="Interactive map of your door-to-door commute" />;
+  const recenter = () => {
+    const map = mapRef.current;
+    if (!map || !livePoint) return;
+    map.flyTo([livePoint.lat, livePoint.lon], 15, { duration: 0.7 });
+  };
+
+  const fitRoute = () => {
+    const map = mapRef.current;
+    if (!map || points.length < 2) return;
+    map.flyToBounds(L.latLngBounds(points.map((point) => [point.lat, point.lon] as L.LatLngTuple)), {
+      padding: [42, 42],
+      maxZoom: 15,
+      duration: 0.7,
+    });
+  };
+
+  return (
+    <div className="relative h-full w-full">
+      <div ref={nodeRef} className="h-full w-full" aria-label="Interactive map of your door-to-door commute" />
+      <div className="absolute right-3 top-3 z-[500] flex flex-col items-end gap-2" aria-label="Map controls">
+        <div className="flex overflow-hidden rounded-md border border-border bg-background/95 shadow-lg backdrop-blur-md">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label="Show standard map"
+            aria-pressed={basemap === "standard"}
+            onClick={() => setBasemap("standard")}
+            className="rounded-none px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground"
+            data-pressed={basemap === "standard"}
+          >
+            <Map /> Standard
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label="Show satellite map"
+            aria-pressed={basemap === "satellite"}
+            onClick={() => setBasemap("satellite")}
+            className="rounded-none border-l border-border px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground"
+            data-pressed={basemap === "satellite"}
+          >
+            <Satellite /> Satellite
+          </Button>
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" variant="secondary" size="icon" onClick={fitRoute} aria-label="Fit full route" title="Fit full route" className="size-11 border border-border bg-background/95 shadow-lg backdrop-blur-md">
+            <Maximize className="size-5" />
+          </Button>
+          <Button type="button" variant="secondary" size="icon" onClick={recenter} disabled={!livePoint} aria-label={livePoint ? "Recenter on my location" : "Current location unavailable"} title={livePoint ? "Recenter on my location" : "Current location unavailable"} className="size-11 border border-border bg-background/95 shadow-lg backdrop-blur-md">
+            <LocateFixed className="size-5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
