@@ -86,13 +86,22 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
     tileLayerRef.current.bringToBack();
   }, [basemap]);
 
+  // Stop markers rebuild only when the stops or the selection change.
+  const stopsSignature = stops.map((stop) => `${stop.stopId}:${stop.lat.toFixed(5)},${stop.lon.toFixed(5)}`).join("|");
+  const userDotRef = useRef<L.CircleMarker | null>(null);
+  const onSelectStopRef = useRef(onSelectStop);
+  onSelectStopRef.current = onSelectStop;
+  const userRef = useRef(userPoint);
+  userRef.current = userPoint;
+
   useEffect(() => {
     const map = mapRef.current;
     const markers = markersRef.current;
     if (!map || !markers) return;
     markers.clearLayers();
+    userDotRef.current = null;
 
-    L.circleMarker([userPoint.lat, userPoint.lon], {
+    userDotRef.current = L.circleMarker([userRef.current.lat, userRef.current.lon], {
       radius: 8,
       color: "var(--color-foreground)",
       weight: 3,
@@ -107,15 +116,30 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
         title: stop.stopName,
         keyboard: true,
       });
-      marker.on("click", () => onSelectStop(stop.stopId));
+      marker.on("click", () => onSelectStopRef.current(stop.stopId));
       marker.bindTooltip(stop.stopName, { direction: "top", offset: [0, -18] });
       marker.addTo(markers);
     }
+  }, [stopsSignature, selectedStopId]);
 
-    const points: L.LatLngExpression[] = [[userPoint.lat, userPoint.lon], ...stops.map((stop) => [stop.lat, stop.lon] as L.LatLngTuple)];
+  // Fit the viewport once per set of stops, never on each GPS tick.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const points: L.LatLngExpression[] = [
+      [userRef.current.lat, userRef.current.lon],
+      ...stops.map((stop) => [stop.lat, stop.lon] as L.LatLngTuple),
+    ];
+    map.invalidateSize({ animate: false });
     if (points.length > 1) map.fitBounds(L.latLngBounds(points), { padding: [38, 38], maxZoom: 15 });
-    else map.setView([userPoint.lat, userPoint.lon], 14);
-  }, [userPoint.lat, userPoint.lon, stops, selectedStopId, onSelectStop]);
+    else map.setView([userRef.current.lat, userRef.current.lon], 14);
+  }, [stopsSignature]);
+
+  // The live dot slides to the new position without moving the viewport.
+  useEffect(() => {
+    userDotRef.current?.setLatLng([userPoint.lat, userPoint.lon]);
+  }, [userPoint.lat, userPoint.lon]);
+
 
   const recenter = () => mapRef.current?.flyTo([userPoint.lat, userPoint.lon], 15, { duration: 0.7 });
 
