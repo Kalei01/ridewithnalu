@@ -2479,6 +2479,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
   const [busy, setBusy] = useState(false);
   const [placeQuery, setPlaceQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  // Whether the browser currently blocks location, so recovery steps can be shown.
+  const [permissionBlocked, setPermissionBlocked] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -2487,6 +2489,22 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
       setPlaceQuery("");
       setDebouncedQuery("");
     }
+    if (!open) return;
+    let cancelled = false;
+    if (window.localStorage.getItem(LOCATION_DENIED_KEY) === "1") setPermissionBlocked(true);
+    queryLocationPermission().then((state) => {
+      if (cancelled) return;
+      if (state === "denied") {
+        setPermissionBlocked(true);
+        window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+      } else if (state === "granted" || state === "prompt") {
+        setPermissionBlocked(false);
+        window.localStorage.removeItem(LOCATION_DENIED_KEY);
+      }
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [open, setup]);
 
   // 300ms debounce so typing does not fire a search per keystroke.
