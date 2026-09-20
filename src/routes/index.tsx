@@ -266,22 +266,6 @@ function distanceM(a: Coords, b: Coords) {
   return Math.sqrt(dLat * dLat + x * x) * 6371000;
 }
 
-type StationAccess = { mode: "walk" | "drive"; minutes: number; state: "ok" | "tight" | "miss" };
-
-/**
- * Can the rider reach the station before a train leaves? Walk at 3 mph within
- * 0.75 miles, otherwise estimate driving at 25 mph. A two-minute buffer at the
- * platform separates "you'll make it" from "tight".
- */
-function stationAccess(user: Coords, station: Coords, minutesAway: number): StationAccess {
-  const miles = distanceM(user, station) / 1609.344;
-  const mode: StationAccess["mode"] = miles <= 0.75 ? "walk" : "drive";
-  const minutes = Math.max(1, Math.ceil((miles / (mode === "walk" ? 3 : 25)) * 60));
-  const state: StationAccess["state"] =
-    minutes + 2 <= minutesAway ? "ok" : minutes <= minutesAway ? "tight" : "miss";
-  return { mode, minutes, state };
-}
-
 function readJson<T>(key: string): T | null {
   try {
     const raw = window.localStorage.getItem(key);
@@ -1652,8 +1636,14 @@ function Index() {
                   stationRow?.stop_lat != null && stationRow?.stop_lon != null
                     ? { lat: Number(stationRow.stop_lat), lon: Number(stationRow.stop_lon) }
                     : null;
-                const access = userLoc && stationCoords ? stationAccess(userLoc, stationCoords, minutesAway) : null;
                 const walk = userLoc && stationCoords ? walkingEstimate(userLoc, stationCoords) : null;
+                const walkState = walk
+                  ? walk.minutes + 2 <= minutesAway
+                    ? "ok"
+                    : walk.minutes <= minutesAway
+                      ? "tight"
+                      : "miss"
+                  : null;
                 return (
                   <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="border-t border-border pt-5">
                     <h3 className="text-lg font-semibold">toward {directionName}</h3>
@@ -1682,11 +1672,11 @@ function Index() {
                         <p className="mt-1.5 text-xs text-muted-foreground">
                           Skyline rail · toward {directionName} · {first.ride_minutes} min to {towardDowntown ? "downtown" : "Kapolei"}
                         </p>
-                        {walk && access && (
-                          <p className={`mt-2.5 text-sm font-medium ${access.state === "ok" ? "text-primary" : "text-warning"}`}>
+                        {walk && walkState && (
+                          <p className={`mt-2.5 text-sm font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}>
                             You have {minutesAway} min · Walk {walk.minutes} min ({formatDistance(walk.meters)}) to{" "}
                             {stationLabel(browseStation.stopName)} Station
-                            {access.state === "tight" ? " · Tight" : access.state === "miss" ? " · You'll miss this one." : ""}
+                            {walkState === "tight" ? " · Tight" : walkState === "miss" ? " · You'll miss this one." : ""}
                           </p>
                         )}
                         {second && (
