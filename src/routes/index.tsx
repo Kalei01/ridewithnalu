@@ -543,6 +543,7 @@ function Index() {
     }
     migrateStorage(BROWSE_STATION_KEY, "browse-station-v1");
     migrateStorage(BROWSE_LOCATION_DENIED_KEY, "browse-location-denied-v1");
+    migrateStorage(LOCATION_DENIED_KEY, "location-denied-v1");
     migrateStorage(DIRECTION_KEY, "direction-v1");
     migrateStorage(PARKED_KEY, "parked-v1");
     // Trip tracking was removed; clear any trip state left on the phone.
@@ -551,6 +552,39 @@ function Index() {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Track whether the browser has blocked location so the app can offer
+  // recovery steps instead of silently falling back to a default station.
+  useEffect(() => {
+    let cancelled = false;
+    if (window.localStorage.getItem(LOCATION_DENIED_KEY) === "1") setLocationDenied(true);
+    let status: PermissionStatus | null = null;
+    const sync = () => {
+      if (cancelled || !status) return;
+      if (status.state === "denied") {
+        setLocationDenied(true);
+        window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+      } else if (status.state === "granted" || status.state === "prompt") {
+        setLocationDenied(false);
+        window.localStorage.removeItem(LOCATION_DENIED_KEY);
+      }
+    };
+    navigator.permissions?.query({ name: "geolocation" as PermissionName }).then((result) => {
+      if (cancelled) return;
+      status = result;
+      status.onchange = sync;
+      sync();
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+      if (status) status.onchange = null;
+    };
+  }, []);
+
+  function recordLocationDenied() {
+    setLocationDenied(true);
+    window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+  }
 
   // A manual choice sticks for 2 hours, then the time-of-day default takes over again.
   const overrideActive = Boolean(override && now.getTime() - override.at < OVERRIDE_MS);
