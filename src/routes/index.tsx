@@ -597,6 +597,20 @@ function Index() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
+  // "End trip" clears the saved commute and its overrides, returning to browse
+  // mode where departures stay visible and a new trip can be set up anytime.
+  function endTrip() {
+    setSetup(emptySetup);
+    window.localStorage.removeItem(STORAGE_KEY);
+    setOverride(null);
+    window.localStorage.removeItem(DIRECTION_KEY);
+    setParked(null);
+    window.localStorage.removeItem(PARKED_KEY);
+    setSettingsOpen(false);
+    setOnboardingOpen(false);
+    window.localStorage.setItem(SETUP_DISMISSED_KEY, "1");
+  }
+
   const timeText = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
@@ -2044,6 +2058,14 @@ function Index() {
           </ol>
         </section>
 
+        <Button
+          variant="outline"
+          onClick={endTrip}
+          className="mt-2 h-12 w-full shadow-none"
+        >
+          End trip
+        </Button>
+
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
           <span>Schedule data from the agency feed</span>
           <Button
@@ -2829,6 +2851,10 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
               onCheckedChange={(checked) => setDraft((current) => ({ ...current, allowDrive: checked }))}
             />
           </div>
+
+          <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
+            Save trip
+          </Button>
 
           {!firstRun && permissionBlocked && (
             <section className="space-y-2 border-t border-border pt-5">
