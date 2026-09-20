@@ -391,17 +391,26 @@ function formatDistance(meters: number) {
 function vehicleName(leg: Leg) {
   if (leg.mode === "rail") {
     const line = stationLabel(leg.route_long) || "Skyline";
-    return leg.headsign ? `${line} to ${stationLabel(leg.headsign)}` : line;
+    return leg.headsign ? `${line} (toward ${stationLabel(leg.headsign)})` : line;
   }
   if (leg.mode === "bus") {
     const label = leg.route_short ? `Route ${leg.route_short}` : "Bus";
-    return leg.headsign ? `${label} to ${titleCase(leg.headsign)}` : label;
+    return leg.headsign ? `${label} (toward ${titleCase(leg.headsign)})` : label;
   }
   const verb = leg.mode === "drive" ? "Drive" : "Walk";
   // Name both ends: the last leg is only "home" when the trip ends at home.
   const to = titleCase(leg.to);
   if (!to) return leg.kind === "egress" ? `${verb} home` : verb;
   return `${verb} to ${to}`;
+}
+
+function transitStopName(leg: Leg, endpoint: "from" | "to") {
+  const value = leg[endpoint];
+  if (leg.mode === "rail") {
+    const station = stationLabel(value);
+    return station ? `${station} Station` : "the station";
+  }
+  return titleCase(value) || "the stop";
 }
 
 function modeIcon(mode: Leg["mode"]) {
@@ -1014,24 +1023,41 @@ function Index() {
 
   const timeline = useMemo(() => {
     if (!best) return [];
-    const rows = best.legs.map((leg, legIndex) => ({
-      seconds: leg.depart_seconds,
-      legIndex,
-      title: vehicleName(leg),
-      detail:
-        leg.mode === "walk" || leg.mode === "drive"
-          ? `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
-              titleCase(leg.to) || (inbound ? "home" : "your destination")
-            }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
-          : `${titleCase(leg.from)} → ${titleCase(leg.to)}`,
-      mode: leg.mode,
-    }));
+    const rows = best.legs.map((leg, legIndex) => {
+      const isTransit = leg.mode === "bus" || leg.mode === "rail";
+      const previousLeg = best.legs[legIndex - 1];
+      const followsTransit = previousLeg?.mode === "bus" || previousLeg?.mode === "rail";
+      return {
+        seconds: leg.depart_seconds,
+        legIndex,
+        title: followsTransit && previousLeg
+          ? `Get off at ${transitStopName(previousLeg, "to")}`
+          : vehicleName(leg),
+        detail:
+          leg.mode === "walk" || leg.mode === "drive"
+            ? followsTransit
+              ? `${vehicleName(leg)} · ${leg.minutes} min to ${
+                  titleCase(leg.to) || (inbound ? "home" : "your destination")
+                }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
+              : `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
+                  titleCase(leg.to) || (inbound ? "home" : "your destination")
+                }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
+            : "",
+        boardAt: isTransit ? transitStopName(leg, "from") : null,
+        getOffAt: isTransit ? transitStopName(leg, "to") : null,
+        arriveSeconds: isTransit ? leg.arrive_seconds : null,
+        mode: leg.mode,
+      };
+    });
     const last = best.legs[best.legs.length - 1];
     rows.push({
       seconds: last?.arrive_seconds ?? null,
       legIndex: -1,
       title: inbound ? "Arrive home" : "Arrive destination",
       detail: titleCase(last?.to) || setup.destinationName || setup.destinationAddress,
+      boardAt: null,
+      getOffAt: null,
+      arriveSeconds: null,
       mode: "walk" as Leg["mode"],
     });
     return rows;
@@ -1147,7 +1173,7 @@ function Index() {
       });
     }
     return list;
-  }, [best, inbound, homePoint, destPoint, nowSeconds, stationCoords, setup.homeStopName]);
+  }, [best, inbound, homePoint, destPoint, nowSeconds, stationPoint, setup.homeStopName]);
 
   const fetchWeather = useServerFn(outdoorConditions);
   // Runs alongside the plan, never in front of it: the trip renders regardless.
@@ -1743,8 +1769,20 @@ function Index() {
                       {index < timeline.length - 1 && <span className="w-px flex-1 bg-border" />}
                     </span>
                     <span className="flex-1 pb-6">
-                      <span className="block text-[15px] font-medium text-foreground">{row.title}</span>
-                      <span className="mt-0.5 block text-sm text-muted-foreground">{row.detail}</span>
+                      <span className="block text-[15px] font-semibold text-foreground">{row.title}</span>
+                      {row.boardAt ? (
+                        <span className="mt-2 block space-y-1.5">
+                          <span className="block text-sm font-semibold text-foreground">
+                            Board at: {row.boardAt}
+                          </span>
+                          <span className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
+                            <span>Get off at: {row.getOffAt}</span>
+                            <span className="shrink-0 tabular-nums">{clockFromSeconds(row.arriveSeconds)}</span>
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="mt-0.5 block text-sm font-semibold text-foreground">{row.detail}</span>
+                      )}
                       {(weatherLines.get(row.legIndex) ?? []).map((line) => (
                         <span key={line.text} className={`mt-1 block text-xs ${TONE_CLASS[line.tone]}`}>
                           {line.text}
@@ -1865,24 +1903,30 @@ function RailTripBreakdown({
         const liveArrival = leg.mode === "bus"
           ? matchLiveArrival(liveBus, leg.route_short, leg.headsign, leg.depart_seconds)
           : null;
+        const followsTransit = previous?.mode === "bus" || previous?.mode === "rail";
 
         return (
           <li key={`${leg.kind}-${leg.depart_seconds}-${index}`} className="flex gap-2.5">
             <span className="flex flex-col items-center pt-0.5">
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-muted-foreground">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-foreground">
                 <Icon className="size-3" />
               </span>
               {index < rows.length - 1 && <span className="w-px flex-1 bg-border" />}
             </span>
             <div className="min-w-0 flex-1 pb-5">
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-xs font-bold uppercase text-muted-foreground">{label}</p>
+                <p className="text-xs font-bold uppercase text-foreground">
+                  {followsTransit && previous ? `Get off at ${transitStopName(previous, "to")}` : label}
+                </p>
                 {legMinutes !== null && <p className="shrink-0 text-xs font-semibold tabular-nums text-foreground">{legMinutes} min</p>}
               </div>
-              <p className="mt-1 text-sm font-semibold leading-snug text-foreground">{vehicleName(leg)}</p>
+              <p className={`mt-1 text-sm font-bold leading-snug text-foreground ${followsTransit ? "rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2" : ""}`}>
+                {followsTransit ? `${vehicleName(leg)} from ${transitStopName(previous, "to")}` : vehicleName(leg)}
+              </p>
               {leg.mode === "bus" ? (
-                <div className="mt-1">
-                  {waitMinutes > 0 && <p className="text-xs text-muted-foreground">Transfer walk/wait · {waitMinutes} min</p>}
+                <div className="mt-2">
+                  {waitMinutes > 0 && <p className="text-xs font-semibold text-foreground">Transfer walk/wait · {waitMinutes} min</p>}
+                  <p className="text-sm font-semibold text-foreground">Board at: {transitStopName(leg, "from")}</p>
                   <BusArrivalTime
                     arrival={liveArrival}
                     scheduledSeconds={leg.depart_seconds}
@@ -1890,15 +1934,24 @@ function RailTripBreakdown({
                     refreshing={liveBusRefreshing}
                     compact
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Ride {legMinutes ?? "—"} min · arrive {arrivalLabel} {clockFromSeconds(leg.arrive_seconds)}
+                  <p className="mt-2 flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
+                    <span>Get off at: {transitStopName(leg, "to")}</span>
+                    <span className="shrink-0 tabular-nums">{clockFromSeconds(leg.arrive_seconds)}</span>
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-foreground">Ride {legMinutes ?? "—"} min</p>
+                </div>
+              ) : leg.mode === "rail" ? (
+                <div className="mt-2 space-y-1.5">
+                  <p className="text-sm font-semibold text-foreground">
+                    Board at: {transitStopName(leg, "from")} · {clockFromSeconds(leg.depart_seconds)}
+                  </p>
+                  <p className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
+                    <span>Get off at: {transitStopName(leg, "to")}</span>
+                    <span className="shrink-0 tabular-nums">{clockFromSeconds(leg.arrive_seconds)}</span>
                   </p>
                 </div>
               ) : (
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {leg.kind === "rail"
-                    ? `Departs ${stationLabel(leg.from) || titleCase(leg.from) || "station"} Station ${clockFromSeconds(leg.depart_seconds)} · `
-                    : ""}
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-foreground">
                   {`Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}
                 </p>
               )}
