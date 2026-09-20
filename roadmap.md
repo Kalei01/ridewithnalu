@@ -125,3 +125,9 @@
 - [x] Rename the setup action to GO.
 - [x] Show a 3 mph walk estimate and distance to the selected station in setup and browse mode.
 - [x] Show walking duration, distance, and platform arrival on commute access legs.
+
+## Browse map and nearby transit
+- [ ] Replace browse setup CTAs with “WHERE TO”
+- [ ] Add a lightweight location map with current-position, rail, and bus markers
+- [ ] Show nearby stop distance, walk/drive ETA, and next scheduled arrivals
+- [ ] Verify mobile browse interactions, tests, and production build
