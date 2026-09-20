@@ -123,12 +123,6 @@ const TOSS_UP_MIN = 5;
 const LONG_WAIT_MIN = 25;
 const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
 const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
-/** A trip clears itself after this long, even if the phone never saw the arrival. */
-const TRIP_MAX_MS = 3 * 60 * 60 * 1000;
-/** How long the arrival card stays up before the trip collapses on its own. */
-const ARRIVED_CLEAR_MS = 10 * 60 * 1000;
-/** Treated as "you are here" for stations and the destination. */
-const AT_PLACE_M = 250;
 
 type DirectionOverride = { inbound: boolean; at: number };
 /** Where the car is today: at home, left at the station, or driven all the way. */
@@ -150,35 +144,7 @@ type BrowseDeparture = {
   terminus_lon: number | null;
 };
 
-/** A trip the rider is actually on: the plan they boarded plus when it started. */
-type ActiveTrip = {
-  startedAt: number;
-  inbound: boolean;
-  legs: Leg[];
-  departSeconds: number;
-  arriveSeconds: number;
-  homeStopId: string;
-  destStopId: string;
-};
-
-type TripPhase = "boarding" | "rail" | "transfer" | "arrived";
-
 type Coords = { lat: number; lon: number };
-
-type ConnectingDeparture = {
-  stop_id: string;
-  stop_name: string;
-  distance_m: number;
-  walk_minutes: number;
-  route_id: string;
-  route_short_name: string | null;
-  route_long_name: string | null;
-  headsign: string | null;
-  depart_seconds: number;
-  arrive_seconds: number;
-  ride_minutes: number;
-  dest_stop_name: string | null;
-};
 
 /** A stretch of the trip spent outside, with where and when it happens. */
 type OutdoorMoment = {
@@ -525,8 +491,6 @@ function Index() {
   const [parked, setParked] = useState<ParkedCar | null>(null);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
-  const [trip, setTrip] = useState<ActiveTrip | null>(null);
-  const [position, setPosition] = useState<Coords | null>(null);
 
   useEffect(() => {
     const migrateStorage = (key: string, legacySuffix: string) => {
@@ -556,15 +520,8 @@ function Index() {
     migrateStorage(BROWSE_LOCATION_DENIED_KEY, "browse-location-denied-v1");
     migrateStorage(DIRECTION_KEY, "direction-v1");
     migrateStorage(PARKED_KEY, "parked-v1");
-    migrateStorage(ACTIVE_TRIP_KEY, "active-trip-v1");
-    setBrowseStation(readJson<BrowseStation>(BROWSE_STATION_KEY));
-    setBrowseLocationDenied(window.localStorage.getItem(BROWSE_LOCATION_DENIED_KEY) === "1");
-    setOverride(readJson<DirectionOverride>(DIRECTION_KEY));
-    setParked(readJson<ParkedCar>(PARKED_KEY));
-    // A trip older than three hours is over, whatever the phone last saw.
-    const saved = readJson<ActiveTrip>(ACTIVE_TRIP_KEY);
-    if (saved && Date.now() - saved.startedAt < TRIP_MAX_MS) setTrip(saved);
-    else window.localStorage.removeItem(ACTIVE_TRIP_KEY);
+    // Trip tracking was removed; clear any trip state left on the phone.
+    window.localStorage.removeItem(ACTIVE_TRIP_KEY);
     setHydrated(true);
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
@@ -631,10 +588,10 @@ function Index() {
   // earlier plan is stale and must not suppress the drive option or contradict
   // a drive-to-station first leg.
   useEffect(() => {
-    if (!hydrated || inbound || trip || carPlace === "home") return;
+    if (!hydrated || inbound || carPlace === "home") return;
     setParked(null);
     window.localStorage.removeItem(PARKED_KEY);
-  }, [hydrated, inbound, trip, carPlace]);
+  }, [hydrated, inbound, carPlace]);
 
   function setCarPlace(place: CarPlace) {
     const entry: ParkedCar = { date: honoluluDateKey(new Date()), station: setup.homeStopId, place };
@@ -1091,7 +1048,7 @@ function Index() {
     refetch: refetchWestboundTraffic,
   } = useQuery({
     queryKey: ["browse-h1", "westbound"],
-    enabled: browseActive,
+    enabled: hydrated,
     staleTime: 3 * 60_000,
     refetchInterval: 3 * 60_000,
     retry: 1,
