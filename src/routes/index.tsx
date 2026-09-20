@@ -1792,8 +1792,8 @@ function Index() {
                   stopName: station.stop_name ?? "",
                   lat: Number(station.stop_lat),
                   lon: Number(station.stop_lon),
-                  userLat: browseStation?.userLat,
-                  userLon: browseStation?.userLon,
+                  ...(browseStation?.userLat !== undefined ? { userLat: browseStation.userLat } : {}),
+                  ...(browseStation?.userLon !== undefined ? { userLon: browseStation.userLon } : {}),
                 });
               }}
             >
