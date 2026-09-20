@@ -9,6 +9,15 @@ import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { driveTime, type DriveIncident, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
+import {
+  ALERT_PREFS_KEY,
+  defaultAlertPrefs,
+  evaluateApproach,
+  parseAlertPrefs,
+  playChime,
+  type AlertPrefs,
+  type ApproachState,
+} from "@/lib/approach";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -908,6 +917,7 @@ function Index() {
   });
 
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
+  const distanceTrend = useRef<number[]>([]);
   useEffect(() => {
     if (!activeTransitLeg || !navigator.geolocation) {
       setRiderPoint(null);
@@ -921,66 +931,61 @@ function Index() {
     return () => navigator.geolocation.clearWatch(watch);
   }, [activeTransitLeg]);
 
+  // Legs change: start the distance history over so an old ride cannot trigger
+  // a "passed your stop" notice on the next one.
+  const legKey = activeTransitLeg ? `${activeTransitLeg.from}-${activeTransitLeg.depart_seconds}` : null;
+  useEffect(() => {
+    distanceTrend.current = [];
+  }, [legKey]);
+
+  const alightPoint = useMemo(() => {
+    const alight = legStops.find((stop) => stop.isAlight) ?? legStops[legStops.length - 1];
+    return alight && alight.lat !== null && alight.lon !== null ? { lat: alight.lat, lon: alight.lon } : null;
+  }, [legStops]);
+  if (riderPoint && alightPoint) {
+    const distance = distanceM(riderPoint, alightPoint);
+    const trend = distanceTrend.current;
+    if (trend[trend.length - 1] !== distance) {
+      distanceTrend.current = [...trend, distance].slice(-4);
+    }
+  }
+
+  const previousApproachState = useRef<ApproachState | null>(null);
   // Where the rider is along the leg, by GPS when available, otherwise by clock.
   const approach = useMemo(() => {
     if (!activeTransitLeg || legStops.length < 2) return null;
-    const alightIndex = legStops.findIndex((stop) => stop.isAlight);
-    const endIndex = alightIndex >= 0 ? alightIndex : legStops.length - 1;
-    const alight = legStops[endIndex];
-    if (!alight) return null;
-
-    let currentIndex = 0;
-    let metersToAlight: number | null = null;
-    const gpsFix = riderPoint
-      ? legStops
-          .map((stop, index) => ({
-            index,
-            distance: stop.lat === null || stop.lon === null
-              ? Number.POSITIVE_INFINITY
-              : distanceM(riderPoint, { lat: stop.lat, lon: stop.lon }),
-          }))
-          .sort((a, b) => a.distance - b.distance)[0]
-      : null;
-    if (gpsFix && Number.isFinite(gpsFix.distance) && gpsFix.distance < 3000) {
-      currentIndex = gpsFix.index;
-      if (riderPoint && alight.lat !== null && alight.lon !== null) {
-        metersToAlight = distanceM(riderPoint, { lat: alight.lat, lon: alight.lon });
-      }
-    } else {
-      for (let index = 0; index <= endIndex; index += 1) {
-        const seconds = legStops[index]?.arriveSeconds;
-        if (seconds !== null && seconds !== undefined && seconds <= nowSeconds) currentIndex = index;
-      }
-    }
-
-    const stopsAway = Math.max(0, endIndex - currentIndex);
-    const secondsToAlight = alight.arriveSeconds === null || alight.arriveSeconds === undefined
-      ? null
-      : alight.arriveSeconds - nowSeconds;
-    const minutesToAlight = secondsToAlight === null ? null : Math.round(secondsToAlight / 60);
-    const nextStop = legStops[Math.min(currentIndex + 1, endIndex)] ?? alight;
-
-    const urgent =
-      stopsAway <= 1
-      || (metersToAlight !== null && metersToAlight <= 350)
-      || (metersToAlight === null && minutesToAlight !== null && minutesToAlight <= 2);
-    const getReady =
-      !urgent
-      && (stopsAway <= 2
-        || (metersToAlight !== null && metersToAlight <= 800)
-        || (metersToAlight === null && minutesToAlight !== null && minutesToAlight <= 4));
-
+    const result = evaluateApproach({
+      stops: legStops.map((stop) => ({
+        stopName: stop.stopName,
+        lat: stop.lat,
+        lon: stop.lon,
+        arriveSeconds: stop.arriveSeconds,
+        isAlight: stop.isAlight,
+      })),
+      nowSeconds,
+      rider: riderPoint,
+      distanceTrend: distanceTrend.current,
+      previousState: previousApproachState.current,
+    });
+    if (!result) return null;
     return {
+      ...result,
       key: `${activeTransitLeg.from}-${activeTransitLeg.depart_seconds}`,
-      state: (urgent ? "urgent" : getReady ? "ready" : "cruising") as "urgent" | "ready" | "cruising",
-      stopsAway,
-      minutesToAlight,
-      nextStopName: nextStop?.stopName ?? alight.stopName,
-      alightName: alight.stopName,
       vehicle: (activeTransitLeg.mode === "rail" ? "rail" : "bus") as "bus" | "rail",
-      live: Boolean(riderPoint),
     };
   }, [activeTransitLeg, legStops, riderPoint, nowSeconds]);
+  useEffect(() => {
+    previousApproachState.current = approach?.state ?? null;
+  }, [approach?.state]);
+
+  const [alertPrefs, setAlertPrefs] = useState<AlertPrefs>(defaultAlertPrefs);
+  useEffect(() => {
+    setAlertPrefs(parseAlertPrefs(window.localStorage.getItem(ALERT_PREFS_KEY)));
+  }, []);
+  function saveAlertPrefs(next: AlertPrefs) {
+    setAlertPrefs(next);
+    window.localStorage.setItem(ALERT_PREFS_KEY, JSON.stringify(next));
+  }
 
   const [approachDismissed, setApproachDismissed] = useState<string | null>(null);
   const lastPulse = useRef<string | null>(null);
@@ -989,8 +994,13 @@ function Index() {
     const pulseKey = `${approach.key}-urgent`;
     if (lastPulse.current === pulseKey) return;
     lastPulse.current = pulseKey;
-    navigator.vibrate?.([200, 100, 200]);
-  }, [approach]);
+    if (alertPrefs.haptics) navigator.vibrate?.([200, 100, 200]);
+    if (alertPrefs.sound) playChime();
+  }, [approach, alertPrefs.haptics, alertPrefs.sound]);
+  // On a leg change the banner clears unless the rider asked to keep it.
+  useEffect(() => {
+    if (!alertPrefs.keepOnTransfer) setApproachDismissed(null);
+  }, [legKey, alertPrefs.keepOnTransfer]);
   const showApproach = Boolean(approach) && approachDismissed !== `${approach?.key}-${approach?.state}`;
 
   // Real driving time between the two points that matter for this direction.
@@ -1423,7 +1433,15 @@ function Index() {
   }
 
   const setupDialog = (
-    <SetupDialog open={onboardingOpen || settingsOpen} firstRun={onboardingOpen} setup={setup} onClose={closeSetup} onSave={saveSetup} />
+    <SetupDialog
+      open={onboardingOpen || settingsOpen}
+      firstRun={onboardingOpen}
+      setup={setup}
+      onClose={closeSetup}
+      onSave={saveSetup}
+      alertPrefs={alertPrefs}
+      onAlertPrefsChange={saveAlertPrefs}
+    />
   );
 
   if (browseActive) {
@@ -2190,6 +2208,8 @@ type SetupDialogProps = {
   setup: Setup;
   onClose: () => void;
   onSave: (next: Setup) => void;
+  alertPrefs: AlertPrefs;
+  onAlertPrefsChange: (next: AlertPrefs) => void;
 };
 
 const EXPIRY_DISMISS_KEY = "nalu-expiry-dismissed-v1";
@@ -2226,7 +2246,7 @@ function ApproachBanner({
   live,
   onDismiss,
 }: {
-  state: "urgent" | "ready" | "cruising";
+  state: ApproachState;
   stopsAway: number;
   minutesToAlight: number | null;
   nextStopName: string;
@@ -2241,15 +2261,16 @@ function ApproachBanner({
   const nextName = stopLabel(nextStopName);
   const minutesText = minutesToAlight !== null && minutesToAlight > 0 ? ` · ${minutesToAlight} min` : "";
 
-  if (state === "cruising") {
+  if (state === "cruising" || state === "off-route") {
     return (
       <div
         role="status"
         className="sticky top-0 z-40 -mx-2 mb-2 flex items-center justify-between gap-2 rounded-full border border-border bg-surface-raised px-3.5 py-2"
       >
         <p className="text-xs font-semibold text-foreground">
-          En route · Next: {nextName} · Exit at {exitName}
-          {minutesText}
+          {state === "off-route"
+            ? `Off route · alerts paused · exit at ${exitName}`
+            : `En route · Next: ${nextName} · Exit at ${exitName}${minutesText}`}
         </p>
         <button aria-label="Dismiss stop alert" onClick={onDismiss} className="shrink-0 text-muted-foreground">
           <X className="size-3.5" />
@@ -2259,28 +2280,49 @@ function ApproachBanner({
   }
 
   const urgent = state === "urgent";
+  const passed = state === "passed";
   return (
     <div
       role="alert"
       aria-live="assertive"
       className={`sticky top-0 z-40 -mx-2 mb-3 rounded-2xl border-2 px-4 py-3 shadow-lg ${
-        urgent ? "border-white bg-[#b91c1c]" : "border-[#fbbf24] bg-[#78350f]"
+        passed
+          ? "border-border bg-surface-raised"
+          : urgent
+            ? "border-white bg-[#b91c1c]"
+            : "border-[#fbbf24] bg-[#78350f]"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-base font-extrabold uppercase tracking-wide text-white">
-            {urgent ? "⚠️ Pull cord · your stop is next!" : "🔔 Get ready · 2 stops away"}
+          <p
+            className={`text-base font-extrabold uppercase tracking-wide ${passed ? "text-foreground" : "text-white"}`}
+          >
+            {passed
+              ? "Looks like you passed your stop"
+              : urgent
+                ? "⚠️ Pull cord · your stop is next!"
+                : "🔔 Get ready · 2 stops away"}
           </p>
-          <p className="mt-1 text-[15px] font-bold leading-snug text-white">
-            {urgent
-              ? `Get off at ${exitName}`
-              : `Next stop is ${nextName}, then get off at ${exitName}.`}
+          <p
+            className={`mt-1 text-[15px] font-bold leading-snug ${passed ? "text-foreground" : "text-white"}`}
+          >
+            {passed
+              ? `Your exit was ${exitName}. Get off at the next stop and head back.`
+              : urgent
+                ? `Get off at ${exitName}`
+                : `Next stop is ${nextName}, then get off at ${exitName}.`}
           </p>
-          <p className="mt-1 text-xs font-semibold text-white/80">
-            {stopsAway <= 1 ? "1 stop to go" : `${stopsAway} stops to go`}
-            {minutesText}
-            {live ? " · tracking your location" : " · using the timetable"}
+          <p
+            className={`mt-1 text-xs font-semibold ${passed ? "text-muted-foreground" : "text-white/80"}`}
+          >
+            {passed
+              ? live
+                ? "Tracking your location"
+                : "Using the timetable"
+              : `${stopsAway <= 1 ? "1 stop to go" : `${stopsAway} stops to go`}${minutesText}${
+                  live ? " · tracking your location" : " · using the timetable"
+                }`}
           </p>
         </div>
         <button
@@ -2334,6 +2376,40 @@ function DataExpiryNotice() {
   );
 }
 
+/** Settings-only controls for how the stop alert announces itself. */
+function AlertPrefsSection({ prefs, onChange }: { prefs: AlertPrefs; onChange: (next: AlertPrefs) => void }) {
+  const rows: { id: keyof AlertPrefs; label: string; hint: string }[] = [
+    { id: "sound", label: "Sound alert", hint: "A soft chime when your stop is next." },
+    { id: "haptics", label: "Haptic vibration", hint: "Buzz your phone when your stop is next." },
+    {
+      id: "keepOnTransfer",
+      label: "Keep alert on transfer",
+      hint: "Stay visible when the trip moves to the next leg.",
+    },
+  ];
+  return (
+    <section className="space-y-2 border-t border-border pt-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Stop alerts</p>
+      {rows.map((row) => (
+        <div key={row.id} className="flex items-center justify-between gap-4 rounded-lg bg-surface-raised px-4 py-3">
+          <Label htmlFor={`alert-${row.id}`} className="leading-snug">
+            {row.label}
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{row.hint}</span>
+          </Label>
+          <Switch
+            id={`alert-${row.id}`}
+            checked={prefs[row.id]}
+            onCheckedChange={(checked) => {
+              onChange({ ...prefs, [row.id]: checked });
+              if (row.id === "sound" && checked) playChime();
+            }}
+          />
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function SettingsExpiryBanner() {
   const expiry = useDataExpiry();
   if (!expiry || expiry.daysRemaining > 14) return null;
@@ -2344,7 +2420,7 @@ function SettingsExpiryBanner() {
   );
 }
 
-function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProps) {
+function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAlertPrefsChange }: SetupDialogProps) {
 
   const findPlaces = useServerFn(searchPlaces);
   const [draft, setDraft] = useState<Setup>(setup);
@@ -2610,6 +2686,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               onCheckedChange={(checked) => setDraft((current) => ({ ...current, allowDrive: checked }))}
             />
           </div>
+
+          {!firstRun && <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />}
 
           {!firstRun && <AboutSection />}
 
