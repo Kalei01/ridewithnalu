@@ -1561,6 +1561,15 @@ function Index() {
             {browseLocationDenied && browseStation && (
               <p className="mt-1 text-xs text-muted-foreground">Estimated from West Oahu · choose another station below</p>
             )}
+            {browseLocationDenied && locationDenied && (
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="mt-1 block text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+              >
+                Location is blocked in your browser · how to allow it
+              </button>
+            )}
           </section>
 
           {browseLocationDenied && (
