@@ -1025,15 +1025,23 @@ function Index() {
     if (!best) return [];
     const rows = best.legs.map((leg, legIndex) => {
       const isTransit = leg.mode === "bus" || leg.mode === "rail";
+      const previousLeg = best.legs[legIndex - 1];
+      const followsTransit = previousLeg?.mode === "bus" || previousLeg?.mode === "rail";
       return {
         seconds: leg.depart_seconds,
         legIndex,
-        title: vehicleName(leg),
+        title: followsTransit && previousLeg
+          ? `Get off at ${transitStopName(previousLeg, "to")}`
+          : vehicleName(leg),
         detail:
           leg.mode === "walk" || leg.mode === "drive"
-            ? `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
-                titleCase(leg.to) || (inbound ? "home" : "your destination")
-              }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
+            ? followsTransit
+              ? `${vehicleName(leg)} · ${leg.minutes} min to ${
+                  titleCase(leg.to) || (inbound ? "home" : "your destination")
+                }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
+              : `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
+                  titleCase(leg.to) || (inbound ? "home" : "your destination")
+                }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
             : "",
         boardAt: isTransit ? transitStopName(leg, "from") : null,
         getOffAt: isTransit ? transitStopName(leg, "to") : null,
@@ -1895,6 +1903,7 @@ function RailTripBreakdown({
         const liveArrival = leg.mode === "bus"
           ? matchLiveArrival(liveBus, leg.route_short, leg.headsign, leg.depart_seconds)
           : null;
+        const followsTransit = previous?.mode === "bus" || previous?.mode === "rail";
 
         return (
           <li key={`${leg.kind}-${leg.depart_seconds}-${index}`} className="flex gap-2.5">
@@ -1906,10 +1915,14 @@ function RailTripBreakdown({
             </span>
             <div className="min-w-0 flex-1 pb-5">
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-xs font-bold uppercase text-foreground">{label}</p>
+                <p className="text-xs font-bold uppercase text-foreground">
+                  {followsTransit && previous ? `Get off at ${transitStopName(previous, "to")}` : label}
+                </p>
                 {legMinutes !== null && <p className="shrink-0 text-xs font-semibold tabular-nums text-foreground">{legMinutes} min</p>}
               </div>
-              <p className="mt-1 text-sm font-bold leading-snug text-foreground">{vehicleName(leg)}</p>
+              <p className={`mt-1 text-sm font-bold leading-snug text-foreground ${followsTransit ? "rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2" : ""}`}>
+                {followsTransit ? `${vehicleName(leg)} from ${transitStopName(previous, "to")}` : vehicleName(leg)}
+              </p>
               {leg.mode === "bus" ? (
                 <div className="mt-2">
                   {waitMinutes > 0 && <p className="text-xs font-semibold text-foreground">Transfer walk/wait · {waitMinutes} min</p>}
