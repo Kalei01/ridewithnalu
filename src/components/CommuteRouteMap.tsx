@@ -154,7 +154,7 @@ export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapPr
   };
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative z-0 isolate h-full w-full">
       <div ref={nodeRef} className="h-full w-full" aria-label="Interactive map of your door-to-door commute" />
       <div className="absolute right-3 top-3 z-[500] flex flex-col items-end gap-2" aria-label="Map controls">
         <div className="flex overflow-hidden rounded-md border border-border bg-background/95 shadow-lg backdrop-blur-md">

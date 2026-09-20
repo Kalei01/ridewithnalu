@@ -127,7 +127,7 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
   };
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative z-0 isolate h-full w-full">
       <div ref={nodeRef} className="h-full w-full" aria-label="Map of nearby rail stations and bus stops" />
       <div className="absolute right-3 top-16 z-[500] flex flex-col items-end gap-2" aria-label="Map controls">
         <div className="flex overflow-hidden rounded-md border border-border bg-background/95 shadow-lg backdrop-blur-md">

@@ -146,3 +146,4 @@
 - [x] Lead with a prominent WHERE TO search action and focused nearby map
 - [x] Consolidate station access and two-way departures into one glanceable card
 - [x] Move nearby arrivals, H-1 details, and weather/AQI into compact expandable sections
+- [x] Keep all dialogs and popup controls above Browse and commute maps
