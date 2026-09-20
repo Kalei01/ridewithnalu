@@ -91,14 +91,20 @@ export default function CommuteRouteMap({ points, livePoint, path }: CommuteRout
     tileLayerRef.current.bringToBack();
   }, [basemap]);
 
-  // A stable signature of the itinerary geometry: route layers and the viewport
-  // only rebuild when the actual stops change, not on every data refetch tick.
+  // A stable signature of the drawn geometry: route layers and the viewport only
+  // rebuild when the actual stops or road corridor change, not on every refetch tick.
   const routeSignature = useMemo(
-    () => points.map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join("|"),
-    [points],
+    () =>
+      [
+        points.map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join("|"),
+        `path:${path?.length ?? 0}:${path?.[0] ? `${path[0].lat.toFixed(4)},${path[0].lon.toFixed(4)}` : ""}`,
+      ].join("#"),
+    [points, path],
   );
   const pointsRef = useRef(points);
   pointsRef.current = points;
+  const pathRef = useRef(path);
+  pathRef.current = path;
 
   useEffect(() => {
     const map = mapRef.current;
@@ -107,8 +113,13 @@ export default function CommuteRouteMap({ points, livePoint, path }: CommuteRout
     if (!map || !routeLayer || current.length < 2) return;
     routeLayer.clearLayers();
 
-    const latLngs = current.map((point) => [point.lat, point.lon] as L.LatLngTuple);
-    L.polyline(latLngs, {
+    const roadPath = pathRef.current;
+    // Drive mode draws TomTom's real road geometry; transit keeps stop-to-stop hops.
+    const lineLatLngs: L.LatLngTuple[] =
+      roadPath && roadPath.length > 1
+        ? roadPath.map((point) => [point.lat, point.lon] as L.LatLngTuple)
+        : current.map((point) => [point.lat, point.lon] as L.LatLngTuple);
+    L.polyline(lineLatLngs, {
       color: "var(--color-primary)",
       weight: 5,
       opacity: 0.9,
@@ -131,9 +142,14 @@ export default function CommuteRouteMap({ points, livePoint, path }: CommuteRout
         .addTo(routeLayer);
     });
 
+    const boundsLatLngs = [
+      ...lineLatLngs,
+      ...current.map((point) => [point.lat, point.lon] as L.LatLngTuple),
+    ];
     map.invalidateSize({ animate: false });
-    map.flyToBounds(L.latLngBounds(latLngs), { padding: [34, 34], maxZoom: 15, duration: 0.7 });
+    map.flyToBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, duration: 0.7 });
   }, [routeSignature]);
+
 
   // The live dot moves in place; recreating it (or touching the viewport) on every
   // watchPosition tick is what made the map twitch.
