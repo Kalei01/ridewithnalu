@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, Car, Check, ChevronRight, Footprints, LocateFixed, RefreshCw, Settings, TrainFront } from "lucide-react";
+import { Bus, Car, Check, ChevronRight, Footprints, LocateFixed, RefreshCw, Settings, TrainFront, X } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
