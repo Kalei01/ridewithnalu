@@ -18,6 +18,11 @@ import {
   type AlertPrefs,
   type ApproachState,
 } from "@/lib/approach";
+import {
+  detectLocationPlatform,
+  isPermissionDeniedError,
+  queryLocationPermission,
+} from "@/lib/location-permission";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -118,6 +123,7 @@ const STORAGE_KEY = "nalu-setup-v3";
 const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
 const BROWSE_STATION_KEY = "nalu-browse-station-v1";
 const BROWSE_LOCATION_DENIED_KEY = "nalu-browse-location-denied-v1";
+const LOCATION_DENIED_KEY = "nalu-location-denied-v1";
 const KAPOLEI_POINT = { lat: 21.3358, lon: -158.0798 };
 const DOWNTOWN_POINT = { lat: 21.3099, lon: -157.8644 };
 const DIRECTION_KEY = "nalu-direction-v1";
