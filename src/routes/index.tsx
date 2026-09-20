@@ -1433,7 +1433,15 @@ function Index() {
   }
 
   const setupDialog = (
-    <SetupDialog open={onboardingOpen || settingsOpen} firstRun={onboardingOpen} setup={setup} onClose={closeSetup} onSave={saveSetup} />
+    <SetupDialog
+      open={onboardingOpen || settingsOpen}
+      firstRun={onboardingOpen}
+      setup={setup}
+      onClose={closeSetup}
+      onSave={saveSetup}
+      alertPrefs={alertPrefs}
+      onAlertPrefsChange={saveAlertPrefs}
+    />
   );
 
   if (browseActive) {
@@ -2200,6 +2208,8 @@ type SetupDialogProps = {
   setup: Setup;
   onClose: () => void;
   onSave: (next: Setup) => void;
+  alertPrefs: AlertPrefs;
+  onAlertPrefsChange: (next: AlertPrefs) => void;
 };
 
 const EXPIRY_DISMISS_KEY = "nalu-expiry-dismissed-v1";
