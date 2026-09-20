@@ -2232,11 +2232,13 @@ function RailTripBreakdown({
   inbound,
   liveBus,
   liveBusRefreshing,
+  weatherLines,
 }: {
   option: Option;
   inbound: boolean;
   liveBus: BusArrivalsResult | undefined;
   liveBusRefreshing: boolean;
+  weatherLines: Map<number, WeatherLine[]>;
 }) {
   const duration = (leg: Leg) =>
     leg.minutes ?? (leg.depart_seconds !== null && leg.arrive_seconds !== null
@@ -2334,6 +2336,11 @@ function RailTripBreakdown({
                   <p>{`Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}</p>
                 </div>
               )}
+              {(weatherLines.get(option.legs.indexOf(leg)) ?? []).map((line) => (
+                <p key={line.text} className={`mt-2 text-xs ${TONE_CLASS[line.tone]}`}>
+                  {line.text}<span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
+                </p>
+              ))}
             </div>
           </li>
         );

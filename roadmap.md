@@ -136,3 +136,8 @@
 - [x] Show the selected door-to-door itinerary with start, end, transit stops, route line, and live GPS
 - [x] Fit the map to the full trip and verify the configured commute view on mobile
 - [x] Add recenter, fit-all, and standard/satellite controls to commute and nearby maps
+
+## Decluttered commute screen
+- [x] Replace the side-by-side comparison with a stacked verdict, map, and Rail/Drive switcher
+- [x] Default details to the recommended mode while preserving itinerary, traffic, incidents, weather, alerts, settings, and trip controls
+- [x] Condense two-way H-1 conditions into an expandable mobile summary
