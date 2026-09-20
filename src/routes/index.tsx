@@ -18,6 +18,11 @@ import {
   type AlertPrefs,
   type ApproachState,
 } from "@/lib/approach";
+import {
+  detectLocationPlatform,
+  isPermissionDeniedError,
+  queryLocationPermission,
+} from "@/lib/location-permission";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -118,6 +123,7 @@ const STORAGE_KEY = "nalu-setup-v3";
 const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
 const BROWSE_STATION_KEY = "nalu-browse-station-v1";
 const BROWSE_LOCATION_DENIED_KEY = "nalu-browse-location-denied-v1";
+const LOCATION_DENIED_KEY = "nalu-location-denied-v1";
 const KAPOLEI_POINT = { lat: 21.3358, lon: -158.0798 };
 const DOWNTOWN_POINT = { lat: 21.3099, lon: -157.8644 };
 const DIRECTION_KEY = "nalu-direction-v1";
@@ -509,6 +515,7 @@ function Index() {
   const [parked, setParked] = useState<ParkedCar | null>(null);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
+  const [locationDenied, setLocationDenied] = useState(false);
 
   useEffect(() => {
     const migrateStorage = (key: string, legacySuffix: string) => {
@@ -536,6 +543,7 @@ function Index() {
     }
     migrateStorage(BROWSE_STATION_KEY, "browse-station-v1");
     migrateStorage(BROWSE_LOCATION_DENIED_KEY, "browse-location-denied-v1");
+    migrateStorage(LOCATION_DENIED_KEY, "location-denied-v1");
     migrateStorage(DIRECTION_KEY, "direction-v1");
     migrateStorage(PARKED_KEY, "parked-v1");
     // Trip tracking was removed; clear any trip state left on the phone.
@@ -544,6 +552,39 @@ function Index() {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Track whether the browser has blocked location so the app can offer
+  // recovery steps instead of silently falling back to a default station.
+  useEffect(() => {
+    let cancelled = false;
+    if (window.localStorage.getItem(LOCATION_DENIED_KEY) === "1") setLocationDenied(true);
+    let status: PermissionStatus | null = null;
+    const sync = () => {
+      if (cancelled || !status) return;
+      if (status.state === "denied") {
+        setLocationDenied(true);
+        window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+      } else if (status.state === "granted" || status.state === "prompt") {
+        setLocationDenied(false);
+        window.localStorage.removeItem(LOCATION_DENIED_KEY);
+      }
+    };
+    navigator.permissions?.query({ name: "geolocation" as PermissionName }).then((result) => {
+      if (cancelled) return;
+      status = result;
+      status.onchange = sync;
+      sync();
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+      if (status) status.onchange = null;
+    };
+  }, []);
+
+  function recordLocationDenied() {
+    setLocationDenied(true);
+    window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+  }
 
   // A manual choice sticks for 2 hours, then the time-of-day default takes over again.
   const overrideActive = Boolean(override && now.getTime() - override.at < OVERRIDE_MS);
@@ -677,9 +718,10 @@ function Index() {
           userLon: lon,
         });
       },
-      () => {
+      (error) => {
         setBrowseLocationDenied(true);
         window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
+        if (isPermissionDeniedError(error)) recordLocationDenied();
       },
       { timeout: 10_000 },
     );
@@ -1518,6 +1560,15 @@ function Index() {
             </p>
             {browseLocationDenied && browseStation && (
               <p className="mt-1 text-xs text-muted-foreground">Estimated from West Oahu · choose another station below</p>
+            )}
+            {browseLocationDenied && locationDenied && (
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="mt-1 block text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+              >
+                Location is blocked in your browser · how to allow it
+              </button>
             )}
           </section>
 
@@ -2376,6 +2427,71 @@ function DataExpiryNotice() {
   );
 }
 
+/** Friendly recovery steps shown when the browser has blocked location access. */
+function LocationBlockedCard({ onDismiss }: { onDismiss: () => void }) {
+  const platform = useState(() =>
+    typeof navigator === "undefined"
+      ? "desktop"
+      : detectLocationPlatform(navigator.userAgent, typeof document !== "undefined" && "ontouchend" in document),
+  )[0] as ReturnType<typeof detectLocationPlatform>;
+
+  const steps =
+    platform === "ios"
+      ? {
+          label: "iPhone or iPad · Safari",
+          body: (
+            <>
+              Tap the <strong className="font-semibold">aA</strong> or page-settings icon in your address bar, open{" "}
+              <strong className="font-semibold">Website Settings</strong>, change{" "}
+              <strong className="font-semibold">Location</strong> to <strong className="font-semibold">Allow</strong>,
+              then refresh.
+            </>
+          ),
+        }
+      : platform === "android"
+        ? {
+            label: "Chrome · Android",
+            body: (
+              <>
+                Tap the <strong className="font-semibold">tune / lock</strong> icon next to the URL, open{" "}
+                <strong className="font-semibold">Permissions</strong>, set{" "}
+                <strong className="font-semibold">Location</strong> to <strong className="font-semibold">Allow</strong>,
+                then refresh.
+              </>
+            ),
+          }
+        : {
+            label: "Chrome or Edge · desktop",
+            body: (
+              <>
+                Click the <strong className="font-semibold">lock</strong> icon in the address bar, open{" "}
+                <strong className="font-semibold">Site settings</strong>, set{" "}
+                <strong className="font-semibold">Location</strong> to <strong className="font-semibold">Allow</strong>,
+                then reload.
+              </>
+            ),
+          };
+
+  return (
+    <div className="relative rounded-lg border border-chart-4/40 bg-surface-raised p-4 pr-9" role="status">
+      <p className="text-sm font-semibold text-foreground">Location is blocked</p>
+      <p className="mt-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">{steps.label}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-foreground">{steps.body}</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Nalu also works without location — you can always pick a station by hand.
+      </p>
+      <button
+        type="button"
+        aria-label="Dismiss location help"
+        onClick={onDismiss}
+        className="absolute right-2 top-2 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 /** Settings-only controls for how the stop alert announces itself. */
 function AlertPrefsSection({ prefs, onChange }: { prefs: AlertPrefs; onChange: (next: AlertPrefs) => void }) {
   const rows: { id: keyof AlertPrefs; label: string; hint: string }[] = [
@@ -2428,6 +2544,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
   const [busy, setBusy] = useState(false);
   const [placeQuery, setPlaceQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  // Whether the browser currently blocks location, so recovery steps can be shown.
+  const [permissionBlocked, setPermissionBlocked] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -2436,6 +2554,22 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
       setPlaceQuery("");
       setDebouncedQuery("");
     }
+    if (!open) return;
+    let cancelled = false;
+    if (window.localStorage.getItem(LOCATION_DENIED_KEY) === "1") setPermissionBlocked(true);
+    queryLocationPermission().then((state) => {
+      if (cancelled) return;
+      if (state === "denied") {
+        setPermissionBlocked(true);
+        window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+      } else if (state === "granted" || state === "prompt") {
+        setPermissionBlocked(false);
+        window.localStorage.removeItem(LOCATION_DENIED_KEY);
+      }
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [open, setup]);
 
   // 300ms debounce so typing does not fire a search per keystroke.
@@ -2470,6 +2604,15 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
       setStatus("This device cannot share its location. Pick your station below.");
       return;
     }
+    // Check without prompting first: if it is already blocked, skip the request
+    // and show the recovery steps right away.
+    const permission = await queryLocationPermission();
+    if (permission === "denied") {
+      setPermissionBlocked(true);
+      window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+      setStatus("Location is blocked in your browser. Follow the steps below to allow it, or pick your station from the list.");
+      return;
+    }
     setBusy(true);
     setStatus("Finding your nearest rail station…");
     navigator.geolocation.getCurrentPosition(
@@ -2494,8 +2637,14 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
           `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
         );
       },
-      () => {
+      (error) => {
         setBusy(false);
+        if (isPermissionDeniedError(error)) {
+          setPermissionBlocked(true);
+          window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+          setStatus("Location is blocked in your browser. Follow the steps below to allow it, or pick your station from the list.");
+          return;
+        }
         setStatus("Location was not shared. Pick your station below.");
       },
       { timeout: 10_000 },
@@ -2580,6 +2729,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
             <Button variant="outline" onClick={useMyLocation} disabled={busy} className="h-12 justify-start">
               <LocateFixed className="size-4" /> Use my location
             </Button>
+            {permissionBlocked && <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />}
             <Select
               value={draft.homeStopId}
               onValueChange={(stopId) =>
@@ -2686,6 +2836,13 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
               onCheckedChange={(checked) => setDraft((current) => ({ ...current, allowDrive: checked }))}
             />
           </div>
+
+          {!firstRun && permissionBlocked && (
+            <section className="space-y-2 border-t border-border pt-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Location</p>
+              <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
+            </section>
+          )}
 
           {!firstRun && <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />}
 

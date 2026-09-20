@@ -103,3 +103,15 @@
 - [x] One air-quality line on the longest outdoor stretch over 5 min, Moderate or worse,
   never the raw number. Inline muted lines only (amber rain/humidity, orange heat,
   red/amber air) under the relevant leg; no cards, widgets or icons.
+
+## Location permission recovery (done)
+- [x] `src/lib/location-permission.ts`: `isPermissionDeniedError` (geolocation code 1),
+  `queryLocationPermission` via the Permissions API, `detectLocationPlatform`
+  (iOS / Android / desktop; iPadOS-as-Macintosh with touch). Covered by 9 Vitest tests.
+- [x] Global denial tracking in `Index`: persisted under `nalu-location-denied-v1`,
+  synced from `navigator.permissions` `onchange`, set when any geolocation call is denied.
+- [x] `LocationBlockedCard` in setup (inline under "Use my location") and settings
+  (LOCATION section): platform-specific recovery steps — iOS Safari aA → Website Settings,
+  Chrome/Android tune/lock → Permissions, desktop lock → Site settings — with dismiss.
+- [x] Browse mode shows "Location is blocked in your browser · how to allow it" linking to
+  settings when the permission is denied.
