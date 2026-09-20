@@ -68,6 +68,7 @@
   --color-alert-heat: var(--alert-heat);
   --color-alert-air: var(--alert-air);
   --color-location: var(--location);
+  --color-destination: var(--destination);
 }
 
 :root {
@@ -101,6 +102,7 @@
   --alert-heat: oklch(0.74 0.12 55);
   --alert-air: oklch(0.7 0.12 25);
   --location: oklch(0.68 0.18 250);
+  --destination: oklch(0.68 0.2 28);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -190,12 +192,39 @@
 .nalu-journey-marker-start {
   background: var(--color-primary);
   color: var(--color-primary-foreground);
+  border-radius: 999px 999px 999px 0;
+  font-size: 9px;
+  transform: rotate(-45deg);
+}
+
+.nalu-journey-marker-start::first-line {
+  line-height: 1;
 }
 
 .nalu-journey-marker-end {
-  border-color: var(--color-primary);
-  background: var(--color-foreground);
-  color: var(--color-background);
+  border-color: var(--color-foreground);
+  border-radius: 999px 999px 0 999px;
+  background: var(--color-destination);
+  color: var(--color-foreground);
+  font-size: 9px;
+  transform: rotate(45deg);
+}
+
+.nalu-journey-marker-start,
+.nalu-journey-marker-end {
+  width: 34px;
+  height: 34px;
+  box-shadow: 0 3px 14px oklch(0 0 0 / 60%);
+}
+
+.nalu-journey-marker-start::after,
+.nalu-journey-marker-end::after {
+  content: attr(aria-label);
+  transform: rotate(45deg);
+}
+
+.nalu-journey-marker-end::after {
+  transform: rotate(-45deg);
 }
 
 .nalu-journey-marker-rail {

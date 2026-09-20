@@ -960,11 +960,11 @@ function Index() {
     }
     return pick;
   }, [options, earliest]);
-  const [preferLater, setPreferLater] = useState(false);
+  const [selectedDeparture, setSelectedDeparture] = useState<number | null>(null);
   useEffect(() => {
-    setPreferLater(false);
+    setSelectedDeparture(null);
   }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
-  const best = preferLater && alternative ? alternative : earliest;
+  const best = options.find((option) => option.leave_by_seconds === selectedDeparture) ?? earliest;
 
   const { data: stationCoords = [] } = useQuery({
     queryKey: ["rail-station-coords"],
@@ -1656,6 +1656,7 @@ function Index() {
   }
 
   function saveSetup(next: Setup) {
+    if (!configured) chooseDirection(false);
     persist(next);
     window.localStorage.removeItem(SETUP_DISMISSED_KEY);
     setOnboardingOpen(false);
@@ -1723,12 +1724,12 @@ function Index() {
 
           <Button
             onClick={() => setOnboardingOpen(true)}
-            className="mt-5 min-h-16 w-full justify-start gap-3 rounded-lg border border-primary bg-primary px-5 text-left text-lg font-bold text-primary-foreground shadow-lg hover:bg-primary/90"
+            className="mx-auto mt-5 min-h-16 w-full justify-center gap-3 rounded-lg border border-primary bg-primary px-5 text-center text-lg font-bold text-primary-foreground shadow-lg hover:bg-primary/90"
             aria-label="Where to? Set up a trip"
           >
             <Search className="size-6 text-primary-foreground" />
-            <span>WHERE TO</span>
-            <ChevronRight className="ml-auto size-5 text-primary-foreground/70" />
+            <span>WHERE TO?</span>
+            <ChevronRight className="size-5 text-primary-foreground/70" />
           </Button>
 
           {browseUserPoint && (
@@ -2022,7 +2023,7 @@ function Index() {
             className="max-w-[390px] text-4xl font-bold leading-none text-foreground"
           >
             {!configured
-              ? "WHERE TO"
+              ? "WHERE TO?"
               : verdict === "none"
                 ? "RAIL UNAVAILABLE"
                 : verdict === "same"
@@ -2114,70 +2115,42 @@ function Index() {
             </div>
           )}
 
-          {selectedMode === "rail" && best && (
-            <div className="mt-6">
-            {earliest && alternative && (
-              <div className="mt-4 flex gap-2" role="group" aria-label="Choose a trip">
-                <button
-                  type="button"
-                  aria-pressed={!preferLater}
-                  onClick={() => setPreferLater(false)}
-                  className={`min-h-11 flex-1 rounded-2xl border px-3 py-2 text-left text-sm ${
-                    preferLater ? "border-border text-muted-foreground" : "border-recommended text-foreground"
-                  }`}
-                >
-                  <span className="block font-semibold">Arrive {clockFromSeconds(earliest.arrive_seconds)}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    Leave {clockFromSeconds(earliest.leave_by_seconds)} · earliest arrival
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={preferLater}
-                  onClick={() => setPreferLater(true)}
-                  className={`min-h-11 flex-1 rounded-2xl border px-3 py-2 text-left text-sm ${
-                    preferLater ? "border-recommended text-foreground" : "border-border text-muted-foreground"
-                  }`}
-                >
-                  <span className="block font-semibold">Arrive {clockFromSeconds(alternative.arrive_seconds)}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    Leave {Math.round((alternative.leave_by_seconds - earliest.leave_by_seconds) / 60)} min later,
-                    arrive {Math.round((alternative.arrive_seconds - earliest.arrive_seconds) / 60)} min later
-                  </span>
-                </button>
-              </div>
-            )}
-            </div>
-          )}
         </section>
 
-        <section className="pb-8" aria-labelledby="later-title">
-          <div className="mb-4">
-            <h2 id="later-title" className="text-lg font-semibold">
-              Later options
-            </h2>
-            <p className="mt-1 truncate text-sm text-muted-foreground">
-              {inbound
-                ? `Via ${stationLabel(setup.homeStopName)}`
-                : stationLabel(setup.homeStopName) || "No station set"}
-            </p>
-          </div>
-          <ol className="divide-y divide-border">
-            {options.filter((option) => option !== best).map((option, index) => (
-              <li key={`${option.leave_by_seconds}-${index}`} className="flex min-h-14 items-center justify-between gap-3 py-2">
-                <span className="font-medium tabular-nums text-foreground">
-                  Leave {clockFromSeconds(option.leave_by_seconds)}
-                </span>
-                <span className="truncate text-sm text-muted-foreground">
-                  {option.legs[0] ? vehicleName(option.legs[0]) : ""}
-                </span>
-                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-                  Arrive {clockFromSeconds(option.arrive_seconds)} · {option.total_minutes} min
-                </span>
+        <section className="mb-8 rounded-lg border border-border bg-surface-raised p-5" aria-labelledby="later-title">
+          <h2 id="later-title" className="text-lg font-semibold">Alternative Departures</h2>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            Need to leave later? Select an upcoming train &amp; bus itinerary to update your commute plan.
+          </p>
+          <ol className="mt-4 grid gap-3">
+            {options.slice(1).map((option, index) => {
+              const selected = option.leave_by_seconds === best?.leave_by_seconds;
+              const difference = earliest
+                ? Math.max(0, Math.round((option.arrive_seconds - earliest.arrive_seconds) / 60))
+                : 0;
+              return (
+              <li key={`${option.leave_by_seconds}-${index}`}>
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setSelectedDeparture(selected ? null : option.leave_by_seconds)}
+                  className={`w-full rounded-lg border p-4 text-left transition-colors ${selected ? "border-recommended bg-recommended/10" : "border-border bg-background/40 hover:border-muted-foreground"}`}
+                >
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="text-lg font-bold tabular-nums text-foreground">Leave {clockFromSeconds(option.leave_by_seconds)}</span>
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">+{difference} min</span>
+                  </span>
+                  <span className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
+                    <span><span className="block text-xs text-muted-foreground">Arrival ETA</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{clockFromSeconds(option.arrive_seconds)}</span></span>
+                    <span><span className="block text-xs text-muted-foreground">Total duration</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{option.total_minutes} min</span></span>
+                  </span>
+                  {option.legs[0] && <span className="mt-3 block truncate text-xs text-muted-foreground">{vehicleName(option.legs[0])}</span>}
+                </button>
               </li>
-            ))}
+              );
+            })}
             {options.length <= 1 && (
-              <li className="py-3 text-sm text-muted-foreground">
+              <li className="py-2 text-sm text-muted-foreground">
                 {!configured
                   ? "Finish setup to see options."
                   : optionsLoading
@@ -2886,7 +2859,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
       <DialogContent className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
         <SettingsExpiryBanner />
         <DialogHeader className="text-left">
-          <DialogTitle className="text-2xl">{firstRun ? "WHERE TO" : "Your trip"}</DialogTitle>
+          <DialogTitle className="text-2xl">{firstRun ? "WHERE TO?" : "Your trip"}</DialogTitle>
           <DialogDescription>
             Nalu needs your starting point and destination once. Everything stays on this device.
           </DialogDescription>
