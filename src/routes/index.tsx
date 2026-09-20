@@ -515,6 +515,7 @@ function Index() {
   const [parked, setParked] = useState<ParkedCar | null>(null);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
+  const [locationDenied, setLocationDenied] = useState(false);
 
   useEffect(() => {
     const migrateStorage = (key: string, legacySuffix: string) => {
