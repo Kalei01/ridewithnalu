@@ -1723,13 +1723,12 @@ function Index() {
 
           <Button
             onClick={() => setOnboardingOpen(true)}
-            variant="secondary"
-            className="mt-5 min-h-16 w-full justify-start gap-3 rounded-lg border border-border bg-surface-raised px-5 text-left text-lg font-semibold shadow-lg"
+            className="mt-5 min-h-16 w-full justify-start gap-3 rounded-lg border border-primary bg-primary px-5 text-left text-lg font-bold text-primary-foreground shadow-lg hover:bg-primary/90"
             aria-label="Where to? Set up a trip"
           >
-            <Search className="size-6 text-primary" />
+            <Search className="size-6 text-primary-foreground" />
             <span>WHERE TO</span>
-            <ChevronRight className="ml-auto size-5 text-muted-foreground" />
+            <ChevronRight className="ml-auto size-5 text-primary-foreground/70" />
           </Button>
 
           {browseUserPoint && (
