@@ -2072,19 +2072,20 @@ function Index() {
           compact
         />
 
-        {best && commuteMapPoints.length >= 2 && (
+        {best && mapPoints.length >= 2 && (
           <section className="mt-4 overflow-hidden rounded-lg border border-border bg-surface-raised" aria-labelledby="trip-map-title">
             <div className="flex items-center justify-between px-4 py-3">
               <div><h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2><p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div>
-              <span className="text-xs font-semibold text-muted-foreground">{commuteMapPoints.length - 2} transit points</span>
+              <span className="text-xs font-semibold text-muted-foreground">{selectedMode === "drive" ? "Direct drive" : `${mapPoints.length - 2} transit points`}</span>
             </div>
             <div className="h-72 border-t border-border sm:h-80">
               <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
-                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={commuteMapPoints} livePoint={riderPoint} /></Suspense>
+                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} /></Suspense>
               </ClientOnly>
             </div>
           </section>
         )}
+
 
         <section className="py-6" aria-labelledby="mode-details-title">
           <h2 id="mode-details-title" className="sr-only">Trip details</h2>
