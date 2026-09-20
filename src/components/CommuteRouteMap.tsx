@@ -43,7 +43,7 @@ function journeyIcon(point: JourneyPoint) {
   });
 }
 
-export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapProps) {
+export default function CommuteRouteMap({ points, livePoint, path }: CommuteRouteMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
