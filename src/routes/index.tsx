@@ -1684,26 +1684,8 @@ function Index() {
             )}
           </article>
         </section>
-        )}
 
-        {trip && (
-          <TripProgress
-            trip={trip}
-            phase={phase}
-            railLeg={railLeg}
-            connectLeg={connectLeg}
-            connecting={connecting}
-            connectingLoading={connectingLoading}
-            activeBusLeg={activeBusLeg}
-            liveBus={liveBus}
-            liveBusRefreshing={liveBusRefreshing}
-            nowSeconds={nowSeconds}
-            destinationLabel={destinationLabel}
-            onEnd={endTrip}
-          />
-        )}
-
-        {best && !tripActive && (
+        {best && (
           <section className="py-8" aria-labelledby="chain-title">
             <h2 id="chain-title" className="text-lg font-semibold">
               Your next trip
