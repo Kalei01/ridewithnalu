@@ -39,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
+const CommuteRouteMap = lazy(() => import("@/components/CommuteRouteMap"));
 
 function WaveMark({ className }: { className?: string }) {
   return (
@@ -1022,17 +1023,20 @@ function Index() {
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
   const distanceTrend = useRef<number[]>([]);
   useEffect(() => {
-    if (!activeTransitLeg || !navigator.geolocation) {
+    if (!configured || !navigator.geolocation) {
       setRiderPoint(null);
       return;
     }
     const watch = navigator.geolocation.watchPosition(
       (position) => setRiderPoint({ lat: position.coords.latitude, lon: position.coords.longitude }),
-      () => setRiderPoint(null),
+      (error) => {
+        setRiderPoint(null);
+        if (isPermissionDeniedError(error)) recordLocationDenied();
+      },
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
     );
     return () => navigator.geolocation.clearWatch(watch);
-  }, [activeTransitLeg]);
+  }, [configured]);
 
   // Legs change: start the distance history over so an old ride cannot trigger
   // a "passed your stop" notice on the next one.

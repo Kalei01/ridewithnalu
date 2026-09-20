@@ -131,3 +131,7 @@
 - [x] Add a lightweight location map with current-position, rail, and bus markers
 - [x] Show nearby stop distance, walk/drive ETA, and next scheduled arrivals
 - [x] Verify mobile browse interactions, tests, and production build
+
+## Commute route map
+- [ ] Show the selected door-to-door itinerary with start, end, transit stops, route line, and live GPS
+- [ ] Fit the map to the full trip and verify the configured commute view on mobile
