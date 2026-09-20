@@ -14,6 +14,8 @@ type JourneyPoint = {
 type CommuteRouteMapProps = {
   points: JourneyPoint[];
   livePoint: { lat: number; lon: number } | null;
+  /** Real road geometry to draw instead of straight hops (used for Drive mode). */
+  path?: Array<{ lat: number; lon: number }>;
 };
 
 type Basemap = "standard" | "satellite";
