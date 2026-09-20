@@ -9,6 +9,15 @@ import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { driveTime, type DriveIncident, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
+import {
+  ALERT_PREFS_KEY,
+  defaultAlertPrefs,
+  evaluateApproach,
+  parseAlertPrefs,
+  playChime,
+  type AlertPrefs,
+  type ApproachState,
+} from "@/lib/approach";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
