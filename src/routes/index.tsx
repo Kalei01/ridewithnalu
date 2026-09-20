@@ -1173,7 +1173,7 @@ function Index() {
       });
     }
     return list;
-  }, [best, inbound, homePoint, destPoint, nowSeconds, stationCoords, stationPoint, setup.homeStopName]);
+  }, [best, inbound, homePoint, destPoint, nowSeconds, stationPoint, setup.homeStopName]);
 
   const fetchWeather = useServerFn(outdoorConditions);
   // Runs alongside the plan, never in front of it: the trip renders regardless.
