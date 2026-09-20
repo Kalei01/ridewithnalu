@@ -892,7 +892,7 @@ function Index() {
         p_from_name: leg.from as string,
         p_to_name: leg.to as string,
         p_depart_seconds: leg.depart_seconds as number,
-        p_route_short: (leg.mode === "bus" ? leg.route_short : null) ?? undefined,
+        ...(leg.mode === "bus" && leg.route_short ? { p_route_short: leg.route_short } : {}),
         p_rail: leg.mode === "rail",
       });
       if (error) throw error;
@@ -925,8 +925,9 @@ function Index() {
   const approach = useMemo(() => {
     if (!activeTransitLeg || legStops.length < 2) return null;
     const alightIndex = legStops.findIndex((stop) => stop.isAlight);
-    const alight = alightIndex >= 0 ? legStops[alightIndex] : legStops[legStops.length - 1];
     const endIndex = alightIndex >= 0 ? alightIndex : legStops.length - 1;
+    const alight = legStops[endIndex];
+    if (!alight) return null;
 
     let currentIndex = 0;
     let metersToAlight: number | null = null;
@@ -974,7 +975,7 @@ function Index() {
       state: (urgent ? "urgent" : getReady ? "ready" : "cruising") as "urgent" | "ready" | "cruising",
       stopsAway,
       minutesToAlight,
-      nextStopName: nextStop.stopName,
+      nextStopName: nextStop?.stopName ?? alight.stopName,
       alightName: alight.stopName,
       vehicle: activeTransitLeg.mode === "rail" ? "rail" : "bus",
       live: Boolean(riderPoint),
