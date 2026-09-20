@@ -2019,38 +2019,8 @@ function Index() {
 
         <DataExpiryNotice />
 
-        <H1ConditionsCard
-          eastbound={eastboundTraffic}
-          westbound={westboundTraffic}
-          loading={eastboundTrafficLoading || westboundTrafficLoading}
-          unavailable={
-            eastboundTrafficFailed ||
-            westboundTrafficFailed ||
-            (!(eastboundTrafficLoading || westboundTrafficLoading) && (!eastboundTraffic || !westboundTraffic))
-          }
-        />
-
-        {best && commuteMapPoints.length >= 2 && (
-          <section className="mt-4 overflow-hidden rounded-lg border border-border bg-surface-raised" aria-labelledby="trip-map-title">
-            <div className="flex items-center justify-between px-4 py-3">
-              <div>
-                <h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p>
-              </div>
-              <span className="text-xs font-semibold text-muted-foreground">{commuteMapPoints.length - 2} transit points</span>
-            </div>
-            <div className="h-72 border-t border-border sm:h-80">
-              <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
-                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
-                  <CommuteRouteMap points={commuteMapPoints} livePoint={riderPoint} />
-                </Suspense>
-              </ClientOnly>
-            </div>
-          </section>
-        )}
-
         <section
-          className="verdict-lift -mx-3 mt-4 rounded-3xl px-3 py-9 animate-in fade-in duration-300"
+          className="verdict-lift -mx-2 mt-5 rounded-lg border border-border px-5 py-7 animate-in fade-in duration-300"
           aria-labelledby="verdict-title"
         >
           <div className="mb-5 flex items-center gap-2 text-recommended">
@@ -2061,7 +2031,7 @@ function Index() {
           </div>
           <h1
             id="verdict-title"
-            className="max-w-[360px] text-[clamp(3.1rem,13vw,4.2rem)] font-bold leading-[0.9] text-foreground"
+            className="max-w-[390px] text-4xl font-bold leading-none text-foreground"
           >
             {!configured
               ? "WHERE TO"
@@ -2070,38 +2040,28 @@ function Index() {
                 : verdict === "same"
                   ? "ABOUT THE SAME"
                   : verdict === "rail"
-                    ? "TAKE THE RAIL"
-                    : "DRIVE TODAY"}
+                    ? `TAKE RAIL${gap !== null ? ` · ${Math.abs(gap)} MIN FASTER` : ""}`
+                    : `DRIVE TODAY${gap !== null ? ` · ${Math.abs(gap)} MIN FASTER` : ""}`}
           </h1>
-          {verdict === "rail" && best && (
-            <p className="mt-6 text-3xl font-bold text-recommended">
-              Leave by {clockFromSeconds(best.leave_by_seconds)} for the train
+          {verdict === "rail" && best && railRange && (
+            <div className="mt-6 grid grid-cols-3 gap-3 border-t border-border pt-5">
+              <div><p className="text-xs text-muted-foreground">Leave by</p><p className="mt-1 text-xl font-bold tabular-nums text-recommended">{clockFromSeconds(best.leave_by_seconds)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Arrive</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{clockFromSeconds(best.arrive_seconds)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Total</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{railRange.high} min</p></div>
+            </div>
+          )}
+          {verdict === "drive" && drive && driveRange && (
+            <div className="mt-6 grid grid-cols-3 gap-3 border-t border-border pt-5">
+              <div><p className="text-xs text-muted-foreground">Leave</p><p className="mt-1 text-xl font-bold text-recommended">Now</p></div>
+              <div><p className="text-xs text-muted-foreground">Arrive</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{clockFromSeconds(nowSeconds + drive.trafficMinutes * 60)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Total</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{driveRange.high} min</p></div>
+            </div>
+          )}
+          {(verdict === "same" || verdict === "none") && (
+            <p className="mt-4 text-lg font-medium text-muted-foreground">
+              {verdict === "same" ? `Rail and driving are within ${TOSS_UP_MIN} min of each other.` : optionsLoading ? "Checking today's connections…" : todayHours ? `No reachable rail connection right now. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.` : "No rail service for this trip today."}
             </p>
           )}
-          {verdict === "drive" && drive && (
-            <p className="mt-6 text-3xl font-bold text-recommended">
-              Leave now for a ~{drive.trafficMinutes} min drive
-            </p>
-          )}
-          <p className="mt-3 text-lg font-medium text-muted-foreground">
-            {best
-              ? verdict === "same"
-                ? `Rail and driving are within ${TOSS_UP_MIN} min of each other.`
-                : verdict === "rail"
-                  ? `${gap !== null ? `Rail is ${Math.abs(gap)} min faster than driving · ` : ""}${
-                      leaveIn !== null && leaveIn > 0 ? `train in ${leaveIn} min` : "leave now"
-                    }`
-                  : `${gap !== null ? `Driving is ${Math.abs(gap)} min faster than rail.` : "Driving is the faster available option."}`
-              : !configured
-                ? "Add your home station and destination to start."
-                : optionsLoading
-                  ? "Checking today's connections…"
-                  : todayHours
-                    ? `Rail runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(
-                        todayHours.last_seconds,
-                      )} today — no reachable trip with a connection right now.`
-                    : "No rail service for this trip today."}
-          </p>
           {reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
           {activeDestStopName && (
             <p className="mt-3 text-sm text-muted-foreground">
@@ -2113,115 +2073,61 @@ function Index() {
           )}
         </section>
 
-        <section aria-label="Comparison" className="grid grid-cols-2 border-y border-border">
-          <article className={`border-r border-border py-7 pr-5 ${verdict === "drive" ? "opacity-55" : ""}`}>
-            <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-muted-foreground" : "text-recommended"}`}>
-              Rail trip
-            </p>
-            <p
-              className={`mt-3 text-5xl font-semibold leading-none ${
-                verdict === "drive" ? "text-foreground" : "text-recommended"
-              }`}
-            >
-              {railRange ? railRange.high : "—"}
-              <span className="ml-1 text-base font-medium">min</span>
-            </p>
-            {railRange && (
-              <p className="mt-1 text-sm text-muted-foreground">{railRange.low}–{railRange.high} min, worst case first</p>
-            )}
-            {best ? (
-               <RailTripBreakdown option={best} inbound={inbound} liveBus={liveBus} liveBusRefreshing={liveBusRefreshing} />
-            ) : (
-              <p className="mt-7 text-sm text-muted-foreground">{optionsLoading ? "Building your trip…" : "No rail trip available."}</p>
-            )}
-          </article>
-          <article className={`py-7 pl-5 ${verdict === "drive" ? "" : "opacity-55"}`}>
-            <p className={`text-xs font-bold uppercase ${verdict === "drive" ? "text-recommended" : "text-muted-foreground"}`}>
-              Drive
-            </p>
-            <p className="mt-3 text-5xl font-semibold leading-none text-foreground">
-              {driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}
-              {driveAvailable && driveRange && <span className="ml-1 text-base font-medium">min</span>}
-            </p>
-            {driveAvailable && driveRange && drive && (
-              <>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {driveRange.low}–{driveRange.high} min
-                </p>
-                {driveWeatherLines.map((line) => (
-                  <p key={line.text} className={`mt-1 text-xs ${TONE_CLASS[line.tone]}`}>
-                    {line.text}
-                    <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
-                  </p>
-                ))}
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {drive.delayMinutes >= 1
-                    ? `${drive.trafficMinutes} min now, ${drive.delayMinutes} min slower than usual`
-                    : drive.delayMinutes <= -1
-                      ? `${drive.trafficMinutes} min now, ${Math.abs(drive.delayMinutes)} min faster than usual`
-                      : `${drive.trafficMinutes} min now, about usual for this time`}
-                </p>
-                <p className="mt-1 text-[10px] text-muted-foreground">Drive time: TomTom</p>
-              </>
-            )}
-            {!driveAvailable && carAwayReason && (
-              <p className="mt-2 text-sm text-muted-foreground">{carAwayReason}</p>
-            )}
-            {driveAvailable && driveFailed && (
-              <p className="mt-2 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>
-            )}
-            {driveAvailable && drive?.incidents[0] ? (
-              <p className="mt-3 rounded-lg bg-surface-raised px-3 py-2 text-sm text-foreground">
-                {incidentText(drive.incidents[0])}
-                {drive.incidents[0].delayMinutes ? ` · +${drive.incidents[0].delayMinutes} min` : ""}
-              </p>
-            ) : null}
-            {driveAvailable && (
-            <dl className="mt-7 space-y-4 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Usually</dt>
-                <dd className="mt-1 font-semibold text-foreground">
-                  {drive ? `${drive.typicalMinutes} min` : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">{inbound ? "From" : "To"}</dt>
-                <dd className="mt-1 truncate font-semibold text-foreground">
-                  {inbound
-                    ? setup.destinationName || setup.destinationAddress || "Your destination"
-                    : setup.destinationName || setup.destinationAddress || "Your destination"}
-                </dd>
-              </div>
-            </dl>
-            )}
-            {!inbound && driveAvailable && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCarPlace("destination")}
-                className="mt-4 px-0 text-muted-foreground hover:text-foreground"
-              >
-                I'm driving all the way
-              </Button>
-            )}
-            {inbound && carPlace === "destination" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCarPlace("home")}
-                className="mt-4 px-0 text-muted-foreground hover:text-foreground"
-              >
-                My car isn't here
-              </Button>
-            )}
-          </article>
-        </section>
+        <H1ConditionsCard
+          eastbound={eastboundTraffic}
+          westbound={westboundTraffic}
+          loading={eastboundTrafficLoading || westboundTrafficLoading}
+          unavailable={eastboundTrafficFailed || westboundTrafficFailed || (!(eastboundTrafficLoading || westboundTrafficLoading) && (!eastboundTraffic || !westboundTraffic))}
+          compact
+        />
 
-        {best && (
-          <section className="py-8" aria-labelledby="chain-title">
-            <h2 id="chain-title" className="text-lg font-semibold">
-              Your next trip
-            </h2>
+        {best && commuteMapPoints.length >= 2 && (
+          <section className="mt-4 overflow-hidden rounded-lg border border-border bg-surface-raised" aria-labelledby="trip-map-title">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div><h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2><p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div>
+              <span className="text-xs font-semibold text-muted-foreground">{commuteMapPoints.length - 2} transit points</span>
+            </div>
+            <div className="h-72 border-t border-border sm:h-80">
+              <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
+                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={commuteMapPoints} livePoint={riderPoint} /></Suspense>
+              </ClientOnly>
+            </div>
+          </section>
+        )}
+
+        <section className="py-6" aria-labelledby="mode-details-title">
+          <h2 id="mode-details-title" className="sr-only">Trip details</h2>
+          <div role="tablist" aria-label="Travel mode" className="grid grid-cols-2 gap-1 rounded-lg bg-surface-raised p-1">
+            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => setSelectedMode("rail")} className={`h-12 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+              <TrainFront /> Rail {railRange ? `· ${railRange.high} min` : ""}
+            </Button>
+            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => setSelectedMode("drive")} className={`h-12 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+              <Car /> Drive {driveAvailable && driveRange ? `· ${driveRange.high} min` : ""}
+            </Button>
+          </div>
+
+          {selectedMode === "rail" && (
+            <div className="mt-6">
+              <div className="flex items-baseline justify-between gap-3"><h3 className="text-xl font-bold text-foreground">Rail itinerary</h3>{railRange && <p className="text-sm font-semibold text-muted-foreground">{railRange.low}–{railRange.high} min</p>}</div>
+              {best ? <RailTripBreakdown option={best} inbound={inbound} liveBus={liveBus} liveBusRefreshing={liveBusRefreshing} weatherLines={weatherLines} /> : <p className="mt-5 text-sm text-muted-foreground">{optionsLoading ? "Building your trip…" : "No rail trip available."}</p>}
+            </div>
+          )}
+
+          {selectedMode === "drive" && (
+            <div className="mt-6 rounded-lg border border-border p-5">
+              <div className="flex items-end justify-between gap-4"><div><h3 className="text-xl font-bold text-foreground">Drive details</h3><p className="mt-1 text-sm text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div><p className="text-4xl font-bold tabular-nums text-foreground">{driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}<span className="ml-1 text-base">min</span></p></div>
+              {driveAvailable && driveRange && drive && <><p className="mt-4 text-sm font-semibold text-foreground">{driveRange.low}–{driveRange.high} min · {drive.delayMinutes >= 1 ? `${drive.delayMinutes} min slower than usual` : drive.delayMinutes <= -1 ? `${Math.abs(drive.delayMinutes)} min faster than usual` : "about usual"}</p><p className="mt-1 text-[10px] text-muted-foreground">Drive time: TomTom</p></>}
+              {!driveAvailable && carAwayReason && <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>}
+              {driveAvailable && driveFailed && <p className="mt-4 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>}
+              {driveAvailable && drive?.incidents[0] && <p className="mt-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm font-semibold text-foreground">{incidentText(drive.incidents[0])}{drive.incidents[0].delayMinutes ? ` · +${drive.incidents[0].delayMinutes} min` : ""}</p>}
+              {driveWeatherLines.map((line) => <p key={line.text} className={`mt-3 text-sm ${TONE_CLASS[line.tone]}`}>{line.text}<span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span></p>)}
+              {!inbound && driveAvailable && <Button variant="outline" size="sm" onClick={() => setCarPlace("destination")} className="mt-5">I'm driving all the way</Button>}
+              {inbound && carPlace === "destination" && <Button variant="outline" size="sm" onClick={() => setCarPlace("home")} className="mt-5">My car isn't here</Button>}
+            </div>
+          )}
+
+          {selectedMode === "rail" && best && (
+            <div className="mt-6">
             {earliest && alternative && (
               <div className="mt-4 flex gap-2" role="group" aria-label="Choose a trip">
                 <button
@@ -2253,55 +2159,9 @@ function Index() {
                 </button>
               </div>
             )}
-            <ol className="mt-5">
-
-              {timeline.map((row, index) => {
-                const Icon = modeIcon(row.mode);
-                return (
-                  <li key={`${row.seconds}-${index}`} className="flex gap-3">
-                    <span className="w-[74px] shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-foreground">
-                      {clockFromSeconds(row.seconds)}
-                    </span>
-                    <span className="flex flex-col items-center pt-1">
-                      <span
-                        className={`flex size-5 items-center justify-center rounded-full ${
-                          index === 0 || index === timeline.length - 1
-                            ? "bg-recommended text-recommended-foreground"
-                            : "bg-surface-raised text-muted-foreground"
-                        }`}
-                      >
-                        <Icon className="size-3" />
-                      </span>
-                      {index < timeline.length - 1 && <span className="w-px flex-1 bg-border" />}
-                    </span>
-                    <span className="flex-1 pb-6">
-                      <span className="block text-[15px] font-semibold text-foreground">{row.title}</span>
-                      {row.boardAt ? (
-                        <span className="mt-2 block space-y-1.5">
-                          <span className="block text-sm font-semibold text-foreground">
-                            Board at: {row.boardAt}
-                          </span>
-                          <span className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
-                            <span>Get off at: {row.getOffAt}</span>
-                            <span className="shrink-0 tabular-nums">{clockFromSeconds(row.arriveSeconds)}</span>
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="mt-0.5 block text-sm font-semibold text-foreground">{row.detail}</span>
-                      )}
-                      {(weatherLines.get(row.legIndex) ?? []).map((line) => (
-                        <span key={line.text} className={`mt-1 block text-xs ${TONE_CLASS[line.tone]}`}>
-                          {line.text}
-                          <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
-                        </span>
-                      ))}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-        )}
+            </div>
+          )}
+        </section>
 
         <section className="pb-8" aria-labelledby="later-title">
           <div className="mb-4">
