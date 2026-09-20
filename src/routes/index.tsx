@@ -799,42 +799,6 @@ function Index() {
   }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
   const best = preferLater && alternative ? alternative : earliest;
 
-  // ---- Trip progress -------------------------------------------------------
-  const tripActive = Boolean(trip);
-
-  function startTrip(option: Option) {
-    if (!inbound && option.legs[0]?.mode === "drive") {
-      setCarPlace("station");
-    }
-    const entry: ActiveTrip = {
-      startedAt: Date.now(),
-      inbound,
-      legs: option.legs,
-      departSeconds: option.depart_seconds,
-      arriveSeconds: option.arrive_seconds,
-      homeStopId: setup.homeStopId,
-      destStopId: inbound ? "" : setup.destStopId,
-    };
-    setTrip(entry);
-    window.localStorage.setItem(ACTIVE_TRIP_KEY, JSON.stringify(entry));
-  }
-
-  function endTrip() {
-    setTrip(null);
-    window.localStorage.removeItem(ACTIVE_TRIP_KEY);
-  }
-
-  // Follow the rider while a trip is underway; that is the only time it matters.
-  useEffect(() => {
-    if (!tripActive || !navigator.geolocation) return;
-    const watch = navigator.geolocation.watchPosition(
-      (fix) => setPosition({ lat: fix.coords.latitude, lon: fix.coords.longitude }),
-      () => undefined,
-      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 },
-    );
-    return () => navigator.geolocation.clearWatch(watch);
-  }, [tripActive]);
-
   const { data: stationCoords = [] } = useQuery({
     queryKey: ["rail-station-coords"],
     staleTime: 6 * 60 * 60_000,
@@ -844,9 +808,6 @@ function Index() {
       return data ?? [];
     },
   });
-
-  const railLeg = trip?.legs.find((leg) => leg.kind === "rail") ?? null;
-  const connectLeg = trip?.legs.find((leg) => leg.kind === "connect" || leg.kind === "egress") ?? null;
 
   function stationPoint(name: string | null | undefined): Coords | null {
     if (!name) return null;
@@ -969,26 +930,6 @@ function Index() {
     retry: false,
     queryFn: () => fetchBusArrivals({ data: busTarget as BusStopTarget }),
   });
-
-  // The trip puts itself away once the rider has been there a while.
-  useEffect(() => {
-    if (!trip) return;
-    if (phase !== "arrived") return;
-    const timer = window.setTimeout(endTrip, ARRIVED_CLEAR_MS);
-    return () => window.clearTimeout(timer);
-  }, [trip, phase]);
-
-  useEffect(() => {
-    if (!trip) return;
-    const remaining = trip.startedAt + TRIP_MAX_MS - Date.now();
-    if (remaining <= 0) {
-      endTrip();
-      return;
-    }
-    const timer = window.setTimeout(endTrip, remaining);
-    return () => window.clearTimeout(timer);
-  }, [trip]);
-
 
   // Real driving time between the two points that matter for this direction.
   const driveFrom = inbound
