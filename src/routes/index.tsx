@@ -2129,7 +2129,7 @@ function Index() {
                   <span className="block w-full">
                   <span className="flex items-center justify-between gap-3">
                     <span className="text-lg font-bold tabular-nums text-foreground">Leave {clockFromSeconds(option.leave_by_seconds)}</span>
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">+{difference} min arrival</span>
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">+{difference} min vs best</span>
                   </span>
                   <span className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
                     <span><span className="block text-xs text-muted-foreground">Arrival ETA</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{clockFromSeconds(option.arrive_seconds)}</span></span>

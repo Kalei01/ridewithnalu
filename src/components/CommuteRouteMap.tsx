@@ -37,7 +37,7 @@ function journeyIcon(point: JourneyPoint) {
     className: "nalu-marker-shell",
     html: `<span class="nalu-journey-marker nalu-journey-marker-${point.kind}" aria-label="${label}"><span class="nalu-journey-marker-label">${glyph}</span></span>`,
     iconSize: endpoint ? [58, 34] : [30, 30],
-    iconAnchor: endpoint ? [29, 32] : [15, 15],
+    iconAnchor: endpoint ? [29, 17] : [15, 15],
   });
 }
 
