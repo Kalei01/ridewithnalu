@@ -1435,6 +1435,8 @@ function Index() {
   }, [homePoint, destPoint, inbound, destinationLabel]);
 
   const mapPoints = selectedMode === "drive" ? driveMapPoints : commuteMapPoints;
+  // Drive mode traces the real road geometry TomTom used for the ETA.
+  const driveMapPath = selectedMode === "drive" ? drive?.path : undefined;
 
   const moments = useMemo<OutdoorMoment[]>(() => {
     if (!best) return [];
@@ -2080,7 +2082,7 @@ function Index() {
             </div>
             <div className="h-72 border-t border-border sm:h-80">
               <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
-                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} /></Suspense>
+                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})} /></Suspense>
               </ClientOnly>
             </div>
           </section>

@@ -26,6 +26,8 @@ export type DriveTime = {
   /** High end of the plausible range; the number a commuter should plan around. */
   highMinutes: number;
   meters: number;
+  /** Road geometry of the driven route, for drawing the real corridor on a map. */
+  path: Array<{ lat: number; lon: number }>;
   incidents: DriveIncident[];
   fetchedAt: number;
 };
@@ -53,7 +55,9 @@ export const driveTime = createServerFn({ method: "POST" })
 
     const routeUrl =
       `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
-      `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all`;
+      `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
+      `&routeRepresentation=polyline`;
+
 
     const response = await fetch(routeUrl);
     if (!response.ok) {
@@ -72,9 +76,11 @@ export const driveTime = createServerFn({ method: "POST" })
           liveTrafficIncidentsTravelTimeInSeconds?: number;
           trafficDelayInSeconds?: number;
         };
+        legs?: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>;
       }>;
     };
-    const summary = payload.routes?.[0]?.summary;
+    const route = payload.routes?.[0];
+    const summary = route?.summary;
     if (!summary?.travelTimeInSeconds) throw new Error("No driving route was found.");
 
     const trafficSeconds =
@@ -97,9 +103,11 @@ export const driveTime = createServerFn({ method: "POST" })
       lowMinutes: Math.min(typicalMinutes, trafficMinutes),
       highMinutes: trafficMinutes + spread,
       meters: summary.lengthInMeters ?? 0,
+      path: simplifyPath(route?.legs ?? []),
       incidents,
       fetchedAt: Date.now(),
     };
+
     cache.set(cacheKey, result);
     return result;
   });
@@ -158,4 +166,31 @@ async function fetchIncidents(
     console.error("TomTom incidents error", error);
     return [];
   }
+}
+
+/**
+ * Flatten TomTom leg geometry and thin it to a payload a phone can draw:
+ * enough points to trace the highways, few enough to keep the response small.
+ */
+function simplifyPath(
+  legs: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>,
+  maxPoints = 300,
+): Array<{ lat: number; lon: number }> {
+  const all: Array<{ lat: number; lon: number }> = [];
+  for (const leg of legs) {
+    for (const point of leg.points ?? []) {
+      if (typeof point.latitude !== "number" || typeof point.longitude !== "number") continue;
+      all.push({ lat: point.latitude, lon: point.longitude });
+    }
+  }
+  if (all.length <= maxPoints) return all;
+  const step = all.length / maxPoints;
+  const out: Array<{ lat: number; lon: number }> = [];
+  for (let index = 0; index < maxPoints; index += 1) {
+    const point = all[Math.floor(index * step)];
+    if (point) out.push(point);
+  }
+  const last = all[all.length - 1];
+  if (last) out.push(last);
+  return out;
 }
