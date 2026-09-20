@@ -167,3 +167,30 @@ async function fetchIncidents(
     return [];
   }
 }
+
+/**
+ * Flatten TomTom leg geometry and thin it to a payload a phone can draw:
+ * enough points to trace the highways, few enough to keep the response small.
+ */
+function simplifyPath(
+  legs: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>,
+  maxPoints = 300,
+): Array<{ lat: number; lon: number }> {
+  const all: Array<{ lat: number; lon: number }> = [];
+  for (const leg of legs) {
+    for (const point of leg.points ?? []) {
+      if (typeof point.latitude !== "number" || typeof point.longitude !== "number") continue;
+      all.push({ lat: point.latitude, lon: point.longitude });
+    }
+  }
+  if (all.length <= maxPoints) return all;
+  const step = all.length / maxPoints;
+  const out: Array<{ lat: number; lon: number }> = [];
+  for (let index = 0; index < maxPoints; index += 1) {
+    const point = all[Math.floor(index * step)];
+    if (point) out.push(point);
+  }
+  const last = all[all.length - 1];
+  if (last) out.push(last);
+  return out;
+}
