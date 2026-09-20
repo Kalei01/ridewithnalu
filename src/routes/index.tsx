@@ -2376,6 +2376,40 @@ function DataExpiryNotice() {
   );
 }
 
+/** Settings-only controls for how the stop alert announces itself. */
+function AlertPrefsSection({ prefs, onChange }: { prefs: AlertPrefs; onChange: (next: AlertPrefs) => void }) {
+  const rows: { id: keyof AlertPrefs; label: string; hint: string }[] = [
+    { id: "sound", label: "Sound alert", hint: "A soft chime when your stop is next." },
+    { id: "haptics", label: "Haptic vibration", hint: "Buzz your phone when your stop is next." },
+    {
+      id: "keepOnTransfer",
+      label: "Keep alert on transfer",
+      hint: "Stay visible when the trip moves to the next leg.",
+    },
+  ];
+  return (
+    <section className="space-y-2 border-t border-border pt-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Stop alerts</p>
+      {rows.map((row) => (
+        <div key={row.id} className="flex items-center justify-between gap-4 rounded-lg bg-surface-raised px-4 py-3">
+          <Label htmlFor={`alert-${row.id}`} className="leading-snug">
+            {row.label}
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{row.hint}</span>
+          </Label>
+          <Switch
+            id={`alert-${row.id}`}
+            checked={prefs[row.id]}
+            onCheckedChange={(checked) => {
+              onChange({ ...prefs, [row.id]: checked });
+              if (row.id === "sound" && checked) playChime();
+            }}
+          />
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function SettingsExpiryBanner() {
   const expiry = useDataExpiry();
   if (!expiry || expiry.daysRemaining > 14) return null;
@@ -2386,7 +2420,7 @@ function SettingsExpiryBanner() {
   );
 }
 
-function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProps) {
+function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAlertPrefsChange }: SetupDialogProps) {
 
   const findPlaces = useServerFn(searchPlaces);
   const [draft, setDraft] = useState<Setup>(setup);
@@ -2652,6 +2686,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave }: SetupDialogProp
               onCheckedChange={(checked) => setDraft((current) => ({ ...current, allowDrive: checked }))}
             />
           </div>
+
+          {!firstRun && <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />}
 
           {!firstRun && <AboutSection />}
 
