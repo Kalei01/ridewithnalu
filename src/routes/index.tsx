@@ -1435,6 +1435,8 @@ function Index() {
   }, [homePoint, destPoint, inbound, destinationLabel]);
 
   const mapPoints = selectedMode === "drive" ? driveMapPoints : commuteMapPoints;
+  // Drive mode traces the real road geometry TomTom used for the ETA.
+  const driveMapPath = selectedMode === "drive" ? drive?.path : undefined;
 
   const moments = useMemo<OutdoorMoment[]>(() => {
     if (!best) return [];
