@@ -141,3 +141,8 @@
 - [x] Replace the side-by-side comparison with a stacked verdict, map, and Rail/Drive switcher
 - [x] Default details to the recommended mode while preserving itinerary, traffic, incidents, weather, alerts, settings, and trip controls
 - [x] Condense two-way H-1 conditions into an expandable mobile summary
+
+## Decluttered browse screen
+- [x] Lead with a prominent WHERE TO search action and focused nearby map
+- [x] Consolidate station access and two-way departures into one glanceable card
+- [x] Move nearby arrivals, H-1 details, and weather/AQI into compact expandable sections
