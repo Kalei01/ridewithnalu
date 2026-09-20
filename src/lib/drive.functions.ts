@@ -76,9 +76,11 @@ export const driveTime = createServerFn({ method: "POST" })
           liveTrafficIncidentsTravelTimeInSeconds?: number;
           trafficDelayInSeconds?: number;
         };
+        legs?: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>;
       }>;
     };
-    const summary = payload.routes?.[0]?.summary;
+    const route = payload.routes?.[0];
+    const summary = route?.summary;
     if (!summary?.travelTimeInSeconds) throw new Error("No driving route was found.");
 
     const trafficSeconds =
@@ -101,9 +103,11 @@ export const driveTime = createServerFn({ method: "POST" })
       lowMinutes: Math.min(typicalMinutes, trafficMinutes),
       highMinutes: trafficMinutes + spread,
       meters: summary.lengthInMeters ?? 0,
+      path: simplifyPath(route?.legs ?? []),
       incidents,
       fetchedAt: Date.now(),
     };
+
     cache.set(cacheKey, result);
     return result;
   });
