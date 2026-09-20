@@ -41,7 +41,6 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
       attributionControl: true,
       scrollWheelZoom: false,
       dragging: true,
-      tap: true,
     }).setView([userPoint.lat, userPoint.lon], 14);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
