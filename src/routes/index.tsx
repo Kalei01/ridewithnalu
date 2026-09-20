@@ -9,6 +9,7 @@ import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { driveTime, type DriveIncident, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
+import { incidentText } from "@/lib/traffic-incidents";
 import {
   ALERT_PREFS_KEY,
   defaultAlertPrefs,
@@ -433,11 +434,6 @@ function modeIcon(mode: Leg["mode"]) {
   if (mode === "bus") return Bus;
   if (mode === "drive") return Car;
   return Footprints;
-}
-
-/** Names the road when TomTom gives one, so the banner always says where. */
-function incidentText(incident: DriveIncident) {
-  return incident.road ? `${incident.description} on ${incident.road}` : `${incident.description} on your route`;
 }
 
 function trafficStatus(delayMinutes: number) {
@@ -1164,9 +1160,6 @@ function Index() {
   // One line naming the single thing that decides it.
   const reasoning = useMemo(() => {
     const incident = drive?.incidents[0];
-    if (verdict === "drive" && incident) {
-      return incidentText(incident);
-    }
     if (verdict === "drive" && longWait && waitForTrain !== null) {
       return `Next reachable train is ${waitForTrain} min out`;
     }
@@ -1187,9 +1180,9 @@ function Index() {
         return `${worstLabel} connection adds ${Math.round(worstWait / 60)} min of waiting`;
       }
     }
+    if (verdict === "rail" && incident) return `${incidentText(incident)} delays driving`;
     if (drive && drive.delayMinutes >= 5)
       return `The drive is running ${drive.delayMinutes} min slower than usual`;
-    if (incident) return incidentText(incident);
     return null;
   }, [best, drive, verdict, longWait, waitForTrain]);
 

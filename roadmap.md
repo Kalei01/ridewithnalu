@@ -115,3 +115,8 @@
   Chrome/Android tune/lock → Permissions, desktop lock → Site settings — with dismiss.
 - [x] Browse mode shows "Location is blocked in your browser · how to allow it" linking to
   settings when the permission is denied.
+
+## Local traffic incident wording (done)
+- [x] Translate TomTom state-route codes into familiar Oahu road names.
+- [x] Show contextual incident badges only in the Drive column; use incidents in verdict
+  reasoning only when they support a rail recommendation.
