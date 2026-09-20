@@ -135,3 +135,4 @@
 ## Commute route map
 - [x] Show the selected door-to-door itinerary with start, end, transit stops, route line, and live GPS
 - [x] Fit the map to the full trip and verify the configured commute view on mobile
+- [x] Add recenter, fit-all, and standard/satellite controls to commute and nearby maps

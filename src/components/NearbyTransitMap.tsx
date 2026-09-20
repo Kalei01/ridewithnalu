@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
+import { LocateFixed, Map, Maximize, Satellite } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export type NearbyMapStop = {
   stopId: string;
@@ -16,6 +18,19 @@ type NearbyTransitMapProps = {
   onSelectStop: (stopId: string) => void;
 };
 
+type Basemap = "standard" | "satellite";
+
+const BASEMAPS = {
+  standard: {
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution: "&copy; OpenStreetMap &copy; CARTO",
+  },
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+  },
+} as const;
+
 function markerIcon(kind: "rail" | "bus", selected: boolean) {
   const glyph = kind === "rail" ? "▰" : "●";
   const label = kind === "rail" ? "Rail station" : "Bus stop";
@@ -28,8 +43,10 @@ function markerIcon(kind: "rail" | "bus", selected: boolean) {
 }
 
 export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onSelectStop }: NearbyTransitMapProps) {
+  const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
@@ -43,9 +60,9 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
       dragging: true,
     }).setView([userPoint.lat, userPoint.lon], 14);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    tileLayerRef.current = L.tileLayer(BASEMAPS.standard.url, {
       maxZoom: 19,
-      attribution: "&copy; OpenStreetMap &copy; CARTO",
+      attribution: BASEMAPS.standard.attribution,
     }).addTo(map);
     L.control.zoom({ position: "bottomright" }).addTo(map);
     markersRef.current = L.layerGroup().addTo(map);
@@ -54,9 +71,20 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
     return () => {
       map.remove();
       mapRef.current = null;
+      tileLayerRef.current = null;
       markersRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const previousLayer = tileLayerRef.current;
+    if (previousLayer) map.removeLayer(previousLayer);
+    const next = BASEMAPS[basemap];
+    tileLayerRef.current = L.tileLayer(next.url, { maxZoom: 19, attribution: next.attribution }).addTo(map);
+    tileLayerRef.current.bringToBack();
+  }, [basemap]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -89,5 +117,36 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
     else map.setView([userPoint.lat, userPoint.lon], 14);
   }, [userPoint.lat, userPoint.lon, stops, selectedStopId, onSelectStop]);
 
-  return <div ref={nodeRef} className="h-full w-full" aria-label="Map of nearby rail stations and bus stops" />;
+  const recenter = () => mapRef.current?.flyTo([userPoint.lat, userPoint.lon], 15, { duration: 0.7 });
+
+  const fitNearby = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    const points: L.LatLngExpression[] = [[userPoint.lat, userPoint.lon], ...stops.map((stop) => [stop.lat, stop.lon] as L.LatLngTuple)];
+    if (points.length > 1) map.flyToBounds(L.latLngBounds(points), { padding: [42, 42], maxZoom: 15, duration: 0.7 });
+  };
+
+  return (
+    <div className="relative h-full w-full">
+      <div ref={nodeRef} className="h-full w-full" aria-label="Map of nearby rail stations and bus stops" />
+      <div className="absolute right-3 top-16 z-[500] flex flex-col items-end gap-2" aria-label="Map controls">
+        <div className="flex overflow-hidden rounded-md border border-border bg-background/95 shadow-lg backdrop-blur-md">
+          <Button type="button" variant="ghost" size="sm" aria-label="Show standard map" aria-pressed={basemap === "standard"} data-pressed={basemap === "standard"} onClick={() => setBasemap("standard")} className="rounded-none px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground">
+            <Map /> Standard
+          </Button>
+          <Button type="button" variant="ghost" size="sm" aria-label="Show satellite map" aria-pressed={basemap === "satellite"} data-pressed={basemap === "satellite"} onClick={() => setBasemap("satellite")} className="rounded-none border-l border-border px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground">
+            <Satellite /> Satellite
+          </Button>
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" variant="secondary" size="icon" onClick={fitNearby} aria-label="Fit nearby stops" title="Fit nearby stops" className="size-11 border border-border bg-background/95 shadow-lg backdrop-blur-md">
+            <Maximize className="size-5" />
+          </Button>
+          <Button type="button" variant="secondary" size="icon" onClick={recenter} aria-label="Recenter on my location" title="Recenter on my location" className="size-11 border border-border bg-background/95 shadow-lg backdrop-blur-md">
+            <LocateFixed className="size-5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
