@@ -6,7 +6,7 @@ import { Bus, Car, Check, ChevronRight, Footprints, LocateFixed, RefreshCw, Sett
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
-import { driveTime, type DriveIncident, type DriveTime } from "@/lib/drive.functions";
+import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
 import { incidentText } from "@/lib/traffic-incidents";
