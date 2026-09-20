@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { LocateFixed, Map, Maximize, Satellite } from "lucide-react";
 import { Button } from "@/components/ui/button";
