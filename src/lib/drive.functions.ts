@@ -26,6 +26,8 @@ export type DriveTime = {
   /** High end of the plausible range; the number a commuter should plan around. */
   highMinutes: number;
   meters: number;
+  /** Road geometry of the driven route, for drawing the real corridor on a map. */
+  path: Array<{ lat: number; lon: number }>;
   incidents: DriveIncident[];
   fetchedAt: number;
 };
