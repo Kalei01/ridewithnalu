@@ -977,7 +977,7 @@ function Index() {
       minutesToAlight,
       nextStopName: nextStop?.stopName ?? alight.stopName,
       alightName: alight.stopName,
-      vehicle: activeTransitLeg.mode === "rail" ? "rail" : "bus",
+      vehicle: (activeTransitLeg.mode === "rail" ? "rail" : "bus") as "bus" | "rail",
       live: Boolean(riderPoint),
     };
   }, [activeTransitLeg, legStops, riderPoint, nowSeconds]);
