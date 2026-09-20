@@ -512,6 +512,27 @@ export type Database = {
         Returns: number
       }
       gtfs_seconds: { Args: { p_time: string }; Returns: number }
+      leg_stop_sequence: {
+        Args: {
+          p_depart_seconds: number
+          p_from_name: string
+          p_rail?: boolean
+          p_route_short?: string
+          p_to_name: string
+          p_tolerance_seconds?: number
+        }
+        Returns: {
+          arrival_seconds: number
+          departure_seconds: number
+          is_alight: boolean
+          is_board: boolean
+          stop_id: string
+          stop_lat: number
+          stop_lon: number
+          stop_name: string
+          stop_sequence: number
+        }[]
+      }
       nearby_stops: {
         Args: { p_lat: number; p_lon: number; p_radius_m: number }
         Returns: {
