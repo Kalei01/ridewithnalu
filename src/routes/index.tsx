@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Bus, Car, Check, ChevronRight, Footprints, LocateFixed, RefreshCw, Settings, TrainFront } from "lucide-react";
@@ -892,7 +892,7 @@ function Index() {
         p_from_name: leg.from as string,
         p_to_name: leg.to as string,
         p_depart_seconds: leg.depart_seconds as number,
-        p_route_short: leg.mode === "bus" ? leg.route_short : null,
+        p_route_short: (leg.mode === "bus" ? leg.route_short : null) ?? undefined,
         p_rail: leg.mode === "rail",
       });
       if (error) throw error;
