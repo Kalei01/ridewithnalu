@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { LocateFixed, Map, Maximize, Satellite } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,13 +89,23 @@ export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapPr
     tileLayerRef.current.bringToBack();
   }, [basemap]);
 
+  // A stable signature of the itinerary geometry: route layers and the viewport
+  // only rebuild when the actual stops change, not on every data refetch tick.
+  const routeSignature = useMemo(
+    () => points.map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join("|"),
+    [points],
+  );
+  const pointsRef = useRef(points);
+  pointsRef.current = points;
+
   useEffect(() => {
     const map = mapRef.current;
     const routeLayer = routeLayerRef.current;
-    if (!map || !routeLayer || points.length < 2) return;
+    const current = pointsRef.current;
+    if (!map || !routeLayer || current.length < 2) return;
     routeLayer.clearLayers();
 
-    const latLngs = points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
+    const latLngs = current.map((point) => [point.lat, point.lon] as L.LatLngTuple);
     L.polyline(latLngs, {
       color: "var(--color-primary)",
       weight: 5,
@@ -105,7 +115,7 @@ export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapPr
       className: "nalu-journey-line",
     }).addTo(routeLayer);
 
-    points.forEach((point) => {
+    current.forEach((point) => {
       L.marker([point.lat, point.lon], {
         icon: journeyIcon(point),
         title: `${point.kind === "start" ? "Start: " : point.kind === "end" ? "End: " : ""}${point.name}`,
@@ -119,15 +129,26 @@ export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapPr
         .addTo(routeLayer);
     });
 
+    map.invalidateSize({ animate: false });
     map.flyToBounds(L.latLngBounds(latLngs), { padding: [34, 34], maxZoom: 15, duration: 0.7 });
-  }, [points]);
+  }, [routeSignature]);
 
+  // The live dot moves in place; recreating it (or touching the viewport) on every
+  // watchPosition tick is what made the map twitch.
+  const liveMarkerRef = useRef<L.CircleMarker | null>(null);
   useEffect(() => {
     const liveLayer = liveLayerRef.current;
     if (!liveLayer) return;
-    liveLayer.clearLayers();
-    if (!livePoint) return;
-    L.circleMarker([livePoint.lat, livePoint.lon], {
+    if (!livePoint) {
+      liveLayer.clearLayers();
+      liveMarkerRef.current = null;
+      return;
+    }
+    if (liveMarkerRef.current) {
+      liveMarkerRef.current.setLatLng([livePoint.lat, livePoint.lon]);
+      return;
+    }
+    liveMarkerRef.current = L.circleMarker([livePoint.lat, livePoint.lon], {
       radius: 8,
       color: "var(--color-foreground)",
       weight: 3,
@@ -138,6 +159,7 @@ export default function CommuteRouteMap({ points, livePoint }: CommuteRouteMapPr
       .bindTooltip("Your live location", { direction: "top", offset: [0, -10] })
       .addTo(liveLayer);
   }, [livePoint]);
+
 
   const recenter = () => {
     const map = mapRef.current;
