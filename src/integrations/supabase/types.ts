@@ -543,6 +543,24 @@ export type Database = {
           stop_name: string
         }[]
       }
+      nearby_transit_stops: {
+        Args: {
+          p_after_seconds?: number
+          p_bus_limit?: number
+          p_lat: number
+          p_lon: number
+          p_rail_limit?: number
+        }
+        Returns: {
+          arrivals: Json
+          distance_m: number
+          route_type: number
+          stop_id: string
+          stop_lat: number
+          stop_lon: number
+          stop_name: string
+        }[]
+      }
       nearest_stop: {
         Args: { p_lat: number; p_lon: number; p_rail_only?: boolean }
         Returns: {
