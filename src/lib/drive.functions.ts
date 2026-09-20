@@ -55,7 +55,9 @@ export const driveTime = createServerFn({ method: "POST" })
 
     const routeUrl =
       `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
-      `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all`;
+      `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
+      `&routeRepresentation=polyline`;
+
 
     const response = await fetch(routeUrl);
     if (!response.ok) {
