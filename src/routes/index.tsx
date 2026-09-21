@@ -2108,6 +2108,121 @@ function Index() {
 
         <DataExpiryNotice />
 
+        <section className="mt-4 rounded-lg border border-border bg-surface-raised p-4" aria-labelledby="plan-mode-title">
+          <h2 id="plan-mode-title" className="sr-only">When do you need to travel?</h2>
+          <div role="tablist" aria-label="Planning mode" className="grid grid-cols-2 gap-1 rounded-full bg-background/60 p-1">
+            {[
+              { label: "Leave now", value: "leave-now" as PlanMode },
+              { label: "Arrive by", value: "arrive-by" as PlanMode },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                role="tab"
+                aria-selected={planMode === tab.value}
+                onClick={() => choosePlanMode(tab.value)}
+                className={`min-h-11 rounded-full text-sm font-semibold transition-colors ${
+                  planMode === tab.value ? "bg-recommended text-recommended-foreground" : "text-muted-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {planMode === "arrive-by" && (
+            <div className="mt-4">
+              <Label htmlFor="arrive-by-time" className="text-xs font-semibold uppercase text-muted-foreground">
+                Be at {inbound ? "home" : destinationLabel} by
+              </Label>
+              <Input
+                id="arrive-by-time"
+                type="time"
+                value={arriveByInput}
+                onChange={(event) => chooseArriveBy(event.target.value)}
+                className="mt-2 h-12 w-full bg-background/60 text-2xl font-bold tabular-nums"
+              />
+              {activeSavedPlace?.arriveBySeconds !== null && activeSavedPlace?.arriveBySeconds !== undefined && !inbound && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Typical arrival saved for {activeSavedPlace.label}: {clockFromSeconds(activeSavedPlace.arriveBySeconds)}
+                </p>
+              )}
+
+              {arriveByTarget === null ? (
+                <p className="mt-4 text-sm text-muted-foreground">Pick the time you need to be there and Nalu works backwards.</p>
+              ) : (
+                <div className="mt-4 grid gap-3">
+                  <div className="rounded-lg border border-border bg-background/50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="flex items-center gap-2 text-sm font-bold text-foreground"><TrainFront className="size-4 text-primary" /> Rail</p>
+                      {railPick?.option && <p className="text-xs font-semibold text-muted-foreground">{railPick.option.total_minutes} min door to door</p>}
+                    </div>
+                    {railPick?.option ? (
+                      <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
+                        Leave by {clockFromSeconds(railPick.option.leave_by_seconds)}
+                        <span className="ml-2 text-sm font-medium text-muted-foreground">· arrive {clockFromSeconds(railPick.option.arrive_seconds)}</span>
+                      </p>
+                    ) : optionsLoading ? (
+                      <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
+                    ) : railPick?.earliestArriveSeconds ? (
+                      <p className="mt-2 text-sm text-warning">
+                        No train and bus combination gets you there by {clockFromSeconds(arriveByTarget)}. The soonest rail arrival is {clockFromSeconds(railPick.earliestArriveSeconds)}.
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {todayHours
+                          ? `No rail service for this trip at that time. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.`
+                          : "No rail service for this trip today."}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-background/50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="flex items-center gap-2 text-sm font-bold text-foreground"><Car className="size-4 text-primary" /> Drive</p>
+                      {drive && driveAvailable && <p className="text-xs font-semibold text-muted-foreground">{drive.trafficMinutes} min driving</p>}
+                    </div>
+                    {drivePlan?.feasible ? (
+                      <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
+                        Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
+                        <span className="ml-2 text-sm font-medium text-muted-foreground">· arrive around {clockFromSeconds(drivePlan.arriveSeconds)}</span>
+                      </p>
+                    ) : drivePlan ? (
+                      <p className="mt-2 text-sm text-warning">
+                        Too late to drive there by {clockFromSeconds(arriveByTarget)}. Leaving now gets you in around {clockFromSeconds(drivePlan.earliestArriveSeconds)}.
+                      </p>
+                    ) : !driveAvailable ? (
+                      <p className="mt-2 text-sm text-muted-foreground">{carAwayReason ?? "Driving is not available for this trip."}</p>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground">{driveLoading ? "Checking live traffic…" : "Live traffic is unavailable right now."}</p>
+                    )}
+                    {drivePlan && (
+                      <p className="mt-2 text-[10px] text-muted-foreground">
+                        Includes {drivePlan.bufferMinutes} min to park and walk in · Drive time: TomTom
+                      </p>
+                    )}
+                  </div>
+
+                  {arriveByComparison.winner === "drive" && arriveByComparison.laterMinutes > 0 && (
+                    <p className="text-base font-semibold text-foreground">
+                      Driving lets you leave {arriveByComparison.laterMinutes} min later and still arrive by {clockFromSeconds(drivePlan?.arriveSeconds ?? arriveByTarget)}.
+                    </p>
+                  )}
+                  {arriveByComparison.winner === "rail" && arriveByComparison.laterMinutes > 0 && (
+                    <p className="text-base font-semibold text-foreground">
+                      Rail lets you leave {arriveByComparison.laterMinutes} min later
+                      {arriveByComparison.earlierMinutes > 0 ? ` and gets you there ${arriveByComparison.earlierMinutes} min earlier` : ""}.
+                    </p>
+                  )}
+                  {arriveByComparison.winner === "same" && (
+                    <p className="text-base font-semibold text-muted-foreground">Rail and driving need you out the door at about the same time.</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">All times are Hawaii Standard Time (UTC−10).</p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
         <section
           className="verdict-lift -mx-2 mt-5 rounded-lg border border-border px-5 py-7 animate-in fade-in duration-300"
           aria-labelledby="verdict-title"
