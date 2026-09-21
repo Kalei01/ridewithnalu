@@ -1266,6 +1266,27 @@ function Index() {
     [railPick, drivePlan],
   );
 
+  // In arrive-by mode the itinerary shown is the latest one that still makes it.
+  const arriveByLeaveBy = arriveByActive ? railPick?.option?.leave_by_seconds ?? null : null;
+  useEffect(() => {
+    if (arriveByLeaveBy !== null) setSelectedDeparture(arriveByLeaveBy);
+  }, [arriveByLeaveBy]);
+
+  // A saved place with a typical arrival time pre-fills the target once.
+  const activeSavedPlace = useMemo(() => {
+    if (setup.destLat === null || setup.destLon === null) return null;
+    return (
+      savedPlaces.find(
+        (place) => distanceM(place, { lat: setup.destLat as number, lon: setup.destLon as number }) < 120,
+      ) ?? null
+    );
+  }, [savedPlaces, setup.destLat, setup.destLon]);
+  const typicalArrival = inbound ? null : activeSavedPlace?.arriveBySeconds ?? null;
+  useEffect(() => {
+    if (!hydrated || arriveByInput || typicalArrival === null) return;
+    chooseArriveBy(clockInputValue(typicalArrival));
+  }, [hydrated, arriveByInput, typicalArrival]);
+
   const {
     data: eastboundTraffic,
     isLoading: eastboundTrafficLoading,
