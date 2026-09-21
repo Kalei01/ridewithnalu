@@ -593,6 +593,9 @@ function Index() {
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"rail" | "drive">("rail");
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
+  const [arriveByInput, setArriveByInput] = useState("");
 
   useEffect(() => {
     const migrateStorage = (key: string, legacySuffix: string) => {
@@ -625,6 +628,10 @@ function Index() {
     migrateStorage(PARKED_KEY, "parked-v1");
     // Trip tracking was removed; clear any trip state left on the phone.
     window.localStorage.removeItem(ACTIVE_TRIP_KEY);
+    setSavedPlaces(parseSavedPlaces(window.localStorage.getItem(SAVED_PLACES_KEY)));
+    const storedMode = window.localStorage.getItem(PLAN_MODE_KEY);
+    if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
+    setArriveByInput(window.localStorage.getItem(ARRIVE_BY_KEY) ?? "");
     setHydrated(true);
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
