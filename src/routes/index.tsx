@@ -43,7 +43,6 @@ import {
   compareArriveBy,
   driveArriveBy,
   latestRailArrival,
-  DRIVE_BUFFER_MIN,
 } from "@/lib/leave-by";
 import { Button } from "@/components/ui/button";
 import {
@@ -2321,6 +2320,7 @@ function Index() {
           {selectedMode === "drive" && (
             <div className="mt-6 rounded-lg border border-border p-5">
               <div className="flex items-end justify-between gap-4"><div><h3 className="text-xl font-bold text-foreground">Drive details</h3><p className="mt-1 text-sm text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div><p className="text-4xl font-bold tabular-nums text-foreground">{driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}<span className="ml-1 text-base">min</span></p></div>
+              <p className="mt-4 text-sm font-medium text-foreground">Drive straight {inbound ? `from ${destinationLabel} to your home address` : `from home to ${destinationLabel}`} — no stop at a rail station.</p>
               {driveAvailable && driveRange && drive && <><p className="mt-4 text-sm font-semibold text-foreground">{driveRange.low}–{driveRange.high} min · {drive.delayMinutes >= 1 ? `${drive.delayMinutes} min slower than usual` : drive.delayMinutes <= -1 ? `${Math.abs(drive.delayMinutes)} min faster than usual` : "about usual"}</p><p className="mt-1 text-[10px] text-muted-foreground">Drive time: TomTom</p></>}
               {!driveAvailable && carAwayReason && <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>}
               {driveAvailable && driveFailed && <p className="mt-4 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>}
@@ -2336,10 +2336,10 @@ function Index() {
         <section className="mb-8 rounded-lg border border-border bg-surface-raised p-5" aria-labelledby="later-title">
           <h2 id="later-title" className="text-lg font-semibold">Alternative Departures</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Need to leave later? Select an upcoming train &amp; bus itinerary to update your commute plan.
+            Two or three later trips, with the exact arrival each one gets you. Tap one to make it your plan.
           </p>
           <ol className="mt-4 grid gap-3">
-            {options.slice(1).map((option, index) => {
+            {options.slice(1, 4).map((option, index) => {
               const selected = option.leave_by_seconds === best?.leave_by_seconds;
               const difference = earliest
                 ? Math.max(0, Math.round((option.arrive_seconds - earliest.arrive_seconds) / 60))
@@ -2354,12 +2354,15 @@ function Index() {
                   className={`h-auto w-full justify-start whitespace-normal rounded-lg border p-4 text-left transition-colors ${selected ? "border-recommended bg-recommended/10" : "border-border bg-background/40 hover:border-muted-foreground"}`}
                 >
                   <span className="block w-full">
-                  <span className="flex items-center justify-between gap-3">
-                    <span className="text-lg font-bold tabular-nums text-foreground">Leave {clockFromSeconds(option.leave_by_seconds)}</span>
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">+{difference} min vs best</span>
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="text-base font-bold leading-snug text-foreground">
+                      If you leave at <span className="tabular-nums">{clockFromSeconds(option.leave_by_seconds)}</span>,
+                      you arrive at <span className="tabular-nums">{clockFromSeconds(option.arrive_seconds)}</span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">{difference > 0 ? `${difference} min later` : "same arrival"}</span>
                   </span>
                   <span className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
-                    <span><span className="block text-xs text-muted-foreground">Arrival ETA</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{clockFromSeconds(option.arrive_seconds)}</span></span>
+                    <span><span className="block text-xs text-muted-foreground">Leave later by</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{Math.max(0, Math.round(((option.leave_by_seconds) - (earliest?.leave_by_seconds ?? option.leave_by_seconds)) / 60))} min</span></span>
                     <span><span className="block text-xs text-muted-foreground">Total duration</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{option.total_minutes} min</span></span>
                   </span>
                   {option.legs[0] && <span className="mt-3 block truncate text-xs text-muted-foreground">{vehicleName(option.legs[0])}</span>}
