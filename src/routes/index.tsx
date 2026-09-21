@@ -3007,7 +3007,53 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
     );
   }
 
-  async function selectPlace(place: PlaceSuggestion) {
+  /** Use a point as the starting side: remember the door and derive its station. */
+  async function applyOrigin(place: PointLike) {
+    setBusy(true);
+    setStatus("Finding the station nearest that address…");
+    try {
+      const { data } = await supabase.rpc("nearest_stop", { p_lat: place.lat, p_lon: place.lon, p_rail_only: true });
+      const nearest = data?.[0];
+      setDraft((current) => ({
+        ...current,
+        homeLat: place.lat,
+        homeLon: place.lon,
+        homeStopId: nearest?.stop_id ?? current.homeStopId,
+        homeStopName: nearest?.stop_name ?? current.homeStopName,
+      }));
+      setStatus(
+        nearest
+          ? `Starting from ${place.name}. Nearest station: ${stationLabel(nearest.stop_name)}.`
+          : `Starting from ${place.name}. Pick a station below.`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyPreset(from: PointLike, to: PointLike) {
+    await applyOrigin(from);
+    await selectPlace(to);
+  }
+
+  function savePlace(kind: PlaceKind, point: PointLike, arriveBySeconds: number | null) {
+    const label = kind === "custom" ? point.name : kindLabel(kind);
+    onPlacesChange(
+      upsertPlace(savedPlaces, {
+        id: `${kind}-${Date.now()}`,
+        kind,
+        label,
+        name: point.name,
+        address: point.address || point.name,
+        lat: point.lat,
+        lon: point.lon,
+        arriveBySeconds,
+      }),
+    );
+    setStatus(`Saved ${label}: ${point.name}.`);
+  }
+
+  async function selectPlace(place: PointLike) {
     setBusy(true);
     setStatus("Finding the stops on each side of that place…");
     try {
@@ -3061,6 +3107,15 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
   }
 
   const canSave = Boolean(draft.homeStopId && draft.destStopId && draft.destLat);
+  const presets = commutePresets(savedPlaces);
+  const originPoint: PointLike | null =
+    draft.homeLat !== null && draft.homeLon !== null
+      ? { name: "My starting point", address: stationLabel(draft.homeStopName), lat: draft.homeLat, lon: draft.homeLon }
+      : null;
+  const destinationPoint: PointLike | null =
+    draft.destLat !== null && draft.destLon !== null
+      ? { name: draft.destinationName, address: draft.destinationAddress, lat: draft.destLat, lon: draft.destLon }
+      : null;
   const selectedStation = stations.find((station) => station.stop_id === draft.homeStopId);
   const setupWalk =
     draft.homeLat !== null &&
