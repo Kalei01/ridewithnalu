@@ -3103,11 +3103,13 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
 
   function save() {
     const station = stations.find((item) => item.stop_id === draft.homeStopId);
+    // Prefer the rider's real door: the shared location, then a saved Home
+    // address. Only fall back to the station so the map pins stay honest.
+    const home = findByKind(savedPlaces, "home");
     onSave({
       ...draft,
-      // Without a shared location, treat the chosen station as the starting point.
-      homeLat: draft.homeLat ?? (station?.stop_lat ? Number(station.stop_lat) : null),
-      homeLon: draft.homeLon ?? (station?.stop_lon ? Number(station.stop_lon) : null),
+      homeLat: draft.homeLat ?? home?.lat ?? (station?.stop_lat ? Number(station.stop_lat) : null),
+      homeLon: draft.homeLon ?? home?.lon ?? (station?.stop_lon ? Number(station.stop_lon) : null),
     });
   }
 
@@ -3115,7 +3117,12 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
   const presets = commutePresets(savedPlaces);
   const originPoint: PointLike | null =
     draft.homeLat !== null && draft.homeLon !== null
-      ? { name: "My starting point", address: stationLabel(draft.homeStopName), lat: draft.homeLat, lon: draft.homeLon }
+      ? {
+          name: draft.homeStopName ? `Near ${stationLabel(draft.homeStopName)}` : "My starting point",
+          address: draft.homeStopName ? `${stationLabel(draft.homeStopName)} area` : "",
+          lat: draft.homeLat,
+          lon: draft.homeLon,
+        }
       : null;
   const destinationPoint: PointLike | null =
     draft.destLat !== null && draft.destLon !== null
