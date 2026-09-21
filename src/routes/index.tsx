@@ -1771,6 +1771,8 @@ function Index() {
       onSave={saveSetup}
       alertPrefs={alertPrefs}
       onAlertPrefsChange={saveAlertPrefs}
+      savedPlaces={savedPlaces}
+      onPlacesChange={persistPlaces}
     />
   );
 
@@ -2613,6 +2615,8 @@ type SetupDialogProps = {
   onSave: (next: Setup) => void;
   alertPrefs: AlertPrefs;
   onAlertPrefsChange: (next: AlertPrefs) => void;
+  savedPlaces: SavedPlace[];
+  onPlacesChange: (next: SavedPlace[]) => void;
 };
 
 const EXPIRY_DISMISS_KEY = "nalu-expiry-dismissed-v1";
@@ -2888,7 +2892,7 @@ function SettingsExpiryBanner() {
   );
 }
 
-function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAlertPrefsChange }: SetupDialogProps) {
+function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAlertPrefsChange, savedPlaces, onPlacesChange }: SetupDialogProps) {
 
   const findPlaces = useServerFn(searchPlaces);
   const [draft, setDraft] = useState<Setup>(setup);
