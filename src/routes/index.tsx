@@ -958,6 +958,7 @@ function Index() {
       carAtStation,
       driveAvailable,
       Math.floor(afterSeconds / 60),
+      planMode,
     ],
     enabled: hydrated && configured,
     staleTime: 60_000,
@@ -971,7 +972,7 @@ function Index() {
           p_home_lon: setup.homeLon as number,
           p_allow_drive: carAtStation,
           p_after_seconds: afterSeconds,
-          p_limit: 4,
+          p_limit: planMode === "arrive-by" ? 12 : 4,
         });
         if (error) throw error;
         return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] })) as Option[];
@@ -983,7 +984,7 @@ function Index() {
         p_dest_stop: setup.destStopId,
         p_allow_drive: driveAvailable,
         p_after_seconds: afterSeconds,
-        p_limit: 4,
+        p_limit: planMode === "arrive-by" ? 12 : 4,
         // Any stop within a quarter mile of the door is fair game, walk included.
         p_dest_lat: setup.destLat as number,
         p_dest_lon: setup.destLon as number,
