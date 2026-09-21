@@ -24,6 +24,26 @@ import {
   isPermissionDeniedError,
   queryLocationPermission,
 } from "@/lib/location-permission";
+import {
+  clockInputValue,
+  commutePresets,
+  findByKind,
+  kindLabel,
+  parseClockInput,
+  parseSavedPlaces,
+  removePlace,
+  swapHomeWork,
+  upsertPlace,
+  SAVED_PLACES_KEY,
+  PLACE_KINDS,
+  type PlaceKind,
+  type SavedPlace,
+} from "@/lib/saved-places";
+import {
+  compareArriveBy,
+  driveArriveBy,
+  latestRailArrival,
+} from "@/lib/leave-by";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -109,6 +129,9 @@ type Leg = {
   minutes: number | null;
 };
 
+/** Anything with a name and a point: a suggestion, a saved place, or a draft. */
+type PointLike = { name: string; address: string; lat: number; lon: number };
+
 type BusStopTarget = {
   stopId: string;
   scheduled: Array<{ routeShortName: string | null; headsign: string | null; scheduledSeconds: number }>;
@@ -140,6 +163,10 @@ const TOSS_UP_MIN = 5;
 /** A long wait for the first train tips the choice toward the car. */
 const LONG_WAIT_MIN = 25;
 const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
+const PLAN_MODE_KEY = "nalu-plan-mode-v1";
+const ARRIVE_BY_KEY = "nalu-arrive-by-v1";
+
+type PlanMode = "leave-now" | "arrive-by";
 const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 
 type DirectionOverride = { inbound: boolean; at: number };
@@ -568,6 +595,9 @@ function Index() {
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"rail" | "drive">("rail");
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
+  const [arriveByInput, setArriveByInput] = useState("");
 
   useEffect(() => {
     const migrateStorage = (key: string, legacySuffix: string) => {
@@ -600,6 +630,10 @@ function Index() {
     migrateStorage(PARKED_KEY, "parked-v1");
     // Trip tracking was removed; clear any trip state left on the phone.
     window.localStorage.removeItem(ACTIVE_TRIP_KEY);
+    setSavedPlaces(parseSavedPlaces(window.localStorage.getItem(SAVED_PLACES_KEY)));
+    const storedMode = window.localStorage.getItem(PLAN_MODE_KEY);
+    if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
+    setArriveByInput(window.localStorage.getItem(ARRIVE_BY_KEY) ?? "");
     setHydrated(true);
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
@@ -651,6 +685,21 @@ function Index() {
   function persist(next: Setup) {
     setSetup(next);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  }
+
+  function persistPlaces(next: SavedPlace[]) {
+    setSavedPlaces(next);
+    window.localStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(next));
+  }
+
+  function choosePlanMode(next: PlanMode) {
+    setPlanMode(next);
+    window.localStorage.setItem(PLAN_MODE_KEY, next);
+  }
+
+  function chooseArriveBy(next: string) {
+    setArriveByInput(next);
+    window.localStorage.setItem(ARRIVE_BY_KEY, next);
   }
 
   // "End trip" clears the saved commute and its overrides, returning to browse
@@ -911,6 +960,7 @@ function Index() {
       carAtStation,
       driveAvailable,
       Math.floor(afterSeconds / 60),
+      planMode,
     ],
     enabled: hydrated && configured,
     staleTime: 60_000,
@@ -924,7 +974,7 @@ function Index() {
           p_home_lon: setup.homeLon as number,
           p_allow_drive: carAtStation,
           p_after_seconds: afterSeconds,
-          p_limit: 4,
+          p_limit: planMode === "arrive-by" ? 12 : 4,
         });
         if (error) throw error;
         return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] })) as Option[];
@@ -936,7 +986,7 @@ function Index() {
         p_dest_stop: setup.destStopId,
         p_allow_drive: driveAvailable,
         p_after_seconds: afterSeconds,
-        p_limit: 4,
+        p_limit: planMode === "arrive-by" ? 12 : 4,
         // Any stop within a quarter mile of the door is fair game, walk included.
         p_dest_lat: setup.destLat as number,
         p_dest_lon: setup.destLon as number,
@@ -1190,6 +1240,54 @@ function Index() {
         },
       }),
   });
+
+  // ---- "Arrive by" planning -------------------------------------------------
+  // Work backwards from the target time to the latest honest departure for each
+  // mode, using the same TomTom drive time and GTFS itineraries as Leave now.
+  const arriveByTarget = parseClockInput(arriveByInput);
+  const arriveByActive = planMode === "arrive-by" && arriveByTarget !== null;
+  const railPick = useMemo(
+    () => (arriveByTarget === null ? null : latestRailArrival(options, arriveByTarget)),
+    [options, arriveByTarget],
+  );
+  const drivePlan = useMemo(
+    () =>
+      arriveByTarget === null || !drive || !driveAvailable
+        ? null
+        : driveArriveBy(arriveByTarget, drive.trafficMinutes, nowSeconds),
+    [arriveByTarget, drive, driveAvailable, nowSeconds],
+  );
+  const arriveByComparison = useMemo(
+    () =>
+      compareArriveBy({
+        railLeaveBySeconds: railPick?.option?.leave_by_seconds ?? null,
+        railArriveSeconds: railPick?.option?.arrive_seconds ?? null,
+        driveLeaveBySeconds: drivePlan?.feasible ? drivePlan.leaveBySeconds : null,
+        driveArriveSeconds: drivePlan?.feasible ? drivePlan.arriveSeconds : null,
+      }),
+    [railPick, drivePlan],
+  );
+
+  // In arrive-by mode the itinerary shown is the latest one that still makes it.
+  const arriveByLeaveBy = arriveByActive ? railPick?.option?.leave_by_seconds ?? null : null;
+  useEffect(() => {
+    if (arriveByLeaveBy !== null) setSelectedDeparture(arriveByLeaveBy);
+  }, [arriveByLeaveBy]);
+
+  // A saved place with a typical arrival time pre-fills the target once.
+  const activeSavedPlace = useMemo(() => {
+    if (setup.destLat === null || setup.destLon === null) return null;
+    return (
+      savedPlaces.find(
+        (place) => distanceM(place, { lat: setup.destLat as number, lon: setup.destLon as number }) < 120,
+      ) ?? null
+    );
+  }, [savedPlaces, setup.destLat, setup.destLon]);
+  const typicalArrival = inbound ? null : activeSavedPlace?.arriveBySeconds ?? null;
+  useEffect(() => {
+    if (!hydrated || arriveByInput || typicalArrival === null) return;
+    chooseArriveBy(clockInputValue(typicalArrival));
+  }, [hydrated, arriveByInput, typicalArrival]);
 
   const {
     data: eastboundTraffic,
@@ -1676,6 +1774,8 @@ function Index() {
       onSave={saveSetup}
       alertPrefs={alertPrefs}
       onAlertPrefsChange={saveAlertPrefs}
+      savedPlaces={savedPlaces}
+      onPlacesChange={persistPlaces}
     />
   );
 
@@ -2012,6 +2112,121 @@ function Index() {
 
         <DataExpiryNotice />
 
+        <section className="mt-4 rounded-lg border border-border bg-surface-raised p-4" aria-labelledby="plan-mode-title">
+          <h2 id="plan-mode-title" className="sr-only">When do you need to travel?</h2>
+          <div role="tablist" aria-label="Planning mode" className="grid grid-cols-2 gap-1 rounded-full bg-background/60 p-1">
+            {[
+              { label: "Leave now", value: "leave-now" as PlanMode },
+              { label: "Arrive by", value: "arrive-by" as PlanMode },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                role="tab"
+                aria-selected={planMode === tab.value}
+                onClick={() => choosePlanMode(tab.value)}
+                className={`min-h-11 rounded-full text-sm font-semibold transition-colors ${
+                  planMode === tab.value ? "bg-recommended text-recommended-foreground" : "text-muted-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {planMode === "arrive-by" && (
+            <div className="mt-4">
+              <Label htmlFor="arrive-by-time" className="text-xs font-semibold uppercase text-muted-foreground">
+                Be at {inbound ? "home" : destinationLabel} by
+              </Label>
+              <Input
+                id="arrive-by-time"
+                type="time"
+                value={arriveByInput}
+                onChange={(event) => chooseArriveBy(event.target.value)}
+                className="mt-2 h-12 w-full bg-background/60 text-2xl font-bold tabular-nums"
+              />
+              {activeSavedPlace?.arriveBySeconds !== null && activeSavedPlace?.arriveBySeconds !== undefined && !inbound && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Typical arrival saved for {activeSavedPlace.label}: {clockFromSeconds(activeSavedPlace.arriveBySeconds)}
+                </p>
+              )}
+
+              {arriveByTarget === null ? (
+                <p className="mt-4 text-sm text-muted-foreground">Pick the time you need to be there and Nalu works backwards.</p>
+              ) : (
+                <div className="mt-4 grid gap-3">
+                  <div className="rounded-lg border border-border bg-background/50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="flex items-center gap-2 text-sm font-bold text-foreground"><TrainFront className="size-4 text-primary" /> Rail</p>
+                      {railPick?.option && <p className="text-xs font-semibold text-muted-foreground">{railPick.option.total_minutes} min door to door</p>}
+                    </div>
+                    {railPick?.option ? (
+                      <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
+                        Leave by {clockFromSeconds(railPick.option.leave_by_seconds)}
+                        <span className="ml-2 text-sm font-medium text-muted-foreground">· arrive {clockFromSeconds(railPick.option.arrive_seconds)}</span>
+                      </p>
+                    ) : optionsLoading ? (
+                      <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
+                    ) : railPick?.earliestArriveSeconds ? (
+                      <p className="mt-2 text-sm text-warning">
+                        No train and bus combination gets you there by {clockFromSeconds(arriveByTarget)}. The soonest rail arrival is {clockFromSeconds(railPick.earliestArriveSeconds)}.
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {todayHours
+                          ? `No rail service for this trip at that time. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.`
+                          : "No rail service for this trip today."}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-background/50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="flex items-center gap-2 text-sm font-bold text-foreground"><Car className="size-4 text-primary" /> Drive</p>
+                      {drive && driveAvailable && <p className="text-xs font-semibold text-muted-foreground">{drive.trafficMinutes} min driving</p>}
+                    </div>
+                    {drivePlan?.feasible ? (
+                      <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
+                        Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
+                        <span className="ml-2 text-sm font-medium text-muted-foreground">· arrive around {clockFromSeconds(drivePlan.arriveSeconds)}</span>
+                      </p>
+                    ) : drivePlan ? (
+                      <p className="mt-2 text-sm text-warning">
+                        Too late to drive there by {clockFromSeconds(arriveByTarget)}. Leaving now gets you in around {clockFromSeconds(drivePlan.earliestArriveSeconds)}.
+                      </p>
+                    ) : !driveAvailable ? (
+                      <p className="mt-2 text-sm text-muted-foreground">{carAwayReason ?? "Driving is not available for this trip."}</p>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground">{driveLoading ? "Checking live traffic…" : "Live traffic is unavailable right now."}</p>
+                    )}
+                    {drivePlan && (
+                      <p className="mt-2 text-[10px] text-muted-foreground">
+                        Includes {drivePlan.bufferMinutes} min to park and walk in · Drive time: TomTom
+                      </p>
+                    )}
+                  </div>
+
+                  {arriveByComparison.winner === "drive" && arriveByComparison.laterMinutes > 0 && (
+                    <p className="text-base font-semibold text-foreground">
+                      Driving lets you leave {arriveByComparison.laterMinutes} min later and still arrive by {clockFromSeconds(drivePlan?.arriveSeconds ?? arriveByTarget)}.
+                    </p>
+                  )}
+                  {arriveByComparison.winner === "rail" && arriveByComparison.laterMinutes > 0 && (
+                    <p className="text-base font-semibold text-foreground">
+                      Rail lets you leave {arriveByComparison.laterMinutes} min later
+                      {arriveByComparison.earlierMinutes > 0 ? ` and gets you there ${arriveByComparison.earlierMinutes} min earlier` : ""}.
+                    </p>
+                  )}
+                  {arriveByComparison.winner === "same" && (
+                    <p className="text-base font-semibold text-muted-foreground">Rail and driving need you out the door at about the same time.</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">All times are Hawaii Standard Time (UTC−10).</p>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
         <section
           className="verdict-lift -mx-2 mt-5 rounded-lg border border-border px-5 py-7 animate-in fade-in duration-300"
           aria-labelledby="verdict-title"
@@ -2110,6 +2325,7 @@ function Index() {
           {selectedMode === "drive" && (
             <div className="mt-6 rounded-lg border border-border p-5">
               <div className="flex items-end justify-between gap-4"><div><h3 className="text-xl font-bold text-foreground">Drive details</h3><p className="mt-1 text-sm text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div><p className="text-4xl font-bold tabular-nums text-foreground">{driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}<span className="ml-1 text-base">min</span></p></div>
+              <p className="mt-4 text-sm font-medium text-foreground">Drive straight {inbound ? `from ${destinationLabel} to your home address` : `from home to ${destinationLabel}`} — no stop at a rail station.</p>
               {driveAvailable && driveRange && drive && <><p className="mt-4 text-sm font-semibold text-foreground">{driveRange.low}–{driveRange.high} min · {drive.delayMinutes >= 1 ? `${drive.delayMinutes} min slower than usual` : drive.delayMinutes <= -1 ? `${Math.abs(drive.delayMinutes)} min faster than usual` : "about usual"}</p><p className="mt-1 text-[10px] text-muted-foreground">Drive time: TomTom</p></>}
               {!driveAvailable && carAwayReason && <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>}
               {driveAvailable && driveFailed && <p className="mt-4 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>}
@@ -2125,10 +2341,10 @@ function Index() {
         <section className="mb-8 rounded-lg border border-border bg-surface-raised p-5" aria-labelledby="later-title">
           <h2 id="later-title" className="text-lg font-semibold">Alternative Departures</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Need to leave later? Select an upcoming train &amp; bus itinerary to update your commute plan.
+            Two or three later trips, with the exact arrival each one gets you. Tap one to make it your plan.
           </p>
           <ol className="mt-4 grid gap-3">
-            {options.slice(1).map((option, index) => {
+            {options.slice(1, 4).map((option, index) => {
               const selected = option.leave_by_seconds === best?.leave_by_seconds;
               const difference = earliest
                 ? Math.max(0, Math.round((option.arrive_seconds - earliest.arrive_seconds) / 60))
@@ -2143,12 +2359,15 @@ function Index() {
                   className={`h-auto w-full justify-start whitespace-normal rounded-lg border p-4 text-left transition-colors ${selected ? "border-recommended bg-recommended/10" : "border-border bg-background/40 hover:border-muted-foreground"}`}
                 >
                   <span className="block w-full">
-                  <span className="flex items-center justify-between gap-3">
-                    <span className="text-lg font-bold tabular-nums text-foreground">Leave {clockFromSeconds(option.leave_by_seconds)}</span>
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">+{difference} min vs best</span>
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="text-base font-bold leading-snug text-foreground">
+                      If you leave at <span className="tabular-nums">{clockFromSeconds(option.leave_by_seconds)}</span>,
+                      you arrive at <span className="tabular-nums">{clockFromSeconds(option.arrive_seconds)}</span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">{difference > 0 ? `${difference} min later` : "same arrival"}</span>
                   </span>
                   <span className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
-                    <span><span className="block text-xs text-muted-foreground">Arrival ETA</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{clockFromSeconds(option.arrive_seconds)}</span></span>
+                    <span><span className="block text-xs text-muted-foreground">Leave later by</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{Math.max(0, Math.round(((option.leave_by_seconds) - (earliest?.leave_by_seconds ?? option.leave_by_seconds)) / 60))} min</span></span>
                     <span><span className="block text-xs text-muted-foreground">Total duration</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{option.total_minutes} min</span></span>
                   </span>
                   {option.legs[0] && <span className="mt-3 block truncate text-xs text-muted-foreground">{vehicleName(option.legs[0])}</span>}
@@ -2399,6 +2618,8 @@ type SetupDialogProps = {
   onSave: (next: Setup) => void;
   alertPrefs: AlertPrefs;
   onAlertPrefsChange: (next: AlertPrefs) => void;
+  savedPlaces: SavedPlace[];
+  onPlacesChange: (next: SavedPlace[]) => void;
 };
 
 const EXPIRY_DISMISS_KEY = "nalu-expiry-dismissed-v1";
@@ -2674,7 +2895,7 @@ function SettingsExpiryBanner() {
   );
 }
 
-function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAlertPrefsChange }: SetupDialogProps) {
+function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAlertPrefsChange, savedPlaces, onPlacesChange }: SetupDialogProps) {
 
   const findPlaces = useServerFn(searchPlaces);
   const [draft, setDraft] = useState<Setup>(setup);
@@ -2684,6 +2905,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
   const [debouncedQuery, setDebouncedQuery] = useState("");
   // Whether the browser currently blocks location, so recovery steps can be shown.
   const [permissionBlocked, setPermissionBlocked] = useState(false);
+  const [saveKind, setSaveKind] = useState<PlaceKind>("work");
+  const [saveTime, setSaveTime] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -2789,7 +3012,53 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
     );
   }
 
-  async function selectPlace(place: PlaceSuggestion) {
+  /** Use a point as the starting side: remember the door and derive its station. */
+  async function applyOrigin(place: PointLike) {
+    setBusy(true);
+    setStatus("Finding the station nearest that address…");
+    try {
+      const { data } = await supabase.rpc("nearest_stop", { p_lat: place.lat, p_lon: place.lon, p_rail_only: true });
+      const nearest = data?.[0];
+      setDraft((current) => ({
+        ...current,
+        homeLat: place.lat,
+        homeLon: place.lon,
+        homeStopId: nearest?.stop_id ?? current.homeStopId,
+        homeStopName: nearest?.stop_name ?? current.homeStopName,
+      }));
+      setStatus(
+        nearest
+          ? `Starting from ${place.name}. Nearest station: ${stationLabel(nearest.stop_name)}.`
+          : `Starting from ${place.name}. Pick a station below.`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyPreset(from: PointLike, to: PointLike) {
+    await applyOrigin(from);
+    await selectPlace(to);
+  }
+
+  function savePlace(kind: PlaceKind, point: PointLike, arriveBySeconds: number | null) {
+    const label = kind === "custom" ? point.name : kindLabel(kind);
+    onPlacesChange(
+      upsertPlace(savedPlaces, {
+        id: `${kind}-${Date.now()}`,
+        kind,
+        label,
+        name: point.name,
+        address: point.address || point.name,
+        lat: point.lat,
+        lon: point.lon,
+        arriveBySeconds,
+      }),
+    );
+    setStatus(`Saved ${label}: ${point.name}.`);
+  }
+
+  async function selectPlace(place: PointLike) {
     setBusy(true);
     setStatus("Finding the stops on each side of that place…");
     try {
@@ -2834,15 +3103,31 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
 
   function save() {
     const station = stations.find((item) => item.stop_id === draft.homeStopId);
+    // Prefer the rider's real door: the shared location, then a saved Home
+    // address. Only fall back to the station so the map pins stay honest.
+    const home = findByKind(savedPlaces, "home");
     onSave({
       ...draft,
-      // Without a shared location, treat the chosen station as the starting point.
-      homeLat: draft.homeLat ?? (station?.stop_lat ? Number(station.stop_lat) : null),
-      homeLon: draft.homeLon ?? (station?.stop_lon ? Number(station.stop_lon) : null),
+      homeLat: draft.homeLat ?? home?.lat ?? (station?.stop_lat ? Number(station.stop_lat) : null),
+      homeLon: draft.homeLon ?? home?.lon ?? (station?.stop_lon ? Number(station.stop_lon) : null),
     });
   }
 
   const canSave = Boolean(draft.homeStopId && draft.destStopId && draft.destLat);
+  const presets = commutePresets(savedPlaces);
+  const originPoint: PointLike | null =
+    draft.homeLat !== null && draft.homeLon !== null
+      ? {
+          name: draft.homeStopName ? `Near ${stationLabel(draft.homeStopName)}` : "My starting point",
+          address: draft.homeStopName ? `${stationLabel(draft.homeStopName)} area` : "",
+          lat: draft.homeLat,
+          lon: draft.homeLon,
+        }
+      : null;
+  const destinationPoint: PointLike | null =
+    draft.destLat !== null && draft.destLon !== null
+      ? { name: draft.destinationName, address: draft.destinationAddress, lat: draft.destLat, lon: draft.destLon }
+      : null;
   const selectedStation = stations.find((station) => station.stop_id === draft.homeStopId);
   const setupWalk =
     draft.homeLat !== null &&
@@ -2874,6 +3159,124 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
         </DialogHeader>
 
         <div className="grid gap-5">
+          <section className="grid gap-3 rounded-lg border border-border p-4">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm">Saved locations</Label>
+              {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
+                <Button variant="ghost" size="sm" onClick={() => onPlacesChange(swapHomeWork(savedPlaces))}>
+                  Swap Home &amp; Work
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Save Home, Work, School, Gym or anywhere else once, then start a trip with one tap.
+            </p>
+
+            {presets.length > 0 && (
+              <div className="flex flex-wrap gap-2" aria-label="Commute presets">
+                {presets.map((preset) => (
+                  <Button
+                    key={preset.id}
+                    variant="secondary"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => applyPreset(preset.from, preset.to)}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            {savedPlaces.length > 0 && (
+              <ul className="grid gap-3">
+                {savedPlaces.map((place) => (
+                  <li key={place.id} className="grid gap-2 rounded-lg bg-surface-raised p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <Input
+                          aria-label={`Label for ${place.name}`}
+                          value={place.label}
+                          onChange={(event) =>
+                            onPlacesChange(upsertPlace(savedPlaces, { ...place, label: event.target.value }))
+                          }
+                          className="h-9 bg-background/60 font-semibold"
+                        />
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{place.name}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remove ${place.label}`}
+                        onClick={() => onPlacesChange(removePlace(savedPlaces, place.id))}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Label htmlFor={`arrive-${place.id}`} className="text-xs text-muted-foreground">
+                        Typical arrival
+                      </Label>
+                      <Input
+                        id={`arrive-${place.id}`}
+                        type="time"
+                        value={clockInputValue(place.arriveBySeconds)}
+                        onChange={(event) =>
+                          onPlacesChange(
+                            upsertPlace(savedPlaces, {
+                              ...place,
+                              arriveBySeconds: parseClockInput(event.target.value),
+                            }),
+                          )
+                        }
+                        className="h-9 w-32 bg-background/60 tabular-nums"
+                      />
+                      <Button variant="outline" size="sm" disabled={busy} onClick={() => applyOrigin(place)}>
+                        Start here
+                      </Button>
+                      <Button variant="outline" size="sm" disabled={busy} onClick={() => selectPlace(place)}>
+                        Go here
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+              <Select value={saveKind} onValueChange={(value) => setSaveKind(value as PlaceKind)}>
+                <SelectTrigger className="h-10 w-32 bg-surface-raised"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PLACE_KINDS.map((kind) => (
+                    <SelectItem key={kind} value={kind}>{kind === "custom" ? "Custom" : kindLabel(kind)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="time"
+                aria-label="Typical arrival time for the place you are saving"
+                value={saveTime}
+                onChange={(event) => setSaveTime(event.target.value)}
+                className="h-10 w-32 bg-surface-raised tabular-nums"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!originPoint}
+                onClick={() => originPoint && savePlace(saveKind, originPoint, parseClockInput(saveTime))}
+              >
+                Save start
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!destinationPoint}
+                onClick={() => destinationPoint && savePlace(saveKind, destinationPoint, parseClockInput(saveTime))}
+              >
+                Save destination
+              </Button>
+            </div>
+          </section>
           <div className="grid gap-2">
             <Label>Home station</Label>
             <p className="text-sm text-muted-foreground">The station nearest where you live.</p>
