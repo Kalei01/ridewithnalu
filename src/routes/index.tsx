@@ -685,6 +685,21 @@ function Index() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
+  function persistPlaces(next: SavedPlace[]) {
+    setSavedPlaces(next);
+    window.localStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(next));
+  }
+
+  function choosePlanMode(next: PlanMode) {
+    setPlanMode(next);
+    window.localStorage.setItem(PLAN_MODE_KEY, next);
+  }
+
+  function chooseArriveBy(next: string) {
+    setArriveByInput(next);
+    window.localStorage.setItem(ARRIVE_BY_KEY, next);
+  }
+
   // "End trip" clears the saved commute and its overrides, returning to browse
   // mode where departures stay visible and a new trip can be set up anytime.
   function endTrip() {
