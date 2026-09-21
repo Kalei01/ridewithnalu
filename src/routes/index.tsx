@@ -1239,6 +1239,33 @@ function Index() {
       }),
   });
 
+  // ---- "Arrive by" planning -------------------------------------------------
+  // Work backwards from the target time to the latest honest departure for each
+  // mode, using the same TomTom drive time and GTFS itineraries as Leave now.
+  const arriveByTarget = parseClockInput(arriveByInput);
+  const arriveByActive = planMode === "arrive-by" && arriveByTarget !== null;
+  const railPick = useMemo(
+    () => (arriveByTarget === null ? null : latestRailArrival(options, arriveByTarget)),
+    [options, arriveByTarget],
+  );
+  const drivePlan = useMemo(
+    () =>
+      arriveByTarget === null || !drive || !driveAvailable
+        ? null
+        : driveArriveBy(arriveByTarget, drive.trafficMinutes, nowSeconds),
+    [arriveByTarget, drive, driveAvailable, nowSeconds],
+  );
+  const arriveByComparison = useMemo(
+    () =>
+      compareArriveBy({
+        railLeaveBySeconds: railPick?.option?.leave_by_seconds ?? null,
+        railArriveSeconds: railPick?.option?.arrive_seconds ?? null,
+        driveLeaveBySeconds: drivePlan?.feasible ? drivePlan.leaveBySeconds : null,
+        driveArriveSeconds: drivePlan?.feasible ? drivePlan.arriveSeconds : null,
+      }),
+    [railPick, drivePlan],
+  );
+
   const {
     data: eastboundTraffic,
     isLoading: eastboundTrafficLoading,
