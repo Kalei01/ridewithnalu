@@ -161,6 +161,10 @@ const TOSS_UP_MIN = 5;
 /** A long wait for the first train tips the choice toward the car. */
 const LONG_WAIT_MIN = 25;
 const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
+const PLAN_MODE_KEY = "nalu-plan-mode-v1";
+const ARRIVE_BY_KEY = "nalu-arrive-by-v1";
+
+type PlanMode = "leave-now" | "arrive-by";
 const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 
 type DirectionOverride = { inbound: boolean; at: number };
