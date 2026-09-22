@@ -87,3 +87,47 @@ describe("incident place context", () => {
     expect(mainlineClearNote(undefined, 0)).toBeNull();
   });
 });
+
+describe("local road names across feed formats", () => {
+  it.each([
+    ["HI-78", "Moanalua Fwy"],
+    ["HI-78 W", "Moanalua Fwy West"],
+    ["HI-78 West", "Moanalua Fwy West"],
+    ["Route 78 E", "Moanalua Fwy East"],
+    ["H-201", "Moanalua Fwy"],
+    ["H201", "Moanalua Fwy"],
+    ["H201 E", "Moanalua Fwy East"],
+    ["Interstate Hwy H201 E", "Moanalua Fwy East"],
+    ["Interstate Highway H201 Westbound", "Moanalua Fwy West"],
+    ["State Rte 78 W", "Moanalua Fwy West"],
+    ["Route 92 E", "Nimitz Hwy East"],
+    ["HI-92 W", "Nimitz Hwy West"],
+    ["State Hwy 61 N", "Pali Hwy"],
+    ["HI-63 S", "Likelike Hwy"],
+    ["Route 72 E", "Kalanianaʻole Hwy"],
+    ["HI-99 N", "Kamehameha Hwy"],
+    ["Route 83", "Kamehameha Hwy"],
+    ["HI-93 W", "Farrington Hwy"],
+    ["HI-76 S", "Fort Weaver Rd"],
+    ["HI-750 N", "Kunia Rd"],
+    ["Route 750", "Kunia Rd"],
+    ["Interstate Hwy H1 E", "H-1 East"],
+    ["H1 W", "H-1 West"],
+    ["Interstate Hwy H2 N", "H-2 North"],
+    ["H2 S", "H-2 South"],
+    ["Interstate Hwy H3 E", "H-3 East"],
+    ["H3 Westbound", "H-3 West"],
+  ])("normalizes %s to %s", (road, expected) => {
+    expect(localRoadName(road)).toBe(expected);
+  });
+
+  it("reads naturally inside a traffic alert", () => {
+    expect(trafficDelayText({ description: "Stationary traffic", road: "Interstate Hwy H201 W", delayMinutes: 3 }))
+      .toBe("Stationary traffic on Moanalua Fwy West · +3 min");
+  });
+
+  it("leaves ordinary street names alone", () => {
+    expect(localRoadName("Kualakaʻi Pkwy")).toBe("Kualakaʻi Pkwy");
+    expect(localRoadName("Kamehameha Highway")).toBe("Kamehameha Hwy");
+  });
+});
