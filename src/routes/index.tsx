@@ -1976,6 +1976,8 @@ function Index() {
           if (!rail || !out || !back) throw new Error("No reachable transit stops");
           saveSetup({
             ...emptySetup,
+            // Door-to-door driving must always be weighed for a one-tap trip.
+            allowDrive: true,
             homeStopId: rail.stop_id,
             homeStopName: rail.stop_name ?? "",
             homeLat: origin.lat,
