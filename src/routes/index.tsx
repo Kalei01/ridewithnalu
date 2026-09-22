@@ -2574,14 +2574,6 @@ function Index() {
             </p>
           )}
           {reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
-          {selectedMode === "rail" && activeDestStopName && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              {inbound
-                ? `Bus stop you board near ${destinationLabel}: ${titleCase(activeDestStopName)}`
-                : `Bus stop near ${destinationLabel} when you arrive: ${titleCase(activeDestStopName)}`}
-              {activeDestWalkM !== null ? `, a ${formatDistance(activeDestWalkM)} walk` : ""}
-            </p>
-          )}
         </section>
 
         <H1ConditionsCard
