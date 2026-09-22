@@ -134,7 +134,9 @@ export const driveTime = createServerFn({ method: "POST" })
       summary.lengthInMeters ?? 0,
       { fromLon: data.fromLon, toLon: data.toLon },
     );
-    const bypassedRoads = corridor ? bypassedCorridors(offRoute, corridor.roads) : [];
+    // Compare against every road the route touches, so a road the drive uses
+    // for even one leg is never advertised as skipped.
+    const bypassedRoads = corridor ? bypassedCorridors(offRoute, corridor.allRoads) : [];
 
     const trafficMinutes = Math.round(trafficSeconds / 60);
     const typicalMinutes = Math.round(typicalSeconds / 60);
