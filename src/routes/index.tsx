@@ -689,6 +689,9 @@ function Index() {
   // Once the commuter is underway the chosen mode is locked: the verdict must
   // never flip a driver onto rail, or a rider onto the freeway, mid-trip.
   const [commitment, setCommitment] = useState<Commitment | null>(null);
+  // The itinerary boarded, held for the duration of a locked transit trip.
+  const lockedOptionRef = useRef<Option | null>(null);
+  const lockedItineraryCandidate = useRef<Option | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
