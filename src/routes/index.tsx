@@ -870,6 +870,26 @@ function Index() {
     window.localStorage.setItem(ARRIVE_BY_KEY, next);
   }
 
+  /** Commit to a mode for the trip underway and stop the verdict changing it. */
+  function commitMode(next: "rail" | "drive") {
+    const entry: Commitment = { mode: next, at: Date.now() };
+    setCommitment(entry);
+    setSelectedMode(next);
+    window.localStorage.setItem(COMMIT_KEY, JSON.stringify(entry));
+  }
+
+  /** Release the lock so Nalu can recommend again. */
+  function releaseCommitment() {
+    setCommitment(null);
+    window.localStorage.removeItem(COMMIT_KEY);
+  }
+
+  /** Tapping a mode tab: while committed this re-commits to that mode. */
+  function chooseMode(next: "rail" | "drive") {
+    if (commitment) commitMode(next);
+    else setSelectedMode(next);
+  }
+
   // "End trip" clears the saved commute and its overrides, returning to browse
   // mode where departures stay visible and a new trip can be set up anytime.
   function endTrip() {
