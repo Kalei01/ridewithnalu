@@ -1,4 +1,4 @@
-import { localRoadName } from "../traffic-incidents";
+import { localRoadName, routeCodeName } from "../traffic-incidents";
 
 export type GuidanceInstruction = {
   routeOffsetInMeters?: number;
