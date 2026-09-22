@@ -2301,7 +2301,7 @@ function Index() {
             </p>
           )}
           {reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
-          {activeDestStopName && (
+          {selectedMode === "rail" && activeDestStopName && (
             <p className="mt-3 text-sm text-muted-foreground">
               {inbound
                 ? `Bus stop you board near ${destinationLabel}: ${titleCase(activeDestStopName)}`
@@ -2368,7 +2368,7 @@ function Index() {
 
         </section>
 
-        <section className="mb-8 rounded-lg border border-border bg-surface-raised p-5" aria-labelledby="later-title">
+        {selectedMode === "rail" && options.length > 1 && <section className="mb-8 rounded-lg border border-border bg-surface-raised p-5" aria-labelledby="later-title">
           <h2 id="later-title" className="text-lg font-semibold">Alternative Departures</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             Two or three later trips, with the exact arrival each one gets you. Tap one to make it your plan.
@@ -2406,17 +2406,8 @@ function Index() {
               </li>
               );
             })}
-            {options.length <= 1 && (
-              <li className="py-2 text-sm text-muted-foreground">
-                {!configured
-                  ? "Finish setup to see options."
-                  : optionsLoading
-                    ? "Loading schedule…"
-                    : "No other reachable trip with a connection today."}
-              </li>
-            )}
           </ol>
-        </section>
+        </section>}
 
         <Button
           variant="outline"
@@ -3134,18 +3125,18 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
   }
 
   function save() {
-    const station = stations.find((item) => item.stop_id === draft.homeStopId);
-    // Prefer the rider's real door: the shared location, then a saved Home
-    // address. Only fall back to the station so the map pins stay honest.
+    // A commute requires exact places. A station is transit access metadata,
+    // never a substitute for the rider's Home coordinates.
     const home = findByKind(savedPlaces, "home");
     onSave({
       ...draft,
-      homeLat: draft.homeLat ?? home?.lat ?? (station?.stop_lat ? Number(station.stop_lat) : null),
-      homeLon: draft.homeLon ?? home?.lon ?? (station?.stop_lon ? Number(station.stop_lon) : null),
+      homeLat: draft.homeLat ?? home?.lat ?? null,
+      homeLon: draft.homeLon ?? home?.lon ?? null,
     });
   }
 
-  const canSave = Boolean(draft.homeStopId && draft.destStopId && draft.destLat);
+  const canSave = hasValidCoordinates({ lat: draft.homeLat, lon: draft.homeLon })
+    && hasValidCoordinates({ lat: draft.destLat, lon: draft.destLon });
   const presets = commutePresets(savedPlaces);
   const originPoint: PointLike | null =
     draft.homeLat !== null && draft.homeLon !== null

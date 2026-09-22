@@ -43,23 +43,23 @@ function normalizePlace(value: unknown, index: number, now: string): SavedPlace 
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
   if (!hasValidCoordinates(row)) return null;
-  if (typeof row.name !== "string" || !row.name.trim()) return null;
-  const kind = PLACE_KINDS.includes(row.kind as PlaceKind) ? row.kind as PlaceKind : "custom";
-  const legacyArrival = row.arriveBySeconds;
-  const arrival = typeof row.typicalArrivalSeconds === "number"
-    ? row.typicalArrivalSeconds
+  if (typeof row["name"] !== "string" || !row["name"].trim()) return null;
+  const kind = PLACE_KINDS.includes(row["kind"] as PlaceKind) ? row["kind"] as PlaceKind : "custom";
+  const legacyArrival = row["arriveBySeconds"];
+  const arrival = typeof row["typicalArrivalSeconds"] === "number"
+    ? row["typicalArrivalSeconds"]
     : typeof legacyArrival === "number" ? legacyArrival : null;
   return {
-    id: typeof row.id === "string" && row.id ? row.id : `${kind}-${index}-${row.lat},${row.lon}`,
+    id: typeof row["id"] === "string" && row["id"] ? row["id"] : `${kind}-${index}-${row.lat},${row.lon}`,
     kind,
-    label: typeof row.label === "string" && row.label.trim() ? row.label : kindLabel(kind),
-    name: row.name,
-    address: typeof row.address === "string" && row.address.trim() ? row.address : row.name,
+    label: typeof row["label"] === "string" && row["label"].trim() ? row["label"] : kindLabel(kind),
+    name: row["name"],
+    address: typeof row["address"] === "string" && row["address"].trim() ? row["address"] : row["name"],
     lat: row.lat,
     lon: row.lon,
     typicalArrivalSeconds: arrival !== null && Number.isFinite(arrival) ? arrival : null,
-    createdAt: typeof row.createdAt === "string" ? row.createdAt : now,
-    updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : now,
+    createdAt: typeof row["createdAt"] === "string" ? row["createdAt"] : now,
+    updatedAt: typeof row["updatedAt"] === "string" ? row["updatedAt"] : now,
   };
 }
 
@@ -85,14 +85,14 @@ export function migrateSavedPlaces(currentRaw: string | null, legacyRaw: string 
     try {
       const setup = JSON.parse(legacySetupRaw) as LegacySetup;
       if (hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon }) && !findByKind(migrated, "home")) {
-        migrated = upsertPlace(migrated, makeSavedPlace({ kind: "home", name: "Home", address: "Home", lat: setup.homeLat, lon: setup.homeLon }, now));
+        migrated = upsertPlace(migrated, makeSavedPlace({ kind: "home", name: "Home", address: "Home", lat: Number(setup.homeLat), lon: Number(setup.homeLon) }, now));
       }
       if (hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon }) && !findByKind(migrated, "work")) {
         const name = typeof setup.destinationName === "string" && setup.destinationName.trim()
           ? setup.destinationName : "Work";
         const address = typeof setup.destinationAddress === "string" && setup.destinationAddress.trim()
           ? setup.destinationAddress : name;
-        migrated = upsertPlace(migrated, makeSavedPlace({ kind: "work", name, address, lat: setup.destLat, lon: setup.destLon }, now));
+        migrated = upsertPlace(migrated, makeSavedPlace({ kind: "work", name, address, lat: Number(setup.destLat), lon: Number(setup.destLon) }, now));
       }
     } catch {
       // Keep valid legacy places. Never destroy source data after a failed migration.
