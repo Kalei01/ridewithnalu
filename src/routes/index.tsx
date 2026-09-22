@@ -2000,9 +2000,9 @@ function Index() {
 
 
           {findByKind(savedPlaces, "home") && routineDestination && (
-            <button type="button" onClick={() => void quickStartRoutine()} className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-left backdrop-blur-md">
-              <span className="truncate text-xs font-medium text-muted-foreground">{routineInbound ? "Heading Home?" : `Heading to ${routineDestination.label}?`}</span>
-              <span className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-[11px] font-bold text-primary">Start</span>
+            <button type="button" onClick={() => void quickStartRoutine()} className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/10 px-3.5 py-3 text-left shadow-sm backdrop-blur-md transition-colors hover:bg-primary/15">
+              <span className="truncate text-sm font-semibold text-foreground">{routineInbound ? "Head Home" : `Head to ${routineDestination.label}`}</span>
+              <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-[11px] font-bold text-primary-foreground">Start</span>
             </button>
           )}
 
@@ -3772,6 +3772,7 @@ function AboutSection() {
 const FEEDBACK_ENDPOINT = "https://formspree.io/f/mppwqpaz";
 
 function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { user } = useAuth();
   const [message, setMessage] = useState("");
   const [component, setComponent] = useState("");
   const [email, setEmail] = useState("");
@@ -3779,12 +3780,18 @@ function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   const [sent, setSent] = useState(false);
   const [failed, setFailed] = useState(false);
 
+  const signedInName = profileFirstName(user);
+  const signedInEmail = typeof user?.email === "string" ? user.email : "";
+
   useEffect(() => {
     if (open) {
       setSent(false);
       setFailed(false);
+      // Pre-fill from the signed-in account so riders never retype.
+      setEmail((current) => current || signedInEmail);
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, signedInEmail]);
 
   async function submit() {
     if (!message.trim() || sending) return;
@@ -3794,7 +3801,12 @@ function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (op
       const response = await fetch(FEEDBACK_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ message: message.trim(), component, email: email.trim() || undefined }),
+        body: JSON.stringify({
+          message: message.trim(),
+          component,
+          name: signedInName || undefined,
+          email: email.trim() || undefined,
+        }),
       });
       if (!response.ok) throw new Error(`status ${response.status}`);
       setSent(true);
