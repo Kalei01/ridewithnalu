@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
+import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
 
 const schema = z.object({
   fromLat: z.number(),
@@ -33,6 +34,11 @@ export type DriveTime = {
   /** Congested stretches of the route, for colouring the drawn corridor. */
   trafficSections: DriveTrafficSection[];
   incidents: DriveIncident[];
+  /** Ordered major roads of this drive, e.g. "Via Kualakaʻi Pkwy → H-1 East". */
+  corridorLabel: string | null;
+  corridorRoads: string[];
+  /** Congested nearby roads this route avoids entirely. */
+  bypassedRoads: string[];
   fetchedAt: number;
   trafficBasis: "live" | "future-estimate";
 };
