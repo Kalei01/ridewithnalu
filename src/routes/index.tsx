@@ -1268,7 +1268,11 @@ function Index() {
         p_depart_seconds: leg.depart_seconds as number,
         ...(leg.mode === "bus" && leg.route_short ? { p_route_short: leg.route_short } : {}),
         p_rail: leg.mode === "rail",
+        // Small schedule variance between the planned leg and the timetable must
+        // not leave a rider with no stop list at all.
+        p_tolerance_seconds: 300,
       });
+
       if (error) throw error;
       return (data ?? []).map((row) => ({
         stopId: row.stop_id,
