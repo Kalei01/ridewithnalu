@@ -82,7 +82,7 @@ describe("extractCorridor", () => {
       { fromLon: -158.02, toLon: -157.86 },
     );
     expect(corridor?.label).toBe(
-      "Via Renton Rd → H-1 East → Moanalua Fwy East → Exit 18B · Nimitz Hwy",
+      "Via Renton Rd → H-1 East → Moanalua Fwy East → Nimitz Hwy",
     );
   });
 
@@ -98,8 +98,23 @@ describe("extractCorridor", () => {
       { fromLon: -158.02, toLon: -157.86 },
     );
     expect(corridor?.label).toBe(
-      "Via Fort Weaver Rd → H-1 East → Moanalua Fwy East → Exit 18B · Nimitz Hwy",
+      "Via Fort Weaver Rd → H-1 East → Moanalua Fwy East → Nimitz Hwy",
     );
+  });
+
+  it("replaces TomTom's exit ID with the familiar road named immediately after it", () => {
+    const corridor = extractCorridor(
+      [
+        { routeOffsetInMeters: 0, street: "Interstate Highway H1 W", roadNumbers: ["H1 W"] },
+        { routeOffsetInMeters: 21000, street: "Exit 5", exitNumber: "5" },
+        { routeOffsetInMeters: 21400, street: "Fort Weaver Rd", roadNumbers: ["HI-76"] },
+        { routeOffsetInMeters: 29000, street: "Farrington Hwy", roadNumbers: ["HI-93"] },
+      ],
+      31000,
+      { fromLon: -157.86, toLon: -158.02 },
+    );
+    expect(corridor?.label).toBe("Via H-1 West → Fort Weaver Rd");
+    expect(corridor?.allRoads).not.toContain("Exit 5");
   });
 
   it("returns null without guidance", () => {
