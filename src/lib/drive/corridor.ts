@@ -78,6 +78,8 @@ export function extractCorridor(
   if (!instructions.length) return null;
 
   const spans = new Map<string, { meters: number; firstOffset: number }>();
+  // Direction the feed itself states for each road, preferred over geometry.
+  const statedDirections = new Map<string, string>();
   for (let index = 0; index < instructions.length; index += 1) {
     const step = instructions[index]!;
     const name = stepRoadName(step);
@@ -92,6 +94,9 @@ export function extractCorridor(
     } else {
       spans.set(name, { meters, firstOffset: offset });
     }
+    const base = withoutDirection(name);
+    const stated = guidanceDirection(step);
+    if (stated && !statedDirections.has(base)) statedDirections.set(base, stated);
   }
   if (!spans.size) return null;
 
@@ -106,10 +111,12 @@ export function extractCorridor(
 
   const roads = chosen.map((name) => {
     const baseName = withoutDirection(name);
-    return endpoints && isFreeway(baseName)
-      ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}`
-      : name;
+    if (!isFreeway(baseName)) return name;
+    const stated = statedDirections.get(baseName);
+    if (stated) return `${baseName} ${stated}`;
+    return endpoints ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}` : name;
   });
+
   return { label: `Via ${roads.join(" → ")}`, roads, allRoads: [...spans.keys()] };
 }
 
