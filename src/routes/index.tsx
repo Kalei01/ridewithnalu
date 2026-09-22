@@ -686,6 +686,23 @@ function Index() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
+  // Starting a trip or pulling to refresh must show truly live conditions, so
+  // the next traffic lookup skips the short server-side cache once.
+  const forcedTrafficRefresh = useRef(false);
+  function takeForcedTrafficRefresh() {
+    const forced = forcedTrafficRefresh.current;
+    forcedTrafficRefresh.current = false;
+    return forced;
+  }
+  async function refreshTrafficNow() {
+    forcedTrafficRefresh.current = true;
+    await Promise.allSettled([
+      queryClient.invalidateQueries({ queryKey: ["drive"] }),
+      queryClient.invalidateQueries({ queryKey: ["browse-h1"] }),
+    ]);
+    forcedTrafficRefresh.current = false;
+  }
   const [override, setOverride] = useState<DirectionOverride | null>(null);
   const [parked, setParked] = useState<ParkedCar | null>(null);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
