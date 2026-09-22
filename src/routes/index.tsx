@@ -636,6 +636,7 @@ function H1ConditionsCard({
                     {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
                   </p>
                   {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
+                  <p className="mt-1 text-xs font-medium text-muted-foreground">{incidentImpactText(incident)}</p>
                 </div>
               ) : null;
             })}
@@ -676,6 +677,7 @@ function H1ConditionsCard({
                     {mainlineClearNote(incident, item.data.delayMinutes) && (
                       <p className="mt-1">{mainlineClearNote(incident, item.data.delayMinutes)}</p>
                     )}
+                    <p className="mt-1 font-medium">{incidentImpactText(incident)}</p>
                   </div>
                 )}
               </div>
