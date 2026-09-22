@@ -6,7 +6,8 @@ import { BriefcaseBusiness, Bus, Car, Check, ChevronDown, ChevronRight, Footprin
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
+import { reverseGeocode, searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
+import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
@@ -969,7 +970,7 @@ function Index() {
         window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
         if (isPermissionDeniedError(error)) recordLocationDenied();
       },
-      { timeout: 10_000 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }, [browseActive, onboardingOpen, browseStation, browseLocationDenied]);
 
@@ -1342,6 +1343,7 @@ function Index() {
     ? { lat: setup.homeLat, lon: setup.homeLon }
     : { lat: setup.destLat, lon: setup.destLon };
   const fetchDriveTime = useServerFn(driveTime);
+  const lookupOriginAddress = useServerFn(reverseGeocode);
   const {
     data: drive,
     isLoading: driveLoading,
@@ -2002,7 +2004,15 @@ function Index() {
             destReturnWalkM: Number(back.distance_m),
           });
           chooseDirection(kind === "home");
-          toast.success(`Trip to ${destination.label} is ready.`, { id: toastId });
+          const accuracy = position.coords.accuracy;
+          const precision = Number.isFinite(accuracy) ? `Accurate to about ${formatDistance(accuracy)}` : "";
+          const address = await lookupOriginAddress({ data: { lat: origin.lat, lon: origin.lon } }).catch(() => null);
+          toast.success(`Trip to ${destination.label} is ready.`, {
+            id: toastId,
+            description: [address?.label ? `Starting at ${address.label}` : null, precision || null]
+              .filter(Boolean)
+              .join(" · ") || undefined,
+          });
         } catch {
           toast.error("Nalu couldn’t build that trip right now.", {
             id: toastId,
@@ -2018,7 +2028,7 @@ function Index() {
         });
         setOnboardingOpen(true);
       },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }
 
@@ -2597,6 +2607,9 @@ function Index() {
               <div className="metric-glass"><p className="text-xs text-muted-foreground">Total</p><p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">{driveRange.high}<span className="ml-1 text-xs font-semibold text-muted-foreground">min</span></p></div>
             </div>
           )}
+          {verdict === "drive" && drive && (
+            <RouteCorridor label={drive.corridorLabel} bypassed={drive.bypassedRoads} />
+          )}
           {(verdict === "same" || verdict === "none") && (
             <p className="mt-4 text-lg font-medium text-muted-foreground">
               {verdict === "same" ? `Rail and driving are within ${TOSS_UP_MIN} min of each other.` : optionsLoading ? "Checking today's connections…" : todayHours ? `No reachable rail connection right now. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.` : "No rail service for this trip today."}
@@ -2651,7 +2664,9 @@ function Index() {
           {selectedMode === "drive" && (
             <div className="mt-6 rounded-lg border border-border p-5">
               <div className="flex items-end justify-between gap-4"><div><h3 className="text-xl font-bold text-foreground">Drive details</h3><p className="mt-1 text-sm text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div><p className="text-4xl font-bold tabular-nums text-foreground">{driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}<span className="ml-1 text-base">min</span></p></div>
-              <p className="mt-4 text-sm font-medium text-foreground">Drive straight {inbound ? `from ${destinationLabel} to your home address` : `from home to ${destinationLabel}`} — no stop at a rail station.</p>
+              {drive?.corridorLabel
+                ? <RouteCorridor label={drive.corridorLabel} bypassed={drive.bypassedRoads} size="compact" />
+                : <p className="mt-4 text-sm font-medium text-foreground">Drive straight {inbound ? `from ${destinationLabel} to your home address` : `from home to ${destinationLabel}`} — no stop at a rail station.</p>}
               {driveAvailable && driveRange && drive && <><p className="mt-4 text-sm font-semibold text-foreground">{driveRange.low}–{driveRange.high} min · {drive.delayMinutes >= 1 ? `${drive.delayMinutes} min slower than usual` : drive.delayMinutes <= -1 ? `${Math.abs(drive.delayMinutes)} min faster than usual` : "about usual"}</p><p className="mt-1 text-[10px] text-muted-foreground">Drive time: TomTom</p></>}
               {!driveAvailable && carAwayReason && <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>}
               {driveAvailable && driveFailed && <p className="mt-4 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>}
@@ -3304,6 +3319,7 @@ function SettingsExpiryBanner() {
 function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAlertPrefsChange, savedPlaces, onPlacesChange }: SetupDialogProps) {
 
   const findPlaces = useServerFn(searchPlaces);
+  const lookupAddress = useServerFn(reverseGeocode);
   const [draft, setDraft] = useState<Setup>(setup);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -3400,9 +3416,18 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
           homeStopId: nearest.stop_id,
           homeStopName: nearest.stop_name ?? "",
         }));
+        const accuracy = position.coords.accuracy;
+        const precision = Number.isFinite(accuracy) ? ` Accurate to about ${formatDistance(accuracy)}.` : "";
         setStatus(
-          `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
+          `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.${precision}`,
         );
+        // Confirm the exact spot in plain words, so a wrong pin is obvious.
+        const address = await lookupAddress({ data: { lat, lon } }).catch(() => null);
+        if (address?.label) {
+          setStatus(
+            `Detected: ${address.label}.${precision} Nearest station: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip away.`,
+          );
+        }
       },
       (error) => {
         setBusy(false);
@@ -3414,7 +3439,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
         }
         setStatus("Location was not shared. Pick your station below.");
       },
-      { timeout: 10_000 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }
 
