@@ -5,10 +5,13 @@ import type { DriveIncident } from "./drive.functions";
  * heading the feed states ("Moanalua Fwy West"); the rest read better without
  * one, because nobody says "Pali Hwy North".
  */
-const ROAD_BY_NUMBER: Record<string, { name: string; directional: boolean }> = {
-  "1": { name: "H-1", directional: true },
-  "2": { name: "H-2", directional: true },
-  "3": { name: "H-3", directional: true },
+const ROAD_BY_NUMBER: Record<
+  string,
+  { name: string; directional: boolean; /** Only an H/I-prefixed code means this freeway. */ freewayCode?: boolean }
+> = {
+  "1": { name: "H-1", directional: true, freewayCode: true },
+  "2": { name: "H-2", directional: true, freewayCode: true },
+  "3": { name: "H-3", directional: true, freewayCode: true },
   "78": { name: "Moanalua Fwy", directional: true },
   "201": { name: "Moanalua Fwy", directional: true },
   "92": { name: "Nimitz Hwy", directional: true },
@@ -18,8 +21,11 @@ const ROAD_BY_NUMBER: Record<string, { name: string; directional: boolean }> = {
   "83": { name: "Kamehameha Hwy", directional: false },
   "99": { name: "Kamehameha Hwy", directional: false },
   "93": { name: "Farrington Hwy", directional: false },
+  "80": { name: "Kamehameha Hwy", directional: false },
   "76": { name: "Fort Weaver Rd", directional: false },
   "750": { name: "Kunia Rd", directional: false },
+  "95": { name: "Kualakaʻi Pkwy", directional: false },
+  "8930": { name: "Farrington Hwy", directional: false },
 };
 
 const DIRECTION_WORDS: Record<string, string> = {
