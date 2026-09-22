@@ -22,6 +22,8 @@ type CommuteRouteMapProps = {
   livePoint: { lat: number; lon: number } | null;
   /** Compass heading in degrees, when the device reports one, to point the live dot. */
   liveHeading?: number | null;
+  /** Keep an active trip centered on the moving live location. */
+  followLive?: boolean;
   /** Real road geometry to draw instead of straight hops (used for Drive mode). */
   path?: Array<{ lat: number; lon: number }>;
   /** Congested stretches drawn in amber/red over the route (Drive mode). */
@@ -54,7 +56,7 @@ function journeyIcon(point: JourneyPoint) {
   });
 }
 
-export default function CommuteRouteMap({ points, livePoint, liveHeading, path, trafficSections }: CommuteRouteMapProps) {
+export default function CommuteRouteMap({ points, livePoint, liveHeading, followLive = false, path, trafficSections }: CommuteRouteMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -249,6 +251,12 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, path, 
       zIndexOffset: 800,
     }).addTo(liveLayer);
   }, [livePoint, liveHeading]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !followLive || !livePoint) return;
+    map.setView([livePoint.lat, livePoint.lon], Math.max(map.getZoom(), 15), { animate: false });
+  }, [followLive, livePoint]);
 
 
   const recenter = () => {
