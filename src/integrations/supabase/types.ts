@@ -735,6 +735,16 @@ export type Database = {
           trip_id: string
         }[]
       }
+      rail_line_stations: {
+        Args: never
+        Returns: {
+          line_sequence: number
+          stop_id: string
+          stop_lat: number
+          stop_lon: number
+          stop_name: string
+        }[]
+      }
       rail_stations: {
         Args: never
         Returns: {
