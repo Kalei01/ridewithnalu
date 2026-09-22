@@ -1,6 +1,6 @@
 import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BriefcaseBusiness, Bus, Car, Check, ChevronDown, ChevronRight, Footprints, House, LocateFixed, Navigation, Radio, RefreshCw, Search, Settings, TrainFront, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
@@ -691,9 +691,7 @@ function Index() {
   // the next traffic lookup skips the short server-side cache once.
   const forcedTrafficRefresh = useRef(false);
   function takeForcedTrafficRefresh() {
-    const forced = forcedTrafficRefresh.current;
-    forcedTrafficRefresh.current = false;
-    return forced;
+    return forcedTrafficRefresh.current;
   }
   async function refreshTrafficNow() {
     forcedTrafficRefresh.current = true;
@@ -2131,6 +2129,7 @@ function Index() {
     // Unlock audio inside this tap so iOS Safari allows the arrival chime later.
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
+    void refreshTrafficNow();
     if (!configured) chooseDirection(false);
     persist(next);
     window.localStorage.removeItem(SETUP_DISMISSED_KEY);
@@ -2141,6 +2140,7 @@ function Index() {
   async function quickStartRoutine() {
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
+    void refreshTrafficNow();
     const home = findByKind(savedPlaces, "home");
     const destination = findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
     if (!home || !destination) {
@@ -2182,6 +2182,7 @@ function Index() {
   async function quickStartSavedPlace(kind: "home" | "work") {
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
+    void refreshTrafficNow();
     const destination = findByKind(savedPlaces, kind);
     if (!destination) {
       toast(`Save your ${kind === "home" ? "Home" : "Work"} location first.`, {
