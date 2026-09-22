@@ -381,6 +381,20 @@ function alohaGreeting(date: Date, name?: string) {
   return name ? `${greeting}, ${name}` : greeting;
 }
 
+/** First name from the signed-in profile: full name, then given name, then username. */
+function profileFirstName(user: { user_metadata?: Record<string, unknown>; email?: string | null } | null) {
+  const meta = user?.user_metadata ?? {};
+  const fullName = typeof meta["full_name"] === "string" ? meta["full_name"].trim() : "";
+  if (fullName) return fullName.split(/\s+/)[0];
+  const given = typeof meta["given_name"] === "string" ? meta["given_name"].trim() : "";
+  if (given) return given;
+  const username = typeof meta["preferred_username"] === "string" ? meta["preferred_username"].trim() : "";
+  if (username) return username.split(/[.@]/)[0];
+  const email = typeof user?.email === "string" ? user.email : "";
+  if (email) return email.split("@")[0];
+  return undefined;
+}
+
 function honoluluIsoDow(date: Date) {
   const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "Pacific/Honolulu", weekday: "short" }).format(date);
   const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
