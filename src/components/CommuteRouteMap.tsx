@@ -204,7 +204,7 @@ export default function CommuteRouteMap({ points, livePoint, path }: CommuteRout
     <div className="relative z-0 isolate h-full w-full">
       <div ref={nodeRef} className="h-full w-full" aria-label="Interactive map of your door-to-door commute" />
       <div className="absolute right-3 top-3 z-[500] flex flex-col items-end gap-2" aria-label="Map controls">
-        <div className="flex overflow-hidden rounded-md border border-border bg-background/95 shadow-lg backdrop-blur-md">
+        <div className="flex overflow-hidden rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl">
           <Button
             type="button"
             variant="ghost"
@@ -231,10 +231,10 @@ export default function CommuteRouteMap({ points, livePoint, path }: CommuteRout
           </Button>
         </div>
         <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="icon" onClick={fitRoute} aria-label="Fit full route" title="Fit full route" className="size-11 border border-border bg-background/95 shadow-lg backdrop-blur-md">
+          <Button type="button" variant="secondary" size="icon" onClick={fitRoute} aria-label="Fit full route" title="Fit full route" className="size-11 rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl">
             <Maximize className="size-5" />
           </Button>
-          <Button type="button" variant="secondary" size="icon" onClick={recenter} disabled={!livePoint} aria-label={livePoint ? "Recenter on my location" : "Current location unavailable"} title={livePoint ? "Recenter on my location" : "Current location unavailable"} className="size-11 border border-border bg-background/95 shadow-lg backdrop-blur-md">
+          <Button type="button" variant="secondary" size="icon" onClick={recenter} disabled={!livePoint} aria-label={livePoint ? "Recenter on my location" : "Current location unavailable"} title={livePoint ? "Recenter on my location" : "Current location unavailable"} className="size-11 rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl">
             <LocateFixed className="size-5" />
           </Button>
         </div>

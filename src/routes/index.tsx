@@ -1259,11 +1259,12 @@ function Index() {
   // mode, using the same TomTom drive time and GTFS itineraries as Leave now.
   const arriveByTarget = parseClockInput(arriveByInput);
   const arriveByActive = planMode === "arrive-by" && arriveByTarget !== null;
+  const arriveByPassed = arriveByActive && arriveByTarget < nowSeconds;
   const railPick = useMemo(
     () => (arriveByTarget === null ? null : latestRailArrival(options, arriveByTarget)),
     [options, arriveByTarget],
   );
-  const futureDepartureIso = arriveByActive && drive
+  const futureDepartureIso = arriveByActive && !arriveByPassed && drive
     ? honoluluSecondsToIso(arriveByTarget - (drive.trafficMinutes + 5) * 60, now)
     : null;
   const { data: futureDrive } = useQuery({
@@ -2081,7 +2082,7 @@ function Index() {
   }
 
   return (
-    <main className="min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+    <main className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "rail" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}>
       <div className="mx-auto flex w-full max-w-[440px] flex-col">
         {showApproach && approach && (
           <ApproachBanner
@@ -2173,6 +2174,12 @@ function Index() {
                 onChange={(event) => chooseArriveBy(event.target.value)}
                 className="mt-2 h-12 w-full bg-background/60 text-2xl font-bold tabular-nums"
               />
+              {arriveByPassed && (
+                <div role="alert" className="mt-3 rounded-lg border border-warning/50 bg-warning/10 px-3 py-2.5">
+                  <p className="text-sm font-bold text-warning">That arrival time has already passed today.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Here are the earliest times still possible if you leave now.</p>
+                </div>
+              )}
               {activeSavedPlace?.typicalArrivalSeconds !== null && activeSavedPlace?.typicalArrivalSeconds !== undefined && !inbound && (
                 <p className="mt-2 text-xs text-muted-foreground">
                   Typical arrival saved for {activeSavedPlace.label}: {clockFromSeconds(activeSavedPlace.typicalArrivalSeconds)}
@@ -2188,16 +2195,17 @@ function Index() {
                       <p className="flex items-center gap-2 text-sm font-bold text-foreground"><TrainFront className="size-4 text-primary" /> Rail</p>
                       {railPick?.option && <p className="text-xs font-semibold text-muted-foreground">{railPick.option.total_minutes} min door to door</p>}
                     </div>
-                    {railPick?.option ? (
+                    {railPick?.option && !arriveByPassed ? (
                       <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
                         Leave by {clockFromSeconds(railPick.option.leave_by_seconds)}
                         <span className="ml-2 text-sm font-medium text-muted-foreground">· arrive {clockFromSeconds(railPick.option.arrive_seconds)}</span>
                       </p>
                     ) : optionsLoading ? (
                       <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
-                    ) : railPick?.earliestArriveSeconds ? (
+                    ) : railPick?.earliestOption ? (
                       <p className="mt-2 text-sm text-warning">
-                        No train and bus combination gets you there by {clockFromSeconds(arriveByTarget)}. The soonest rail arrival is {clockFromSeconds(railPick.earliestArriveSeconds)}.
+                        {arriveByPassed ? "Earliest feasible trip: " : `No train and bus combination gets you there by ${clockFromSeconds(arriveByTarget)}. Earliest feasible trip: `}
+                        leave at {clockFromSeconds(railPick.earliestOption.leave_by_seconds)} · arrive {clockFromSeconds(railPick.earliestOption.arrive_seconds)}.
                       </p>
                     ) : (
                       <p className="mt-2 text-sm text-muted-foreground">
@@ -2213,14 +2221,14 @@ function Index() {
                       <p className="flex items-center gap-2 text-sm font-bold text-foreground"><Car className="size-4 text-primary" /> Drive</p>
                       {drive && driveAvailable && <p className="text-xs font-semibold text-muted-foreground">{drive.trafficMinutes} min driving</p>}
                     </div>
-                    {drivePlan?.feasible ? (
+                    {drivePlan?.feasible && !arriveByPassed ? (
                       <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
                         Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
                         <span className="ml-2 text-sm font-medium text-muted-foreground">· arrive around {clockFromSeconds(drivePlan.arriveSeconds)}</span>
                       </p>
                     ) : drivePlan ? (
                       <p className="mt-2 text-sm text-warning">
-                        Too late to drive there by {clockFromSeconds(arriveByTarget)}. Leaving now gets you in around {clockFromSeconds(drivePlan.earliestArriveSeconds)}.
+                        {arriveByPassed ? "Earliest feasible drive" : `Too late to arrive by ${clockFromSeconds(arriveByTarget)}`} · leave {clockFromSeconds(drivePlan.leaveBySeconds)} · arrive around {clockFromSeconds(drivePlan.earliestArriveSeconds)}.
                       </p>
                     ) : !driveAvailable ? (
                       <p className="mt-2 text-sm text-muted-foreground">{carAwayReason ?? "Driving is not available for this trip."}</p>
@@ -2256,7 +2264,7 @@ function Index() {
         </section>
 
         <section
-          className="verdict-lift -mx-2 mt-5 rounded-lg border border-border px-5 py-7 animate-in fade-in duration-300"
+          className="verdict-lift glass-panel -mx-2 mt-5 rounded-lg px-5 py-7 animate-in fade-in duration-300"
           aria-labelledby="verdict-title"
         >
           <div className="mb-5 flex items-center gap-2 text-recommended">
@@ -2280,17 +2288,17 @@ function Index() {
                     : `DRIVE TODAY${gap !== null ? ` · ${Math.abs(gap)} MIN FASTER` : ""}`}
           </h1>
           {verdict === "rail" && best && railRange && (
-            <div className="mt-6 grid grid-cols-3 gap-3 border-t border-border pt-5">
-              <div><p className="text-xs text-muted-foreground">Leave by</p><p className="mt-1 text-xl font-bold tabular-nums text-recommended">{clockFromSeconds(best.leave_by_seconds)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Arrive</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{clockFromSeconds(best.arrive_seconds)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Total</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{railRange.high} min</p></div>
+            <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
+              <div className="metric-glass"><p className="text-xs text-muted-foreground">Leave by</p><p className="mt-1 text-xl font-bold tabular-nums text-recommended">{clockFromSeconds(best.leave_by_seconds)}</p></div>
+              <div className="metric-glass"><p className="text-xs text-muted-foreground">Arrive</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{clockFromSeconds(best.arrive_seconds)}</p></div>
+              <div className="metric-glass"><p className="text-xs text-muted-foreground">Total</p><p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">{railRange.high}<span className="ml-1 text-xs font-semibold text-muted-foreground">min</span></p></div>
             </div>
           )}
           {verdict === "drive" && drive && driveRange && (
-            <div className="mt-6 grid grid-cols-3 gap-3 border-t border-border pt-5">
-              <div><p className="text-xs text-muted-foreground">Leave</p><p className="mt-1 text-xl font-bold text-recommended">Now</p></div>
-              <div><p className="text-xs text-muted-foreground">Arrive</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{clockFromSeconds(nowSeconds + drive.trafficMinutes * 60)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Total</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{driveRange.high} min</p></div>
+            <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
+              <div className="metric-glass"><p className="text-xs text-muted-foreground">Leave</p><p className="mt-1 text-xl font-bold text-recommended">Now</p></div>
+              <div className="metric-glass"><p className="text-xs text-muted-foreground">Arrive</p><p className="mt-1 text-xl font-bold tabular-nums text-foreground">{clockFromSeconds(nowSeconds + drive.trafficMinutes * 60)}</p></div>
+              <div className="metric-glass"><p className="text-xs text-muted-foreground">Total</p><p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">{driveRange.high}<span className="ml-1 text-xs font-semibold text-muted-foreground">min</span></p></div>
             </div>
           )}
           {(verdict === "same" || verdict === "none") && (
@@ -2318,7 +2326,7 @@ function Index() {
         />
 
         {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
-          <section className="mt-4 overflow-hidden rounded-lg border border-border bg-surface-raised" aria-labelledby="trip-map-title">
+          <section className="map-shell mt-4 overflow-hidden rounded-xl" aria-labelledby="trip-map-title">
             <div className="flex items-center justify-between px-4 py-3">
               <div><h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2><p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div>
               <span className="text-xs font-semibold text-muted-foreground">{selectedMode === "drive" ? "Direct drive" : `${mapPoints.length - 2} transit points`}</span>
@@ -2334,12 +2342,14 @@ function Index() {
 
         <section className="py-6" aria-labelledby="mode-details-title">
           <h2 id="mode-details-title" className="sr-only">Trip details</h2>
-          <div role="tablist" aria-label="Travel mode" className="grid grid-cols-2 gap-1 rounded-lg bg-surface-raised p-1">
-            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => setSelectedMode("rail")} className={`h-12 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+          <div role="tablist" aria-label="Travel mode" className="glass-panel grid grid-cols-2 gap-1 rounded-lg p-1">
+            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => setSelectedMode("rail")} className={`relative h-14 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <TrainFront /> Rail {railRange ? `· ${railRange.high} min` : ""}
+              {verdict === "rail gad" ? null : verdict === "rail" && <span className="mode-winner-badge">Faster</span>}
             </Button>
-            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => setSelectedMode("drive")} className={`h-12 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => setSelectedMode("drive")} className={`relative h-14 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <Car /> Drive {driveAvailable && driveRange ? `· ${driveRange.high} min` : ""}
+              {verdict === "drive" && <span className="mode-winner-badge">Faster</span>}
             </Button>
           </div>
 
