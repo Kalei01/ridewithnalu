@@ -45,9 +45,9 @@ describe("incidentText", () => {
     expect(incidentText({ description, road, delayMinutes: null })).toBe(expected);
   });
 
-  it("uses route context when TomTom omits the road", () => {
+  it("says a road-less alert is on a connecting road, not the freeway", () => {
     expect(incidentText({ description: "Closed", road: null, delayMinutes: null })).toBe(
-      "Reported closure on your route",
+      "Reported closure on a connecting road on your route",
     );
   });
 
