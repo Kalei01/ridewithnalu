@@ -74,6 +74,7 @@ export const driveTime = createServerFn({ method: "POST" })
     const routeUrl =
       `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
       `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
+      `&sectionType=traffic` +
       `&routeRepresentation=polyline${data.departureTime ? `&departAt=${encodeURIComponent(data.departureTime)}` : ""}`;
 
 
@@ -95,6 +96,14 @@ export const driveTime = createServerFn({ method: "POST" })
           trafficDelayInSeconds?: number;
         };
         legs?: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>;
+        sections?: Array<{
+          sectionType?: string;
+          startPointIndex?: number;
+          endPointIndex?: number;
+          magnitudeOfDelay?: number;
+          delayInSeconds?: number;
+          simpleCategory?: string;
+        }>;
       }>;
     };
     const route = payload.routes?.[0];
@@ -107,7 +116,9 @@ export const driveTime = createServerFn({ method: "POST" })
     // rush hour, so it never becomes the low end of anything shown to a rider.
     const typicalSeconds = summary.historicTrafficTravelTimeInSeconds ?? trafficSeconds;
 
-    const path = simplifyPath(route?.legs ?? []);
+    const fullPath = flattenPath(route?.legs ?? []);
+    const path = thinPath(fullPath);
+    const trafficSections = readTrafficSections(route?.sections ?? [], fullPath);
     const incidents = await fetchIncidents(key, data, path);
 
     const trafficMinutes = Math.round(trafficSeconds / 60);
@@ -123,10 +134,12 @@ export const driveTime = createServerFn({ method: "POST" })
       highMinutes: trafficMinutes + spread,
       meters: summary.lengthInMeters ?? 0,
       path,
+      trafficSections,
       incidents,
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     };
+
 
     cache.set(cacheKey, result);
     return result;
