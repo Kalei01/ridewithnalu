@@ -2670,6 +2670,7 @@ function RailTripBreakdown({
               <p className={`mt-1 text-sm font-bold leading-snug text-foreground ${followsTransit ? "rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2" : ""}`}>
                 {followsTransit ? `${vehicleName(leg)} from ${transitStopName(previous, "to")}` : vehicleName(leg)}
               </p>
+              {accessWalk && <WalkSegment walk={accessWalk} />}
               {leg.mode === "bus" ? (
                 <div className="mt-2">
                   {waitMinutes > 0 && <p className="text-xs font-semibold text-foreground">Transfer walk/wait · {waitMinutes} min</p>}
