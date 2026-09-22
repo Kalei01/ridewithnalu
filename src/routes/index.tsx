@@ -1496,12 +1496,20 @@ function Index() {
   // gap stays null and the headline never claims a margin.
   const railWorst = railRange ? railRange.high : null;
   const gap = railWorst !== null && usableDrive && driveMinutes !== null ? driveMinutes - railWorst : null;
+  // An incident only explains the verdict when it is what actually pushes the
+  // drive past rail; otherwise it is noise and must not colour the headline.
+  const incidentDecides =
+    Boolean(drive?.incidents[0])
+    && railWorst !== null
+    && driveMinutes !== null
+    && driveMinutes > railWorst
+    && driveMinutes - (drive?.incidents[0]?.delayMinutes ?? 0) > railWorst;
   const decision = compareCommute({
     railMinutes: railWorst,
     driveMinutes,
     driveAvailable,
     driveDelayMinutes: drive?.delayMinutes ?? null,
-    hasMajorIncident: Boolean(drive?.incidents[0]),
+    hasMajorIncident: incidentDecides,
     railWaitMinutes: waitForTrain,
     thresholdMinutes: TOSS_UP_MIN,
   });
