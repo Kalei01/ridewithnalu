@@ -2635,10 +2635,22 @@ function RailTripBreakdown({
         const followsTransit = previous?.mode === "bus" || previous?.mode === "rail";
         const pointByName = (name: string | null) => {
           const wanted = stationLabel(name).toLowerCase();
+          if (!wanted) return null;
           return points.find((point) => stationLabel(point.name).toLowerCase() === wanted) ?? null;
         };
         const walkFrom = leg.mode === "walk" ? pointByName(leg.from) : null;
         const walkTo = leg.mode === "walk" ? pointByName(leg.to) : null;
+        const originPoint = points.find((point) => point.id === "start") ?? null;
+        const finalPoint = points.find((point) => point.id === "end") ?? null;
+        const isTransit = leg.mode === "bus" || leg.mode === "rail";
+        // Boarding a bus/train still starts on foot: origin -> boarding stop.
+        const accessWalk = isTransit && index === 0 && originPoint
+          ? walkBetween(originPoint, pointByName(leg.from), transitStopName(leg, "from"))
+          : null;
+        // Last leg is transit: the rider still walks from the drop-off to the door.
+        const egressWalk = isTransit && index === rows.length - 1 && finalPoint
+          ? walkBetween(pointByName(leg.to), finalPoint, finalPoint.name, transitStopName(leg, "to"))
+          : null;
 
         return (
           <li key={`${leg.kind}-${leg.depart_seconds}-${index}`} className="flex gap-2.5">
