@@ -199,29 +199,56 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, path, 
   // The live dot moves in place; recreating it (or touching the viewport) on every
   // watchPosition tick is what made the map twitch.
   const liveMarkerRef = useRef<L.CircleMarker | null>(null);
+  const headingMarkerRef = useRef<L.Marker | null>(null);
   useEffect(() => {
     const liveLayer = liveLayerRef.current;
     if (!liveLayer) return;
     if (!livePoint) {
       liveLayer.clearLayers();
       liveMarkerRef.current = null;
+      headingMarkerRef.current = null;
       return;
     }
     if (liveMarkerRef.current) {
       liveMarkerRef.current.setLatLng([livePoint.lat, livePoint.lon]);
+    } else {
+      liveMarkerRef.current = L.circleMarker([livePoint.lat, livePoint.lon], {
+        radius: 8,
+        color: "var(--color-foreground)",
+        weight: 3,
+        fillColor: "var(--color-location)",
+        fillOpacity: 1,
+        className: "nalu-location-dot",
+      })
+        .bindTooltip("Your live location", { direction: "top", offset: [0, -10] })
+        .addTo(liveLayer);
+    }
+
+    // A heading arrow above the dot, so a driver can see which way they face.
+    if (typeof liveHeading !== "number" || Number.isNaN(liveHeading)) {
+      if (headingMarkerRef.current) {
+        liveLayer.removeLayer(headingMarkerRef.current);
+        headingMarkerRef.current = null;
+      }
       return;
     }
-    liveMarkerRef.current = L.circleMarker([livePoint.lat, livePoint.lon], {
-      radius: 8,
-      color: "var(--color-foreground)",
-      weight: 3,
-      fillColor: "var(--color-location)",
-      fillOpacity: 1,
-      className: "nalu-location-dot",
-    })
-      .bindTooltip("Your live location", { direction: "top", offset: [0, -10] })
-      .addTo(liveLayer);
-  }, [livePoint]);
+    const icon = L.divIcon({
+      className: "nalu-marker-shell",
+      html: `<span class="nalu-heading-arrow" style="transform: rotate(${Math.round(liveHeading)}deg)"></span>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
+    });
+    if (headingMarkerRef.current) {
+      headingMarkerRef.current.setLatLng([livePoint.lat, livePoint.lon]);
+      headingMarkerRef.current.setIcon(icon);
+      return;
+    }
+    headingMarkerRef.current = L.marker([livePoint.lat, livePoint.lon], {
+      icon,
+      interactive: false,
+      zIndexOffset: 800,
+    }).addTo(liveLayer);
+  }, [livePoint, liveHeading]);
 
 
   const recenter = () => {
