@@ -209,6 +209,21 @@ const LONG_WAIT_MIN = 25;
 const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
 const PLAN_MODE_KEY = "nalu-plan-mode-v1";
 const ARRIVE_BY_KEY = "nalu-arrive-by-v1";
+const COMMIT_KEY = "nalu-committed-mode-v1";
+
+/** The mode a commuter has committed to for the trip underway. */
+type Commitment = { mode: "rail" | "drive"; at: number };
+
+function parseCommitment(raw: string | null): Commitment | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<Commitment>;
+    if (value.mode !== "rail" && value.mode !== "drive") return null;
+    return { mode: value.mode, at: typeof value.at === "number" ? value.at : Date.now() };
+  } catch {
+    return null;
+  }
+}
 
 const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 
