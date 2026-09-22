@@ -2801,14 +2801,37 @@ function Index() {
         <section className="py-6" aria-labelledby="mode-details-title">
           <h2 id="mode-details-title" className="sr-only">Trip details</h2>
           <div role="tablist" aria-label="Travel mode" className="glass-panel grid grid-cols-2 gap-1 rounded-lg p-1">
-            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => setSelectedMode("rail")} className={`relative h-14 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => chooseMode("rail")} className={`relative h-14 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <TrainFront /> Rail {railRange ? `· ${railRange.high} min` : ""}
-              {verdict === "rail" && <span className="mode-winner-badge">Faster than driving</span>}
+              {!commitment && verdict === "rail" && <span className="mode-winner-badge">Faster than driving</span>}
+              {lockedMode === "rail" && <span className="mode-winner-badge">On this trip</span>}
             </Button>
-            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => setSelectedMode("drive")} className={`relative h-14 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => chooseMode("drive")} className={`relative h-14 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <Car /> Drive {driveAvailable && driveRange ? `· ${driveRange.high} min` : ""}
-              {verdict === "drive" && <span className="mode-winner-badge">Faster than transit</span>}
+              {!commitment && verdict === "drive" && <span className="mode-winner-badge">Faster than transit</span>}
+              {lockedMode === "drive" && <span className="mode-winner-badge">On this trip</span>}
             </Button>
+          </div>
+
+          {/* Committing holds this mode, its itinerary and its transfers for the
+              whole trip, so nothing on screen changes underneath the commuter. */}
+          <div className="glass-panel mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3">
+            <p className="text-xs font-semibold text-muted-foreground">
+              {commitment
+                ? lockedMode === "drive"
+                  ? "On the road · live location and traffic updating every 2 minutes"
+                  : "On this trip · your itinerary and stop alerts are held"
+                : "Start when you are ready and Nalu will hold this plan for the trip."}
+            </p>
+            {commitment ? (
+              <Button type="button" variant="ghost" size="sm" onClick={releaseCommitment} className="h-9 px-3 text-xs font-bold">
+                Compare again
+              </Button>
+            ) : (
+              <Button type="button" size="sm" onClick={() => { primeChimeAudio(); commitMode(selectedMode); }} className="h-9 px-4 text-xs font-bold">
+                Start {selectedMode === "drive" ? "drive" : "trip"}
+              </Button>
+            )}
           </div>
 
           {selectedMode === "rail" && (
