@@ -1534,6 +1534,9 @@ function Index() {
     if (verdict === "drive" && longWait && waitForTrain !== null) {
       return `Next reachable train is ${waitForTrain} min out`;
     }
+    if (verdict === "rail" && incident && incidentDecides) {
+      return trafficDelayText(incident, drive?.delayMinutes ?? 0);
+    }
     if (verdict === "rail" && best) {
       // Biggest wait inside the chain is the bottleneck worth naming.
       let worstLabel: string | null = null;
@@ -1551,7 +1554,6 @@ function Index() {
         return `${worstLabel} connection adds ${Math.round(worstWait / 60)} min of waiting`;
       }
     }
-    if (verdict === "rail" && incident && incidentDecides) return trafficDelayText(incident, drive?.delayMinutes ?? 0);
     if (drive && drive.delayMinutes >= 5)
       return `The drive is running ${drive.delayMinutes} min slower than usual`;
     return null;
@@ -2675,7 +2677,7 @@ function Index() {
               {driveAvailable && driveRange && drive && <p className="mt-3 text-[10px] text-muted-foreground">Drive time: TomTom</p>}
               {!driveAvailable && carAwayReason && <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>}
               {driveAvailable && driveFailed && <p className="mt-4 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>}
-              {driveAvailable && drive?.incidents[0] && verdict !== "drive" && <p className="mt-4 border-l-2 border-warning pl-3 text-base font-bold text-foreground">{trafficDelayText(drive.incidents[0], drive.delayMinutes)}</p>}
+              {driveAvailable && drive?.incidents[0] && verdict !== "drive" && !incidentDecides && <p className="mt-4 border-l-2 border-warning pl-3 text-base font-bold text-foreground">{trafficDelayText(drive.incidents[0], drive.delayMinutes)}</p>}
               {driveWeatherLines.map((line) => <p key={line.text} className={`mt-3 text-sm ${TONE_CLASS[line.tone]}`}>{line.text}<span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span></p>)}
               {!inbound && driveAvailable && <Button variant="outline" size="sm" onClick={() => setCarPlace("destination")} className="mt-5">I'm driving all the way</Button>}
               {inbound && carPlace === "destination" && <Button variant="outline" size="sm" onClick={() => setCarPlace("home")} className="mt-5">My car isn't here</Button>}
