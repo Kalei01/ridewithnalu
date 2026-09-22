@@ -908,6 +908,9 @@ function Index() {
     window.localStorage.removeItem(PLAN_MODE_KEY);
     window.localStorage.removeItem(ARRIVE_BY_KEY);
     window.localStorage.setItem(SETUP_DISMISSED_KEY, "1");
+    // Releasing the lock also stops the GPS watcher and the 2-minute traffic
+    // polling, both of which are gated on an active committed drive.
+    releaseCommitment();
   }
 
   const timeText = useMemo(
