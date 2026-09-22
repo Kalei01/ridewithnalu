@@ -91,18 +91,27 @@ export function extractCorridor(
  * Congested roads near the trip that this route does not use, so the app can
  * say plainly that the drive skips a known backup.
  */
+function roadKey(road: string) {
+  return road
+    .replace(/\s+(East|West|North|South|Eastbound|Westbound)$/i, "")
+    .replace(/\b(Road|Rd|Highway|Hwy|Parkway|Pkwy|Freeway|Fwy|Street|St|Avenue|Ave|Boulevard|Blvd)\b\.?/gi, "")
+    .replace(/[^a-z0-9]+/gi, "")
+    .toLowerCase();
+}
+
 export function bypassedCorridors(
   nearbyCongestedRoads: Array<string | null>,
-  corridorRoads: string[],
+  /** Every road the route travels on, not just the headline corridor. */
+  routeRoads: string[],
   limit = 2,
 ): string[] {
-  const onRoute = new Set(corridorRoads.map((road) => road.replace(/\s+(East|West)$/i, "").toLowerCase()));
+  const onRoute = new Set(routeRoads.map(roadKey));
   const out: string[] = [];
   for (const raw of nearbyCongestedRoads) {
     const name = localRoadName(raw ?? null);
     if (!name) continue;
-    const key = name.toLowerCase();
-    if (onRoute.has(key) || out.some((item) => item.toLowerCase() === key)) continue;
+    const key = roadKey(name);
+    if (!key || onRoute.has(key) || out.some((item) => roadKey(item) === key)) continue;
     out.push(name);
     if (out.length === limit) break;
   }
