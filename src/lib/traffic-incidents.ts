@@ -47,8 +47,7 @@ export function incidentPlace(incident: DriveIncident): string {
   const road = localRoadName(incident.road);
   if (!road) return "on a connecting road on your route";
   if (/\b(?:ramp|on-?ramp|off-?ramp|onramp|offramp)\b/i.test(road)) return `on the ${road}`;
-  if (isFreewayMainline(road)) return `on ${road}`;
-  return `on ${road}, a connecting road on your route`;
+  return `on ${road}`;
 }
 
 /** Add useful context to TomTom's terse incident descriptions. */
