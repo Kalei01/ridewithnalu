@@ -12,7 +12,23 @@ export type RouteCorridor = {
   label: string;
   /** Ordered road names that carry most of the drive. */
   roads: string[];
+  /** Every road the route touches, however briefly. */
+  allRoads: string[];
 };
+
+/**
+ * The name to show for one guidance step. Freeways are best identified by their
+ * number (H-1), but ordinary surface roads must use the street name the feed
+ * reports: route numbers change at junctions (Fort Weaver Rd becomes Kunia Rd
+ * north of H-1), so trusting the number alone renames the road a driver is on.
+ */
+export function stepRoadName(step: GuidanceInstruction): string | null {
+  const numbered = localRoadName(step.roadNumbers?.[0] ?? null);
+  if (numbered && isFreeway(numbered)) return numbered;
+  const street = step.street?.trim();
+  if (street) return localRoadName(street);
+  return numbered;
+}
 
 /** East/West suffix for freeways, derived from the trip's own geometry. */
 function freewayDirection(fromLon: number, toLon: number): "East" | "West" {
