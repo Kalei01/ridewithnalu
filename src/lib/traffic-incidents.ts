@@ -25,7 +25,6 @@ const ROAD_BY_NUMBER: Record<
   "76": { name: "Fort Weaver Rd", directional: false },
   "750": { name: "Kunia Rd", directional: false },
   "95": { name: "Kualakaʻi Pkwy", directional: false },
-  "8930": { name: "Farrington Hwy", directional: false },
 };
 
 const DIRECTION_WORDS: Record<string, string> = {
