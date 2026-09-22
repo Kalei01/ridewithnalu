@@ -51,6 +51,7 @@ import { honoluluSecondsToIso } from "@/lib/drive/planner";
 import { compareCommute } from "@/lib/decision/commute-decision";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
+import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
 import { AccountSection } from "@/components/account/AccountSection";
 import { SignInBanner } from "@/components/account/SignInBanner";
 import { useAuth } from "@/hooks/use-auth";
@@ -2036,6 +2037,7 @@ function Index() {
                 <h2 id="browse-station-title" className="truncate text-xl font-semibold text-foreground">
                   {browseStation ? `${stationLabel(browseStation.stopName)} Station` : "Finding your station…"}
                 </h2>
+                {browseStation && <LandmarkHint name={browseStation.stopName} />}
               </div>
             </div>
             {browseStation && browseUserPoint && (
@@ -2181,6 +2183,7 @@ function Index() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-foreground">{selectedNearbyStop.routeType === 1 ? `${stationLabel(selectedNearbyStop.stopName)} Station` : titleCase(selectedNearbyStop.stopName)}</p>
+                        <LandmarkHint name={selectedNearbyStop.stopName} />
                         <p className="mt-1 text-xs text-muted-foreground">Walk {walkingEstimate(browseUserPoint, selectedNearbyStop).minutes} min · {formatDistance(selectedNearbyStop.distanceM)}</p>
                       </div>
                       {selectedNearbyStop.arrivals[0] && <p className="text-lg font-bold tabular-nums text-primary">{Math.max(0, Math.ceil((selectedNearbyStop.arrivals[0].departure_seconds - nowSeconds) / 60))} min</p>}
