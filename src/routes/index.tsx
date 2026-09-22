@@ -2,7 +2,8 @@ import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, Car, Check, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Search, Settings, TrainFront, UserRound, X } from "lucide-react";
+import { BriefcaseBusiness, Bus, Car, Check, ChevronDown, ChevronRight, Footprints, House, LocateFixed, RefreshCw, Search, Settings, TrainFront, UserRound, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
@@ -1927,6 +1928,75 @@ function Index() {
     chooseDirection(honoluluParts(now).hour >= 12);
   }
 
+  async function quickStartSavedPlace(kind: "home" | "work") {
+    const destination = findByKind(savedPlaces, kind);
+    if (!destination) {
+      toast(`Save your ${kind === "home" ? "Home" : "Work"} location first.`, {
+        description: "You can add it in Saved locations.",
+      });
+      setOnboardingOpen(true);
+      return;
+    }
+    if (!navigator.geolocation) {
+      toast("Your location isn’t available on this device.", {
+        description: "Open WHERE TO? to choose a starting point.",
+      });
+      setOnboardingOpen(true);
+      return;
+    }
+
+    const toastId = toast.loading(`Finding the quickest trip to ${destination.label}…`);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const origin = { lat: position.coords.latitude, lon: position.coords.longitude };
+        try {
+          const [station, arriving, boarding] = await Promise.all([
+            supabase.rpc("nearest_stop", { p_lat: origin.lat, p_lon: origin.lon, p_rail_only: true }),
+            supabase.rpc("directional_dest_stop", { p_lat: destination.lat, p_lon: destination.lon, p_toward_rail: false }),
+            supabase.rpc("directional_dest_stop", { p_lat: destination.lat, p_lon: destination.lon, p_toward_rail: true }),
+          ]);
+          const rail = station.data?.[0];
+          const out = arriving.data?.[0];
+          const back = boarding.data?.[0];
+          if (!rail || !out || !back) throw new Error("No reachable transit stops");
+          saveSetup({
+            ...emptySetup,
+            homeStopId: rail.stop_id,
+            homeStopName: rail.stop_name ?? "",
+            homeLat: origin.lat,
+            homeLon: origin.lon,
+            destinationName: destination.name,
+            destinationAddress: destination.address,
+            destLat: destination.lat,
+            destLon: destination.lon,
+            destStopId: out.stop_id,
+            destStopName: out.stop_name ?? "",
+            destStopWalkM: Number(out.distance_m),
+            destReturnStopId: back.stop_id,
+            destReturnStopName: back.stop_name ?? "",
+            destReturnWalkM: Number(back.distance_m),
+          });
+          chooseDirection(kind === "home");
+          toast.success(`Trip to ${destination.label} is ready.`, { id: toastId });
+        } catch {
+          toast.error("Nalu couldn’t build that trip right now.", {
+            id: toastId,
+            description: "Try again or use WHERE TO?.",
+          });
+        }
+      },
+      (error) => {
+        if (isPermissionDeniedError(error)) recordLocationDenied();
+        toast.error("Share your location to start in one tap.", {
+          id: toastId,
+          description: "You can also choose a starting point in WHERE TO?.",
+        });
+        setOnboardingOpen(true);
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+    );
+  }
+
   const setupDialog = (
     <SetupDialog
       open={onboardingOpen || settingsOpen}
@@ -2017,6 +2087,33 @@ function Index() {
             <span>WHERE TO?</span>
             <ChevronRight className="size-5 text-primary-foreground/70" />
           </Button>
+
+          <div className="mt-2 grid grid-cols-2 gap-2" aria-label="Saved place quick actions">
+            {(["home", "work"] as const).map((kind) => {
+              const place = findByKind(savedPlaces, kind);
+              const Icon = kind === "home" ? House : BriefcaseBusiness;
+              const label = kind === "home" ? "Home" : "Work";
+              return (
+                <Button
+                  key={kind}
+                  variant="outline"
+                  onClick={() => void quickStartSavedPlace(kind)}
+                  className="glass-panel h-14 justify-start gap-3 border-primary/30 bg-primary/5 px-3 text-foreground hover:bg-primary/10"
+                  aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
+                >
+                  <span className="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
+                    <Icon className="size-4" />
+                  </span>
+                  <span className="min-w-0 text-left">
+                    <span className="block text-sm font-bold">{label}</span>
+                    <span className="block truncate text-[11px] font-medium text-muted-foreground">
+                      {place ? place.name : "Set location"}
+                    </span>
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
 
           {browseUserPoint && (
             <section className="map-shell relative mt-4 h-[44dvh] min-h-[320px] max-h-[470px] overflow-hidden rounded-xl" aria-label="Nearby transit map">
@@ -3361,9 +3458,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
       }));
       setPlaceQuery("");
       setDebouncedQuery("");
-      setStatus(
-        `Bus stop near ${place.name}: ${titleCase(out.stop_name)}, a ${formatDistance(Number(out.distance_m))} walk.`,
-      );
+      setStatus(null);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Place search failed.");
     } finally {
@@ -3634,21 +3729,6 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
                   <p className="text-sm text-muted-foreground">No places matched. Try a different name.</p>
                 )}
               </>
-            )}
-            {draft.destStopName && (
-              <p className="text-sm text-muted-foreground">
-                Bus stop near {draft.destinationName || "your destination"} when you arrive:{" "}
-                {titleCase(draft.destStopName)}
-                {typeof draft.destStopWalkM === "number" ? `, a ${formatDistance(draft.destStopWalkM)} walk` : ""}
-              </p>
-            )}
-            {draft.destReturnStopName && (
-              <p className="text-sm text-muted-foreground">
-                Stop you board for the trip home: {titleCase(draft.destReturnStopName)}
-                {typeof draft.destReturnWalkM === "number"
-                  ? `, a ${formatDistance(draft.destReturnWalkM)} walk from ${draft.destinationName || "your destination"}`
-                  : ""}
-              </p>
             )}
           </div>
 

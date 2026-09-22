@@ -12,6 +12,8 @@ export const HOLO_FARES = {
   cashFare: "$3.25",
   /** Daily fare cap with a HOLO card. */
   dailyCap: "$7.50",
+  /** Single ride for Kūpuna / seniors 65+ with a Senior HOLO card. */
+  seniorRide: "$1.25",
   /** Daily cap for Kūpuna / seniors 65+ with a Senior HOLO card. */
   seniorDailyCap: "$3.00",
 } as const;
