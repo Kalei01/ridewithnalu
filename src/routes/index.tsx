@@ -136,12 +136,16 @@ type Leg = {
   route_short: string | null;
   route_long: string | null;
   headsign: string | null;
+  /** Display names only; identity comes from the GTFS stop ids below. */
   from: string | null;
   to: string | null;
+  from_stop_id?: string | null;
+  to_stop_id?: string | null;
   depart_seconds: number | null;
   arrive_seconds: number | null;
   minutes: number | null;
 };
+
 
 /** Anything with a name and a point: a suggestion, a saved place, or a draft. */
 type PointLike = { name: string; address: string; lat: number; lon: number };
