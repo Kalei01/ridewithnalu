@@ -928,6 +928,10 @@ function Index() {
     && hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon });
   const railConfigured = configured && Boolean(setup.homeStopId && setup.destStopId);
   const browseActive = hydrated && !configured;
+  // A committed drive is what turns on live GPS on the map and the rolling
+  // 2-minute traffic refresh; both stop the moment the lock is released.
+  const lockedMode = commitment?.mode ?? null;
+  const drivingCommitted = lockedMode === "drive" && configured && !browseActive;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
   // Where today's car is. With station driving enabled, an unrecorded return
