@@ -11,7 +11,7 @@ import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
-import { incidentText, trafficDelayText } from "@/lib/traffic-incidents";
+import { incidentText, mainlineClearNote, trafficDelayText } from "@/lib/traffic-incidents";
 import {
   detectTrafficAlert,
   postCommuteNotification,
@@ -622,11 +622,15 @@ function H1ConditionsCard({
           <div className="border-t border-border px-4 pb-4">
             {rows.map(({ label, data }) => {
               const incident = data?.incidents[0];
+              const note = mainlineClearNote(incident, data?.delayMinutes);
               return incident ? (
-                <p key={label} className="mt-3 text-sm text-foreground">
-                  <span className="font-semibold">{label}:</span> {incidentText(incident)}
-                  {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
-                </p>
+                <div key={label} className="mt-3">
+                  <p className="text-sm text-foreground">
+                    <span className="font-semibold">{label}:</span> {incidentText(incident)}
+                    {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
+                  </p>
+                  {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
+                </div>
               ) : null;
             })}
             <p className="mt-3 text-[10px] text-muted-foreground">Traffic: TomTom</p>
@@ -658,10 +662,15 @@ function H1ConditionsCard({
                   <span className={`shrink-0 text-right text-sm font-semibold tabular-nums ${status.className}`}>{status.label}</span>
                 </div>
                 {incident && (
-                  <p className="mt-2 rounded-lg bg-surface-raised px-3 py-2 text-xs text-muted-foreground">
-                    {incidentText(incident)}
-                    {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
-                  </p>
+                  <div className="mt-2 rounded-lg bg-surface-raised px-3 py-2 text-xs text-muted-foreground">
+                    <p>
+                      {incidentText(incident)}
+                      {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
+                    </p>
+                    {mainlineClearNote(incident, item.data.delayMinutes) && (
+                      <p className="mt-1">{mainlineClearNote(incident, item.data.delayMinutes)}</p>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -2114,7 +2123,9 @@ function Index() {
       queryClient.invalidateQueries({ queryKey: ["drive"] }),
       queryClient.invalidateQueries({ queryKey: ["browse-h1"] }),
     ];
-    if (browseActive) tasks.push(refetchBrowseDepartures());
+    if (browseActive) {
+      tasks.push(refetchBrowseDepartures(), refetchEastboundTraffic(), refetchWestboundTraffic());
+    }
     await Promise.allSettled(tasks);
     forcedTrafficRefresh.current = false;
     window.setTimeout(() => setRefreshing(false), 250);
