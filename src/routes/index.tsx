@@ -731,6 +731,11 @@ function Index() {
     );
     setSavedPlaces(migratedPlaces);
     if (migratedPlaces.length) window.localStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(migratedPlaces));
+    const storedCommitment = parseCommitment(window.localStorage.getItem(COMMIT_KEY));
+    if (storedCommitment) {
+      setCommitment(storedCommitment);
+      setSelectedMode(storedCommitment.mode);
+    }
     const storedMode = window.localStorage.getItem(PLAN_MODE_KEY);
     if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
     setArriveByInput(window.localStorage.getItem(ARRIVE_BY_KEY) ?? "");
