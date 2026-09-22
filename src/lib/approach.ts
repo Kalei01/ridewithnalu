@@ -161,7 +161,7 @@ export type AlertPrefs = {
 
 export const ALERT_PREFS_KEY = "nalu-alert-prefs-v1";
 
-export const defaultAlertPrefs: AlertPrefs = { sound: false, haptics: true, keepOnTransfer: false };
+export const defaultAlertPrefs: AlertPrefs = { sound: true, haptics: true, keepOnTransfer: false };
 
 export function parseAlertPrefs(raw: string | null): AlertPrefs {
   if (!raw) return defaultAlertPrefs;
