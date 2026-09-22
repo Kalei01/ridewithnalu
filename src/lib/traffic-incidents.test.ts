@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { incidentText, localRoadName, trafficDelayText } from "./traffic-incidents";
+import { incidentText, isFreewayMainline, localRoadName, mainlineClearNote, trafficDelayText } from "./traffic-incidents";
 
 describe("localRoadName", () => {
   it.each([
@@ -54,5 +54,36 @@ describe("incidentText", () => {
   it("adds the route delay in one compact line", () => {
     expect(trafficDelayText({ description: "Queuing traffic", road: "N Nimitz Highway", delayMinutes: 7 }))
       .toBe("Queuing traffic on Nimitz Hwy · +7 min");
+  });
+});
+describe("incident place context", () => {
+  it("treats the freeway mainline as the mainline", () => {
+    expect(isFreewayMainline("Interstate Highway H1 E")).toBe(true);
+    expect(isFreewayMainline("HI-92")).toBe(false);
+    expect(isFreewayMainline(null)).toBe(false);
+  });
+
+  it("names a ramp explicitly", () => {
+    expect(incidentText({ description: "Closed", road: "H-1 East Off-Ramp", delayMinutes: null })).toBe(
+      "Reported closure on the H-1 East Off-Ramp",
+    );
+  });
+
+  it("clarifies a connecting-road alert while the mainline runs clear", () => {
+    expect(mainlineClearNote({ description: "Closed", road: "HI-92", delayMinutes: 4 }, 0)).toBe(
+      "H-1 mainline is clear; this alert is on Nimitz Hwy, a connecting road.",
+    );
+  });
+
+  it("clarifies an unnamed connecting-road alert", () => {
+    expect(mainlineClearNote({ description: "Closed", road: null, delayMinutes: null }, 2)).toBe(
+      "H-1 mainline is clear; this alert is on a connecting road, not the freeway.",
+    );
+  });
+
+  it("stays silent on the mainline or when the freeway is slow", () => {
+    expect(mainlineClearNote({ description: "Jam", road: "Interstate H-1", delayMinutes: 6 }, 0)).toBeNull();
+    expect(mainlineClearNote({ description: "Closed", road: "HI-92", delayMinutes: 12 }, 14)).toBeNull();
+    expect(mainlineClearNote(undefined, 0)).toBeNull();
   });
 });
