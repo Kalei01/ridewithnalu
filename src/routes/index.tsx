@@ -1506,6 +1506,7 @@ function Index() {
           fromLon: driveFrom.lon as number,
           toLat: driveTo.lat as number,
           toLon: driveTo.lon as number,
+          forceRefresh: drivingCommitted,
         },
       }),
   });

@@ -9,6 +9,8 @@ const schema = z.object({
   toLat: z.number(),
   toLon: z.number(),
   departureTime: z.string().datetime({ offset: true }).optional(),
+  /** Active navigation bypasses the five-minute server cache on each rolling refresh. */
+  forceRefresh: z.boolean().optional(),
 });
 
 export type DriveIncident = {
@@ -71,7 +73,7 @@ export const driveTime = createServerFn({ method: "POST" })
       : "now";
     const cacheKey = `${from}:${to}:${departureBucket}`;
     const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.fetchedAt < CACHE_MS) {
+    if (!data.forceRefresh && cached && Date.now() - cached.fetchedAt < CACHE_MS) {
       console.info("[drive] cache_hit", { trafficBasis: cached.trafficBasis });
       return cached;
     }
