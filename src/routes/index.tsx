@@ -618,6 +618,7 @@ function Index() {
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
+  const [alertPrefs, setAlertPrefs] = useState<AlertPrefs>(defaultAlertPrefs);
   const syncedUserRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -709,6 +710,10 @@ function Index() {
     })();
     return () => { cancelled = true; };
   }, [hydrated, user?.id]);
+
+  useEffect(() => {
+    if (!user) syncedUserRef.current = null;
+  }, [user]);
 
   useEffect(() => {
     if (!user || syncedUserRef.current !== user.id) return;
@@ -1273,7 +1278,6 @@ function Index() {
     previousApproachState.current = approach?.state ?? null;
   }, [approach?.state]);
 
-  const [alertPrefs, setAlertPrefs] = useState<AlertPrefs>(defaultAlertPrefs);
   useEffect(() => {
     setAlertPrefs(parseAlertPrefs(window.localStorage.getItem(ALERT_PREFS_KEY)));
   }, []);
