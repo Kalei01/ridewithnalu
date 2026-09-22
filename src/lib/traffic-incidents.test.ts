@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { incidentImpactText, incidentText, isFreewayMainline, localRoadName, mainlineClearNote, trafficDelayText } from "./traffic-incidents";
+import { incidentAffectsTrip, incidentImpactText, incidentText, isFreewayMainline, localRoadName, mainlineClearNote, trafficDelayText } from "./traffic-incidents";
 
 describe("localRoadName", () => {
   it.each([
