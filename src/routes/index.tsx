@@ -6,7 +6,7 @@ import { BriefcaseBusiness, Bus, Car, Check, ChevronDown, ChevronRight, Footprin
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
+import { reverseGeocode, searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
@@ -969,7 +969,7 @@ function Index() {
         window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
         if (isPermissionDeniedError(error)) recordLocationDenied();
       },
-      { timeout: 10_000 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }, [browseActive, onboardingOpen, browseStation, browseLocationDenied]);
 
@@ -2018,7 +2018,7 @@ function Index() {
         });
         setOnboardingOpen(true);
       },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }
 
@@ -3414,7 +3414,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
         }
         setStatus("Location was not shared. Pick your station below.");
       },
-      { timeout: 10_000 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }
 
