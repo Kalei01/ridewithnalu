@@ -154,6 +154,14 @@ type Leg = {
   minutes: number | null;
 };
 
+type RailLineStation = {
+  stop_id: string;
+  stop_name: string | null;
+  stop_lat: number | null;
+  stop_lon: number | null;
+  line_sequence: number;
+};
+
 type TransitLegSequence = {
   legIndex: number;
   mode: "bus" | "rail";
