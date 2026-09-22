@@ -1979,6 +1979,9 @@ function Index() {
             </div>
           </header>
 
+          <SignInBanner />
+
+
           {findByKind(savedPlaces, "home") && routineDestination && (
             <button type="button" onClick={() => void quickStartRoutine()} className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-left backdrop-blur-md">
               <span className="truncate text-xs font-medium text-muted-foreground">{routineInbound ? "Heading Home?" : `Heading to ${routineDestination.label}?`}</span>
