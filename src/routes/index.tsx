@@ -686,6 +686,9 @@ function Index() {
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"rail" | "drive">("rail");
+  // Once the commuter is underway the chosen mode is locked: the verdict must
+  // never flip a driver onto rail, or a rider onto the freeway, mid-trip.
+  const [commitment, setCommitment] = useState<Commitment | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
