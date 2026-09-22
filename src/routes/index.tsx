@@ -173,6 +173,31 @@ const DOWNTOWN_POINT = { lat: 21.3099, lon: -157.8644 };
 const DIRECTION_KEY = "nalu-direction-v1";
 const PARKED_KEY = "nalu-parked-v1";
 const OVERRIDE_MS = 2 * 60 * 60 * 1000;
+
+type RailStation = {
+  stop_id: string;
+  stop_name: string | null;
+  stop_lat: number | null;
+  stop_lon: number | null;
+};
+
+/**
+ * One canonical rail-station query. Browse, the setup picker, the maps and trip
+ * planning all read the same cached GTFS station list.
+ */
+function useRailStations(enabled: boolean) {
+  return useQuery({
+    queryKey: ["rail-stations"],
+    enabled,
+    staleTime: 6 * 60 * 60_000,
+    queryFn: async (): Promise<RailStation[]> => {
+      const { data, error } = await supabase.rpc("rail_stations");
+      if (error) throw error;
+      return (data ?? []) as RailStation[];
+    },
+  });
+}
+
 /** Minutes of padding on the rail chain, and how much a transfer can slip. */
 const RAIL_BUFFER_MIN = 3;
 const RAIL_SLIP_MIN = 4;
