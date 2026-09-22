@@ -191,7 +191,7 @@ export function extractCorridor(
     // street is not the useful freeway cutoff a commuter is looking for.
     const substantialExits = exitCandidates.filter(([, span]) => span.meters >= threshold);
     const exit = (substantialExits.length ? substantialExits : exitCandidates)
-      .sort((a, b) => b[1].firstOffset - a[1].firstOffset)[0];
+      .sort((a, b) => a[1].firstOffset - b[1].firstOffset)[0];
     const core = [...travelledFreeways.map(([name]) => name), exit?.[0]].filter(
       (name): name is string => Boolean(name),
     );

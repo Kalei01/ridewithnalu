@@ -113,7 +113,7 @@ describe("extractCorridor", () => {
       31000,
       { fromLon: -157.86, toLon: -158.02 },
     );
-    expect(corridor?.label).toBe("Via H-1 West → Farrington Hwy");
+    expect(corridor?.label).toBe("Via H-1 West → Fort Weaver Rd");
     expect(corridor?.allRoads).not.toContain("Exit 5");
   });
 
