@@ -209,6 +209,21 @@ const LONG_WAIT_MIN = 25;
 const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
 const PLAN_MODE_KEY = "nalu-plan-mode-v1";
 const ARRIVE_BY_KEY = "nalu-arrive-by-v1";
+const COMMIT_KEY = "nalu-committed-mode-v1";
+
+/** The mode a commuter has committed to for the trip underway. */
+type Commitment = { mode: "rail" | "drive"; at: number };
+
+function parseCommitment(raw: string | null): Commitment | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<Commitment>;
+    if (value.mode !== "rail" && value.mode !== "drive") return null;
+    return { mode: value.mode, at: typeof value.at === "number" ? value.at : Date.now() };
+  } catch {
+    return null;
+  }
+}
 
 const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 
@@ -671,6 +686,12 @@ function Index() {
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"rail" | "drive">("rail");
+  // Once the commuter is underway the chosen mode is locked: the verdict must
+  // never flip a driver onto rail, or a rider onto the freeway, mid-trip.
+  const [commitment, setCommitment] = useState<Commitment | null>(null);
+  // The itinerary boarded, held for the duration of a locked transit trip.
+  const lockedOptionRef = useRef<Option | null>(null);
+  const lockedItineraryCandidate = useRef<Option | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
@@ -713,6 +734,11 @@ function Index() {
     );
     setSavedPlaces(migratedPlaces);
     if (migratedPlaces.length) window.localStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(migratedPlaces));
+    const storedCommitment = parseCommitment(window.localStorage.getItem(COMMIT_KEY));
+    if (storedCommitment) {
+      setCommitment(storedCommitment);
+      setSelectedMode(storedCommitment.mode);
+    }
     const storedMode = window.localStorage.getItem(PLAN_MODE_KEY);
     if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
     setArriveByInput(window.localStorage.getItem(ARRIVE_BY_KEY) ?? "");
@@ -847,6 +873,29 @@ function Index() {
     window.localStorage.setItem(ARRIVE_BY_KEY, next);
   }
 
+  /** Commit to a mode for the trip underway and stop the verdict changing it. */
+  function commitMode(next: "rail" | "drive") {
+    const entry: Commitment = { mode: next, at: Date.now() };
+    setCommitment(entry);
+    setSelectedMode(next);
+    // Freeze the itinerary in front of the rider, transfers included.
+    lockedOptionRef.current = next === "rail" ? lockedItineraryCandidate.current : null;
+    window.localStorage.setItem(COMMIT_KEY, JSON.stringify(entry));
+  }
+
+  /** Release the lock so Nalu can recommend again. */
+  function releaseCommitment() {
+    setCommitment(null);
+    lockedOptionRef.current = null;
+    window.localStorage.removeItem(COMMIT_KEY);
+  }
+
+  /** Tapping a mode tab: while committed this re-commits to that mode. */
+  function chooseMode(next: "rail" | "drive") {
+    if (commitment) commitMode(next);
+    else setSelectedMode(next);
+  }
+
   // "End trip" clears the saved commute and its overrides, returning to browse
   // mode where departures stay visible and a new trip can be set up anytime.
   function endTrip() {
@@ -865,6 +914,9 @@ function Index() {
     window.localStorage.removeItem(PLAN_MODE_KEY);
     window.localStorage.removeItem(ARRIVE_BY_KEY);
     window.localStorage.setItem(SETUP_DISMISSED_KEY, "1");
+    // Releasing the lock also stops the GPS watcher and the 2-minute traffic
+    // polling, both of which are gated on an active committed drive.
+    releaseCommitment();
   }
 
   const timeText = useMemo(
@@ -882,6 +934,10 @@ function Index() {
     && hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon });
   const railConfigured = configured && Boolean(setup.homeStopId && setup.destStopId);
   const browseActive = hydrated && !configured;
+  // A committed drive is what turns on live GPS on the map and the rolling
+  // 2-minute traffic refresh; both stop the moment the lock is released.
+  const lockedMode = commitment?.mode ?? null;
+  const drivingCommitted = lockedMode === "drive" && configured && !browseActive;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
   // Where today's car is. With station driving enabled, an unrecorded return
@@ -1153,9 +1209,17 @@ function Index() {
   const earliest = options[0];
   const [selectedDeparture, setSelectedDeparture] = useState<number | null>(null);
   useEffect(() => {
+    // A locked transit trip keeps its itinerary even as fresher options arrive.
+    if (commitment?.mode === "rail") return;
     setSelectedDeparture(null);
-  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
-  const best = options.find((option) => option.leave_by_seconds === selectedDeparture) ?? earliest;
+  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds, commitment]);
+  const liveBest = options.find((option) => option.leave_by_seconds === selectedDeparture) ?? earliest;
+  // While riding, the itinerary on screen is the one boarded — including its
+  // transfers — not whatever is fastest to leave now.
+  const best = commitment?.mode === "rail" && lockedOptionRef.current
+    ? lockedOptionRef.current
+    : liveBest;
+  lockedItineraryCandidate.current = liveBest ?? null;
 
   const stationCoords = browseStations;
   /* One authoritative rail-station query serves browse, setup, maps and planning. */
@@ -1287,20 +1351,28 @@ function Index() {
   });
 
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
+  const [riderHeading, setRiderHeading] = useState<number | null>(null);
   const distanceTrend = useRef<number[]>([]);
   // High-accuracy GPS is the biggest battery cost in the app, so it runs only
-  // while a saved trip is actually underway on a bus or train, and is released
-  // the moment the leg ends, the trip is ended, or the screen unmounts.
+  // while a saved trip is actually underway — on a bus or train, or on a drive
+  // the commuter has committed to — and is released the moment the leg ends,
+  // the lock is released, the trip is ended, or the screen unmounts.
   useEffect(() => {
-    const trackingWanted = Boolean(activeTransitLeg) && configured && !browseActive;
+    const trackingWanted = (Boolean(activeTransitLeg) || drivingCommitted) && configured && !browseActive;
     if (!trackingWanted || !navigator.geolocation) {
       setRiderPoint(null);
+      setRiderHeading(null);
       return;
     }
     const watch = navigator.geolocation.watchPosition(
-      (position) => setRiderPoint({ lat: position.coords.latitude, lon: position.coords.longitude }),
+      (position) => {
+        setRiderPoint({ lat: position.coords.latitude, lon: position.coords.longitude });
+        const heading = position.coords.heading;
+        setRiderHeading(typeof heading === "number" && !Number.isNaN(heading) ? heading : null);
+      },
       (error) => {
         setRiderPoint(null);
+        setRiderHeading(null);
         if (isPermissionDeniedError(error)) recordLocationDenied();
       },
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
@@ -1308,8 +1380,9 @@ function Index() {
     return () => {
       navigator.geolocation.clearWatch(watch);
       setRiderPoint(null);
+      setRiderHeading(null);
     };
-  }, [activeTransitLeg, configured, browseActive]);
+  }, [activeTransitLeg, drivingCommitted, configured, browseActive]);
 
 
   // Legs change: start the distance history over so an old ride cannot trigger
@@ -1399,8 +1472,11 @@ function Index() {
   } = useQuery({
     queryKey: ["drive", driveFrom.lat, driveFrom.lon, driveTo.lat, driveTo.lon],
     enabled: hydrated && configured && driveFrom.lat !== null && driveTo.lat !== null,
-    staleTime: 5 * 60_000,
-    refetchInterval: 5 * 60_000,
+    // A driver underway gets rolling traffic, congestion and incident updates
+    // every 2 minutes; otherwise the slower 5-minute cadence is plenty.
+    staleTime: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
+    refetchInterval: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
+    refetchIntervalInBackground: false,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -1580,10 +1656,13 @@ function Index() {
     thresholdMinutes: TOSS_UP_MIN,
   });
   const verdict = decision.recommendation;
+  // The verdict only steers the view until the commuter commits; after that the
+  // locked mode stays on screen for the rest of the trip.
   useEffect(() => {
+    if (commitment) return;
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "rail") setSelectedMode("rail");
-  }, [verdict, inbound]);
+  }, [verdict, inbound, commitment]);
   // One line naming the single thing that decides it.
   const reasoning = useMemo(() => {
     const incident = drive?.incidents[0];
@@ -2712,7 +2791,7 @@ function Index() {
             </div>
             <div className="h-72 border-t border-border sm:h-80">
               <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
-                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})} {...(driveTrafficSections && driveTrafficSections.length > 0 ? { trafficSections: driveTrafficSections } : {})} /></Suspense>
+                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} liveHeading={riderHeading} {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})} {...(driveTrafficSections && driveTrafficSections.length > 0 ? { trafficSections: driveTrafficSections } : {})} /></Suspense>
               </ClientOnly>
             </div>
           </section>
@@ -2722,14 +2801,37 @@ function Index() {
         <section className="py-6" aria-labelledby="mode-details-title">
           <h2 id="mode-details-title" className="sr-only">Trip details</h2>
           <div role="tablist" aria-label="Travel mode" className="glass-panel grid grid-cols-2 gap-1 rounded-lg p-1">
-            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => setSelectedMode("rail")} className={`relative h-14 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => chooseMode("rail")} className={`relative h-14 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <TrainFront /> Rail {railRange ? `· ${railRange.high} min` : ""}
-              {verdict === "rail" && <span className="mode-winner-badge">Faster than driving</span>}
+              {!commitment && verdict === "rail" && <span className="mode-winner-badge">Faster than driving</span>}
+              {lockedMode === "rail" && <span className="mode-winner-badge">On this trip</span>}
             </Button>
-            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => setSelectedMode("drive")} className={`relative h-14 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => chooseMode("drive")} className={`relative h-14 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <Car /> Drive {driveAvailable && driveRange ? `· ${driveRange.high} min` : ""}
-              {verdict === "drive" && <span className="mode-winner-badge">Faster than transit</span>}
+              {!commitment && verdict === "drive" && <span className="mode-winner-badge">Faster than transit</span>}
+              {lockedMode === "drive" && <span className="mode-winner-badge">On this trip</span>}
             </Button>
+          </div>
+
+          {/* Committing holds this mode, its itinerary and its transfers for the
+              whole trip, so nothing on screen changes underneath the commuter. */}
+          <div className="glass-panel mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3">
+            <p className="text-xs font-semibold text-muted-foreground">
+              {commitment
+                ? lockedMode === "drive"
+                  ? "On the road · live location and traffic updating every 2 minutes"
+                  : "On this trip · your itinerary and stop alerts are held"
+                : "Start when you are ready and Nalu will hold this plan for the trip."}
+            </p>
+            {commitment ? (
+              <Button type="button" variant="ghost" size="sm" onClick={releaseCommitment} className="h-9 px-3 text-xs font-bold">
+                Compare again
+              </Button>
+            ) : (
+              <Button type="button" size="sm" onClick={() => { primeChimeAudio(); commitMode(selectedMode); }} className="h-9 px-4 text-xs font-bold">
+                Start {selectedMode === "drive" ? "drive" : "trip"}
+              </Button>
+            )}
           </div>
 
           {selectedMode === "rail" && (
