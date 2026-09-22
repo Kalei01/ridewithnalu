@@ -81,7 +81,9 @@ describe("extractCorridor", () => {
       28000,
       { fromLon: -158.02, toLon: -157.86 },
     );
-    expect(corridor?.label).toBe("Via H-1 East → Moanalua Fwy East → Exit 18B · Nimitz Hwy");
+    expect(corridor?.label).toBe(
+      "Via Renton Rd → H-1 East → Moanalua Fwy East → Exit 18B · Nimitz Hwy",
+    );
   });
 
   it("includes Moanalua Freeway and the final cutoff on a town-bound route", () => {

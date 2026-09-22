@@ -171,8 +171,13 @@ export function extractCorridor(
     const approach = surfaceEntries
       .filter(([, span]) => span.firstOffset < firstFreewayOffset)
       .sort((a, b) => b[1].meters - a[1].meters)[0];
-    const exit = entries
-      .filter(([name, span]) => !isFreeway(withoutDirection(name)) && span.firstOffset > lastFreewayOffset)
+    const exitCandidates = entries.filter(
+      ([name, span]) => !isFreeway(withoutDirection(name)) && span.firstOffset > lastFreewayOffset,
+    );
+    // Prefer the last substantial surface road. A final driveway or tiny local
+    // street is not the useful freeway cutoff a commuter is looking for.
+    const substantialExits = exitCandidates.filter(([, span]) => span.meters >= threshold);
+    const exit = (substantialExits.length ? substantialExits : exitCandidates)
       .sort((a, b) => b[1].firstOffset - a[1].firstOffset)[0];
     const core = [...travelledFreeways.map(([name]) => name), exit?.[0]].filter(
       (name): name is string => Boolean(name),
