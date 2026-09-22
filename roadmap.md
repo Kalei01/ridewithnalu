@@ -168,3 +168,9 @@
 - [x] Correlate TomTom incident geometry to the calculated road corridor
 - [x] Explain passed Arrive By targets and show earliest feasible leave/arrival times
 - [x] Add verdict-aware ocean radiance, glass metrics, winning-mode badges, and refined map chrome
+
+## Dark maps and Browse radiance
+- [x] Use CARTO Dark Matter tiles with proper attribution on both maps
+- [x] Draw commute routes with a dark casing and glowing emerald core
+- [x] Improve map marker contrast across standard and satellite layers
+- [x] Extend ocean radiance, glass panels, ETA chips, and CTA depth to Browse mode
