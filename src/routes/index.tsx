@@ -1458,8 +1458,11 @@ function Index() {
   } = useQuery({
     queryKey: ["drive", driveFrom.lat, driveFrom.lon, driveTo.lat, driveTo.lon],
     enabled: hydrated && configured && driveFrom.lat !== null && driveTo.lat !== null,
-    staleTime: 5 * 60_000,
-    refetchInterval: 5 * 60_000,
+    // A driver underway gets rolling traffic, congestion and incident updates
+    // every 2 minutes; otherwise the slower 5-minute cadence is plenty.
+    staleTime: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
+    refetchInterval: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
+    refetchIntervalInBackground: false,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
