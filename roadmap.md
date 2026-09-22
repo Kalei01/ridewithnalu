@@ -26,3 +26,8 @@
 - [x] Remove bypass badges and repeated verdict comparison copy
 - [x] Normalize TomTom freeway and local street labels
 - [x] Show one high-contrast, on-route traffic-delay line
+
+## Committed trip controls
+- [x] Place the prominent Start Drive/Transit action directly beneath the verdict and above the map
+- [x] Lock the selected mode while active and replace comparison controls with End Trip
+- [x] Center and follow the live GPS position on the route map during an active trip

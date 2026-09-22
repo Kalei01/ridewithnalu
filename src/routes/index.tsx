@@ -2,7 +2,7 @@ import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BriefcaseBusiness, Bus, Car, Check, ChevronDown, ChevronRight, Footprints, House, LocateFixed, RefreshCw, Search, Settings, TrainFront, UserRound, X } from "lucide-react";
+import { BriefcaseBusiness, Bus, Car, Check, ChevronDown, ChevronRight, Footprints, House, LocateFixed, Navigation, Radio, RefreshCw, Search, Settings, TrainFront, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -890,10 +890,10 @@ function Index() {
     window.localStorage.removeItem(COMMIT_KEY);
   }
 
-  /** Tapping a mode tab: while committed this re-commits to that mode. */
+  /** An active trip stays on its committed mode until it is ended. */
   function chooseMode(next: "rail" | "drive") {
-    if (commitment) commitMode(next);
-    else setSelectedMode(next);
+    if (commitment) return;
+    setSelectedMode(next);
   }
 
   // "End trip" clears the saved commute and its overrides, returning to browse
@@ -2775,6 +2775,52 @@ function Index() {
           )}
         </section>
 
+        {/* Keep the trip commitment action directly beneath the verdict so it
+            remains visible before route and comparison details. */}
+        <section className={`commitment-panel -mx-2 mt-3 rounded-lg p-3 ${commitment ? "is-live" : ""}`} aria-label={commitment ? "Active trip controls" : "Start trip"}>
+          {commitment ? (
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3 text-center sm:text-left">
+                <span className="live-pulse" aria-hidden="true"><span /></span>
+                <div>
+                  <p className="text-sm font-black uppercase text-foreground">Live navigation active</p>
+                  <p className="mt-0.5 text-xs font-semibold text-muted-foreground">
+                    {lockedMode === "drive" ? "GPS & traffic · Updating every 2 min" : "Stops & alerts locked"}
+                  </p>
+                </div>
+              </div>
+              <Button type="button" variant="destructive" onClick={endTrip} className="h-12 w-full shrink-0 px-6 font-black uppercase sm:w-auto">
+                <X className="size-4" /> End Trip
+              </Button>
+            </div>
+          ) : (
+            <Button type="button" onClick={() => { primeChimeAudio(); commitMode(selectedMode); }} className="commitment-start h-auto min-h-16 w-full gap-3 px-5 py-4 text-left">
+              {selectedMode === "drive" ? <Navigation className="size-6 shrink-0" /> : <TrainFront className="size-6 shrink-0" />}
+              <span className="min-w-0 flex-1 text-center">
+                <span className="block text-base font-black uppercase">Start {selectedMode === "drive" ? "Drive" : "Transit"}</span>
+                <span className="mt-0.5 block text-[10px] font-black uppercase text-primary-foreground/75">
+                  Lock {selectedMode === "drive" ? "GPS & traffic" : "stops & alerts"}
+                </span>
+              </span>
+              <Radio className="size-5 shrink-0" />
+            </Button>
+          )}
+        </section>
+
+        {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
+          <section className="map-shell mt-3 overflow-hidden rounded-xl" aria-labelledby="trip-map-title">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div><h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2><p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div>
+              <span className="text-xs font-semibold text-muted-foreground">{selectedMode === "drive" ? "Direct drive" : `${mapPoints.length - 2} transit points`}</span>
+            </div>
+            <div className="h-72 border-t border-border sm:h-80">
+              <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
+                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} liveHeading={riderHeading} followLive={Boolean(commitment)} {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})} {...(driveTrafficSections && driveTrafficSections.length > 0 ? { trafficSections: driveTrafficSections } : {})} /></Suspense>
+              </ClientOnly>
+            </div>
+          </section>
+        )}
+
         <H1ConditionsCard
           eastbound={eastboundTraffic}
           westbound={westboundTraffic}
@@ -2783,55 +2829,19 @@ function Index() {
           compact
         />
 
-        {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
-          <section className="map-shell mt-4 overflow-hidden rounded-xl" aria-labelledby="trip-map-title">
-            <div className="flex items-center justify-between px-4 py-3">
-              <div><h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2><p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div>
-              <span className="text-xs font-semibold text-muted-foreground">{selectedMode === "drive" ? "Direct drive" : `${mapPoints.length - 2} transit points`}</span>
-            </div>
-            <div className="h-72 border-t border-border sm:h-80">
-              <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
-                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} liveHeading={riderHeading} {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})} {...(driveTrafficSections && driveTrafficSections.length > 0 ? { trafficSections: driveTrafficSections } : {})} /></Suspense>
-              </ClientOnly>
-            </div>
-          </section>
-        )}
-
-
         <section className="py-6" aria-labelledby="mode-details-title">
           <h2 id="mode-details-title" className="sr-only">Trip details</h2>
           <div role="tablist" aria-label="Travel mode" className="glass-panel grid grid-cols-2 gap-1 rounded-lg p-1">
-            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => chooseMode("rail")} className={`relative h-14 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} disabled={Boolean(commitment)} variant="ghost" onClick={() => chooseMode("rail")} className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}>
               <TrainFront /> Rail {railRange ? `· ${railRange.high} min` : ""}
               {!commitment && verdict === "rail" && <span className="mode-winner-badge">Faster than driving</span>}
               {lockedMode === "rail" && <span className="mode-winner-badge">On this trip</span>}
             </Button>
-            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => chooseMode("drive")} className={`relative h-14 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
+            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} disabled={Boolean(commitment)} variant="ghost" onClick={() => chooseMode("drive")} className={`relative h-14 disabled:opacity-100 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}>
               <Car /> Drive {driveAvailable && driveRange ? `· ${driveRange.high} min` : ""}
               {!commitment && verdict === "drive" && <span className="mode-winner-badge">Faster than transit</span>}
               {lockedMode === "drive" && <span className="mode-winner-badge">On this trip</span>}
             </Button>
-          </div>
-
-          {/* Committing holds this mode, its itinerary and its transfers for the
-              whole trip, so nothing on screen changes underneath the commuter. */}
-          <div className="glass-panel mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3">
-            <p className="text-xs font-semibold text-muted-foreground">
-              {commitment
-                ? lockedMode === "drive"
-                  ? "On the road · live location and traffic updating every 2 minutes"
-                  : "On this trip · your itinerary and stop alerts are held"
-                : "Start when you are ready and Nalu will hold this plan for the trip."}
-            </p>
-            {commitment ? (
-              <Button type="button" variant="ghost" size="sm" onClick={releaseCommitment} className="h-9 px-3 text-xs font-bold">
-                Compare again
-              </Button>
-            ) : (
-              <Button type="button" size="sm" onClick={() => { primeChimeAudio(); commitMode(selectedMode); }} className="h-9 px-4 text-xs font-bold">
-                Start {selectedMode === "drive" ? "drive" : "trip"}
-              </Button>
-            )}
           </div>
 
           {selectedMode === "rail" && (

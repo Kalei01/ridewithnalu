@@ -404,6 +404,60 @@
   text-transform: uppercase;
 }
 
+.commitment-panel {
+  border: 1px solid color-mix(in oklch, var(--color-primary) 55%, var(--color-border));
+  background: color-mix(in oklch, var(--color-surface-raised) 88%, transparent);
+  box-shadow: 0 0 34px color-mix(in oklch, var(--color-primary) 20%, transparent), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 14%, transparent);
+  backdrop-filter: blur(20px) saturate(130%);
+}
+
+.commitment-panel.is-live {
+  border-color: color-mix(in oklch, var(--color-location) 70%, var(--color-border));
+  box-shadow: 0 0 36px color-mix(in oklch, var(--color-location) 24%, transparent), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 14%, transparent);
+}
+
+.commitment-start {
+  box-shadow: 0 8px 28px color-mix(in oklch, var(--color-primary) 32%, transparent), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 34%, transparent);
+}
+
+.live-pulse {
+  position: relative;
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  place-items: center;
+}
+
+.live-pulse::before {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--color-location) 36%, transparent);
+  content: "";
+  animation: nalu-live-pulse 1.8s ease-out infinite;
+}
+
+.live-pulse > span {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid var(--color-foreground);
+  border-radius: 999px;
+  background: var(--color-location);
+  box-shadow: 0 0 12px var(--color-location);
+  z-index: 1;
+}
+
+@keyframes nalu-live-pulse {
+  0% { opacity: 0.9; transform: scale(0.45); }
+  75%, 100% { opacity: 0; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-pulse::before { animation: none; }
+}
+
 .map-shell {
   border: 1px solid color-mix(in oklch, var(--color-foreground) 14%, transparent);
   background: var(--color-surface-raised);
