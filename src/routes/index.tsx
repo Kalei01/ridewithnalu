@@ -1936,11 +1936,11 @@ function Index() {
       !trafficLoading &&
       Math.max(eastboundTraffic?.delayMinutes ?? 0, westboundTraffic?.delayMinutes ?? 0) > 10;
 
-    const profileName = typeof user?.user_metadata?.["full_name"] === "string"
-      ? user.user_metadata["full_name"].split(" ")[0]
-      : undefined;
-    const routineDestination = findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
-    const routineInbound = honoluluParts(now).hour >= 12;
+    const profileName = profileFirstName(user);
+    // Routine window: work mornings (5:00 AM–11:59 AM), home from noon on —
+    // overnight hours count as heading home.
+    const routineHour = honoluluParts(now).hour;
+    const routineInbound = routineHour >= 12 || routineHour < 5;
     return (
       <main className="browse-radiance min-h-dvh px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">

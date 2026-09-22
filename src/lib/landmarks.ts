@@ -36,7 +36,10 @@ function normalize(value: string): string {
   return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\u02bb\u02bc'’.,]/g, " ")
+    // Okina and apostrophe vanish (Kualakaʻi → kualakai); punctuation becomes
+    // a separator so word boundaries stay intact.
+    .replace(/[\u02bb\u02bc'’]/g, "")
+    .replace(/[.,]/g, " ")
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
