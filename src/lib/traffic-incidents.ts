@@ -127,6 +127,13 @@ export function trafficDelayText(incident: DriveIncident, fallbackDelayMinutes =
   const delay = incident.delayMinutes ?? fallbackDelayMinutes;
   return `${incidentText(incident)}${delay > 0 ? ` · +${delay} min` : ""}`;
 }
+
+/** Plain-language trip impact shown beneath an incident, never inferred from severity alone. */
+export function incidentImpactText(incident: DriveIncident): string {
+  const delay = Math.max(0, Math.round(incident.delayMinutes ?? 0));
+  if (delay > 0) return `Expected to add about ${delay} min to this trip.`;
+  return "No measurable delay to this trip right now.";
+}
 /**
  * Explains a "Clear" freeway reading shown next to an on-route alert, so a
  * commuter is not left guessing which road the closure is actually on.

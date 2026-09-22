@@ -11,7 +11,7 @@ import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
-import { incidentText, mainlineClearNote, trafficDelayText } from "@/lib/traffic-incidents";
+import { incidentImpactText, incidentText, mainlineClearNote, trafficDelayText } from "@/lib/traffic-incidents";
 import {
   detectTrafficAlert,
   postCommuteNotification,
@@ -152,6 +152,12 @@ type Leg = {
   depart_seconds: number | null;
   arrive_seconds: number | null;
   minutes: number | null;
+};
+
+type TransitLegSequence = {
+  legIndex: number;
+  mode: "bus" | "rail";
+  points: Array<{ stopId: string; stopName: string; lat: number; lon: number }>;
 };
 
 
@@ -1293,6 +1299,34 @@ function Index() {
     },
   });
 
+  const { data: itineraryLegSequences = [] } = useQuery({
+    queryKey: ["itinerary-leg-sequences", best?.legs.map((leg) => [leg.from_stop_id, leg.to_stop_id, leg.depart_seconds, leg.route_short, leg.mode])],
+    enabled: configured && Boolean(best?.legs.some((leg) => (leg.mode === "rail" || leg.mode === "bus") && leg.depart_seconds !== null)),
+    staleTime: 30 * 60_000,
+    queryFn: async (): Promise<TransitLegSequence[]> => {
+      if (!best) return [];
+      const sequences = await Promise.all(best.legs.map(async (leg, legIndex) => {
+        if ((leg.mode !== "rail" && leg.mode !== "bus") || !leg.from || !leg.to || leg.depart_seconds === null) return null;
+        const { data, error } = await supabase.rpc("leg_stop_sequence", {
+          p_from_name: leg.from,
+          p_to_name: leg.to,
+          p_depart_seconds: leg.depart_seconds,
+          ...(leg.mode === "bus" && leg.route_short ? { p_route_short: leg.route_short } : {}),
+          p_rail: leg.mode === "rail",
+          p_tolerance_seconds: 300,
+        });
+        if (error) throw error;
+        const points = (data ?? []).flatMap((row) =>
+          row.stop_lat === null || row.stop_lon === null
+            ? []
+            : [{ stopId: row.stop_id, stopName: row.stop_name ?? "", lat: Number(row.stop_lat), lon: Number(row.stop_lon) }],
+        );
+        return points.length > 1 ? { legIndex, mode: leg.mode, points } : null;
+      }));
+      return sequences.filter((sequence): sequence is TransitLegSequence => sequence !== null);
+    },
+  });
+
   const plannedBusLeg = best?.legs.find((leg) => leg.mode === "bus" && leg.kind === "connect")
     ?? best?.legs.find((leg) => leg.mode === "bus")
     ?? null;
@@ -1896,6 +1930,26 @@ function Index() {
     points.push({ id: "end", name: destinationName, ...destination, kind: "end" });
     return points;
   }, [best, homePoint, destPoint, inbound, destinationLabel, itineraryStopCoords, stationCoords]);
+
+  const transitMapSegments = useMemo(() => {
+    if (!best || !homePoint || !destPoint) return [];
+    const origin = inbound ? destPoint : homePoint;
+    const destination = inbound ? homePoint : destPoint;
+    const sequenceByLeg = new Map(itineraryLegSequences.map((sequence) => [sequence.legIndex, sequence]));
+    const pointForStop = (stopId?: string | null) => {
+      if (!stopId) return null;
+      const row = itineraryStopCoords.find((stop) => stop.stop_id === stopId);
+      return row && row.stop_lat !== null && row.stop_lon !== null ? { lat: Number(row.stop_lat), lon: Number(row.stop_lon) } : null;
+    };
+    return best.legs.flatMap((leg, legIndex) => {
+      const sequence = sequenceByLeg.get(legIndex);
+      if (sequence) return [{ id: `transit-${legIndex}`, mode: sequence.mode, points: sequence.points.map(({ lat, lon }) => ({ lat, lon })) }];
+      const from = leg.kind === "access" ? origin : pointForStop(leg.from_stop_id);
+      const to = leg.kind === "egress" ? destination : pointForStop(leg.to_stop_id);
+      if (!from || !to) return [];
+      return [{ id: `leg-${legIndex}`, mode: leg.mode, points: [from, to] }];
+    });
+  }, [best, homePoint, destPoint, inbound, itineraryLegSequences, itineraryStopCoords]);
 
   // Drive view: straight door-to-door, no rail station or transit stops.
   const driveMapPoints = useMemo(() => {
@@ -2858,9 +2912,10 @@ function Index() {
           )}
           {reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
           {verdict === "drive" && drive?.incidents[0] && (
-            <p className="mt-4 border-l-2 border-warning pl-3 text-base font-bold text-foreground">
-              {trafficDelayText(drive.incidents[0], drive.delayMinutes)}
-            </p>
+            <div className="mt-4 border-l-2 border-warning pl-3">
+              <p className="text-base font-bold text-foreground">{trafficDelayText(drive.incidents[0], drive.delayMinutes)}</p>
+              <p className="mt-1 text-xs font-medium text-muted-foreground">{incidentImpactText(drive.incidents[0])}</p>
+            </div>
           )}
         </section>
 
@@ -2900,11 +2955,11 @@ function Index() {
           <section className="map-shell mt-3 overflow-hidden rounded-xl" aria-labelledby="trip-map-title">
             <div className="flex items-center justify-between px-4 py-3">
               <div><h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2><p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div>
-              <span className="text-xs font-semibold text-muted-foreground">{selectedMode === "drive" ? "Direct drive" : `${mapPoints.length - 2} transit points`}</span>
+               <span className="text-xs font-semibold text-muted-foreground">{selectedMode === "drive" ? "Direct drive" : `${transitMapSegments.length} trip legs`}</span>
             </div>
             <div className="h-72 border-t border-border sm:h-80">
               <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
-                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} liveHeading={riderHeading} followLive={Boolean(commitment)} {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})} {...(driveTrafficSections && driveTrafficSections.length > 0 ? { trafficSections: driveTrafficSections } : {})} /></Suspense>
+                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} liveHeading={riderHeading} followLive={Boolean(commitment)} {...(selectedMode === "rail" && transitMapSegments.length > 0 ? { segments: transitMapSegments } : {})} {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})} {...(driveTrafficSections && driveTrafficSections.length > 0 ? { trafficSections: driveTrafficSections } : {})} /></Suspense>
               </ClientOnly>
             </div>
           </section>
@@ -2949,7 +3004,7 @@ function Index() {
               {driveAvailable && driveRange && drive && <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>}
               {!driveAvailable && carAwayReason && <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>}
               {driveAvailable && driveFailed && <p className="mt-4 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>}
-              {driveAvailable && drive?.incidents[0] && verdict !== "drive" && !incidentDecides && <p className="mt-4 border-l-2 border-warning pl-3 text-base font-bold text-foreground">{trafficDelayText(drive.incidents[0], drive.delayMinutes)}</p>}
+              {driveAvailable && drive?.incidents[0] && verdict !== "drive" && !incidentDecides && <div className="mt-4 border-l-2 border-warning pl-3"><p className="text-base font-bold text-foreground">{trafficDelayText(drive.incidents[0], drive.delayMinutes)}</p><p className="mt-1 text-xs font-medium text-muted-foreground">{incidentImpactText(drive.incidents[0])}</p></div>}
               {driveWeatherLines.map((line) => <p key={line.text} className={`mt-3 text-sm ${TONE_CLASS[line.tone]}`}>{line.text}<span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span></p>)}
               {!inbound && driveAvailable && <Button variant="outline" size="sm" onClick={() => setCarPlace("destination")} className="mt-5">I'm driving all the way</Button>}
               {inbound && carPlace === "destination" && <Button variant="outline" size="sm" onClick={() => setCarPlace("home")} className="mt-5">My car isn't here</Button>}

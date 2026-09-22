@@ -17,6 +17,12 @@ type TrafficSection = {
   points: Array<{ lat: number; lon: number }>;
 };
 
+type JourneySegment = {
+  id: string;
+  mode: "walk" | "drive" | "bus" | "rail";
+  points: Array<{ lat: number; lon: number }>;
+};
+
 type CommuteRouteMapProps = {
   points: JourneyPoint[];
   livePoint: { lat: number; lon: number } | null;
@@ -26,6 +32,8 @@ type CommuteRouteMapProps = {
   followLive?: boolean;
   /** Real road geometry to draw instead of straight hops (used for Drive mode). */
   path?: Array<{ lat: number; lon: number }>;
+  /** Scheduled stop-by-stop geometry for every leg of a transit itinerary. */
+  segments?: JourneySegment[];
   /** Congested stretches drawn in amber/red over the route (Drive mode). */
   trafficSections?: TrafficSection[];
 };
@@ -56,7 +64,7 @@ function journeyIcon(point: JourneyPoint) {
   });
 }
 
-export default function CommuteRouteMap({ points, livePoint, liveHeading, followLive = false, path, trafficSections }: CommuteRouteMapProps) {
+export default function CommuteRouteMap({ points, livePoint, liveHeading, followLive = false, path, segments, trafficSections }: CommuteRouteMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -112,14 +120,17 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
       [
         points.map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join("|"),
         `path:${path?.length ?? 0}:${path?.[0] ? `${path[0].lat.toFixed(4)},${path[0].lon.toFixed(4)}` : ""}`,
+        `segments:${(segments ?? []).map((segment) => `${segment.id}:${segment.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
         `traffic:${(trafficSections ?? []).map((section) => `${section.severity}${section.points.length}`).join(",")}`,
       ].join("#"),
-    [points, path, trafficSections],
+    [points, path, segments, trafficSections],
   );
   const pointsRef = useRef(points);
   pointsRef.current = points;
   const pathRef = useRef(path);
   pathRef.current = path;
+  const segmentsRef = useRef(segments);
+  segmentsRef.current = segments;
   const trafficRef = useRef(trafficSections);
   trafficRef.current = trafficSections;
 
@@ -132,27 +143,41 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
     routeLayer.clearLayers();
 
     const roadPath = pathRef.current;
-    // Drive mode draws TomTom's real road geometry; transit keeps stop-to-stop hops.
+    // Drive mode draws TomTom's road geometry. Transit draws each scheduled
+    // stop sequence independently, so rail, bus and walking legs stay visible.
     const lineLatLngs: L.LatLngTuple[] =
       roadPath && roadPath.length > 1
         ? roadPath.map((point) => [point.lat, point.lon] as L.LatLngTuple)
         : current.map((point) => [point.lat, point.lon] as L.LatLngTuple);
-    L.polyline(lineLatLngs, {
-      color: "var(--color-background)",
-      weight: 11,
-      opacity: 0.94,
-      lineCap: "round",
-      lineJoin: "round",
-      className: "nalu-journey-line-casing",
-    }).addTo(routeLayer);
-    L.polyline(lineLatLngs, {
-      color: "var(--color-primary)",
-      weight: 5,
-      opacity: 1,
-      lineCap: "round",
-      lineJoin: "round",
-      className: "nalu-journey-line",
-    }).addTo(routeLayer);
+    const transitSegments = segmentsRef.current?.filter((segment) => segment.points.length > 1) ?? [];
+    const drawableSegments = roadPath && roadPath.length > 1
+      ? [{ id: "drive", mode: "drive" as const, points: roadPath }]
+      : transitSegments.length > 0
+        ? transitSegments
+        : [{ id: "fallback", mode: "rail" as const, points: current }];
+
+    for (const segment of drawableSegments) {
+      const latLngs = segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
+      const walking = segment.mode === "walk";
+      const color = segment.mode === "bus" ? "var(--color-location)" : segment.mode === "walk" ? "var(--color-muted-foreground)" : "var(--color-primary)";
+      L.polyline(latLngs, {
+        color: "var(--color-background)",
+        weight: walking ? 7 : 11,
+        opacity: 0.94,
+        lineCap: "round",
+        lineJoin: "round",
+        className: "nalu-journey-line-casing",
+      }).addTo(routeLayer);
+      L.polyline(latLngs, {
+        color,
+        weight: walking ? 3 : 5,
+        opacity: 1,
+        dashArray: walking ? "5 7" : undefined,
+        lineCap: "round",
+        lineJoin: "round",
+        className: `nalu-journey-line nalu-journey-line-${segment.mode}`,
+      }).addTo(routeLayer);
+    }
 
     // Congestion drawn over the corridor: amber for moderate, red for heavy backups.
     for (const section of trafficRef.current ?? []) {
@@ -190,7 +215,7 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
     });
 
     const boundsLatLngs = [
-      ...lineLatLngs,
+      ...drawableSegments.flatMap((segment) => segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple)),
       ...current.map((point) => [point.lat, point.lon] as L.LatLngTuple),
     ];
     map.invalidateSize({ animate: false });

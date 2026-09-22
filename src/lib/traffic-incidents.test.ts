@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { incidentText, isFreewayMainline, localRoadName, mainlineClearNote, trafficDelayText } from "./traffic-incidents";
+import { incidentImpactText, incidentText, isFreewayMainline, localRoadName, mainlineClearNote, trafficDelayText } from "./traffic-incidents";
 
 describe("localRoadName", () => {
   it.each([
@@ -54,6 +54,13 @@ describe("incidentText", () => {
   it("adds the route delay in one compact line", () => {
     expect(trafficDelayText({ description: "Queuing traffic", road: "N Nimitz Highway", delayMinutes: 7 }))
       .toBe("Queuing traffic on Nimitz Hwy · +7 min");
+  });
+
+  it("states whether a correlated incident affects this trip", () => {
+    expect(incidentImpactText({ description: "Closed", road: "HI-92", delayMinutes: 6 }))
+      .toBe("Expected to add about 6 min to this trip.");
+    expect(incidentImpactText({ description: "Closed", road: null, delayMinutes: null }))
+      .toBe("No measurable delay to this trip right now.");
   });
 });
 describe("incident place context", () => {
