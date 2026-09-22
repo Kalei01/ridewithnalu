@@ -51,6 +51,7 @@ import { honoluluSecondsToIso } from "@/lib/drive/planner";
 import { compareCommute } from "@/lib/decision/commute-decision";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
+import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
 import { AccountSection } from "@/components/account/AccountSection";
 import { SignInBanner } from "@/components/account/SignInBanner";
 import { useAuth } from "@/hooks/use-auth";
@@ -378,6 +379,20 @@ function alohaGreeting(date: Date, name?: string) {
       ? "Aloha ʻauinalā"
       : "Aloha ahiahi";
   return name ? `${greeting}, ${name}` : greeting;
+}
+
+/** First name from the signed-in profile: full name, then given name, then username. */
+function profileFirstName(user: { user_metadata?: Record<string, unknown>; email?: string | null } | null) {
+  const meta = user?.user_metadata ?? {};
+  const fullName = typeof meta["full_name"] === "string" ? meta["full_name"].trim() : "";
+  if (fullName) return fullName.split(/\s+/)[0];
+  const given = typeof meta["given_name"] === "string" ? meta["given_name"].trim() : "";
+  if (given) return given;
+  const username = typeof meta["preferred_username"] === "string" ? meta["preferred_username"].trim() : "";
+  if (username) return username.split(/[.@]/)[0];
+  const email = typeof user?.email === "string" ? user.email : "";
+  if (email) return email.split("@")[0];
+  return undefined;
 }
 
 function honoluluIsoDow(date: Date) {
@@ -1935,11 +1950,12 @@ function Index() {
       !trafficLoading &&
       Math.max(eastboundTraffic?.delayMinutes ?? 0, westboundTraffic?.delayMinutes ?? 0) > 10;
 
-    const profileName = typeof user?.user_metadata?.["full_name"] === "string"
-      ? user.user_metadata["full_name"].split(" ")[0]
-      : undefined;
+    const profileName = profileFirstName(user);
+    // Routine window: work mornings (5:00 AM–11:59 AM), home from noon on —
+    // overnight hours count as heading home.
+    const routineHour = honoluluParts(now).hour;
+    const routineInbound = routineHour >= 12 || routineHour < 5;
     const routineDestination = findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
-    const routineInbound = honoluluParts(now).hour >= 12;
     return (
       <main className="browse-radiance min-h-dvh px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
@@ -1984,9 +2000,9 @@ function Index() {
 
 
           {findByKind(savedPlaces, "home") && routineDestination && (
-            <button type="button" onClick={() => void quickStartRoutine()} className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-left backdrop-blur-md">
-              <span className="truncate text-xs font-medium text-muted-foreground">{routineInbound ? "Heading Home?" : `Heading to ${routineDestination.label}?`}</span>
-              <span className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-[11px] font-bold text-primary">Start</span>
+            <button type="button" onClick={() => void quickStartRoutine()} className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/10 px-3.5 py-3 text-left shadow-sm backdrop-blur-md transition-colors hover:bg-primary/15">
+              <span className="truncate text-sm font-semibold text-foreground">{routineInbound ? "Head Home" : `Head to ${routineDestination.label}`}</span>
+              <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-[11px] font-bold text-primary-foreground">Start</span>
             </button>
           )}
 
@@ -2036,6 +2052,7 @@ function Index() {
                 <h2 id="browse-station-title" className="truncate text-xl font-semibold text-foreground">
                   {browseStation ? `${stationLabel(browseStation.stopName)} Station` : "Finding your station…"}
                 </h2>
+                {browseStation && <LandmarkHint name={browseStation.stopName} />}
               </div>
             </div>
             {browseStation && browseUserPoint && (
@@ -2181,6 +2198,7 @@ function Index() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-foreground">{selectedNearbyStop.routeType === 1 ? `${stationLabel(selectedNearbyStop.stopName)} Station` : titleCase(selectedNearbyStop.stopName)}</p>
+                        <LandmarkHint name={selectedNearbyStop.stopName} />
                         <p className="mt-1 text-xs text-muted-foreground">Walk {walkingEstimate(browseUserPoint, selectedNearbyStop).minutes} min · {formatDistance(selectedNearbyStop.distanceM)}</p>
                       </div>
                       {selectedNearbyStop.arrivals[0] && <p className="text-lg font-bold tabular-nums text-primary">{Math.max(0, Math.ceil((selectedNearbyStop.arrivals[0].departure_seconds - nowSeconds) / 60))} min</p>}
@@ -2607,7 +2625,8 @@ function RailTripBreakdown({
   const rows = [access, rail, connection, egress].filter((leg): leg is Leg => Boolean(leg));
 
   return (
-    <ol className="mt-7" aria-label="Rail trip breakdown">
+    <>
+      <ol className="mt-7" aria-label="Rail trip breakdown">
       {rows.map((leg, index) => {
         const Icon = modeIcon(leg.mode);
         const previous = rows[index - 1];
@@ -2680,6 +2699,7 @@ function RailTripBreakdown({
                 <div className="mt-2">
                   {waitMinutes > 0 && <p className="text-xs font-semibold text-foreground">Transfer walk/wait · {waitMinutes} min</p>}
                   <p className="text-sm font-semibold text-foreground">Board at: {transitStopName(leg, "from")}</p>
+                  <LandmarkHint name={transitStopName(leg, "from")} />
                   <BusArrivalTime
                     arrival={liveArrival}
                     scheduledSeconds={leg.depart_seconds}
@@ -2691,6 +2711,7 @@ function RailTripBreakdown({
                     <span>Get off at: {transitStopName(leg, "to")}</span>
                     <span className="shrink-0 tabular-nums">{clockFromSeconds(leg.arrive_seconds)}</span>
                   </p>
+                  <LandmarkHint name={transitStopName(leg, "to")} />
                   <p className="mt-1 text-xs font-semibold text-foreground">Ride {legMinutes ?? "—"} min</p>
                 </div>
               ) : leg.mode === "rail" ? (
@@ -2698,10 +2719,12 @@ function RailTripBreakdown({
                   <p className="text-sm font-semibold text-foreground">
                     Board at: {transitStopName(leg, "from")} · {clockFromSeconds(leg.depart_seconds)}
                   </p>
+                  <LandmarkHint name={transitStopName(leg, "from")} />
                   <p className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
                     <span>Get off at: {transitStopName(leg, "to")}</span>
                     <span className="shrink-0 tabular-nums">{clockFromSeconds(leg.arrive_seconds)}</span>
                   </p>
+                  <LandmarkHint name={transitStopName(leg, "to")} />
                 </div>
               ) : (
                 <div className="mt-1 text-xs font-semibold leading-relaxed text-foreground">
@@ -2731,7 +2754,9 @@ function RailTripBreakdown({
           </li>
         );
       })}
-    </ol>
+      </ol>
+      <FareNotice />
+    </>
   );
 }
 
@@ -3747,6 +3772,7 @@ function AboutSection() {
 const FEEDBACK_ENDPOINT = "https://formspree.io/f/mppwqpaz";
 
 function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { user } = useAuth();
   const [message, setMessage] = useState("");
   const [component, setComponent] = useState("");
   const [email, setEmail] = useState("");
@@ -3754,12 +3780,18 @@ function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   const [sent, setSent] = useState(false);
   const [failed, setFailed] = useState(false);
 
+  const signedInName = profileFirstName(user);
+  const signedInEmail = typeof user?.email === "string" ? user.email : "";
+
   useEffect(() => {
     if (open) {
       setSent(false);
       setFailed(false);
+      // Pre-fill from the signed-in account so riders never retype.
+      setEmail((current) => current || signedInEmail);
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, signedInEmail]);
 
   async function submit() {
     if (!message.trim() || sending) return;
@@ -3769,7 +3801,12 @@ function FeedbackForm({ open, onOpenChange }: { open: boolean; onOpenChange: (op
       const response = await fetch(FEEDBACK_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ message: message.trim(), component, email: email.trim() || undefined }),
+        body: JSON.stringify({
+          message: message.trim(),
+          component,
+          name: signedInName || undefined,
+          email: email.trim() || undefined,
+        }),
       });
       if (!response.ok) throw new Error(`status ${response.status}`);
       setSent(true);
