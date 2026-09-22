@@ -33,7 +33,9 @@ export default function WalkingMicroMap({ from, to }: WalkingMicroMapProps) {
       subdomains: "abcd",
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(map);
-    const points: L.LatLngTuple[] = [[from.lat, from.lon], [to.lat, to.lon]];
+    const start: L.LatLngTuple = [from.lat, from.lon];
+    const end: L.LatLngTuple = [to.lat, to.lon];
+    const points: L.LatLngTuple[] = [start, end];
     L.polyline(points, {
       color: "var(--color-primary)",
       weight: 4,
@@ -41,11 +43,13 @@ export default function WalkingMicroMap({ from, to }: WalkingMicroMapProps) {
       dashArray: "7 8",
       lineCap: "round",
     }).addTo(map);
-    L.marker(points[0], { icon: pin("var(--color-location)"), title: from.label }).bindTooltip(from.label).addTo(map);
-    L.marker(points[1], { icon: pin("var(--color-primary)"), title: to.label }).bindTooltip(to.label).addTo(map);
+    L.marker(start, { icon: pin("var(--color-location)"), title: from.label }).bindTooltip(from.label).addTo(map);
+    L.marker(end, { icon: pin("var(--color-primary)"), title: to.label }).bindTooltip(to.label).addTo(map);
     map.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: 16, animate: false });
     window.requestAnimationFrame(() => map.invalidateSize({ animate: false }));
-    return () => map.remove();
+    return () => {
+      map.remove();
+    };
   }, [from.lat, from.lon, from.label, to.lat, to.lon, to.label]);
 
   return <div ref={nodeRef} className="h-40 w-full" aria-label={`Walking map from ${from.label} to ${to.label}`} />;
