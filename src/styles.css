@@ -179,6 +179,17 @@
   filter: drop-shadow(0 0 9px var(--color-location)) drop-shadow(0 1px 2px var(--color-background));
 }
 
+/* Direction arrow drawn above the live location dot while driving. */
+.nalu-heading-arrow {
+  display: block;
+  width: 34px;
+  height: 34px;
+  transform-origin: 50% 50%;
+  background: var(--color-location);
+  clip-path: polygon(50% 8%, 66% 40%, 50% 33%, 34% 40%);
+  filter: drop-shadow(0 0 6px var(--color-location));
+}
+
 .nalu-walk-pin {
   display: block;
   width: 16px;
