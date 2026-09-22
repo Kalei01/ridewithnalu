@@ -460,6 +460,7 @@ export type Database = {
         Returns: {
           arrive_seconds: number
           board_seconds: number
+          from_stop_id: string
           from_stop_name: string
           headsign: string
           leave_by_seconds: number
@@ -470,6 +471,7 @@ export type Database = {
           route_short_name: string
           station_name: string
           station_stop: string
+          to_stop_id: string
           to_stop_name: string
         }[]
       }
@@ -538,6 +540,7 @@ export type Database = {
         Returns: {
           arrive_seconds: number
           board_seconds: number
+          from_stop_id: string
           from_stop_name: string
           headsign: string
           minutes: number
@@ -545,6 +548,7 @@ export type Database = {
           route_id: string
           route_long_name: string
           route_short_name: string
+          to_stop_id: string
           to_stop_name: string
         }[]
       }
