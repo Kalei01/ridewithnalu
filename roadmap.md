@@ -31,3 +31,8 @@
 - [x] Place the prominent Start Drive/Transit action directly beneath the verdict and above the map
 - [x] Lock the selected mode while active and replace comparison controls with End Trip
 - [x] Center and follow the live GPS position on the route map during an active trip
+
+## Hands-free commute alerts
+- [ ] Enable sound by default and speak two-stop/one-stop transit alerts
+- [ ] Detect meaningful traffic changes during committed drives and announce them
+- [ ] Request notification permission from trip-start gestures and post critical alerts safely
