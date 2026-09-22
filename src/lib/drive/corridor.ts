@@ -84,7 +84,7 @@ export function extractCorridor(
       ? `${name} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}`
       : name,
   );
-  return { label: `Via ${roads.join(" → ")}`, roads };
+  return { label: `Via ${roads.join(" → ")}`, roads, allRoads: [...spans.keys()] };
 }
 
 /**
