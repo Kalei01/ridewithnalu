@@ -3304,6 +3304,7 @@ function SettingsExpiryBanner() {
 function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAlertPrefsChange, savedPlaces, onPlacesChange }: SetupDialogProps) {
 
   const findPlaces = useServerFn(searchPlaces);
+  const lookupAddress = useServerFn(reverseGeocode);
   const [draft, setDraft] = useState<Setup>(setup);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -3400,9 +3401,18 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
           homeStopId: nearest.stop_id,
           homeStopName: nearest.stop_name ?? "",
         }));
+        const accuracy = position.coords.accuracy;
+        const precision = Number.isFinite(accuracy) ? ` Accurate to about ${formatDistance(accuracy)}.` : "";
         setStatus(
-          `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.`,
+          `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.${precision}`,
         );
+        // Confirm the exact spot in plain words, so a wrong pin is obvious.
+        const address = await lookupAddress({ data: { lat, lon } }).catch(() => null);
+        if (address?.label) {
+          setStatus(
+            `Detected: ${address.label}.${precision} Nearest station: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip away.`,
+          );
+        }
       },
       (error) => {
         setBusy(false);
