@@ -98,6 +98,11 @@ function isFreeway(name: string) {
   return /^H-\d/i.test(name) || /\bFwy\b/i.test(name);
 }
 
+/** TomTom sometimes exposes only an exit ID on the ramp instruction. */
+function isGenericExit(name: string) {
+  return /^(?:exit(?:\s+\w+)?|unnamed(?:\s+road)?|ramp|on-?ramp|off-?ramp)$/i.test(name.trim());
+}
+
 function withoutDirection(name: string) {
   return name.replace(/\s+(?:East|West|North|South|Eastbound|Westbound|Northbound|Southbound)$/i, "");
 }
@@ -119,8 +124,15 @@ export function extractCorridor(
   const spans = new Map<string, { meters: number; firstOffset: number }>();
   // Direction the feed itself states for each road, preferred over geometry.
   const statedDirections = new Map<string, string>();
-  const exitNumbers = new Map<string, string>();
   const names = instructions.map((step) => stepRoadName(step));
+  // Replace an opaque ramp/exit ID with the first familiar road TomTom names
+  // immediately after it. This is feed-derived and works for any island exit.
+  for (let index = 0; index < names.length; index += 1) {
+    const name = names[index];
+    if (!name || !isGenericExit(name)) continue;
+    const nextNamedRoad = names.slice(index + 1).find((candidate) => candidate && !isGenericExit(candidate));
+    if (nextNamedRoad) names[index] = nextNamedRoad;
+  }
   mergeRampNames(instructions, names);
   for (let index = 0; index < instructions.length; index += 1) {
     const step = instructions[index]!;
@@ -139,8 +151,6 @@ export function extractCorridor(
     const base = withoutDirection(name);
     const stated = guidanceDirection(step);
     if (stated && !statedDirections.has(base)) statedDirections.set(base, stated);
-    const exitNumber = step.exitNumber?.trim();
-    if (exitNumber && !exitNumbers.has(base)) exitNumbers.set(base, exitNumber);
   }
   if (!spans.size) return null;
 
@@ -172,7 +182,10 @@ export function extractCorridor(
       .filter(([, span]) => span.firstOffset < firstFreewayOffset)
       .sort((a, b) => b[1].meters - a[1].meters)[0];
     const exitCandidates = entries.filter(
-      ([name, span]) => !isFreeway(withoutDirection(name)) && span.firstOffset > lastFreewayOffset,
+      ([name, span]) =>
+        !isFreeway(withoutDirection(name)) &&
+        !isGenericExit(name) &&
+        span.firstOffset > lastFreewayOffset,
     );
     // Prefer the last substantial surface road. A final driveway or tiny local
     // street is not the useful freeway cutoff a commuter is looking for.
@@ -195,10 +208,7 @@ export function extractCorridor(
 
   const roads = chosen.map((name) => {
     const baseName = withoutDirection(name);
-    if (!isFreeway(baseName)) {
-      const exitNumber = exitNumbers.get(baseName);
-      return exitNumber ? `Exit ${exitNumber} · ${name}` : name;
-    }
+    if (!isFreeway(baseName)) return name;
     const stated = statedDirections.get(baseName);
     if (stated) return `${baseName} ${stated}`;
     return endpoints ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}` : name;
