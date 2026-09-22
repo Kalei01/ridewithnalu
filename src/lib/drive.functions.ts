@@ -30,9 +30,17 @@ export type DriveTime = {
   meters: number;
   /** Road geometry of the driven route, for drawing the real corridor on a map. */
   path: Array<{ lat: number; lon: number }>;
+  /** Congested stretches of the route, for colouring the drawn corridor. */
+  trafficSections: DriveTrafficSection[];
   incidents: DriveIncident[];
   fetchedAt: number;
   trafficBasis: "live" | "future-estimate";
+};
+
+export type DriveTrafficSection = {
+  severity: "moderate" | "heavy";
+  delayMinutes: number;
+  points: Array<{ lat: number; lon: number }>;
 };
 
 const CACHE_MS = 5 * 60_000;
