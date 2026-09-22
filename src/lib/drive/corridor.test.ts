@@ -113,8 +113,26 @@ describe("extractCorridor", () => {
       31000,
       { fromLon: -157.86, toLon: -158.02 },
     );
-    expect(corridor?.label).toBe("Via H-1 West → Fort Weaver Rd");
+    expect(corridor?.label).toBe("Via H-1 West → Fort Weaver Rd → Farrington Hwy");
     expect(corridor?.allRoads).not.toContain("Exit 5");
+  });
+
+  it("keeps the Moanalua merge back to H-1 and the final street toward home", () => {
+    const corridor = extractCorridor(
+      [
+        { routeOffsetInMeters: 0, street: "Nimitz Hwy", roadNumbers: ["HI-92"] },
+        { routeOffsetInMeters: 4100, street: "Moanalua Fwy W", roadNumbers: ["HI-78 W"] },
+        { routeOffsetInMeters: 17300, street: "Interstate Highway H1 W", roadNumbers: ["H1 W"] },
+        { routeOffsetInMeters: 25800, street: "Exit 5", exitNumber: "5" },
+        { routeOffsetInMeters: 26200, street: "Fort Weaver Rd", roadNumbers: ["HI-76"] },
+        { routeOffsetInMeters: 34100, street: "Renton Rd" },
+      ],
+      36000,
+      { fromLon: -157.86, toLon: -158.02 },
+    );
+    expect(corridor?.label).toBe(
+      "Via Nimitz Hwy → Moanalua Fwy West → H-1 West → Fort Weaver Rd → Renton Rd",
+    );
   });
 
   it("returns null without guidance", () => {
@@ -181,7 +199,7 @@ describe("real Ewa Beach guidance", () => {
       35898,
       { fromLon: -157.86, toLon: -158.0 },
     );
-    expect(corridor?.roads).toEqual(["Nimitz Hwy", "H-1 West", "Fort Weaver Rd"]);
+    expect(corridor?.roads).toEqual(["Nimitz Hwy", "H-1 West", "Fort Weaver Rd", "North Rd"]);
   });
 
   it("names the outbound trip without inventing H-3", () => {

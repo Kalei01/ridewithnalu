@@ -117,7 +117,7 @@ export function extractCorridor(
   instructions: GuidanceInstruction[],
   totalMeters: number,
   endpoints?: { fromLon: number; toLon: number },
-  maxRoads = 4,
+  maxRoads = 5,
 ): RouteCorridor | null {
   if (!instructions.length) return null;
 
@@ -169,10 +169,10 @@ export function extractCorridor(
   let chosen: string[];
   if (primaryFreeway) {
     const [, freewaySpan] = primaryFreeway;
-    const freewayFloor = Math.max(800, totalMeters * 0.025);
-    const travelledFreeways = freewayEntries.filter(
-      (entry) => entry === primaryFreeway || entry[1].meters >= freewayFloor,
-    );
+    // `stepRoadName` has already rejected freeway numbers that merely appear
+    // on a sign, so every remaining freeway entry represents a road travelled.
+    // Keep short merge-back segments such as Moanalua Fwy → H-1 West.
+    const travelledFreeways = freewayEntries;
     const firstFreewayOffset = travelledFreeways[0]?.[1].firstOffset ?? freewaySpan.firstOffset;
     const lastFreewayOffset = travelledFreeways.at(-1)?.[1].firstOffset ?? freewaySpan.firstOffset;
     const surfaceEntries = entries.filter(
@@ -181,18 +181,24 @@ export function extractCorridor(
     const approach = surfaceEntries
       .filter(([, span]) => span.firstOffset < firstFreewayOffset)
       .sort((a, b) => b[1].meters - a[1].meters)[0];
-    const exitCandidates = entries.filter(
+    const exitCandidates = entries
+      .filter(
       ([name, span]) =>
         !isFreeway(withoutDirection(name)) &&
         !isGenericExit(name) &&
         span.firstOffset > lastFreewayOffset,
+      )
+      .sort((a, b) => a[1].firstOffset - b[1].firstOffset);
+    // Show both the freeway cutoff and the final useful street toward the
+    // destination. Ignore only driveway-length fragments.
+    const usefulExits = exitCandidates.filter(([, span]) => span.meters >= 250);
+    const exits = usefulExits.length ? usefulExits : exitCandidates;
+    const firstExit = exits[0];
+    const finalExit = exits.at(-1);
+    const postFreewayRoads = [firstExit?.[0], finalExit?.[0]].filter(
+      (name, index, list): name is string => Boolean(name) && list.indexOf(name) === index,
     );
-    // Prefer the last substantial surface road. A final driveway or tiny local
-    // street is not the useful freeway cutoff a commuter is looking for.
-    const substantialExits = exitCandidates.filter(([, span]) => span.meters >= threshold);
-    const exit = (substantialExits.length ? substantialExits : exitCandidates)
-      .sort((a, b) => a[1].firstOffset - b[1].firstOffset)[0];
-    const core = [...travelledFreeways.map(([name]) => name), exit?.[0]].filter(
+    const core = [...travelledFreeways.map(([name]) => name), ...postFreewayRoads].filter(
       (name): name is string => Boolean(name),
     );
     chosen = approach && core.length < maxRoads ? [approach[0], ...core] : core;
