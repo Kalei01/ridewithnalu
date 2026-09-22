@@ -60,7 +60,16 @@ describe("incidentText", () => {
     expect(incidentImpactText({ description: "Closed", road: "HI-92", delayMinutes: 6 }))
       .toBe("Expected to add about 6 min to this trip.");
     expect(incidentImpactText({ description: "Closed", road: null, delayMinutes: null }))
-      .toBe("No measurable delay is attributed to this alert right now.");
+      .toBe("Your drive time is not slower right now.");
+    expect(incidentImpactText({ description: "Closed", road: "HI-92", delayMinutes: 0 }))
+      .toBe("Lanes are blocked on Nimitz Hwy, but your drive time is not slower yet. Expect possible backups.");
+  });
+
+  it("only surfaces alerts that add time or block an identified road", () => {
+    expect(incidentAffectsTrip({ description: "Closed", road: "HI-92", delayMinutes: 0 })).toBe(true);
+    expect(incidentAffectsTrip({ description: "Jam", road: "HI-92", delayMinutes: 4 })).toBe(true);
+    expect(incidentAffectsTrip({ description: "Jam", road: "HI-92", delayMinutes: 0 })).toBe(false);
+    expect(incidentAffectsTrip({ description: "Closed", road: null, delayMinutes: null })).toBe(false);
   });
 });
 describe("incident place context", () => {
