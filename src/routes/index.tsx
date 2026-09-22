@@ -1637,8 +1637,6 @@ function Index() {
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "rail") setSelectedMode("rail");
   }, [verdict, inbound, commitment]);
-  const lockedMode = commitment?.mode ?? null;
-  const drivingCommitted = lockedMode === "drive" && configured && !browseActive;
   // One line naming the single thing that decides it.
   const reasoning = useMemo(() => {
     const incident = drive?.incidents[0];
