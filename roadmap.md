@@ -13,6 +13,6 @@
 - Signed-in browser verification of greeting/sync/feedback: blocked — the backend has zero auth users, so no session can be minted; the signed-in paths reuse the already-verified sync primitives. Re-check once a real user signs in.
 
 ## Current update
-- [ ] Add one-tap Home and Work actions beneath WHERE TO? using live GPS, with gentle setup fallback
-- [ ] Replace the compact HOLO notice with a high-contrast accessible fares dialog
-- [ ] Remove destination-stop helper text from the setup dialog
+- [x] Add one-tap Home and Work actions beneath WHERE TO? using live GPS, with gentle setup fallback
+- [x] Replace the compact HOLO notice with a high-contrast accessible fares dialog
+- [x] Remove destination-stop helper text from the setup dialog
