@@ -12,7 +12,23 @@ export type RouteCorridor = {
   label: string;
   /** Ordered road names that carry most of the drive. */
   roads: string[];
+  /** Every road the route touches, however briefly. */
+  allRoads: string[];
 };
+
+/**
+ * The name to show for one guidance step. Freeways are best identified by their
+ * number (H-1), but ordinary surface roads must use the street name the feed
+ * reports: route numbers change at junctions (Fort Weaver Rd becomes Kunia Rd
+ * north of H-1), so trusting the number alone renames the road a driver is on.
+ */
+export function stepRoadName(step: GuidanceInstruction): string | null {
+  const numbered = localRoadName(step.roadNumbers?.[0] ?? null);
+  if (numbered && isFreeway(numbered)) return numbered;
+  const street = step.street?.trim();
+  if (street) return localRoadName(street);
+  return numbered;
+}
 
 /** East/West suffix for freeways, derived from the trip's own geometry. */
 function freewayDirection(fromLon: number, toLon: number): "East" | "West" {
@@ -39,8 +55,7 @@ export function extractCorridor(
   const spans = new Map<string, { meters: number; firstOffset: number }>();
   for (let index = 0; index < instructions.length; index += 1) {
     const step = instructions[index]!;
-    const raw = step.roadNumbers?.[0] ?? step.street;
-    const name = localRoadName(raw ?? null);
+    const name = stepRoadName(step);
     if (!name) continue;
     const offset = step.routeOffsetInMeters ?? 0;
     const nextOffset = instructions[index + 1]?.routeOffsetInMeters ?? totalMeters;
@@ -69,25 +84,34 @@ export function extractCorridor(
       ? `${name} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}`
       : name,
   );
-  return { label: `Via ${roads.join(" → ")}`, roads };
+  return { label: `Via ${roads.join(" → ")}`, roads, allRoads: [...spans.keys()] };
 }
 
 /**
  * Congested roads near the trip that this route does not use, so the app can
  * say plainly that the drive skips a known backup.
  */
+function roadKey(road: string) {
+  return road
+    .replace(/\s+(East|West|North|South|Eastbound|Westbound)$/i, "")
+    .replace(/\b(Road|Rd|Highway|Hwy|Parkway|Pkwy|Freeway|Fwy|Street|St|Avenue|Ave|Boulevard|Blvd)\b\.?/gi, "")
+    .replace(/[^a-z0-9]+/gi, "")
+    .toLowerCase();
+}
+
 export function bypassedCorridors(
   nearbyCongestedRoads: Array<string | null>,
-  corridorRoads: string[],
+  /** Every road the route travels on, not just the headline corridor. */
+  routeRoads: string[],
   limit = 2,
 ): string[] {
-  const onRoute = new Set(corridorRoads.map((road) => road.replace(/\s+(East|West)$/i, "").toLowerCase()));
+  const onRoute = new Set(routeRoads.map(roadKey));
   const out: string[] = [];
   for (const raw of nearbyCongestedRoads) {
     const name = localRoadName(raw ?? null);
     if (!name) continue;
-    const key = name.toLowerCase();
-    if (onRoute.has(key) || out.some((item) => item.toLowerCase() === key)) continue;
+    const key = roadKey(name);
+    if (!key || onRoute.has(key) || out.some((item) => roadKey(item) === key)) continue;
     out.push(name);
     if (out.length === limit) break;
   }
