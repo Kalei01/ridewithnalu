@@ -130,11 +130,30 @@ export function trafficDelayText(incident: DriveIncident, fallbackDelayMinutes =
   return `${incidentText(incident)}${delay > 0 ? ` · +${delay} min` : ""}`;
 }
 
+/** Blocking events matter on your route even before a delay is measured. */
+function isBlockingDescription(description: string): boolean {
+  return /\b(closed|closure|accident|crash|blocked|road closed)\b/i.test(description);
+}
+
+/**
+ * True only when an alert should reach the commuter: it either adds measurable
+ * time to this trip, or it blocks an identified road the route travels.
+ * Anything else is noise on a corridor the drive time already accounts for.
+ */
+export function incidentAffectsTrip(incident: DriveIncident): boolean {
+  const delay = Math.max(0, Math.round(incident.delayMinutes ?? 0));
+  if (delay >= 1) return true;
+  return Boolean(localRoadName(incident.road)) && isBlockingDescription(incident.description);
+}
+
 /** Plain-language trip impact shown beneath an incident, never inferred from severity alone. */
 export function incidentImpactText(incident: DriveIncident): string {
   const delay = Math.max(0, Math.round(incident.delayMinutes ?? 0));
   if (delay > 0) return `Expected to add about ${delay} min to this trip.`;
-  return "No measurable delay is attributed to this alert right now.";
+  const road = localRoadName(incident.road);
+  return road
+    ? `Lanes are blocked on ${road}, but your drive time is not slower yet. Expect possible backups.`
+    : "Your drive time is not slower right now.";
 }
 /**
  * Explains a "Clear" freeway reading shown next to an on-route alert, so a
