@@ -1166,19 +1166,31 @@ function Index() {
     return { lat: Number(hit.stop_lat), lon: Number(hit.stop_lon) };
   }
 
+  // GTFS stop ids identify a stop; names are ambiguous and are for display only.
+  const itineraryStopIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (best?.legs ?? [])
+            .flatMap((leg) => [leg.from_stop_id, leg.to_stop_id])
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ),
+    [best],
+  );
   const itineraryStopNames = useMemo(
     () => Array.from(new Set((best?.legs ?? []).flatMap((leg) => [leg.from, leg.to]).filter((name): name is string => Boolean(name)))),
     [best],
   );
   const { data: itineraryStopCoords = [] } = useQuery({
-    queryKey: ["itinerary-stop-coords", itineraryStopNames],
-    enabled: configured && itineraryStopNames.length > 0,
+    queryKey: ["itinerary-stop-coords", itineraryStopIds, itineraryStopNames],
+    enabled: configured && (itineraryStopIds.length > 0 || itineraryStopNames.length > 0),
     staleTime: 6 * 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stops")
-        .select("stop_id,stop_name,stop_lat,stop_lon")
-        .in("stop_name", itineraryStopNames);
+      const query = supabase.from("stops").select("stop_id,stop_name,stop_lat,stop_lon");
+      const { data, error } = itineraryStopIds.length
+        ? await query.in("stop_id", itineraryStopIds)
+        : await query.in("stop_name", itineraryStopNames);
       if (error) throw error;
       return data ?? [];
     },
@@ -1188,9 +1200,11 @@ function Index() {
     ?? best?.legs.find((leg) => leg.mode === "bus")
     ?? null;
   const busStopName = plannedBusLeg?.from;
-  const { data: activeBusStopId = null } = useQuery({
+  // Prefer the planner's own stop id; fall back to the name only for legacy rows.
+  const plannedBusStopId = plannedBusLeg?.from_stop_id ?? null;
+  const { data: lookedUpBusStopId = null } = useQuery({
     queryKey: ["active-bus-stop", busStopName],
-    enabled: Boolean(busStopName),
+    enabled: Boolean(busStopName) && !plannedBusStopId,
     staleTime: 3 * 60 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.from("stops").select("stop_id").eq("stop_name", busStopName as string).limit(1);
@@ -1198,6 +1212,8 @@ function Index() {
       return data?.[0]?.stop_id ?? null;
     },
   });
+  const activeBusStopId = plannedBusStopId ?? lookedUpBusStopId;
+
   const busTarget: BusStopTarget | null = activeBusStopId ? {
     stopId: activeBusStopId,
     scheduled: plannedBusLeg?.depart_seconds ? [{
