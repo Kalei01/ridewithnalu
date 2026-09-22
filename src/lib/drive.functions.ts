@@ -81,7 +81,8 @@ export const driveTime = createServerFn({ method: "POST" })
       `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
       `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
       `&sectionType=traffic` +
-      `&routeRepresentation=polyline${data.departureTime ? `&departAt=${encodeURIComponent(data.departureTime)}` : ""}`;
+      `&routeRepresentation=polyline&instructionsType=text` +
+      `${data.departureTime ? `&departAt=${encodeURIComponent(data.departureTime)}` : ""}`;
 
 
     const response = await fetch(routeUrl);
@@ -110,6 +111,7 @@ export const driveTime = createServerFn({ method: "POST" })
           delayInSeconds?: number;
           simpleCategory?: string;
         }>;
+        guidance?: { instructions?: GuidanceInstruction[] };
       }>;
     };
     const route = payload.routes?.[0];
