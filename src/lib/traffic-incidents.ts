@@ -11,9 +11,9 @@ const LOCAL_ROAD_NAMES: Array<[RegExp, string]> = [
   [/^(?:HI-|Route )750$/i, "Kunia Rd"],
   [/^(?:HI-|Route )76$/i, "Fort Weaver Rd"],
   [/^(?:HI-|Route )93$/i, "Farrington Hwy"],
-  [/^Interstate H-1$/i, "H-1"],
-  [/^Interstate H-2$/i, "H-2"],
-  [/^Interstate H-3$/i, "H-3"],
+  [/^(?:Interstate\s+)?H-?1$/i, "H-1"],
+  [/^(?:Interstate\s+)?H-?2$/i, "H-2"],
+  [/^(?:Interstate\s+)?H-?3$/i, "H-3"],
 ];
 
 /** Translate TomTom route codes into the names Oahu drivers commonly use. */
