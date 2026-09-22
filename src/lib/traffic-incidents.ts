@@ -11,12 +11,15 @@ const LOCAL_ROAD_NAMES: Array<[RegExp, string]> = [
   [/^(?:HI-|Route )750$/i, "Kunia Rd"],
   [/^(?:HI-|Route )76$/i, "Fort Weaver Rd"],
   [/^(?:HI-|Route )93$/i, "Farrington Hwy"],
-  [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?1(?:\s+(?:E|East|Eastbound))?$/i, "H-1 East"],
+  [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?1(?:\s+(?:E|East|Eastbound))$/i, "H-1 East"],
   [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?1(?:\s+(?:W|West|Westbound))$/i, "H-1 West"],
-  [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?2(?:\s+(?:N|North|Northbound))?$/i, "H-2 North"],
+  [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?1$/i, "H-1"],
+  [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?2(?:\s+(?:N|North|Northbound))$/i, "H-2 North"],
   [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?2(?:\s+(?:S|South|Southbound))$/i, "H-2 South"],
-  [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?3(?:\s+(?:E|East|Eastbound))?$/i, "H-3 East"],
+  [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?2$/i, "H-2"],
+  [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?3(?:\s+(?:E|East|Eastbound))$/i, "H-3 East"],
   [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?3(?:\s+(?:W|West|Westbound))$/i, "H-3 West"],
+  [/^(?:(?:Interstate(?:\s+Highway)?)\s+)?H-?3$/i, "H-3"],
 ];
 
 /** Translate TomTom route codes into the names Oahu drivers commonly use. */

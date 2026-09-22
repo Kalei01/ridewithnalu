@@ -18,11 +18,11 @@ describe("localRoadName", () => {
     ["Route 750", "Kunia Rd"],
     ["HI-76", "Fort Weaver Rd"],
     ["Route 93", "Farrington Hwy"],
-    ["Interstate H-1", "H-1 East"],
+    ["Interstate H-1", "H-1"],
     ["Interstate Highway H1 E", "H-1 East"],
     ["Interstate Highway H1 W", "H-1 West"],
-    ["Interstate H-2", "H-2 North"],
-    ["Interstate H-3", "H-3 East"],
+    ["Interstate H-2", "H-2"],
+    ["Interstate H-3", "H-3"],
     ["N Nimitz Highway", "Nimitz Hwy"],
   ])("maps %s to %s", (road, expected) => {
     expect(localRoadName(road)).toBe(expected);
