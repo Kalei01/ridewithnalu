@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bypassedCorridors, extractCorridor } from "./corridor";
+import { bypassedCorridors, extractCorridor, stepRoadName } from "./corridor";
 
 describe("extractCorridor", () => {
   it("names the major roads in travel order with a freeway direction", () => {
@@ -62,5 +62,15 @@ describe("bypassedCorridors", () => {
       "Fort Weaver Rd",
       "Farrington Hwy",
     ]);
+  });
+});
+
+describe("stepRoadName", () => {
+  it("prefers the street name over a route number for surface roads", () => {
+    expect(stepRoadName({ street: "Fort Weaver Rd", roadNumbers: ["HI-750"] })).toBe("Fort Weaver Rd");
+  });
+
+  it("keeps the freeway number when on a freeway", () => {
+    expect(stepRoadName({ street: "Ramp", roadNumbers: ["Interstate H-1"] })).toBe("H-1");
   });
 });
