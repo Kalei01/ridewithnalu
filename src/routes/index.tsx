@@ -1342,6 +1342,7 @@ function Index() {
     ? { lat: setup.homeLat, lon: setup.homeLon }
     : { lat: setup.destLat, lon: setup.destLon };
   const fetchDriveTime = useServerFn(driveTime);
+  const lookupOriginAddress = useServerFn(reverseGeocode);
   const {
     data: drive,
     isLoading: driveLoading,
@@ -2002,7 +2003,15 @@ function Index() {
             destReturnWalkM: Number(back.distance_m),
           });
           chooseDirection(kind === "home");
-          toast.success(`Trip to ${destination.label} is ready.`, { id: toastId });
+          const accuracy = position.coords.accuracy;
+          const precision = Number.isFinite(accuracy) ? `Accurate to about ${formatDistance(accuracy)}` : "";
+          const address = await lookupOriginAddress({ data: { lat: origin.lat, lon: origin.lon } }).catch(() => null);
+          toast.success(`Trip to ${destination.label} is ready.`, {
+            id: toastId,
+            description: [address?.label ? `Starting at ${address.label}` : null, precision || null]
+              .filter(Boolean)
+              .join(" · ") || undefined,
+          });
         } catch {
           toast.error("Nalu couldn’t build that trip right now.", {
             id: toastId,
