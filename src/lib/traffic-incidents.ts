@@ -77,3 +77,20 @@ export function trafficDelayText(incident: DriveIncident, fallbackDelayMinutes =
   const delay = incident.delayMinutes ?? fallbackDelayMinutes;
   return `${incidentText(incident)}${delay > 0 ? ` · +${delay} min` : ""}`;
 }
+/**
+ * Explains a "Clear" freeway reading shown next to an on-route alert, so a
+ * commuter is not left guessing which road the closure is actually on.
+ */
+export function mainlineClearNote(
+  incident: DriveIncident | undefined,
+  mainlineDelayMinutes: number | null | undefined,
+): string | null {
+  if (!incident) return null;
+  const delay = Math.max(0, Math.round(mainlineDelayMinutes ?? 0));
+  if (delay >= 10) return null;
+  if (isFreewayMainline(incident.road)) return null;
+  const road = localRoadName(incident.road);
+  return road
+    ? `H-1 mainline is clear; this alert is on ${road}, a connecting road.`
+    : "H-1 mainline is clear; this alert is on a connecting road, not the freeway.";
+}
