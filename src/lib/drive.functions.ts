@@ -208,8 +208,12 @@ async function fetchIncidents(
       const road = incident.properties?.roadNumbers?.[0] ?? null;
       const incidentPoints = readIncidentPoints(incident.geometry?.coordinates);
       if (!incidentTouchesRoute(incidentPoints, routePath)) {
-        // Heavy congestion nearby that this route avoids: worth saying out loud.
-        if (magnitude >= 3 && road) offRoute.push(road);
+        // Heavy congestion nearby that this route avoids: worth saying out loud,
+        // but only when it is clearly off the driven corridor, not a parallel
+        // lane or ramp of a road the route actually uses.
+        if (magnitude >= 3 && road && !incidentTouchesRoute(incidentPoints, routePath, 300)) {
+          offRoute.push(road);
+        }
         continue;
       }
       const description = incident.properties?.events?.[0]?.description;
