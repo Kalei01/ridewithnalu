@@ -2589,7 +2589,7 @@ function RailTripBreakdown({
   liveBus: BusArrivalsResult | undefined;
   liveBusRefreshing: boolean;
   weatherLines: Map<number, WeatherLine[]>;
-  points: Array<{ name: string; lat: number; lon: number }>;
+  points: Array<{ id?: string; name: string; lat: number; lon: number }>;
 }) {
   const duration = (leg: Leg) =>
     leg.minutes ?? (leg.depart_seconds !== null && leg.arrive_seconds !== null
@@ -2635,10 +2635,22 @@ function RailTripBreakdown({
         const followsTransit = previous?.mode === "bus" || previous?.mode === "rail";
         const pointByName = (name: string | null) => {
           const wanted = stationLabel(name).toLowerCase();
+          if (!wanted) return null;
           return points.find((point) => stationLabel(point.name).toLowerCase() === wanted) ?? null;
         };
         const walkFrom = leg.mode === "walk" ? pointByName(leg.from) : null;
         const walkTo = leg.mode === "walk" ? pointByName(leg.to) : null;
+        const originPoint = points.find((point) => point.id === "start") ?? null;
+        const finalPoint = points.find((point) => point.id === "end") ?? null;
+        const isTransit = leg.mode === "bus" || leg.mode === "rail";
+        // Boarding a bus/train still starts on foot: origin -> boarding stop.
+        const accessWalk = isTransit && index === 0 && originPoint
+          ? walkBetween(originPoint, pointByName(leg.from), transitStopName(leg, "from"))
+          : null;
+        // Last leg is transit: the rider still walks from the drop-off to the door.
+        const egressWalk = isTransit && index === rows.length - 1 && finalPoint
+          ? walkBetween(pointByName(leg.to), finalPoint, finalPoint.name, transitStopName(leg, "to"))
+          : null;
 
         return (
           <li key={`${leg.kind}-${leg.depart_seconds}-${index}`} className="flex gap-2.5">
@@ -2658,6 +2670,7 @@ function RailTripBreakdown({
               <p className={`mt-1 text-sm font-bold leading-snug text-foreground ${followsTransit ? "rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2" : ""}`}>
                 {followsTransit ? `${vehicleName(leg)} from ${transitStopName(previous, "to")}` : vehicleName(leg)}
               </p>
+              {accessWalk && <WalkSegment walk={accessWalk} />}
               {leg.mode === "bus" ? (
                 <div className="mt-2">
                   {waitMinutes > 0 && <p className="text-xs font-semibold text-foreground">Transfer walk/wait · {waitMinutes} min</p>}
@@ -2703,6 +2716,7 @@ function RailTripBreakdown({
                   )}
                 </div>
               )}
+              {egressWalk && <WalkSegment walk={egressWalk} />}
               {(weatherLines.get(option.legs.indexOf(leg)) ?? []).map((line) => (
                 <p key={line.text} className={`mt-2 text-xs ${TONE_CLASS[line.tone]}`}>
                   {line.text}<span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
@@ -2715,6 +2729,51 @@ function RailTripBreakdown({
     </ol>
   );
 }
+
+type WalkHop = {
+  from: { lat: number; lon: number; label: string };
+  to: { lat: number; lon: number; label: string };
+  meters: number;
+  minutes: number;
+};
+
+/** Origin -> boarding stop (or drop-off -> door) on foot, when both points resolve. */
+function walkBetween(
+  from: { lat: number; lon: number; name?: string } | null,
+  to: { lat: number; lon: number; name?: string } | null,
+  toLabel?: string | null,
+  fromLabel?: string | null,
+): WalkHop | null {
+  if (!from || !to) return null;
+  const meters = distanceM(from, to);
+  if (meters < 40) return null;
+  return {
+    from: { lat: from.lat, lon: from.lon, label: titleCase(fromLabel ?? from.name ?? "Start") },
+    to: { lat: to.lat, lon: to.lon, label: titleCase(toLabel ?? to.name ?? "Stop") },
+    meters,
+    minutes: Math.max(1, Math.round(meters / 80.47)),
+  };
+}
+
+function WalkSegment({ walk }: { walk: WalkHop }) {
+  return (
+    <div className="mt-2 text-xs font-semibold leading-relaxed text-foreground">
+      <p className="text-sm font-bold">{formatDistance(walk.meters)} · {walk.minutes} min walk</p>
+      <p className="text-muted-foreground">{walk.from.label} → {walk.to.label}</p>
+      <details className="walking-map-details mt-2">
+        <summary>Show walking map</summary>
+        <div className="map-shell mt-2 overflow-hidden rounded-lg">
+          <ClientOnly fallback={<div className="h-40 animate-pulse bg-muted" />}>
+            <Suspense fallback={<div className="h-40 animate-pulse bg-muted" />}>
+              <WalkingMicroMap from={walk.from} to={walk.to} />
+            </Suspense>
+          </ClientOnly>
+        </div>
+      </details>
+    </div>
+  );
+}
+
 
 function matchLiveArrival(
   result: BusArrivalsResult | undefined,
