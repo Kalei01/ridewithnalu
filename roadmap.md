@@ -163,3 +163,8 @@
 - [x] Keep Drive maps and copy strictly door-to-door and scope alternatives to Rail
 - [x] Consolidate the rail station dataset and limit high-accuracy GPS to an active transit leg
 - [x] Prevent automatic direction changes and repeated map bounds fitting
+
+## Audit fixes and visual polish
+- [x] Correlate TomTom incident geometry to the calculated road corridor
+- [x] Explain passed Arrive By targets and show earliest feasible leave/arrival times
+- [x] Add verdict-aware ocean radiance, glass metrics, winning-mode badges, and refined map chrome
