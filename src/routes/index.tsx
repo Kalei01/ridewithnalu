@@ -3397,16 +3397,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
     },
   });
 
-  const { data: stations = [] } = useQuery({
-    queryKey: ["rail-stations"],
-    enabled: open,
-    staleTime: 6 * 60 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("rail_stations");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const { data: stations = [] } = useRailStations(open);
+
 
   async function useMyLocation() {
     if (!navigator.geolocation) {
