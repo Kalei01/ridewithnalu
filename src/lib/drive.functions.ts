@@ -223,13 +223,14 @@ async function fetchIncidents(
       // Skip trivial slow-downs; only report what changes the number.
       if (magnitude < 2) continue;
       const delay = incident.properties?.delay;
-      if (out.length < 3) {
-        out.push({
-          description,
-          road,
-          delayMinutes: typeof delay === "number" ? Math.round(delay / 60) : null,
-        });
-      }
+      const candidate: DriveIncident = {
+        description,
+        road,
+        delayMinutes: typeof delay === "number" ? Math.round(delay / 60) : null,
+      };
+      // Don't alarm the driver about something their own route is not paying for.
+      if (!incidentAffectsTrip(candidate)) continue;
+      if (out.length < 3) out.push(candidate);
     }
     return { onRoute: out, offRoute };
   } catch (error) {
