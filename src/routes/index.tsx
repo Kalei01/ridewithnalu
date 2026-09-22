@@ -2589,7 +2589,7 @@ function RailTripBreakdown({
   liveBus: BusArrivalsResult | undefined;
   liveBusRefreshing: boolean;
   weatherLines: Map<number, WeatherLine[]>;
-  points: Array<{ name: string; lat: number; lon: number }>;
+  points: Array<{ id?: string; name: string; lat: number; lon: number }>;
 }) {
   const duration = (leg: Leg) =>
     leg.minutes ?? (leg.depart_seconds !== null && leg.arrive_seconds !== null
