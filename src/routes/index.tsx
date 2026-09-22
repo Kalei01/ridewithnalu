@@ -878,12 +878,15 @@ function Index() {
     const entry: Commitment = { mode: next, at: Date.now() };
     setCommitment(entry);
     setSelectedMode(next);
+    // Freeze the itinerary in front of the rider, transfers included.
+    lockedOptionRef.current = next === "rail" ? lockedItineraryCandidate.current : null;
     window.localStorage.setItem(COMMIT_KEY, JSON.stringify(entry));
   }
 
   /** Release the lock so Nalu can recommend again. */
   function releaseCommitment() {
     setCommitment(null);
+    lockedOptionRef.current = null;
     window.localStorage.removeItem(COMMIT_KEY);
   }
 
