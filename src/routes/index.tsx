@@ -1337,20 +1337,28 @@ function Index() {
   });
 
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
+  const [riderHeading, setRiderHeading] = useState<number | null>(null);
   const distanceTrend = useRef<number[]>([]);
   // High-accuracy GPS is the biggest battery cost in the app, so it runs only
-  // while a saved trip is actually underway on a bus or train, and is released
-  // the moment the leg ends, the trip is ended, or the screen unmounts.
+  // while a saved trip is actually underway — on a bus or train, or on a drive
+  // the commuter has committed to — and is released the moment the leg ends,
+  // the lock is released, the trip is ended, or the screen unmounts.
   useEffect(() => {
-    const trackingWanted = Boolean(activeTransitLeg) && configured && !browseActive;
+    const trackingWanted = (Boolean(activeTransitLeg) || drivingCommitted) && configured && !browseActive;
     if (!trackingWanted || !navigator.geolocation) {
       setRiderPoint(null);
+      setRiderHeading(null);
       return;
     }
     const watch = navigator.geolocation.watchPosition(
-      (position) => setRiderPoint({ lat: position.coords.latitude, lon: position.coords.longitude }),
+      (position) => {
+        setRiderPoint({ lat: position.coords.latitude, lon: position.coords.longitude });
+        const heading = position.coords.heading;
+        setRiderHeading(typeof heading === "number" && !Number.isNaN(heading) ? heading : null);
+      },
       (error) => {
         setRiderPoint(null);
+        setRiderHeading(null);
         if (isPermissionDeniedError(error)) recordLocationDenied();
       },
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
@@ -1358,8 +1366,9 @@ function Index() {
     return () => {
       navigator.geolocation.clearWatch(watch);
       setRiderPoint(null);
+      setRiderHeading(null);
     };
-  }, [activeTransitLeg, configured, browseActive]);
+  }, [activeTransitLeg, drivingCommitted, configured, browseActive]);
 
 
   // Legs change: start the distance history over so an old ride cannot trigger
