@@ -1317,7 +1317,8 @@ function Index() {
           p_rail: leg.mode === "rail",
           p_tolerance_seconds: 300,
         });
-        if (error) throw error;
+        // One unmatched leg must never wipe out the geometry of the others.
+        if (error) return null;
         const points = (data ?? []).flatMap((row) =>
           row.stop_lat === null || row.stop_lon === null
             ? []
