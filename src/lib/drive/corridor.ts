@@ -1,4 +1,4 @@
-import { localRoadName } from "../traffic-incidents";
+import { localRoadName, routeCodeName } from "../traffic-incidents";
 
 export type GuidanceInstruction = {
   routeOffsetInMeters?: number;
@@ -17,17 +17,47 @@ export type RouteCorridor = {
 };
 
 /**
- * The name to show for one guidance step. Freeways are best identified by their
- * number (H-1), but ordinary surface roads must use the street name the feed
- * reports: route numbers change at junctions (Fort Weaver Rd becomes Kunia Rd
- * north of H-1), so trusting the number alone renames the road a driver is on.
+ * The name to show for one guidance step. The route codes are the trustworthy
+ * signal: the feed's street text mislabels the Ewa side of H-1 exit 5A as
+ * "Kunia Rd" even though its codes say HI-76, which every local knows as Fort
+ * Weaver Rd. So when a step carries a code we recognise, that name wins; the
+ * street name is used only for roads with no known code.
  */
 export function stepRoadName(step: GuidanceInstruction): string | null {
-  const numbered = localRoadName(step.roadNumbers?.[0] ?? null);
-  if (numbered && isFreeway(numbered)) return numbered;
+  for (const code of step.roadNumbers ?? []) {
+    const mapped = routeCodeName(code);
+    if (mapped) return mapped;
+  }
   const street = step.street?.trim();
   if (street) return localRoadName(street);
-  return numbered;
+  return localRoadName(step.roadNumbers?.[0] ?? null);
+}
+
+/** Route codes of a step, normalised so two steps can be compared. */
+function stepCodes(step: GuidanceInstruction): Set<string> {
+  const out = new Set<string>();
+  for (const code of step.roadNumbers ?? []) {
+    const normalised = code.replace(/[^a-z0-9]/gi, "").toLowerCase();
+    if (normalised) out.add(normalised);
+  }
+  return out;
+}
+
+/**
+ * Exit ramps often arrive under one code and continue under another. When a step
+ * shares a code with the step after it, treat them as the same road so a short
+ * ramp never gets announced as its own corridor.
+ */
+function mergeRampNames(instructions: GuidanceInstruction[], names: Array<string | null>) {
+  for (let index = names.length - 2; index >= 0; index -= 1) {
+    const current = names[index];
+    const next = names[index + 1];
+    if (!current || !next || current === next) continue;
+    const codes = stepCodes(instructions[index]!);
+    if (!codes.size) continue;
+    const nextCodes = stepCodes(instructions[index + 1]!);
+    if ([...codes].some((code) => nextCodes.has(code))) names[index] = next;
+  }
 }
 
 /** East/West suffix for freeways, derived from the trip's own geometry. */
@@ -80,9 +110,11 @@ export function extractCorridor(
   const spans = new Map<string, { meters: number; firstOffset: number }>();
   // Direction the feed itself states for each road, preferred over geometry.
   const statedDirections = new Map<string, string>();
+  const names = instructions.map((step) => stepRoadName(step));
+  mergeRampNames(instructions, names);
   for (let index = 0; index < instructions.length; index += 1) {
     const step = instructions[index]!;
-    const name = stepRoadName(step);
+    const name = names[index];
     if (!name) continue;
     const offset = step.routeOffsetInMeters ?? 0;
     const nextOffset = instructions[index + 1]?.routeOffsetInMeters ?? totalMeters;

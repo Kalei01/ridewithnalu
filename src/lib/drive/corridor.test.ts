@@ -80,11 +80,60 @@ describe("bypassedCorridors", () => {
 });
 
 describe("stepRoadName", () => {
-  it("prefers the street name over a route number for surface roads", () => {
-    expect(stepRoadName({ street: "Fort Weaver Rd", roadNumbers: ["HI-750"] })).toBe("Fort Weaver Rd");
+  it("trusts the route code over a mislabelled street name", () => {
+    expect(stepRoadName({ street: "Kunia Rd", roadNumbers: ["HI-76", "HI-750"] })).toBe(
+      "Fort Weaver Rd",
+    );
   });
 
   it("keeps the freeway number when on a freeway", () => {
     expect(stepRoadName({ street: "Ramp", roadNumbers: ["Interstate H-1"] })).toBe("H-1");
+  });
+
+  it("uses the street name when the step has no known code", () => {
+    expect(stepRoadName({ street: "Renton Rd" })).toBe("Renton Rd");
+  });
+
+  it("never turns a bare number into a freeway", () => {
+    expect(stepRoadName({ street: "Exit 3", roadNumbers: ["3"] })).toBe("Exit 3");
+  });
+});
+
+describe("real Ewa Beach guidance", () => {
+  it("names the westbound exit as Fort Weaver Rd, not Kunia Rd", () => {
+    const corridor = extractCorridor(
+      [
+        { routeOffsetInMeters: 373, roadNumbers: ["HI-92"], street: "S Nimitz Hwy" },
+        {
+          routeOffsetInMeters: 5776,
+          roadNumbers: ["H1 W"],
+          street: "Interstate Highway H1 W",
+        },
+        { routeOffsetInMeters: 25849, roadNumbers: ["HI-750"], street: "Kunia Rd" },
+        { routeOffsetInMeters: 26769, roadNumbers: ["HI-76", "HI-750"], street: "Kunia Rd" },
+        { routeOffsetInMeters: 35419, street: "North Rd" },
+      ],
+      35898,
+      { fromLon: -157.86, toLon: -158.0 },
+    );
+    expect(corridor?.roads).toEqual(["Nimitz Hwy", "H-1 West", "Fort Weaver Rd"]);
+  });
+
+  it("names the outbound trip without inventing H-3", () => {
+    const corridor = extractCorridor(
+      [
+        { routeOffsetInMeters: 0, street: "North Rd" },
+        { routeOffsetInMeters: 479, street: "Fort Weaver Rd" },
+        {
+          routeOffsetInMeters: 8883,
+          roadNumbers: ["H1 E"],
+          street: "Interstate Highway H1 E",
+        },
+        { routeOffsetInMeters: 29034, roadNumbers: ["HI-92"], street: "N Nimitz Hwy" },
+      ],
+      34345,
+      { fromLon: -158.0, toLon: -157.86 },
+    );
+    expect(corridor?.roads).toEqual(["Fort Weaver Rd", "H-1 East", "Nimitz Hwy"]);
   });
 });
