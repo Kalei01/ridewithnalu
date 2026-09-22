@@ -2,7 +2,7 @@ import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, Car, Check, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Search, Settings, TrainFront, X } from "lucide-react";
+import { Bus, Car, Check, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Search, Settings, TrainFront, UserRound, X } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
@@ -51,6 +51,8 @@ import { honoluluSecondsToIso } from "@/lib/drive/planner";
 import { compareCommute } from "@/lib/decision/commute-decision";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
+import { AccountSection } from "@/components/account/AccountSection";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -67,6 +69,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
+const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
 
 function WaveMark({ className }: { className?: string }) {
   return (
@@ -366,6 +369,16 @@ function honoluluSeconds(date: Date) {
   return hour * 3600 + minute * 60 + second;
 }
 
+function alohaGreeting(date: Date, name?: string) {
+  const hour = honoluluParts(date).hour;
+  const greeting = hour >= 4 && hour < 12
+    ? "Aloha kakahiaka"
+    : hour >= 12 && hour < 17
+      ? "Aloha ʻauinalā"
+      : "Aloha ahiahi";
+  return name ? `${greeting}, ${name}` : greeting;
+}
+
 function honoluluIsoDow(date: Date) {
   const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "Pacific/Honolulu", weekday: "short" }).format(date);
   const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -588,6 +601,7 @@ function H1ConditionsCard({
 }
 
 function Index() {
+  const { user } = useAuth();
   const [now, setNow] = useState(() => new Date());
   const [hydrated, setHydrated] = useState(false);
   const [setup, setSetup] = useState<Setup>(emptySetup);
@@ -604,6 +618,7 @@ function Index() {
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
+  const syncedUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     const migrateStorage = (key: string, legacySuffix: string) => {
@@ -650,6 +665,64 @@ function Index() {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Local data remains authoritative on the device. On sign-in, merge any
+  // cloud copy with the guest's current places before enabling ongoing sync.
+  useEffect(() => {
+    if (!hydrated || !user || syncedUserRef.current === user.id) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase.from("user_preferences").select("saved_places,preferences,last_setup").eq("user_id", user.id).maybeSingle();
+      if (cancelled) return;
+      const remotePlaces = Array.isArray(data?.saved_places) ? (data.saved_places as unknown as SavedPlace[]) : [];
+      const merged = new Map<string, SavedPlace>();
+      for (const place of [...remotePlaces, ...savedPlaces]) {
+        const current = merged.get(place.id);
+        if (!current || place.updatedAt >= current.updatedAt) merged.set(place.id, place);
+      }
+      const nextPlaces = Array.from(merged.values());
+      if (nextPlaces.length) persistPlaces(nextPlaces);
+      if (!window.localStorage.getItem(STORAGE_KEY) && data?.last_setup && typeof data.last_setup === "object") {
+        const restored = { ...emptySetup, ...(data.last_setup as Partial<Setup>) };
+        persist(restored);
+      }
+      const preferences = data?.preferences && typeof data.preferences === "object" && !Array.isArray(data.preferences)
+        ? data.preferences as Record<string, unknown>
+        : {};
+      if (!window.localStorage.getItem(ALERT_PREFS_KEY) && preferences["alertPrefs"]) {
+        const restored = parseAlertPrefs(JSON.stringify(preferences["alertPrefs"]));
+        saveAlertPrefs(restored);
+      }
+      const displayName = typeof user.user_metadata?.["full_name"] === "string" ? user.user_metadata["full_name"] : null;
+      const avatarUrl = typeof user.user_metadata?.["avatar_url"] === "string" ? user.user_metadata["avatar_url"] : null;
+      await Promise.all([
+        supabase.from("profiles").upsert({ id: user.id, display_name: displayName, avatar_url: avatarUrl, updated_at: new Date().toISOString() }),
+        supabase.from("user_preferences").upsert({
+          user_id: user.id,
+          saved_places: nextPlaces,
+          preferences: { alertPrefs, planMode, arriveByInput },
+          last_setup: window.localStorage.getItem(STORAGE_KEY) ? setup : data?.last_setup ?? null,
+          updated_at: new Date().toISOString(),
+        }),
+      ]);
+      if (!cancelled) syncedUserRef.current = user.id;
+    })();
+    return () => { cancelled = true; };
+  }, [hydrated, user?.id]);
+
+  useEffect(() => {
+    if (!user || syncedUserRef.current !== user.id) return;
+    const timer = window.setTimeout(() => {
+      void supabase.from("user_preferences").upsert({
+        user_id: user.id,
+        saved_places: savedPlaces,
+        preferences: { alertPrefs, planMode, arriveByInput },
+        last_setup: configured ? setup : null,
+        updated_at: new Date().toISOString(),
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [user?.id, savedPlaces, alertPrefs, planMode, arriveByInput, setup]);
 
   // Track whether the browser has blocked location so the app can offer
   // recovery steps instead of silently falling back to a default station.
@@ -1794,6 +1867,45 @@ function Index() {
     setSettingsOpen(false);
   }
 
+  async function quickStartRoutine() {
+    const home = findByKind(savedPlaces, "home");
+    const destination = findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
+    if (!home || !destination) {
+      setOnboardingOpen(true);
+      return;
+    }
+    const [station, arriving, boarding] = await Promise.all([
+      supabase.rpc("nearest_stop", { p_lat: home.lat, p_lon: home.lon, p_rail_only: true }),
+      supabase.rpc("directional_dest_stop", { p_lat: destination.lat, p_lon: destination.lon, p_toward_rail: false }),
+      supabase.rpc("directional_dest_stop", { p_lat: destination.lat, p_lon: destination.lon, p_toward_rail: true }),
+    ]);
+    const rail = station.data?.[0];
+    const out = arriving.data?.[0];
+    const back = boarding.data?.[0];
+    if (!rail || !out || !back) {
+      setOnboardingOpen(true);
+      return;
+    }
+    saveSetup({
+      ...emptySetup,
+      homeStopId: rail.stop_id,
+      homeStopName: rail.stop_name ?? "",
+      homeLat: home.lat,
+      homeLon: home.lon,
+      destinationName: destination.name,
+      destinationAddress: destination.address,
+      destLat: destination.lat,
+      destLon: destination.lon,
+      destStopId: out.stop_id,
+      destStopName: out.stop_name ?? "",
+      destStopWalkM: Number(out.distance_m),
+      destReturnStopId: back.stop_id,
+      destReturnStopName: back.stop_name ?? "",
+      destReturnWalkM: Number(back.distance_m),
+    });
+    chooseDirection(honoluluParts(now).hour >= 12);
+  }
+
   const setupDialog = (
     <SetupDialog
       open={onboardingOpen || settingsOpen}
@@ -1817,11 +1929,17 @@ function Index() {
       !trafficLoading &&
       Math.max(eastboundTraffic?.delayMinutes ?? 0, westboundTraffic?.delayMinutes ?? 0) > 10;
 
+    const profileName = typeof user?.user_metadata?.["full_name"] === "string"
+      ? user.user_metadata["full_name"].split(" ")[0]
+      : undefined;
+    const routineDestination = findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
+    const routineInbound = honoluluParts(now).hour >= 12;
     return (
       <main className="browse-radiance min-h-dvh px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
           <header className="flex min-h-11 items-start justify-between gap-4">
             <div>
+              <p className="mb-1 text-[11px] font-semibold text-recommended">{alohaGreeting(now, profileName)}</p>
               <div className="flex items-center gap-1.5">
                 <WaveMark className="h-6 w-auto text-recommended" />
                 <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
@@ -1841,6 +1959,9 @@ function Index() {
               >
                 <RefreshCw />
               </Button>
+              <Button variant="ghost" size="icon" aria-label={user ? "Open profile and settings" : "Sign in or open settings"} onClick={() => setSettingsOpen(true)} className="shrink-0 rounded-full text-muted-foreground hover:text-foreground">
+                <UserRound className="size-5" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -1852,6 +1973,13 @@ function Index() {
               </Button>
             </div>
           </header>
+
+          {findByKind(savedPlaces, "home") && routineDestination && (
+            <button type="button" onClick={() => void quickStartRoutine()} className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-left backdrop-blur-md">
+              <span className="truncate text-xs font-medium text-muted-foreground">{routineInbound ? "Heading Home?" : `Heading to ${routineDestination.label}?`}</span>
+              <span className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-[11px] font-bold text-primary">Start</span>
+            </button>
+          )}
 
           <DataExpiryNotice />
 
@@ -2356,7 +2484,7 @@ function Index() {
           {selectedMode === "rail" && (
             <div className="mt-6">
               <div className="flex items-baseline justify-between gap-3"><h3 className="text-xl font-bold text-foreground">Rail itinerary</h3>{railRange && <p className="text-sm font-semibold text-muted-foreground">{railRange.low}–{railRange.high} min</p>}</div>
-              {best ? <RailTripBreakdown option={best} inbound={inbound} liveBus={liveBus} liveBusRefreshing={liveBusRefreshing} weatherLines={weatherLines} /> : <p className="mt-5 text-sm text-muted-foreground">{optionsLoading ? "Building your trip…" : "No rail trip available."}</p>}
+              {best ? <RailTripBreakdown option={best} inbound={inbound} liveBus={liveBus} liveBusRefreshing={liveBusRefreshing} weatherLines={weatherLines} points={commuteMapPoints} /> : <p className="mt-5 text-sm text-muted-foreground">{optionsLoading ? "Building your trip…" : "No rail trip available."}</p>}
             </div>
           )}
 
@@ -2450,12 +2578,14 @@ function RailTripBreakdown({
   liveBus,
   liveBusRefreshing,
   weatherLines,
+  points,
 }: {
   option: Option;
   inbound: boolean;
   liveBus: BusArrivalsResult | undefined;
   liveBusRefreshing: boolean;
   weatherLines: Map<number, WeatherLine[]>;
+  points: Array<{ name: string; lat: number; lon: number }>;
 }) {
   const duration = (leg: Leg) =>
     leg.minutes ?? (leg.depart_seconds !== null && leg.arrive_seconds !== null
@@ -2499,6 +2629,12 @@ function RailTripBreakdown({
           ? matchLiveArrival(liveBus, leg.route_short, leg.headsign, leg.depart_seconds)
           : null;
         const followsTransit = previous?.mode === "bus" || previous?.mode === "rail";
+        const pointByName = (name: string | null) => {
+          const wanted = stationLabel(name).toLowerCase();
+          return points.find((point) => stationLabel(point.name).toLowerCase() === wanted) ?? null;
+        };
+        const walkFrom = leg.mode === "walk" ? pointByName(leg.from) : null;
+        const walkTo = leg.mode === "walk" ? pointByName(leg.to) : null;
 
         return (
           <li key={`${leg.kind}-${leg.depart_seconds}-${index}`} className="flex gap-2.5">
@@ -2548,9 +2684,19 @@ function RailTripBreakdown({
               ) : (
                 <div className="mt-1 text-xs font-semibold leading-relaxed text-foreground">
                   {leg.mode === "walk" && legMinutes !== null && (
-                    <p>{formatDistance(legMinutes * 80.47)} walk · {legMinutes} min</p>
+                    <p className="text-sm font-bold">{formatDistance(legMinutes * 80.47)} · {legMinutes} min walk</p>
                   )}
                   <p>{`Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}</p>
+                  {walkFrom && walkTo && (
+                    <details className="walking-map-details mt-2">
+                      <summary>Show walking map</summary>
+                      <div className="map-shell mt-2 overflow-hidden rounded-lg">
+                        <ClientOnly fallback={<div className="h-40 animate-pulse bg-muted" />}>
+                          <Suspense fallback={<div className="h-40 animate-pulse bg-muted" />}><WalkingMicroMap from={{ ...walkFrom, label: titleCase(leg.from) }} to={{ ...walkTo, label: titleCase(leg.to) }} /></Suspense>
+                        </ClientOnly>
+                      </div>
+                    </details>
+                  )}
                 </div>
               )}
               {(weatherLines.get(option.legs.indexOf(leg)) ?? []).map((line) => (
@@ -3185,7 +3331,7 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
         <DialogHeader className="text-left">
           <DialogTitle className="text-2xl">{firstRun ? "WHERE TO?" : "Your trip"}</DialogTitle>
           <DialogDescription>
-            Nalu needs your starting point and destination once. Everything stays on this device.
+            Nalu needs your starting point and destination once. Guests stay on-device; signing in enables private sync.
           </DialogDescription>
         </DialogHeader>
 
@@ -3440,6 +3586,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
 
           {!firstRun && <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />}
 
+          {!firstRun && <AccountSection />}
+
           {!firstRun && <AboutSection />}
 
 
@@ -3501,8 +3649,8 @@ function AboutSection() {
 
       <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Privacy</p>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        Nalu does not collect or store your personal data. Your home station, destination, and preferences stay on this
-        device only. Feedback you submit is sent directly to the Nalu team and not shared.
+        Guest trips stay on this device. If you choose to sign in, your profile, saved places, and preferences are stored
+        privately so they can sync across your devices. Feedback you submit is sent directly to the Nalu team and not shared.
       </p>
       <div className="mt-6 h-px bg-border/60" />
 
