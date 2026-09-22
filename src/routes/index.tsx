@@ -52,6 +52,7 @@ import { compareCommute } from "@/lib/decision/commute-decision";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
 import { AccountSection } from "@/components/account/AccountSection";
+import { SignInBanner } from "@/components/account/SignInBanner";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
