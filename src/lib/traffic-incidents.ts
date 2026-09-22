@@ -44,12 +44,10 @@ const DIRECTION_WORDS: Record<string, string> = {
 
 /** Matches a bare route code with an optional stated heading, in any feed format. */
 const ROUTE_CODE =
-  /^(?:(?:HI|H|I|SR|Rte|Route|Hwy)[-\s]?)?(\d{1,3})(?:[-\s]?(E|W|N|S|East|West|North|South|Eastbound|Westbound|Northbound|Southbound))?$/i;
+  /^(?:(?:HI|H|I|SR|Rte|Route|Hwy)[-\s]?)?(\d{1,4})(?:[-\s]?(E|W|N|S|East|West|North|South|Eastbound|Westbound|Northbound|Southbound))?$/i;
 
-/** Translate TomTom route codes into the names Oahu drivers commonly use. */
-export function localRoadName(road: string | null): string | null {
-  if (!road) return null;
-  const cleaned = road
+function tidyRoadText(road: string): string {
+  return road
     .trim()
     // Drop bureaucratic prefixes: "Interstate Hwy H201 E", "State Rte 92".
     .replace(/\b(?:Interstate|State|Federal)\s+(?:Highway|Hwy|Route|Rte|Rd)\b/gi, " ")
@@ -59,15 +57,31 @@ export function localRoadName(road: string | null): string | null {
     .replace(/^(?:North|South|East|West|N|S|E|W)\s+(?=Nimitz\b)/i, "")
     .replace(/\s+/g, " ")
     .trim();
-  if (!cleaned) return null;
+}
 
+/**
+ * The local name for a route code, or null when the text is not a code we know.
+ * Bare "1"/"2"/"3" are ordinary numbers, not the H-1/H-2/H-3 freeways: those are
+ * only ever written H1/H-1/I-H1 in the feed, so a plain "3" must not become H-3.
+ */
+export function routeCodeName(road: string | null): string | null {
+  if (!road) return null;
+  const cleaned = tidyRoadText(road);
   const match = ROUTE_CODE.exec(cleaned);
   const entry = match?.[1] ? ROAD_BY_NUMBER[match[1]] : undefined;
-  if (match && entry) {
-    const direction = match[2] ? DIRECTION_WORDS[match[2].toLowerCase()] : undefined;
-    return entry.directional && direction ? `${entry.name} ${direction}` : entry.name;
-  }
-  return cleaned;
+  if (!match || !entry) return null;
+  if (entry.freewayCode && !/^(?:H|I)[-\s]?\d/i.test(cleaned)) return null;
+  const direction = match[2] ? DIRECTION_WORDS[match[2].toLowerCase()] : undefined;
+  return entry.directional && direction ? `${entry.name} ${direction}` : entry.name;
+}
+
+/** Translate TomTom route codes into the names Oahu drivers commonly use. */
+export function localRoadName(road: string | null): string | null {
+  if (!road) return null;
+  const mapped = routeCodeName(road);
+  if (mapped) return mapped;
+  const cleaned = tidyRoadText(road);
+  return cleaned || null;
 }
 
 /** True only for the H-1/H-2/H-3 freeway mainline, not ramps or surface streets. */
