@@ -1301,6 +1301,18 @@ function Index() {
     },
   });
 
+  // The Skyline alignment in running order, straight from the feed.
+  const { data: railLine = [] } = useQuery({
+    queryKey: ["rail-line-stations"],
+    enabled: configured,
+    staleTime: 6 * 60 * 60_000,
+    queryFn: async (): Promise<RailLineStation[]> => {
+      const { data, error } = await supabase.rpc("rail_line_stations");
+      if (error) throw error;
+      return (data ?? []) as RailLineStation[];
+    },
+  });
+
   const { data: itineraryLegSequences = [] } = useQuery({
     queryKey: ["itinerary-leg-sequences", best?.legs.map((leg) => [leg.from_stop_id, leg.to_stop_id, leg.depart_seconds, leg.route_short, leg.mode])],
     enabled: configured && Boolean(best?.legs.some((leg) => (leg.mode === "rail" || leg.mode === "bus") && leg.depart_seconds !== null)),
