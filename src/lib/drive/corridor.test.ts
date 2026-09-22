@@ -52,6 +52,38 @@ describe("extractCorridor", () => {
     expect(corridor?.roads).toEqual(["Fort Weaver Rd", "H-1 West"]);
   });
 
+  it("uses the named freeway instead of a different highway shown on its destination sign", () => {
+    const corridor = extractCorridor(
+      [
+        { routeOffsetInMeters: 0, street: "Fort Weaver Rd", roadNumbers: ["HI-76"] },
+        {
+          routeOffsetInMeters: 5000,
+          street: "Interstate Highway H1 E",
+          roadNumbers: ["H1 E", "H3 E", "HI-78 E"],
+        },
+        { routeOffsetInMeters: 27000, street: "N Nimitz Hwy", roadNumbers: ["HI-92"] },
+      ],
+      33000,
+      { fromLon: -158.02, toLon: -157.86 },
+    );
+    expect(corridor?.label).toBe("Via Fort Weaver Rd → H-1 East → Nimitz Hwy");
+  });
+
+  it("summarizes the main highway and final cutoff instead of interchange noise", () => {
+    const corridor = extractCorridor(
+      [
+        { routeOffsetInMeters: 0, street: "Renton Rd" },
+        { routeOffsetInMeters: 2600, street: "Interstate Highway H1 E", roadNumbers: ["H1 E"] },
+        { routeOffsetInMeters: 22000, street: "H-3 East", roadNumbers: ["H3 E"] },
+        { routeOffsetInMeters: 22500, street: "Moanalua Fwy East", roadNumbers: ["HI-78 E"] },
+        { routeOffsetInMeters: 23100, street: "Nimitz Hwy", roadNumbers: ["HI-92"] },
+      ],
+      28000,
+      { fromLon: -158.02, toLon: -157.86 },
+    );
+    expect(corridor?.label).toBe("Via Renton Rd → H-1 East → Nimitz Hwy");
+  });
+
   it("returns null without guidance", () => {
     expect(extractCorridor([], 1000)).toBeNull();
   });

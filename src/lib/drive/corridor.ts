@@ -24,12 +24,19 @@ export type RouteCorridor = {
  * street name is used only for roads with no known code.
  */
 export function stepRoadName(step: GuidanceInstruction): string | null {
+  const street = step.street?.trim();
+  const streetName = localRoadName(street ?? null);
+  // TomTom can put roads shown on an upcoming sign in `roadNumbers`. If the
+  // instruction itself names an H freeway, that is the road being travelled;
+  // do not turn an H-1 segment into H-3 because H-3 appears on the sign.
+  if (streetName && /^H-[123](?:\s+(?:East|West|North|South))?$/i.test(streetName)) {
+    return streetName;
+  }
   for (const code of step.roadNumbers ?? []) {
     const mapped = routeCodeName(code);
     if (mapped) return mapped;
   }
-  const street = step.street?.trim();
-  if (street) return localRoadName(street);
+  if (streetName) return streetName;
   return localRoadName(step.roadNumbers?.[0] ?? null);
 }
 
@@ -132,13 +139,40 @@ export function extractCorridor(
   }
   if (!spans.size) return null;
 
+  const entries = [...spans.entries()];
   const threshold = Math.max(400, totalMeters * 0.06);
-  const significant = [...spans.entries()].filter(([, span]) => span.meters >= threshold);
-  const chosen = (significant.length ? significant : [...spans.entries()])
-    .sort((a, b) => b[1].meters - a[1].meters)
-    .slice(0, maxRoads)
-    .sort((a, b) => a[1].firstOffset - b[1].firstOffset)
-    .map(([name]) => name);
+  const significant = entries.filter(([, span]) => span.meters >= threshold);
+
+  // A commute summary is orientation, not turn-by-turn guidance. Anchor it on
+  // the freeway carrying most of the trip, then name the meaningful approach
+  // and final cutoff/surface road. This prevents destination shields and short
+  // interchange ramps from producing confusing chains such as H-1 → H-3 →
+  // Moanalua Fwy when the car remains on H-1 toward town.
+  const freewayEntries = entries.filter(([name]) => isFreeway(withoutDirection(name)));
+  const primaryFreeway = freewayEntries.sort((a, b) => b[1].meters - a[1].meters)[0];
+  let chosen: string[];
+  if (primaryFreeway) {
+    const [freewayName, freewaySpan] = primaryFreeway;
+    const surfaceEntries = entries.filter(
+      ([name, span]) => !isFreeway(withoutDirection(name)) && span.meters >= threshold,
+    );
+    const approach = surfaceEntries
+      .filter(([, span]) => span.firstOffset < freewaySpan.firstOffset)
+      .sort((a, b) => b[1].meters - a[1].meters)[0];
+    const exit = surfaceEntries
+      .filter(([, span]) => span.firstOffset > freewaySpan.firstOffset)
+      .sort((a, b) => b[1].firstOffset - a[1].firstOffset)[0];
+    chosen = [approach?.[0], freewayName, exit?.[0]].filter(
+      (name): name is string => Boolean(name),
+    );
+  } else {
+    chosen = (significant.length ? significant : entries)
+      .sort((a, b) => b[1].meters - a[1].meters)
+      .slice(0, maxRoads)
+      .sort((a, b) => a[1].firstOffset - b[1].firstOffset)
+      .map(([name]) => name);
+  }
+  chosen = chosen.slice(0, maxRoads);
   if (!chosen.length) return null;
 
   const roads = chosen.map((name) => {
