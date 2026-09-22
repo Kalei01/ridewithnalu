@@ -2607,7 +2607,7 @@ function Index() {
                     )}
                     {drivePlan && (
                       <p className="mt-2 text-[10px] text-muted-foreground">
-                        Includes {drivePlan.bufferMinutes} min to park and walk in · Drive time: TomTom
+                        Includes {drivePlan.bufferMinutes} min to park and walk in · {driveBasisLabel}
                       </p>
                     )}
                   </div>
@@ -2736,7 +2736,7 @@ function Index() {
               {drive?.corridorLabel
                 ? <RouteCorridor label={drive.corridorLabel} size="compact" />
                 : <p className="mt-4 text-sm font-medium text-foreground">Drive straight {inbound ? `from ${destinationLabel} to your home address` : `from home to ${destinationLabel}`} — no stop at a rail station.</p>}
-              {driveAvailable && driveRange && drive && <p className="mt-3 text-[10px] text-muted-foreground">Drive time: TomTom</p>}
+              {driveAvailable && driveRange && drive && <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>}
               {!driveAvailable && carAwayReason && <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>}
               {driveAvailable && driveFailed && <p className="mt-4 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>}
               {driveAvailable && drive?.incidents[0] && verdict !== "drive" && !incidentDecides && <p className="mt-4 border-l-2 border-warning pl-3 text-base font-bold text-foreground">{trafficDelayText(drive.incidents[0], drive.delayMinutes)}</p>}
