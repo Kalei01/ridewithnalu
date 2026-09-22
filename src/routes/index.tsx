@@ -1941,6 +1941,7 @@ function Index() {
     // overnight hours count as heading home.
     const routineHour = honoluluParts(now).hour;
     const routineInbound = routineHour >= 12 || routineHour < 5;
+    const routineDestination = findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
     return (
       <main className="browse-radiance min-h-dvh px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
