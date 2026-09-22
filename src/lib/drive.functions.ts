@@ -9,7 +9,7 @@ const schema = z.object({
   toLat: z.number(),
   toLon: z.number(),
   departureTime: z.string().datetime({ offset: true }).optional(),
-  /** Active navigation bypasses the five-minute server cache on each rolling refresh. */
+  /** Active navigation and manual refreshes bypass the two-minute server cache. */
   forceRefresh: z.boolean().optional(),
 });
 
@@ -51,7 +51,7 @@ export type DriveTrafficSection = {
   points: Array<{ lat: number; lon: number }>;
 };
 
-const CACHE_MS = 5 * 60_000;
+const CACHE_MS = 2 * 60_000;
 const cache = new Map<string, DriveTime>();
 
 function round(value: number) {

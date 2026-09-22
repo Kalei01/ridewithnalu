@@ -1,6 +1,6 @@
 import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BriefcaseBusiness, Bus, Car, Check, ChevronDown, ChevronRight, Footprints, House, LocateFixed, Navigation, Radio, RefreshCw, Search, Settings, TrainFront, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
-import { incidentText, trafficDelayText } from "@/lib/traffic-incidents";
+import { incidentText, mainlineClearNote, trafficDelayText } from "@/lib/traffic-incidents";
 import {
   detectTrafficAlert,
   postCommuteNotification,
@@ -622,11 +622,15 @@ function H1ConditionsCard({
           <div className="border-t border-border px-4 pb-4">
             {rows.map(({ label, data }) => {
               const incident = data?.incidents[0];
+              const note = mainlineClearNote(incident, data?.delayMinutes);
               return incident ? (
-                <p key={label} className="mt-3 text-sm text-foreground">
-                  <span className="font-semibold">{label}:</span> {incidentText(incident)}
-                  {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
-                </p>
+                <div key={label} className="mt-3">
+                  <p className="text-sm text-foreground">
+                    <span className="font-semibold">{label}:</span> {incidentText(incident)}
+                    {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
+                  </p>
+                  {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
+                </div>
               ) : null;
             })}
             <p className="mt-3 text-[10px] text-muted-foreground">Traffic: TomTom</p>
@@ -658,10 +662,15 @@ function H1ConditionsCard({
                   <span className={`shrink-0 text-right text-sm font-semibold tabular-nums ${status.className}`}>{status.label}</span>
                 </div>
                 {incident && (
-                  <p className="mt-2 rounded-lg bg-surface-raised px-3 py-2 text-xs text-muted-foreground">
-                    {incidentText(incident)}
-                    {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
-                  </p>
+                  <div className="mt-2 rounded-lg bg-surface-raised px-3 py-2 text-xs text-muted-foreground">
+                    <p>
+                      {incidentText(incident)}
+                      {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
+                    </p>
+                    {mainlineClearNote(incident, item.data.delayMinutes) && (
+                      <p className="mt-1">{mainlineClearNote(incident, item.data.delayMinutes)}</p>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -686,6 +695,21 @@ function Index() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
+  // Starting a trip or pulling to refresh must show truly live conditions, so
+  // the next traffic lookup skips the short server-side cache once.
+  const forcedTrafficRefresh = useRef(false);
+  function takeForcedTrafficRefresh() {
+    return forcedTrafficRefresh.current;
+  }
+  async function refreshTrafficNow() {
+    forcedTrafficRefresh.current = true;
+    await Promise.allSettled([
+      queryClient.invalidateQueries({ queryKey: ["drive"] }),
+      queryClient.invalidateQueries({ queryKey: ["browse-h1"] }),
+    ]);
+    forcedTrafficRefresh.current = false;
+  }
   const [override, setOverride] = useState<DirectionOverride | null>(null);
   const [parked, setParked] = useState<ParkedCar | null>(null);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
@@ -1495,8 +1519,8 @@ function Index() {
     enabled: hydrated && configured && driveFrom.lat !== null && driveTo.lat !== null,
     // A driver underway gets rolling traffic, congestion and incident updates
     // every 2 minutes; otherwise the slower 5-minute cadence is plenty.
-    staleTime: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
-    refetchInterval: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
+    staleTime: 2 * 60_000,
+    refetchInterval: 2 * 60_000,
     refetchIntervalInBackground: false,
     retry: 1,
     queryFn: () =>
@@ -1506,7 +1530,7 @@ function Index() {
           fromLon: driveFrom.lon as number,
           toLat: driveTo.lat as number,
           toLon: driveTo.lon as number,
-          forceRefresh: drivingCommitted,
+          forceRefresh: drivingCommitted || takeForcedTrafficRefresh(),
         },
       }),
   });
@@ -1625,8 +1649,8 @@ function Index() {
   } = useQuery({
     queryKey: ["browse-h1", "eastbound"],
     enabled: hydrated,
-    staleTime: 3 * 60_000,
-    refetchInterval: 3 * 60_000,
+    staleTime: 2 * 60_000,
+    refetchInterval: 2 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -1635,6 +1659,7 @@ function Index() {
           fromLon: KAPOLEI_POINT.lon,
           toLat: DOWNTOWN_POINT.lat,
           toLon: DOWNTOWN_POINT.lon,
+          forceRefresh: takeForcedTrafficRefresh(),
         },
       }),
   });
@@ -1647,8 +1672,8 @@ function Index() {
   } = useQuery({
     queryKey: ["browse-h1", "westbound"],
     enabled: hydrated,
-    staleTime: 3 * 60_000,
-    refetchInterval: 3 * 60_000,
+    staleTime: 2 * 60_000,
+    refetchInterval: 2 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -1657,6 +1682,7 @@ function Index() {
           fromLon: DOWNTOWN_POINT.lon,
           toLat: KAPOLEI_POINT.lat,
           toLon: KAPOLEI_POINT.lon,
+          forceRefresh: takeForcedTrafficRefresh(),
         },
       }),
   });
@@ -2092,13 +2118,16 @@ function Index() {
   async function refresh() {
     setRefreshing(true);
     setNow(new Date());
+    forcedTrafficRefresh.current = true;
+    const tasks: Array<Promise<unknown>> = [
+      queryClient.invalidateQueries({ queryKey: ["drive"] }),
+      queryClient.invalidateQueries({ queryKey: ["browse-h1"] }),
+    ];
     if (browseActive) {
-      await Promise.allSettled([
-        refetchBrowseDepartures(),
-        refetchEastboundTraffic(),
-        refetchWestboundTraffic(),
-      ]);
+      tasks.push(refetchBrowseDepartures(), refetchEastboundTraffic(), refetchWestboundTraffic());
     }
+    await Promise.allSettled(tasks);
+    forcedTrafficRefresh.current = false;
     window.setTimeout(() => setRefreshing(false), 250);
   }
 
@@ -2112,6 +2141,7 @@ function Index() {
     // Unlock audio inside this tap so iOS Safari allows the arrival chime later.
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
+    void refreshTrafficNow();
     if (!configured) chooseDirection(false);
     persist(next);
     window.localStorage.removeItem(SETUP_DISMISSED_KEY);
@@ -2122,6 +2152,7 @@ function Index() {
   async function quickStartRoutine() {
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
+    void refreshTrafficNow();
     const home = findByKind(savedPlaces, "home");
     const destination = findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
     if (!home || !destination) {
@@ -2163,6 +2194,7 @@ function Index() {
   async function quickStartSavedPlace(kind: "home" | "work") {
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
+    void refreshTrafficNow();
     const destination = findByKind(savedPlaces, kind);
     if (!destination) {
       toast(`Save your ${kind === "home" ? "Home" : "Work"} location first.`, {

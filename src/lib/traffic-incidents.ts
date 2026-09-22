@@ -34,10 +34,25 @@ export function localRoadName(road: string | null): string | null {
   return LOCAL_ROAD_NAMES.find(([pattern]) => pattern.test(formatted))?.[1] ?? formatted;
 }
 
+/** True only for the H-1/H-2/H-3 freeway mainline, not ramps or surface streets. */
+export function isFreewayMainline(road: string | null): boolean {
+  const name = localRoadName(road);
+  if (!name) return false;
+  if (/\b(?:ramp|exit|on-?ramp|off-?ramp|onramp|offramp)\b/i.test(name)) return false;
+  return /^H-[123](?:\s+(?:East|West|North|South))?$/.test(name);
+}
+
+/** Describes where an incident sits relative to the freeway, for clear copy. */
+export function incidentPlace(incident: DriveIncident): string {
+  const road = localRoadName(incident.road);
+  if (!road) return "on a connecting road on your route";
+  if (/\b(?:ramp|on-?ramp|off-?ramp|onramp|offramp)\b/i.test(road)) return `on the ${road}`;
+  return `on ${road}`;
+}
+
 /** Add useful context to TomTom's terse incident descriptions. */
 export function incidentText(incident: DriveIncident): string {
-  const road = localRoadName(incident.road);
-  const location = road ? `on ${road}` : "on your route";
+  const location = incidentPlace(incident);
   const description = incident.description.trim();
 
   switch (description.toLowerCase()) {
@@ -61,4 +76,21 @@ export function incidentText(incident: DriveIncident): string {
 export function trafficDelayText(incident: DriveIncident, fallbackDelayMinutes = 0): string {
   const delay = incident.delayMinutes ?? fallbackDelayMinutes;
   return `${incidentText(incident)}${delay > 0 ? ` · +${delay} min` : ""}`;
+}
+/**
+ * Explains a "Clear" freeway reading shown next to an on-route alert, so a
+ * commuter is not left guessing which road the closure is actually on.
+ */
+export function mainlineClearNote(
+  incident: DriveIncident | undefined,
+  mainlineDelayMinutes: number | null | undefined,
+): string | null {
+  if (!incident) return null;
+  const delay = Math.max(0, Math.round(mainlineDelayMinutes ?? 0));
+  if (delay >= 10) return null;
+  if (isFreewayMainline(incident.road)) return null;
+  const road = localRoadName(incident.road);
+  return road
+    ? `H-1 mainline is clear; this alert is on ${road}, a connecting road.`
+    : "H-1 mainline is clear; this alert is on a connecting road, not the freeway.";
 }
