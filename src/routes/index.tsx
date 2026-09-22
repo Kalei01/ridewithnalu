@@ -2610,7 +2610,8 @@ function RailTripBreakdown({
   const rows = [access, rail, connection, egress].filter((leg): leg is Leg => Boolean(leg));
 
   return (
-    <ol className="mt-7" aria-label="Rail trip breakdown">
+    <>
+      <ol className="mt-7" aria-label="Rail trip breakdown">
       {rows.map((leg, index) => {
         const Icon = modeIcon(leg.mode);
         const previous = rows[index - 1];
@@ -2683,6 +2684,7 @@ function RailTripBreakdown({
                 <div className="mt-2">
                   {waitMinutes > 0 && <p className="text-xs font-semibold text-foreground">Transfer walk/wait · {waitMinutes} min</p>}
                   <p className="text-sm font-semibold text-foreground">Board at: {transitStopName(leg, "from")}</p>
+                  <LandmarkHint name={transitStopName(leg, "from")} />
                   <BusArrivalTime
                     arrival={liveArrival}
                     scheduledSeconds={leg.depart_seconds}
@@ -2694,6 +2696,7 @@ function RailTripBreakdown({
                     <span>Get off at: {transitStopName(leg, "to")}</span>
                     <span className="shrink-0 tabular-nums">{clockFromSeconds(leg.arrive_seconds)}</span>
                   </p>
+                  <LandmarkHint name={transitStopName(leg, "to")} />
                   <p className="mt-1 text-xs font-semibold text-foreground">Ride {legMinutes ?? "—"} min</p>
                 </div>
               ) : leg.mode === "rail" ? (
@@ -2701,10 +2704,12 @@ function RailTripBreakdown({
                   <p className="text-sm font-semibold text-foreground">
                     Board at: {transitStopName(leg, "from")} · {clockFromSeconds(leg.depart_seconds)}
                   </p>
+                  <LandmarkHint name={transitStopName(leg, "from")} />
                   <p className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
                     <span>Get off at: {transitStopName(leg, "to")}</span>
                     <span className="shrink-0 tabular-nums">{clockFromSeconds(leg.arrive_seconds)}</span>
                   </p>
+                  <LandmarkHint name={transitStopName(leg, "to")} />
                 </div>
               ) : (
                 <div className="mt-1 text-xs font-semibold leading-relaxed text-foreground">
@@ -2734,7 +2739,9 @@ function RailTripBreakdown({
           </li>
         );
       })}
-    </ol>
+      </ol>
+      <FareNotice />
+    </>
   );
 }
 
