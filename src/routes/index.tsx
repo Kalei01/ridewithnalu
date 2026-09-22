@@ -1283,8 +1283,12 @@ function Index() {
 
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
   const distanceTrend = useRef<number[]>([]);
+  // High-accuracy GPS is the biggest battery cost in the app, so it runs only
+  // while a saved trip is actually underway on a bus or train, and is released
+  // the moment the leg ends, the trip is ended, or the screen unmounts.
   useEffect(() => {
-    if (!activeTransitLeg || !navigator.geolocation) {
+    const trackingWanted = Boolean(activeTransitLeg) && configured && !browseActive;
+    if (!trackingWanted || !navigator.geolocation) {
       setRiderPoint(null);
       return;
     }
@@ -1296,8 +1300,12 @@ function Index() {
       },
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
     );
-    return () => navigator.geolocation.clearWatch(watch);
-  }, [activeTransitLeg]);
+    return () => {
+      navigator.geolocation.clearWatch(watch);
+      setRiderPoint(null);
+    };
+  }, [activeTransitLeg, configured, browseActive]);
+
 
   // Legs change: start the distance history over so an old ride cannot trigger
   // a "passed your stop" notice on the next one.
