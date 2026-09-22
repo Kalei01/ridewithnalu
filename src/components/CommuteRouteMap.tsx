@@ -150,6 +150,27 @@ export default function CommuteRouteMap({ points, livePoint, path, trafficSectio
       className: "nalu-journey-line",
     }).addTo(routeLayer);
 
+    // Congestion drawn over the corridor: amber for moderate, red for heavy backups.
+    for (const section of trafficRef.current ?? []) {
+      if (section.points.length < 2) continue;
+      const latLngs = section.points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
+      const heavy = section.severity === "heavy";
+      L.polyline(latLngs, {
+        color: heavy ? "#ff453a" : "#ffb020",
+        weight: 6,
+        opacity: 0.95,
+        lineCap: "round",
+        lineJoin: "round",
+        className: "nalu-traffic-line",
+      })
+        .bindTooltip(
+          `${heavy ? "Heavy traffic" : "Slow traffic"}${section.delayMinutes > 0 ? ` · +${section.delayMinutes} min` : ""}`,
+          { direction: "top", sticky: true },
+        )
+        .addTo(routeLayer);
+    }
+
+
     current.forEach((point) => {
       L.marker([point.lat, point.lon], {
         icon: journeyIcon(point),
