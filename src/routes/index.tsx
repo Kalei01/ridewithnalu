@@ -1939,20 +1939,44 @@ function Index() {
     const origin = inbound ? destPoint : homePoint;
     const destination = inbound ? homePoint : destPoint;
     const sequenceByLeg = new Map(itineraryLegSequences.map((sequence) => [sequence.legIndex, sequence]));
-    const pointForStop = (stopId?: string | null) => {
-      if (!stopId) return null;
-      const row = itineraryStopCoords.find((stop) => stop.stop_id === stopId);
+    const pointForStop = (stopId?: string | null, stopName?: string | null) => {
+      const row = (stopId ? itineraryStopCoords.find((stop) => stop.stop_id === stopId) : undefined)
+        ?? (stopName ? itineraryStopCoords.find((stop) => stop.stop_name === stopName) : undefined);
       return row && row.stop_lat !== null && row.stop_lon !== null ? { lat: Number(row.stop_lat), lon: Number(row.stop_lon) } : null;
+    };
+    /**
+     * The Skyline alignment, drawn station by station. Used when a specific train
+     * trip cannot be matched to the leg, so the rail line never collapses into a
+     * straight line across Pearl Harbor.
+     */
+    const railLinePoints = (fromName?: string | null, toName?: string | null) => {
+      if (!fromName || !toName || railLine.length === 0) return null;
+      const fromIndex = railLine.findIndex((station) => station.stop_name === fromName);
+      const toIndex = railLine.findIndex((station) => station.stop_name === toName);
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return null;
+      const slice = fromIndex < toIndex
+        ? railLine.slice(fromIndex, toIndex + 1)
+        : railLine.slice(toIndex, fromIndex + 1).reverse();
+      const points = slice.flatMap((station) =>
+        station.stop_lat === null || station.stop_lon === null
+          ? []
+          : [{ lat: Number(station.stop_lat), lon: Number(station.stop_lon) }],
+      );
+      return points.length > 1 ? points : null;
     };
     return best.legs.flatMap((leg, legIndex) => {
       const sequence = sequenceByLeg.get(legIndex);
       if (sequence) return [{ id: `transit-${legIndex}`, mode: sequence.mode, points: sequence.points.map(({ lat, lon }) => ({ lat, lon })) }];
-      const from = leg.kind === "access" ? origin : pointForStop(leg.from_stop_id);
-      const to = leg.kind === "egress" ? destination : pointForStop(leg.to_stop_id);
+      if (leg.mode === "rail") {
+        const alignment = railLinePoints(leg.from, leg.to);
+        if (alignment) return [{ id: `rail-line-${legIndex}`, mode: "rail" as const, points: alignment }];
+      }
+      const from = leg.kind === "access" ? origin : pointForStop(leg.from_stop_id, leg.from);
+      const to = leg.kind === "egress" ? destination : pointForStop(leg.to_stop_id, leg.to);
       if (!from || !to) return [];
       return [{ id: `leg-${legIndex}`, mode: leg.mode, points: [from, to] }];
     });
-  }, [best, homePoint, destPoint, inbound, itineraryLegSequences, itineraryStopCoords]);
+  }, [best, homePoint, destPoint, inbound, itineraryLegSequences, itineraryStopCoords, railLine]);
 
   // Drive view: straight door-to-door, no rail station or transit stops.
   const driveMapPoints = useMemo(() => {
