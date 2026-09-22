@@ -18,6 +18,6 @@
 - [x] Remove destination-stop helper text from the setup dialog
 
 ## Nearby arrivals and comparison clarity
-- [ ] Show data-derived route and destination labels on nearby-stop choices
-- [ ] Add an expandable GPS-to-stop walking map with distance and time
-- [ ] Make every relative time label name the mode or departure it compares against
+- [x] Show data-derived route and destination labels on nearby-stop choices
+- [x] Add an expandable GPS-to-stop walking map with distance and time
+- [x] Make every relative time label name the mode or departure it compares against
