@@ -108,13 +108,17 @@ export default function CommuteRouteMap({ points, livePoint, path, trafficSectio
       [
         points.map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join("|"),
         `path:${path?.length ?? 0}:${path?.[0] ? `${path[0].lat.toFixed(4)},${path[0].lon.toFixed(4)}` : ""}`,
+        `traffic:${(trafficSections ?? []).map((section) => `${section.severity}${section.points.length}`).join(",")}`,
       ].join("#"),
-    [points, path],
+    [points, path, trafficSections],
   );
   const pointsRef = useRef(points);
   pointsRef.current = points;
   const pathRef = useRef(path);
   pathRef.current = path;
+  const trafficRef = useRef(trafficSections);
+  trafficRef.current = trafficSections;
+
 
   useEffect(() => {
     const map = mapRef.current;
