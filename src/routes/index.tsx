@@ -1541,11 +1541,11 @@ function Index() {
         return `${worstLabel} connection adds ${Math.round(worstWait / 60)} min of waiting`;
       }
     }
-    if (verdict === "rail" && incident) return `${incidentText(incident)} delays driving`;
+    if (verdict === "rail" && incident && incidentDecides) return `${incidentText(incident)} delays driving`;
     if (drive && drive.delayMinutes >= 5)
       return `The drive is running ${drive.delayMinutes} min slower than usual`;
     return decision.explanation;
-  }, [best, drive, verdict, longWait, waitForTrain, decision.explanation]);
+  }, [best, drive, verdict, longWait, waitForTrain, decision.explanation, incidentDecides]);
 
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
