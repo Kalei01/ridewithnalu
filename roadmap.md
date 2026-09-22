@@ -33,6 +33,6 @@
 - [x] Center and follow the live GPS position on the route map during an active trip
 
 ## Hands-free commute alerts
-- [ ] Enable sound by default and speak two-stop/one-stop transit alerts
-- [ ] Detect meaningful traffic changes during committed drives and announce them
-- [ ] Request notification permission from trip-start gestures and post critical alerts safely
+- [x] Enable sound by default and speak two-stop/one-stop transit alerts
+- [x] Detect meaningful traffic changes during committed drives and announce them
+- [x] Request notification permission from trip-start gestures and post critical alerts safely
