@@ -1676,7 +1676,13 @@ function Index() {
       { id: "start", name: originName, ...origin, kind: "start" },
     ];
 
-    const stopPoint = (name: string | null) => {
+    const stopPoint = (name: string | null, stopId?: string | null) => {
+      if (stopId) {
+        const byId = itineraryStopCoords.find((row) => row.stop_id === stopId);
+        if (byId && byId.stop_lat !== null && byId.stop_lon !== null) {
+          return { lat: Number(byId.stop_lat), lon: Number(byId.stop_lon) };
+        }
+      }
       if (!name) return null;
       const normalized = name.trim().toLowerCase();
       const station = stationPoint(name);
@@ -1689,8 +1695,12 @@ function Index() {
     best.legs.forEach((leg, index) => {
       if (leg.mode !== "rail" && leg.mode !== "bus") return;
       const transitKind: "rail" | "bus" = leg.mode;
-      [leg.from, leg.to].forEach((name, endpointIndex) => {
-        const point = stopPoint(name);
+      const endpoints: Array<[string | null, string | null | undefined]> = [
+        [leg.from, leg.from_stop_id],
+        [leg.to, leg.to_stop_id],
+      ];
+      endpoints.forEach(([name, stopId], endpointIndex) => {
+        const point = stopPoint(name, stopId);
         if (!name || !point) return;
         const last = points[points.length - 1];
         if (last && distanceM(last, point) < 20) return;
@@ -1702,6 +1712,7 @@ function Index() {
         });
       });
     });
+
     points.push({ id: "end", name: destinationName, ...destination, kind: "end" });
     return points;
   }, [best, homePoint, destPoint, inbound, destinationLabel, itineraryStopCoords, stationCoords]);
