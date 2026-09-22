@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
+import { incidentAffectsTrip } from "./traffic-incidents";
 
 const schema = z.object({
   fromLat: z.number(),
