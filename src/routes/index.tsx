@@ -2715,6 +2715,7 @@ function RailTripBreakdown({
                   )}
                 </div>
               )}
+              {egressWalk && <WalkSegment walk={egressWalk} />}
               {(weatherLines.get(option.legs.indexOf(leg)) ?? []).map((line) => (
                 <p key={line.text} className={`mt-2 text-xs ${TONE_CLASS[line.tone]}`}>
                   {line.text}<span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
