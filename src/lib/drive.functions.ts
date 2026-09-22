@@ -226,7 +226,7 @@ async function fetchIncidents(
     return { onRoute: out, offRoute };
   } catch (error) {
     console.error("TomTom incidents error", error);
-    return [];
+    return { onRoute: [], offRoute: [] };
   }
 }
 
