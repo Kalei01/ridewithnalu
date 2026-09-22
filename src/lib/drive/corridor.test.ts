@@ -39,10 +39,24 @@ describe("extractCorridor", () => {
     expect(corridor?.roads).toEqual(["H-2"]);
   });
 
+  it("prefers the direction stated in the guidance over the trip geometry", () => {
+    const corridor = extractCorridor(
+      [
+        { routeOffsetInMeters: 0, street: "Fort Weaver Rd" },
+        { routeOffsetInMeters: 3000, roadNumbers: ["Interstate H-1 W"], street: "Ramp" },
+      ],
+      20000,
+      // Geometry alone would say East; the feed says westbound.
+      { fromLon: -158.02, toLon: -157.86 },
+    );
+    expect(corridor?.roads).toEqual(["Fort Weaver Rd", "H-1 West"]);
+  });
+
   it("returns null without guidance", () => {
     expect(extractCorridor([], 1000)).toBeNull();
   });
 });
+
 
 describe("bypassedCorridors", () => {
   it("keeps congested roads the route avoids", () => {
