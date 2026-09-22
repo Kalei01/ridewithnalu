@@ -976,16 +976,8 @@ function Index() {
     );
   }, [browseActive, onboardingOpen, browseStation, browseLocationDenied]);
 
-  const { data: browseStations = [] } = useQuery({
-    queryKey: ["browse-rail-stations"],
-    enabled: hydrated,
-    staleTime: 6 * 60 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("rail_stations");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const { data: browseStations = [] } = useRailStations(hydrated);
+
 
   // If location is unavailable, derive the west-side default from live station
   // coordinates rather than pinning a station name or id into the app.
