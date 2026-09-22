@@ -1818,7 +1818,7 @@ function Index() {
       Math.max(eastboundTraffic?.delayMinutes ?? 0, westboundTraffic?.delayMinutes ?? 0) > 10;
 
     return (
-      <main className="min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+      <main className="browse-radiance min-h-dvh px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
           <header className="flex min-h-11 items-start justify-between gap-4">
             <div>
@@ -1857,7 +1857,7 @@ function Index() {
 
           <Button
             onClick={() => setOnboardingOpen(true)}
-            className="mx-auto mt-5 min-h-16 w-full justify-center gap-3 rounded-lg border border-primary bg-primary px-5 text-center text-lg font-bold text-primary-foreground shadow-lg hover:bg-primary/90"
+            className="browse-where-to mx-auto mt-5 min-h-16 w-full justify-center gap-3 rounded-lg border border-primary bg-primary px-5 text-center text-lg font-bold text-primary-foreground hover:bg-primary/90"
             aria-label="Where to? Set up a trip"
           >
             <Search className="size-6 text-primary-foreground" />
@@ -1866,7 +1866,7 @@ function Index() {
           </Button>
 
           {browseUserPoint && (
-            <section className="relative mt-4 h-[44dvh] min-h-[320px] max-h-[470px] overflow-hidden rounded-lg border border-border bg-surface-raised" aria-label="Nearby transit map">
+            <section className="map-shell relative mt-4 h-[44dvh] min-h-[320px] max-h-[470px] overflow-hidden rounded-xl" aria-label="Nearby transit map">
               <ClientOnly fallback={<div className="h-full animate-pulse bg-muted" aria-label="Loading nearby transit map" />}>
                 <Suspense fallback={<div className="h-full animate-pulse bg-muted" aria-label="Loading nearby transit map" />}>
                   <NearbyTransitMap
@@ -1891,7 +1891,7 @@ function Index() {
             </section>
           )}
 
-          <section className="mt-4 rounded-lg border border-border bg-surface-raised p-4" aria-labelledby="browse-station-title">
+          <section className="glass-panel mt-4 rounded-lg p-4" aria-labelledby="browse-station-title">
             <div className="flex items-center gap-3">
               <TrainFront className="size-6 shrink-0 text-primary" />
               <div className="min-w-0 flex-1">
@@ -1902,10 +1902,10 @@ function Index() {
               </div>
             </div>
             {browseStation && browseUserPoint && (
-              <p className="mt-3 text-sm font-medium text-foreground">
-                Walk {walkingEstimate(browseUserPoint, browseStation).minutes} min · {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
-                {` · Drive about ${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min`}
-              </p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-foreground">
+                <span className="browse-eta-chip">Walk {walkingEstimate(browseUserPoint, browseStation).minutes} min · {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}</span>
+                <span className="browse-eta-chip">Drive about {Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min</span>
+              </div>
             )}
             {browseLocationDenied && browseStation && (
               <p className="mt-2 text-xs text-muted-foreground">Location unavailable · showing a data-derived West Oahu station</p>
@@ -1972,7 +1972,7 @@ function Index() {
                       : "miss"
                   : null;
                 return (
-                  <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="min-w-0 rounded-md bg-background p-3">
+                  <article key={`${first?.route_id}-${first?.direction_id ?? "x"}`} className="browse-departure-card min-w-0 rounded-md p-3">
                     <h3 className="text-sm font-semibold text-foreground">{towardDowntown ? "Eastbound" : "Westbound"}</h3>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">to {directionName} · {endpoint}</p>
                     {first && (
@@ -2020,7 +2020,7 @@ function Index() {
           </section>
 
           {browseUserPoint && (
-            <details className="mt-3 rounded-lg border border-border bg-surface-raised/70">
+            <details className="glass-panel mt-3 rounded-lg">
               <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
                 <Bus className="size-5 text-primary" />
                 <span className="font-semibold text-foreground">Nearby stops & arrivals</span>
@@ -2064,7 +2064,7 @@ function Index() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <H1ConditionsCard eastbound={eastboundTraffic} westbound={westboundTraffic} loading={trafficLoading} unavailable={trafficUnavailable} compact />
-            <details className="mt-4 rounded-lg border border-border bg-surface-raised/70">
+            <details className="glass-panel mt-4 rounded-lg">
               <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
                 <span className="min-w-0 truncate text-sm font-semibold text-foreground">{browseWeatherSummary}</span>
                 <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />

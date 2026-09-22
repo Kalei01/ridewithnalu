@@ -22,8 +22,8 @@ type Basemap = "standard" | "satellite";
 
 const BASEMAPS = {
   standard: {
-    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -63,6 +63,7 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
 
     tileLayerRef.current = L.tileLayer(BASEMAPS.standard.url, {
       maxZoom: 19,
+      subdomains: "abcd",
       attribution: BASEMAPS.standard.attribution,
     }).addTo(map);
     L.control.zoom({ position: "bottomright" }).addTo(map);
@@ -83,7 +84,7 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
     const previousLayer = tileLayerRef.current;
     if (previousLayer) map.removeLayer(previousLayer);
     const next = BASEMAPS[basemap];
-    tileLayerRef.current = L.tileLayer(next.url, { maxZoom: 19, attribution: next.attribution }).addTo(map);
+    tileLayerRef.current = L.tileLayer(next.url, { maxZoom: 19, subdomains: "abcd", attribution: next.attribution }).addTo(map);
     tileLayerRef.current.bringToBack();
   }, [basemap]);
 
