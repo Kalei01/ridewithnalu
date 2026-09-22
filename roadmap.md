@@ -36,3 +36,8 @@
 - [x] Enable sound by default and speak two-stop/one-stop transit alerts
 - [x] Detect meaningful traffic changes during committed drives and announce them
 - [x] Request notification permission from trip-start gestures and post critical alerts safely
+
+## Transit map and incident clarity
+- [x] Draw every scheduled rail and bus stop sequence instead of a straight transit line
+- [x] Distinguish rail, bus, and walking legs on the commute map
+- [x] State the measured trip-time impact beneath every on-route incident alert

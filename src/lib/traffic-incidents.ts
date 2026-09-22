@@ -95,7 +95,9 @@ export function isFreewayMainline(road: string | null): boolean {
 /** Describes where an incident sits relative to the freeway, for clear copy. */
 export function incidentPlace(incident: DriveIncident): string {
   const road = localRoadName(incident.road);
-  if (!road) return "on a connecting road on your route";
+  // Geometry can confirm proximity to the calculated route, but without a
+  // provider road name it cannot prove freeway vs ramp vs parallel frontage road.
+  if (!road) return "near your calculated route";
   if (/\b(?:ramp|on-?ramp|off-?ramp|onramp|offramp)\b/i.test(road)) return `on the ${road}`;
   return `on ${road}`;
 }
@@ -127,6 +129,13 @@ export function trafficDelayText(incident: DriveIncident, fallbackDelayMinutes =
   const delay = incident.delayMinutes ?? fallbackDelayMinutes;
   return `${incidentText(incident)}${delay > 0 ? ` · +${delay} min` : ""}`;
 }
+
+/** Plain-language trip impact shown beneath an incident, never inferred from severity alone. */
+export function incidentImpactText(incident: DriveIncident): string {
+  const delay = Math.max(0, Math.round(incident.delayMinutes ?? 0));
+  if (delay > 0) return `Expected to add about ${delay} min to this trip.`;
+  return "No measurable delay is attributed to this alert right now.";
+}
 /**
  * Explains a "Clear" freeway reading shown next to an on-route alert, so a
  * commuter is not left guessing which road the closure is actually on.
@@ -142,5 +151,5 @@ export function mainlineClearNote(
   const road = localRoadName(incident.road);
   return road
     ? `H-1 mainline is clear; this alert is on ${road}, a connecting road.`
-    : "H-1 mainline is clear; this alert is on a connecting road, not the freeway.";
+    : "H-1 mainline is clear; TomTom did not identify the nearby road.";
 }

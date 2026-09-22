@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { incidentText, isFreewayMainline, localRoadName, mainlineClearNote, trafficDelayText } from "./traffic-incidents";
+import { incidentImpactText, incidentText, isFreewayMainline, localRoadName, mainlineClearNote, trafficDelayText } from "./traffic-incidents";
 
 describe("localRoadName", () => {
   it.each([
@@ -45,15 +45,22 @@ describe("incidentText", () => {
     expect(incidentText({ description, road, delayMinutes: null })).toBe(expected);
   });
 
-  it("says a road-less alert is on a connecting road, not the freeway", () => {
+  it("does not invent a road type when the provider omits the road name", () => {
     expect(incidentText({ description: "Closed", road: null, delayMinutes: null })).toBe(
-      "Reported closure on a connecting road on your route",
+      "Reported closure near your calculated route",
     );
   });
 
   it("adds the route delay in one compact line", () => {
     expect(trafficDelayText({ description: "Queuing traffic", road: "N Nimitz Highway", delayMinutes: 7 }))
       .toBe("Queuing traffic on Nimitz Hwy · +7 min");
+  });
+
+  it("states whether a correlated incident affects this trip", () => {
+    expect(incidentImpactText({ description: "Closed", road: "HI-92", delayMinutes: 6 }))
+      .toBe("Expected to add about 6 min to this trip.");
+    expect(incidentImpactText({ description: "Closed", road: null, delayMinutes: null }))
+      .toBe("No measurable delay is attributed to this alert right now.");
   });
 });
 describe("incident place context", () => {
@@ -77,7 +84,7 @@ describe("incident place context", () => {
 
   it("clarifies an unnamed connecting-road alert", () => {
     expect(mainlineClearNote({ description: "Closed", road: null, delayMinutes: null }, 2)).toBe(
-      "H-1 mainline is clear; this alert is on a connecting road, not the freeway.",
+      "H-1 mainline is clear; TomTom did not identify the nearby road.",
     );
   });
 
