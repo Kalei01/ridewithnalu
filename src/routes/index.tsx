@@ -1495,8 +1495,8 @@ function Index() {
     enabled: hydrated && configured && driveFrom.lat !== null && driveTo.lat !== null,
     // A driver underway gets rolling traffic, congestion and incident updates
     // every 2 minutes; otherwise the slower 5-minute cadence is plenty.
-    staleTime: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
-    refetchInterval: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
+    staleTime: 2 * 60_000,
+    refetchInterval: 2 * 60_000,
     refetchIntervalInBackground: false,
     retry: 1,
     queryFn: () =>
@@ -1506,7 +1506,7 @@ function Index() {
           fromLon: driveFrom.lon as number,
           toLat: driveTo.lat as number,
           toLon: driveTo.lon as number,
-          forceRefresh: drivingCommitted,
+          forceRefresh: drivingCommitted || takeForcedTrafficRefresh(),
         },
       }),
   });
@@ -1625,8 +1625,8 @@ function Index() {
   } = useQuery({
     queryKey: ["browse-h1", "eastbound"],
     enabled: hydrated,
-    staleTime: 3 * 60_000,
-    refetchInterval: 3 * 60_000,
+    staleTime: 2 * 60_000,
+    refetchInterval: 2 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -1635,6 +1635,7 @@ function Index() {
           fromLon: KAPOLEI_POINT.lon,
           toLat: DOWNTOWN_POINT.lat,
           toLon: DOWNTOWN_POINT.lon,
+          forceRefresh: takeForcedTrafficRefresh(),
         },
       }),
   });
@@ -1647,8 +1648,8 @@ function Index() {
   } = useQuery({
     queryKey: ["browse-h1", "westbound"],
     enabled: hydrated,
-    staleTime: 3 * 60_000,
-    refetchInterval: 3 * 60_000,
+    staleTime: 2 * 60_000,
+    refetchInterval: 2 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -1657,6 +1658,7 @@ function Index() {
           fromLon: DOWNTOWN_POINT.lon,
           toLat: KAPOLEI_POINT.lat,
           toLon: KAPOLEI_POINT.lon,
+          forceRefresh: takeForcedTrafficRefresh(),
         },
       }),
   });
