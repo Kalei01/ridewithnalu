@@ -48,6 +48,7 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
+  const fittedStopsRef = useRef<string | null>(null);
 
   useEffect(() => {
     const node = nodeRef.current;
@@ -78,7 +79,8 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || fittedStopsRef.current === stopsSignature) return;
+    fittedStopsRef.current = stopsSignature;
     const previousLayer = tileLayerRef.current;
     if (previousLayer) map.removeLayer(previousLayer);
     const next = BASEMAPS[basemap];

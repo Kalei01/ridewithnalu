@@ -684,9 +684,10 @@ function Index() {
     window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
   }
 
-  // A manual choice sticks for 2 hours, then the time-of-day default takes over again.
+  // Direction is explicit. Time of day can inform the first suggestion, but it
+  // must never silently reverse a saved commute for shift or weekend riders.
   const overrideActive = Boolean(override && now.getTime() - override.at < OVERRIDE_MS);
-  const inbound = overrideActive ? Boolean(override?.inbound) : honoluluParts(now).hour >= 12;
+  const inbound = overrideActive ? Boolean(override?.inbound) : false;
 
   function chooseDirection(next: boolean) {
     const entry: DirectionOverride = { inbound: next, at: Date.now() };
@@ -1242,8 +1243,8 @@ function Index() {
   } = useQuery({
     queryKey: ["drive", driveFrom.lat, driveFrom.lon, driveTo.lat, driveTo.lon],
     enabled: hydrated && configured && driveFrom.lat !== null && driveTo.lat !== null,
-    staleTime: 3 * 60_000,
-    refetchInterval: 3 * 60_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -2319,7 +2320,7 @@ function Index() {
           compact
         />
 
-        {best && mapPoints.length >= 2 && (
+        {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
           <section className="mt-4 overflow-hidden rounded-lg border border-border bg-surface-raised" aria-labelledby="trip-map-title">
             <div className="flex items-center justify-between px-4 py-3">
               <div><h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2><p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div>
