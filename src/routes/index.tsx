@@ -864,8 +864,9 @@ function Index() {
       ? parkedToday.place === "destination"
       : parkedToday.place === "home"
     : true;
-  const carAwayReason = !setup.allowDrive
-    ? "Driving is switched off in your settings."
+  // Only an explicitly recorded car location explains a missing drive option.
+  const carAwayReason = driveAvailable
+    ? null
     : inbound && carPlace === "station"
       ? `Your car is parked at ${
           parkedToday && parkedToday.station !== setup.homeStopId
