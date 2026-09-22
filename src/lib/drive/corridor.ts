@@ -55,8 +55,7 @@ export function extractCorridor(
   const spans = new Map<string, { meters: number; firstOffset: number }>();
   for (let index = 0; index < instructions.length; index += 1) {
     const step = instructions[index]!;
-    const raw = step.roadNumbers?.[0] ?? step.street;
-    const name = localRoadName(raw ?? null);
+    const name = stepRoadName(step);
     if (!name) continue;
     const offset = step.routeOffsetInMeters ?? 0;
     const nextOffset = instructions[index + 1]?.routeOffsetInMeters ?? totalMeters;
