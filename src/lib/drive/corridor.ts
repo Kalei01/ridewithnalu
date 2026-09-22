@@ -110,9 +110,11 @@ export function extractCorridor(
   const spans = new Map<string, { meters: number; firstOffset: number }>();
   // Direction the feed itself states for each road, preferred over geometry.
   const statedDirections = new Map<string, string>();
+  const names = instructions.map((step) => stepRoadName(step));
+  mergeRampNames(instructions, names);
   for (let index = 0; index < instructions.length; index += 1) {
     const step = instructions[index]!;
-    const name = stepRoadName(step);
+    const name = names[index];
     if (!name) continue;
     const offset = step.routeOffsetInMeters ?? 0;
     const nextOffset = instructions[index + 1]?.routeOffsetInMeters ?? totalMeters;
