@@ -42,6 +42,7 @@ describe("latestRailArrival", () => {
   it("handles an empty schedule", () => {
     expect(latestRailArrival([], at(7, 0))).toEqual({
       option: null,
+      earliestOption: null,
       earliestArriveSeconds: null,
       feasible: false,
     });

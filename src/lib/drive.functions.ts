@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 
 const schema = z.object({
   fromLat: z.number(),
@@ -98,7 +99,8 @@ export const driveTime = createServerFn({ method: "POST" })
     // rush hour, so it never becomes the low end of anything shown to a rider.
     const typicalSeconds = summary.historicTrafficTravelTimeInSeconds ?? trafficSeconds;
 
-    const incidents = await fetchIncidents(key, data);
+    const path = simplifyPath(route?.legs ?? []);
+    const incidents = await fetchIncidents(key, data, path);
 
     const trafficMinutes = Math.round(trafficSeconds / 60);
     const typicalMinutes = Math.round(typicalSeconds / 60);
@@ -112,7 +114,7 @@ export const driveTime = createServerFn({ method: "POST" })
       lowMinutes: Math.min(typicalMinutes, trafficMinutes),
       highMinutes: trafficMinutes + spread,
       meters: summary.lengthInMeters ?? 0,
-      path: simplifyPath(route?.legs ?? []),
+      path,
       incidents,
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
@@ -126,6 +128,7 @@ export const driveTime = createServerFn({ method: "POST" })
 async function fetchIncidents(
   key: string,
   points: { fromLat: number; fromLon: number; toLat: number; toLon: number },
+  routePath: GeoPoint[],
 ): Promise<DriveIncident[]> {
   const pad = 0.03;
   const minLat = Math.min(points.fromLat, points.toLat) - pad;
@@ -134,7 +137,7 @@ async function fetchIncidents(
   const maxLon = Math.max(points.fromLon, points.toLon) + pad;
 
   const fields =
-    "{incidents{properties{iconCategory,magnitudeOfDelay,delay,roadNumbers,events{description}}}}";
+    "{incidents{geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,delay,roadNumbers,events{description}}}}";
   const url =
     `https://api.tomtom.com/traffic/services/5/incidentDetails` +
     `?key=${key}&bbox=${minLon},${minLat},${maxLon},${maxLat}` +
@@ -148,6 +151,7 @@ async function fetchIncidents(
     }
     const payload = (await response.json()) as {
       incidents?: Array<{
+        geometry?: { type?: string; coordinates?: unknown };
         properties?: {
           magnitudeOfDelay?: number;
           delay?: number;
@@ -158,6 +162,8 @@ async function fetchIncidents(
     };
     const out: DriveIncident[] = [];
     for (const incident of payload.incidents ?? []) {
+      const incidentPoints = readIncidentPoints(incident.geometry?.coordinates);
+      if (!incidentTouchesRoute(incidentPoints, routePath)) continue;
       const description = incident.properties?.events?.[0]?.description;
       if (!description) continue;
       // Skip trivial slow-downs; only report what changes the number.
@@ -176,6 +182,21 @@ async function fetchIncidents(
     console.error("TomTom incidents error", error);
     return [];
   }
+}
+
+function readIncidentPoints(coordinates: unknown): GeoPoint[] {
+  if (!Array.isArray(coordinates)) return [];
+  const out: GeoPoint[] = [];
+  const visit = (value: unknown) => {
+    if (!Array.isArray(value)) return;
+    if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") {
+      out.push({ lon: value[0], lat: value[1] });
+      return;
+    }
+    value.forEach(visit);
+  };
+  visit(coordinates);
+  return out;
 }
 
 /**
