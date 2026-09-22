@@ -169,10 +169,13 @@ export function extractCorridor(
   let chosen: string[];
   if (primaryFreeway) {
     const [, freewaySpan] = primaryFreeway;
-    // `stepRoadName` has already rejected freeway numbers that merely appear
-    // on a sign, so every remaining freeway entry represents a road travelled.
-    // Keep short merge-back segments such as Moanalua Fwy → H-1 West.
-    const travelledFreeways = freewayEntries;
+    // Brief freeway references can still be destination signs. Keep the main
+    // freeway plus sustained transitions; this preserves a real Moanalua Fwy →
+    // H-1 West merge-back while excluding a momentary H-3 sign reference.
+    const freewayFloor = Math.max(800, totalMeters * 0.025);
+    const travelledFreeways = freewayEntries.filter(
+      (entry) => entry === primaryFreeway || entry[1].meters >= freewayFloor,
+    );
     const firstFreewayOffset = travelledFreeways[0]?.[1].firstOffset ?? freewaySpan.firstOffset;
     const lastFreewayOffset = travelledFreeways.at(-1)?.[1].firstOffset ?? freewaySpan.firstOffset;
     const surfaceEntries = entries.filter(
