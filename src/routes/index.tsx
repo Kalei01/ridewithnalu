@@ -856,8 +856,14 @@ function Index() {
       && carPlace === "station"
       && (!parkedToday || parkedToday.station === setup.homeStopId),
   );
-  // Driving this direction is only possible if the car is where the trip starts.
-  const driveAvailable = Boolean(setup.allowDrive) && (inbound ? carPlace === "destination" : carPlace === "home");
+  // Door-to-door driving is always compared. "I can drive to the station" only
+  // governs the park-and-ride first leg; it never removes the drive option.
+  // The only genuine blocker is a car recorded today somewhere else.
+  const driveAvailable = parkedToday
+    ? inbound
+      ? parkedToday.place === "destination"
+      : parkedToday.place === "home"
+    : true;
   const carAwayReason = !setup.allowDrive
     ? "Driving is switched off in your settings."
     : inbound && carPlace === "station"
