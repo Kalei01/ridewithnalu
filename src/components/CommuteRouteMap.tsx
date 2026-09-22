@@ -20,6 +20,8 @@ type TrafficSection = {
 type CommuteRouteMapProps = {
   points: JourneyPoint[];
   livePoint: { lat: number; lon: number } | null;
+  /** Compass heading in degrees, when the device reports one, to point the live dot. */
+  liveHeading?: number | null;
   /** Real road geometry to draw instead of straight hops (used for Drive mode). */
   path?: Array<{ lat: number; lon: number }>;
   /** Congested stretches drawn in amber/red over the route (Drive mode). */
