@@ -5,6 +5,8 @@ export type GuidanceInstruction = {
   street?: string;
   roadNumbers?: string[];
   maneuver?: string;
+  exitNumber?: string;
+  signpostText?: string;
 };
 
 export type RouteCorridor = {
@@ -110,13 +112,14 @@ export function extractCorridor(
   instructions: GuidanceInstruction[],
   totalMeters: number,
   endpoints?: { fromLon: number; toLon: number },
-  maxRoads = 3,
+  maxRoads = 4,
 ): RouteCorridor | null {
   if (!instructions.length) return null;
 
   const spans = new Map<string, { meters: number; firstOffset: number }>();
   // Direction the feed itself states for each road, preferred over geometry.
   const statedDirections = new Map<string, string>();
+  const exitNumbers = new Map<string, string>();
   const names = instructions.map((step) => stepRoadName(step));
   mergeRampNames(instructions, names);
   for (let index = 0; index < instructions.length; index += 1) {
@@ -136,6 +139,8 @@ export function extractCorridor(
     const base = withoutDirection(name);
     const stated = guidanceDirection(step);
     if (stated && !statedDirections.has(base)) statedDirections.set(base, stated);
+    const exitNumber = step.exitNumber?.trim();
+    if (exitNumber && !exitNumbers.has(base)) exitNumbers.set(base, exitNumber);
   }
   if (!spans.size) return null;
 
@@ -143,28 +148,36 @@ export function extractCorridor(
   const threshold = Math.max(400, totalMeters * 0.06);
   const significant = entries.filter(([, span]) => span.meters >= threshold);
 
-  // A commute summary is orientation, not turn-by-turn guidance. Anchor it on
-  // the freeway carrying most of the trip, then name the meaningful approach
-  // and final cutoff/surface road. This prevents destination shields and short
-  // interchange ramps from producing confusing chains such as H-1 → H-3 →
-  // Moanalua Fwy when the car remains on H-1 toward town.
-  const freewayEntries = entries.filter(([name]) => isFreeway(withoutDirection(name)));
-  const primaryFreeway = freewayEntries.sort((a, b) => b[1].meters - a[1].meters)[0];
+  // A commute summary is orientation, not every turn. Keep each freeway the
+  // route genuinely travels, in order, and finish with the last named cutoff.
+  // Tiny freeway references are commonly destination shields, not a travelled
+  // segment, so only the dominant freeway may fall below the transition floor.
+  const freewayEntries = entries
+    .filter(([name]) => isFreeway(withoutDirection(name)))
+    .sort((a, b) => a[1].firstOffset - b[1].firstOffset);
+  const primaryFreeway = [...freewayEntries].sort((a, b) => b[1].meters - a[1].meters)[0];
   let chosen: string[];
   if (primaryFreeway) {
-    const [freewayName, freewaySpan] = primaryFreeway;
+    const [, freewaySpan] = primaryFreeway;
+    const freewayFloor = Math.max(800, totalMeters * 0.025);
+    const travelledFreeways = freewayEntries.filter(
+      (entry) => entry === primaryFreeway || entry[1].meters >= freewayFloor,
+    );
+    const firstFreewayOffset = travelledFreeways[0]?.[1].firstOffset ?? freewaySpan.firstOffset;
+    const lastFreewayOffset = travelledFreeways.at(-1)?.[1].firstOffset ?? freewaySpan.firstOffset;
     const surfaceEntries = entries.filter(
       ([name, span]) => !isFreeway(withoutDirection(name)) && span.meters >= threshold,
     );
     const approach = surfaceEntries
-      .filter(([, span]) => span.firstOffset < freewaySpan.firstOffset)
+      .filter(([, span]) => span.firstOffset < firstFreewayOffset)
       .sort((a, b) => b[1].meters - a[1].meters)[0];
-    const exit = surfaceEntries
-      .filter(([, span]) => span.firstOffset > freewaySpan.firstOffset)
+    const exit = entries
+      .filter(([name, span]) => !isFreeway(withoutDirection(name)) && span.firstOffset > lastFreewayOffset)
       .sort((a, b) => b[1].firstOffset - a[1].firstOffset)[0];
-    chosen = [approach?.[0], freewayName, exit?.[0]].filter(
+    const core = [...travelledFreeways.map(([name]) => name), exit?.[0]].filter(
       (name): name is string => Boolean(name),
     );
+    chosen = approach && core.length < maxRoads ? [approach[0], ...core] : core;
   } else {
     chosen = (significant.length ? significant : entries)
       .sort((a, b) => b[1].meters - a[1].meters)
@@ -177,7 +190,10 @@ export function extractCorridor(
 
   const roads = chosen.map((name) => {
     const baseName = withoutDirection(name);
-    if (!isFreeway(baseName)) return name;
+    if (!isFreeway(baseName)) {
+      const exitNumber = exitNumbers.get(baseName);
+      return exitNumber ? `Exit ${exitNumber} · ${name}` : name;
+    }
     const stated = statedDirections.get(baseName);
     if (stated) return `${baseName} ${stated}`;
     return endpoints ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}` : name;
