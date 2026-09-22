@@ -177,12 +177,49 @@ export function parseAlertPrefs(raw: string | null): AlertPrefs {
   }
 }
 
+/**
+ * One shared audio context. iOS Safari only allows audio from a context that
+ * was created or resumed inside a real user gesture, so the app primes this one
+ * when the rider taps GO/Home/Work and reuses it for the arrival chime later.
+ */
+let sharedContext: AudioContext | null = null;
+
+function audioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) return null;
+  if (!sharedContext || sharedContext.state === "closed") sharedContext = new Ctx();
+  return sharedContext;
+}
+
+/**
+ * Call from a tap handler. Creates and unlocks the audio context (a silent
+ * one-sample blip satisfies Safari's gesture requirement) so a later chime,
+ * fired from a timer or GPS update, is not blocked.
+ */
+export function primeChimeAudio() {
+  try {
+    const ctx = audioContext();
+    if (!ctx) return;
+    void ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.value = 0.0001;
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.01);
+  } catch {
+    // Priming is best-effort; never let it break a tap.
+  }
+}
+
 /** Short synthesised two-note chime; silent failure when audio is blocked. */
 export function playChime() {
   try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
+    const ctx = audioContext();
+    if (!ctx) return;
+    // Resume in case iOS suspended the context while the screen was locked.
+    if (ctx.state === "suspended") void ctx.resume();
     const now = ctx.currentTime;
     [880, 1320].forEach((frequency, index) => {
       const osc = ctx.createOscillator();
@@ -197,8 +234,8 @@ export function playChime() {
       osc.start(start);
       osc.stop(start + 0.32);
     });
-    window.setTimeout(() => void ctx.close(), 900);
   } catch {
     // An alert that cannot make sound must never break the screen.
   }
 }
+

@@ -18,6 +18,7 @@ import {
   evaluateApproach,
   parseAlertPrefs,
   playChime,
+  primeChimeAudio,
   type AlertPrefs,
   type ApproachState,
 } from "@/lib/approach";
@@ -1268,7 +1269,11 @@ function Index() {
         p_depart_seconds: leg.depart_seconds as number,
         ...(leg.mode === "bus" && leg.route_short ? { p_route_short: leg.route_short } : {}),
         p_rail: leg.mode === "rail",
+        // Small schedule variance between the planned leg and the timetable must
+        // not leave a rider with no stop list at all.
+        p_tolerance_seconds: 300,
       });
+
       if (error) throw error;
       return (data ?? []).map((row) => ({
         stopId: row.stop_id,
@@ -1971,6 +1976,8 @@ function Index() {
   }
 
   function saveSetup(next: Setup) {
+    // Unlock audio inside this tap so iOS Safari allows the arrival chime later.
+    if (alertPrefs.sound) primeChimeAudio();
     if (!configured) chooseDirection(false);
     persist(next);
     window.localStorage.removeItem(SETUP_DISMISSED_KEY);
@@ -1979,6 +1986,7 @@ function Index() {
   }
 
   async function quickStartRoutine() {
+    if (alertPrefs.sound) primeChimeAudio();
     const home = findByKind(savedPlaces, "home");
     const destination = findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
     if (!home || !destination) {
@@ -2018,6 +2026,7 @@ function Index() {
   }
 
   async function quickStartSavedPlace(kind: "home" | "work") {
+    if (alertPrefs.sound) primeChimeAudio();
     const destination = findByKind(savedPlaces, kind);
     if (!destination) {
       toast(`Save your ${kind === "home" ? "Home" : "Work"} location first.`, {
