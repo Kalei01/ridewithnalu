@@ -127,7 +127,14 @@ export const driveTime = createServerFn({ method: "POST" })
     const fullPath = flattenPath(route?.legs ?? []);
     const path = thinPath(fullPath);
     const trafficSections = readTrafficSections(route?.sections ?? [], fullPath);
-    const incidents = await fetchIncidents(key, data, path);
+    const { onRoute: incidents, offRoute } = await fetchIncidents(key, data, path);
+
+    const corridor = extractCorridor(
+      route?.guidance?.instructions ?? [],
+      summary.lengthInMeters ?? 0,
+      { fromLon: data.fromLon, toLon: data.toLon },
+    );
+    const bypassedRoads = corridor ? bypassedCorridors(offRoute, corridor.roads) : [];
 
     const trafficMinutes = Math.round(trafficSeconds / 60);
     const typicalMinutes = Math.round(typicalSeconds / 60);
@@ -144,6 +151,9 @@ export const driveTime = createServerFn({ method: "POST" })
       path,
       trafficSections,
       incidents,
+      corridorLabel: corridor?.label ?? null,
+      corridorRoads: corridor?.roads ?? [],
+      bypassedRoads,
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     };
