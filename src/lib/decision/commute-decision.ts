@@ -24,7 +24,13 @@ export function compareCommute(input: DecisionInput): CommuteDecision {
   if (recommendation === "rail" && (input.driveDelayMinutes ?? 0) >= 5) return { recommendation, differenceMinutes: Math.abs(difference), explanation: `Rail avoids about ${input.driveDelayMinutes} min of traffic delay` };
   if (recommendation === "drive" && input.railWaitMinutes !== null && input.railWaitMinutes !== undefined && input.railWaitMinutes >= 10) return { recommendation, differenceMinutes: Math.abs(difference), explanation: `Driving avoids a ${input.railWaitMinutes} min wait for rail` };
   if (recommendation === "same") return { recommendation, differenceMinutes: 0, explanation: "Both options should arrive at about the same time" };
-  return { recommendation, differenceMinutes: Math.abs(difference), explanation: recommendation === "drive" ? `Driving is about ${Math.abs(difference)} min faster` : `Rail is about ${Math.abs(difference)} min faster` };
+  return {
+    recommendation,
+    differenceMinutes: Math.abs(difference),
+    explanation: recommendation === "drive"
+      ? `Driving is about ${Math.abs(difference)} min faster than rail and bus`
+      : `Rail and bus are about ${Math.abs(difference)} min faster than driving`,
+  };
 }
 
 export function compareArriveBy(input: { railLeaveBySeconds: number | null; railArriveSeconds: number | null; driveLeaveBySeconds: number | null; driveArriveSeconds: number | null }, thresholdMinutes = 5) {

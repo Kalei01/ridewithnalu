@@ -16,3 +16,8 @@
 - [x] Add one-tap Home and Work actions beneath WHERE TO? using live GPS, with gentle setup fallback
 - [x] Replace the compact HOLO notice with a high-contrast accessible fares dialog
 - [x] Remove destination-stop helper text from the setup dialog
+
+## Nearby arrivals and comparison clarity
+- [x] Show data-derived route and destination labels on nearby-stop choices
+- [x] Add an expandable GPS-to-stop walking map with distance and time
+- [x] Make every relative time label name the mode or departure it compares against

@@ -477,6 +477,14 @@ function walkingEstimate(from: Coords, to: Coords) {
   return { meters, minutes: Math.max(1, Math.ceil(meters / 80.47)) };
 }
 
+function nearbyServiceLabel(stop: NearbyStop) {
+  const arrival = stop.arrivals[0];
+  if (!arrival) return stop.routeType === 1 ? "Skyline" : "No arrivals";
+  const route = stop.routeType === 1 ? "Skyline" : arrival.route_short_name?.trim() || arrival.route_long_name?.trim() || "Bus";
+  const destination = arrival.headsign ? (stop.routeType === 1 ? stationLabel(arrival.headsign) : titleCase(arrival.headsign)) : "";
+  return destination ? `${route} · ${destination}` : route;
+}
+
 function vehicleName(leg: Leg) {
   if (leg.mode === "rail") {
     const line = stationLabel(leg.route_long) || "Skyline";
@@ -2300,8 +2308,9 @@ function Index() {
                   {nearbyStops.map((stop) => {
                     const Icon = stop.routeType === 1 ? TrainFront : Bus;
                     return (
-                      <Button key={stop.stopId} variant={selectedNearbyStop?.stopId === stop.stopId ? "default" : "secondary"} size="sm" onClick={() => setSelectedNearbyStopId(stop.stopId)} className="shrink-0" aria-label={`Show ${titleCase(stop.stopName)}`}>
-                        <Icon className="size-4" />{stop.routeType === 1 ? "Rail" : "Bus"}
+                      <Button key={stop.stopId} variant={selectedNearbyStop?.stopId === stop.stopId ? "default" : "secondary"} size="sm" onClick={() => setSelectedNearbyStopId(stop.stopId)} className="h-auto max-w-52 shrink-0 justify-start gap-2 px-3 py-2" aria-label={`Show ${nearbyServiceLabel(stop)} at ${titleCase(stop.stopName)}`}>
+                        <Icon className="size-4 shrink-0" />
+                        <span className="truncate font-semibold">{nearbyServiceLabel(stop)}</span>
                       </Button>
                     );
                   })}
@@ -2319,12 +2328,30 @@ function Index() {
                     </div>
                     <div className="mt-3 divide-y divide-border">
                       {selectedNearbyStop.arrivals.length ? selectedNearbyStop.arrivals.slice(0, 3).map((arrival, index) => (
-                        <p key={`${arrival.departure_seconds}-${index}`} className="py-2 text-sm text-foreground">
-                          <span className="font-semibold">{selectedNearbyStop.routeType === 1 ? "Skyline" : arrival.route_short_name ? `Route ${arrival.route_short_name}` : "Bus"}</span>
-                          {arrival.headsign ? ` toward ${titleCase(arrival.headsign)}` : ""} · {clockFromSeconds(arrival.departure_seconds)}
-                        </p>
+                        <div key={`${arrival.departure_seconds}-${index}`} className="flex items-center gap-2 py-2 text-sm text-foreground">
+                          <span className="shrink-0 rounded-md bg-primary/15 px-2 py-1 font-bold text-primary">
+                            {selectedNearbyStop.routeType === 1 ? "Skyline" : arrival.route_short_name || arrival.route_long_name || "Bus"}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate font-medium">
+                            {arrival.headsign ? (selectedNearbyStop.routeType === 1 ? stationLabel(arrival.headsign) : titleCase(arrival.headsign)) : "Destination unavailable"}
+                          </span>
+                          <span className="shrink-0 font-bold tabular-nums">{clockFromSeconds(arrival.departure_seconds)}</span>
+                        </div>
                       )) : <p className="text-sm text-muted-foreground">No upcoming scheduled arrivals right now.</p>}
                     </div>
+                    <details className="walking-map-details mt-3 border-t border-border pt-3">
+                      <summary>Show walk to this stop</summary>
+                      <div className="map-shell mt-2 overflow-hidden rounded-lg">
+                        <ClientOnly fallback={<div className="h-40 animate-pulse bg-muted" aria-label="Loading walking map" />}>
+                          <Suspense fallback={<div className="h-40 animate-pulse bg-muted" aria-label="Loading walking map" />}>
+                            <WalkingMicroMap
+                              from={{ ...browseUserPoint, label: "Your location" }}
+                              to={{ lat: selectedNearbyStop.lat, lon: selectedNearbyStop.lon, label: titleCase(selectedNearbyStop.stopName) }}
+                            />
+                          </Suspense>
+                        </ClientOnly>
+                      </div>
+                    </details>
                   </div>
                 )}
               </div>
@@ -2513,13 +2540,13 @@ function Index() {
 
                   {arriveByComparison.winner === "drive" && arriveByComparison.laterMinutes > 0 && (
                     <p className="text-base font-semibold text-foreground">
-                      Driving lets you leave {arriveByComparison.laterMinutes} min later and still arrive by {clockFromSeconds(drivePlan?.arriveSeconds ?? arriveByTarget)}.
+                      Driving lets you leave {arriveByComparison.laterMinutes} min later than rail and still arrive by {clockFromSeconds(drivePlan?.arriveSeconds ?? arriveByTarget)}.
                     </p>
                   )}
                   {arriveByComparison.winner === "rail" && arriveByComparison.laterMinutes > 0 && (
                     <p className="text-base font-semibold text-foreground">
-                      Rail lets you leave {arriveByComparison.laterMinutes} min later
-                      {arriveByComparison.earlierMinutes > 0 ? ` and gets you there ${arriveByComparison.earlierMinutes} min earlier` : ""}.
+                      Rail lets you leave {arriveByComparison.laterMinutes} min later than driving
+                      {arriveByComparison.earlierMinutes > 0 ? ` and arrive ${arriveByComparison.earlierMinutes} min earlier than driving` : ""}.
                     </p>
                   )}
                   {arriveByComparison.winner === "same" && (
@@ -2553,8 +2580,8 @@ function Index() {
                 : verdict === "same"
                   ? "ABOUT THE SAME"
                   : verdict === "rail"
-                    ? `TAKE RAIL${gap !== null ? ` · ${Math.abs(gap)} MIN FASTER` : ""}`
-                    : `DRIVE TODAY${gap !== null ? ` · ${Math.abs(gap)} MIN FASTER` : ""}`}
+                    ? `TAKE RAIL${gap !== null ? ` · ${Math.abs(gap)} MIN FASTER THAN DRIVING` : ""}`
+                    : `DRIVE TODAY${gap !== null ? ` · ${Math.abs(gap)} MIN FASTER THAN RAIL & BUS` : ""}`}
           </h1>
           {verdict === "rail" && best && railRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
@@ -2606,11 +2633,11 @@ function Index() {
           <div role="tablist" aria-label="Travel mode" className="glass-panel grid grid-cols-2 gap-1 rounded-lg p-1">
             <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => setSelectedMode("rail")} className={`relative h-14 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <TrainFront /> Rail {railRange ? `· ${railRange.high} min` : ""}
-              {verdict === "rail" && <span className="mode-winner-badge">Faster</span>}
+              {verdict === "rail" && <span className="mode-winner-badge">Faster than driving</span>}
             </Button>
             <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => setSelectedMode("drive")} className={`relative h-14 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <Car /> Drive {driveAvailable && driveRange ? `· ${driveRange.high} min` : ""}
-              {verdict === "drive" && <span className="mode-winner-badge">Faster</span>}
+              {verdict === "drive" && <span className="mode-winner-badge">Faster than transit</span>}
             </Button>
           </div>
 
@@ -2640,13 +2667,16 @@ function Index() {
         {selectedMode === "rail" && options.length > 1 && <section className="mb-8 rounded-lg border border-border bg-surface-raised p-5" aria-labelledby="later-title">
           <h2 id="later-title" className="text-lg font-semibold">Alternative Departures</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Two or three later trips, with the exact arrival each one gets you. Tap one to make it your plan.
+            Other departures compared with your current plan. Tap one to make it your plan.
           </p>
           <ol className="mt-4 grid gap-3">
-            {options.slice(1, 4).map((option, index) => {
+            {options.filter((option) => option.leave_by_seconds !== best?.leave_by_seconds).slice(0, 3).map((option, index) => {
               const selected = option.leave_by_seconds === best?.leave_by_seconds;
-              const difference = earliest
-                ? Math.max(0, Math.round((option.arrive_seconds - earliest.arrive_seconds) / 60))
+              const arrivalDifference = best
+                ? Math.round((option.arrive_seconds - best.arrive_seconds) / 60)
+                : 0;
+              const departureDifference = best
+                ? Math.round((option.leave_by_seconds - best.leave_by_seconds) / 60)
                 : 0;
               return (
               <li key={`${option.leave_by_seconds}-${index}`}>
@@ -2663,10 +2693,12 @@ function Index() {
                       If you leave at <span className="tabular-nums">{clockFromSeconds(option.leave_by_seconds)}</span>,
                       you arrive at <span className="tabular-nums">{clockFromSeconds(option.arrive_seconds)}</span>
                     </span>
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">{difference > 0 ? `${difference} min later` : "same arrival"}</span>
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">
+                      {arrivalDifference > 0 ? `Arrives ${arrivalDifference} min later than current` : arrivalDifference < 0 ? `Arrives ${Math.abs(arrivalDifference)} min earlier than current` : "Same arrival as current"}
+                    </span>
                   </span>
                   <span className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
-                    <span><span className="block text-xs text-muted-foreground">Leave later by</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{Math.max(0, Math.round(((option.leave_by_seconds) - (earliest?.leave_by_seconds ?? option.leave_by_seconds)) / 60))} min</span></span>
+                    <span><span className="block text-xs text-muted-foreground">Compared with current departure</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{departureDifference > 0 ? `Leaves ${departureDifference} min later` : departureDifference < 0 ? `Leaves ${Math.abs(departureDifference)} min earlier` : "Same departure time"}</span></span>
                     <span><span className="block text-xs text-muted-foreground">Total duration</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{option.total_minutes} min</span></span>
                   </span>
                   {option.legs[0] && <span className="mt-3 block truncate text-xs text-muted-foreground">{vehicleName(option.legs[0])}</span>}
