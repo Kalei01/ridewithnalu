@@ -2109,13 +2109,14 @@ function Index() {
   async function refresh() {
     setRefreshing(true);
     setNow(new Date());
-    if (browseActive) {
-      await Promise.allSettled([
-        refetchBrowseDepartures(),
-        refetchEastboundTraffic(),
-        refetchWestboundTraffic(),
-      ]);
-    }
+    forcedTrafficRefresh.current = true;
+    const tasks: Array<Promise<unknown>> = [
+      queryClient.invalidateQueries({ queryKey: ["drive"] }),
+      queryClient.invalidateQueries({ queryKey: ["browse-h1"] }),
+    ];
+    if (browseActive) tasks.push(refetchBrowseDepartures());
+    await Promise.allSettled(tasks);
+    forcedTrafficRefresh.current = false;
     window.setTimeout(() => setRefreshing(false), 250);
   }
 
