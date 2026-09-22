@@ -2345,7 +2345,7 @@ function Index() {
           <div role="tablist" aria-label="Travel mode" className="glass-panel grid grid-cols-2 gap-1 rounded-lg p-1">
             <Button type="button" role="tab" aria-selected={selectedMode === "rail"} variant="ghost" onClick={() => setSelectedMode("rail")} className={`relative h-14 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <TrainFront /> Rail {railRange ? `· ${railRange.high} min` : ""}
-              {verdict === "rail gad" ? null : verdict === "rail" && <span className="mode-winner-badge">Faster</span>}
+              {verdict === "rail" && <span className="mode-winner-badge">Faster</span>}
             </Button>
             <Button type="button" role="tab" aria-selected={selectedMode === "drive"} variant="ghost" onClick={() => setSelectedMode("drive")} className={`relative h-14 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : "text-muted-foreground"}`}>
               <Car /> Drive {driveAvailable && driveRange ? `· ${driveRange.high} min` : ""}
