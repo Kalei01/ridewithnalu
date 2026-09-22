@@ -1,37 +1,68 @@
 import type { DriveIncident } from "./drive.functions";
 
-const LOCAL_ROAD_NAMES: Array<[RegExp, string]> = [
-  [/^(?:HI-|Route |Hwy )92$/i, "Nimitz Hwy"],
-  [/^(?:HI-|Route )78$/i, "Moanalua Fwy"],
-  [/^H-201$/i, "Moanalua Fwy"],
-  [/^(?:HI-|Route )61$/i, "Pali Hwy"],
-  [/^(?:HI-|Route )63$/i, "Likelike Hwy"],
-  [/^(?:HI-|Route )72$/i, "Kalanianaʻole Hwy"],
-  [/^(?:HI-|Route )(?:83|99)$/i, "Kamehameha Hwy"],
-  [/^(?:HI-|Route )750$/i, "Kunia Rd"],
-  [/^(?:HI-|Route )76$/i, "Fort Weaver Rd"],
-  [/^(?:HI-|Route )93$/i, "Farrington Hwy"],
-  [/^(?:(?:Interstate(?:\s+(?:Highway|Hwy))?)\s+)?H-?1(?:\s+(?:E|East|Eastbound))$/i, "H-1 East"],
-  [/^(?:(?:Interstate(?:\s+(?:Highway|Hwy))?)\s+)?H-?1(?:\s+(?:W|West|Westbound))$/i, "H-1 West"],
-  [/^(?:(?:Interstate(?:\s+(?:Highway|Hwy))?)\s+)?H-?1$/i, "H-1"],
-  [/^(?:(?:Interstate(?:\s+(?:Highway|Hwy))?)\s+)?H-?2(?:\s+(?:N|North|Northbound))$/i, "H-2 North"],
-  [/^(?:(?:Interstate(?:\s+(?:Highway|Hwy))?)\s+)?H-?2(?:\s+(?:S|South|Southbound))$/i, "H-2 South"],
-  [/^(?:(?:Interstate(?:\s+(?:Highway|Hwy))?)\s+)?H-?2$/i, "H-2"],
-  [/^(?:(?:Interstate(?:\s+(?:Highway|Hwy))?)\s+)?H-?3(?:\s+(?:E|East|Eastbound))$/i, "H-3 East"],
-  [/^(?:(?:Interstate(?:\s+(?:Highway|Hwy))?)\s+)?H-?3(?:\s+(?:W|West|Westbound))$/i, "H-3 West"],
-  [/^(?:(?:Interstate(?:\s+(?:Highway|Hwy))?)\s+)?H-?3$/i, "H-3"],
-];
+/**
+ * Route number → the name Oahu drivers use. `directional` roads keep the
+ * heading the feed states ("Moanalua Fwy West"); the rest read better without
+ * one, because nobody says "Pali Hwy North".
+ */
+const ROAD_BY_NUMBER: Record<string, { name: string; directional: boolean }> = {
+  "1": { name: "H-1", directional: true },
+  "2": { name: "H-2", directional: true },
+  "3": { name: "H-3", directional: true },
+  "78": { name: "Moanalua Fwy", directional: true },
+  "201": { name: "Moanalua Fwy", directional: true },
+  "92": { name: "Nimitz Hwy", directional: true },
+  "61": { name: "Pali Hwy", directional: false },
+  "63": { name: "Likelike Hwy", directional: false },
+  "72": { name: "Kalanianaʻole Hwy", directional: false },
+  "83": { name: "Kamehameha Hwy", directional: false },
+  "99": { name: "Kamehameha Hwy", directional: false },
+  "93": { name: "Farrington Hwy", directional: false },
+  "76": { name: "Fort Weaver Rd", directional: false },
+  "750": { name: "Kunia Rd", directional: false },
+};
+
+const DIRECTION_WORDS: Record<string, string> = {
+  e: "East",
+  w: "West",
+  n: "North",
+  s: "South",
+  east: "East",
+  west: "West",
+  north: "North",
+  south: "South",
+  eastbound: "East",
+  westbound: "West",
+  northbound: "North",
+  southbound: "South",
+};
+
+/** Matches a bare route code with an optional stated heading, in any feed format. */
+const ROUTE_CODE =
+  /^(?:(?:HI|H|I|SR|Rte|Route|Hwy)[-\s]?)?(\d{1,3})(?:[-\s]?(E|W|N|S|East|West|North|South|Eastbound|Westbound|Northbound|Southbound))?$/i;
 
 /** Translate TomTom route codes into the names Oahu drivers commonly use. */
 export function localRoadName(road: string | null): string | null {
   if (!road) return null;
-  const formatted = road
+  const cleaned = road
     .trim()
-    .replace(/^(?:North|South|East|West|N|S|E|W)\s+(?=Nimitz\b)/i, "")
+    // Drop bureaucratic prefixes: "Interstate Hwy H201 E", "State Rte 92".
+    .replace(/\b(?:Interstate|State|Federal)\s+(?:Highway|Hwy|Route|Rte|Rd)\b/gi, " ")
+    .replace(/\bInterstate\b/gi, " ")
     .replace(/\bHighway\b/gi, "Hwy")
-    .replace(/\s+/g, " ");
-  if (!formatted) return null;
-  return LOCAL_ROAD_NAMES.find(([pattern]) => pattern.test(formatted))?.[1] ?? formatted;
+    .replace(/\bFreeway\b/gi, "Fwy")
+    .replace(/^(?:North|South|East|West|N|S|E|W)\s+(?=Nimitz\b)/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return null;
+
+  const match = ROUTE_CODE.exec(cleaned);
+  const entry = match?.[1] ? ROAD_BY_NUMBER[match[1]] : undefined;
+  if (match && entry) {
+    const direction = match[2] ? DIRECTION_WORDS[match[2].toLowerCase()] : undefined;
+    return entry.directional && direction ? `${entry.name} ${direction}` : entry.name;
+  }
+  return cleaned;
 }
 
 /** True only for the H-1/H-2/H-3 freeway mainline, not ramps or surface streets. */
