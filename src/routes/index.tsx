@@ -1203,9 +1203,17 @@ function Index() {
   const earliest = options[0];
   const [selectedDeparture, setSelectedDeparture] = useState<number | null>(null);
   useEffect(() => {
+    // A locked transit trip keeps its itinerary even as fresher options arrive.
+    if (commitment?.mode === "rail") return;
     setSelectedDeparture(null);
-  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
-  const best = options.find((option) => option.leave_by_seconds === selectedDeparture) ?? earliest;
+  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds, commitment]);
+  const liveBest = options.find((option) => option.leave_by_seconds === selectedDeparture) ?? earliest;
+  // While riding, the itinerary on screen is the one boarded — including its
+  // transfers — not whatever is fastest to leave now.
+  const best = commitment?.mode === "rail" && lockedOptionRef.current
+    ? lockedOptionRef.current
+    : liveBest;
+  lockedItineraryCandidate.current = liveBest ?? null;
 
   const stationCoords = browseStations;
   /* One authoritative rail-station query serves browse, setup, maps and planning. */
