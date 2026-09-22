@@ -174,3 +174,8 @@
 - [x] Draw commute routes with a dark casing and glowing emerald core
 - [x] Improve map marker contrast across standard and satellite layers
 - [x] Extend ocean radiance, glass panels, ETA chips, and CTA depth to Browse mode
+
+## Walking maps, routines, and optional accounts
+- [x] Add collapsible walking micro-maps to access and egress steps
+- [x] Add Honolulu-time Hawaiian greetings and one-tap routine starts in Browse
+- [x] Add optional Google/email accounts with guest-preserving saved-place and preference sync

@@ -179,6 +179,24 @@
   filter: drop-shadow(0 0 9px var(--color-location)) drop-shadow(0 1px 2px var(--color-background));
 }
 
+.nalu-walk-pin {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 3px solid var(--color-foreground);
+  border-radius: 50%;
+  background: var(--walk-pin);
+  box-shadow: 0 2px 10px oklch(0 0 0 / 55%);
+}
+
+.walking-map-details summary {
+  cursor: pointer;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  list-style-position: inside;
+}
+
 .nalu-journey-marker {
   display: grid;
   width: 100%;

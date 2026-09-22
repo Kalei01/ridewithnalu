@@ -218,6 +218,13 @@
       "when": 1789870977593,
       "tag": "0030_nearby_transit_stops",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790048886143,
+      "tag": "0031_add_user_profiles_and_preferences",
+      "breakpoints": true
     }
   ]
 }
