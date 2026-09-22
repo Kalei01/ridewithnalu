@@ -51,6 +51,12 @@ describe("bypassedCorridors", () => {
     ]);
   });
 
+  it("never claims to skip a road the route travels on", () => {
+    expect(
+      bypassedCorridors(["HI-76"], ["Renton Rd", "Fort Weaver Road", "H-1 East"]),
+    ).toEqual([]);
+  });
+
   it("deduplicates and limits", () => {
     expect(bypassedCorridors(["HI-76", "Route 76", "HI-93"], [], 2)).toEqual([
       "Fort Weaver Rd",
