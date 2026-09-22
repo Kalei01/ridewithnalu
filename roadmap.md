@@ -21,3 +21,8 @@
 - [x] Show data-derived route and destination labels on nearby-stop choices
 - [x] Add an expandable GPS-to-stop walking map with distance and time
 - [x] Make every relative time label name the mode or departure it compares against
+
+## Commute card cleanup
+- [x] Remove bypass badges and repeated verdict comparison copy
+- [x] Normalize TomTom freeway and local street labels
+- [x] Show one high-contrast, on-route traffic-delay line

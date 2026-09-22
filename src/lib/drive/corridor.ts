@@ -39,6 +39,10 @@ function isFreeway(name: string) {
   return /^H-\d/i.test(name) || /\bFwy\b/i.test(name);
 }
 
+function withoutDirection(name: string) {
+  return name.replace(/\s+(?:East|West|North|South|Eastbound|Westbound|Northbound|Southbound)$/i, "");
+}
+
 /**
  * Pick the handful of roads a driver actually needs to know, from TomTom's
  * turn-by-turn guidance. Nothing is hardcoded: names come from the feed and are
@@ -79,11 +83,12 @@ export function extractCorridor(
     .map(([name]) => name);
   if (!chosen.length) return null;
 
-  const roads = chosen.map((name) =>
-    endpoints && isFreeway(name)
-      ? `${name} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}`
-      : name,
-  );
+  const roads = chosen.map((name) => {
+    const baseName = withoutDirection(name);
+    return endpoints && isFreeway(baseName)
+      ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}`
+      : name;
+  });
   return { label: `Via ${roads.join(" → ")}`, roads, allRoads: [...spans.keys()] };
 }
 

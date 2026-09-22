@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { incidentText, localRoadName } from "./traffic-incidents";
+import { incidentText, localRoadName, trafficDelayText } from "./traffic-incidents";
 
 describe("localRoadName", () => {
   it.each([
@@ -19,8 +19,11 @@ describe("localRoadName", () => {
     ["HI-76", "Fort Weaver Rd"],
     ["Route 93", "Farrington Hwy"],
     ["Interstate H-1", "H-1"],
+    ["Interstate Highway H1 E", "H-1 East"],
+    ["Interstate Highway H1 W", "H-1 West"],
     ["Interstate H-2", "H-2"],
     ["Interstate H-3", "H-3"],
+    ["N Nimitz Highway", "Nimitz Hwy"],
   ])("maps %s to %s", (road, expected) => {
     expect(localRoadName(road)).toBe(expected);
   });
@@ -46,5 +49,10 @@ describe("incidentText", () => {
     expect(incidentText({ description: "Closed", road: null, delayMinutes: null })).toBe(
       "Reported closure on your route",
     );
+  });
+
+  it("adds the route delay in one compact line", () => {
+    expect(trafficDelayText({ description: "Queuing traffic", road: "N Nimitz Highway", delayMinutes: 7 }))
+      .toBe("Queuing traffic on Nimitz Hwy · +7 min");
   });
 });
