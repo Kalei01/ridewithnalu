@@ -13,6 +13,13 @@ import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
 import { incidentText, trafficDelayText } from "@/lib/traffic-incidents";
 import {
+  detectTrafficAlert,
+  postCommuteNotification,
+  requestCommuteNotificationPermission,
+  speakCommuteAlert,
+  type TrafficAlertSnapshot,
+} from "@/lib/commute-alerts";
+import {
   ALERT_PREFS_KEY,
   defaultAlertPrefs,
   evaluateApproach,
@@ -875,6 +882,7 @@ function Index() {
 
   /** Commit to a mode for the trip underway and stop the verdict changing it. */
   function commitMode(next: "rail" | "drive") {
+    requestCommuteNotificationPermission();
     const entry: Commitment = { mode: next, at: Date.now() };
     setCommitment(entry);
     setSelectedMode(next);
@@ -1443,12 +1451,25 @@ function Index() {
   const [approachDismissed, setApproachDismissed] = useState<string | null>(null);
   const lastPulse = useRef<string | null>(null);
   useEffect(() => {
-    if (!approach || approach.state !== "urgent") return;
-    const pulseKey = `${approach.key}-urgent`;
+    if (!approach || (approach.state !== "ready" && approach.state !== "urgent")) return;
+    const pulseKey = `${approach.key}-${approach.state}`;
     if (lastPulse.current === pulseKey) return;
     lastPulse.current = pulseKey;
-    if (alertPrefs.haptics) navigator.vibrate?.([200, 100, 200]);
-    if (alertPrefs.sound) playChime();
+    const urgent = approach.state === "urgent";
+    if (alertPrefs.haptics) navigator.vibrate?.(urgent ? [200, 100, 200] : [140, 80, 140]);
+    if (alertPrefs.sound) {
+      playChime();
+      speakCommuteAlert(
+        urgent
+          ? `Approaching your stop: ${approach.alightName}. Pull cord now.`
+          : `Approaching your stop: ${approach.alightName}. Get ready.`,
+      );
+    }
+    postCommuteNotification(
+      urgent ? `Next stop is yours: ${approach.alightName}` : `Pull cord next: ${approach.alightName}`,
+      urgent ? "Pull cord now." : "Get ready to exit.",
+      `nalu-transit-${approach.key}-${approach.state}`,
+    );
   }, [approach, alertPrefs.haptics, alertPrefs.sound]);
   // On a leg change the banner clears unless the rider asked to keep it.
   useEffect(() => {
@@ -1485,9 +1506,42 @@ function Index() {
           fromLon: driveFrom.lon as number,
           toLat: driveTo.lat as number,
           toLon: driveTo.lon as number,
+          forceRefresh: drivingCommitted,
         },
       }),
   });
+
+  const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
+  useEffect(() => {
+    if (!drivingCommitted || !drive || drive.trafficBasis !== "live") {
+      previousTraffic.current = null;
+      return;
+    }
+    const current: TrafficAlertSnapshot = {
+      delayMinutes: drive.delayMinutes,
+      incidentKeys: drive.incidents.map((incident) =>
+        `${incident.description.trim().toLowerCase()}|${incident.road?.trim().toLowerCase() ?? ""}`,
+      ),
+    };
+    const change = detectTrafficAlert(previousTraffic.current, current);
+    previousTraffic.current = current;
+    if (!change) return;
+
+    const corridor = drive.corridorLabel?.replace(/^Via\s+/i, "") || drive.incidents[0]?.road || "your route";
+    const message = change.kind === "delay"
+      ? `Traffic update: delay increased on ${corridor} by ${change.increaseMinutes} minutes.`
+      : `Traffic alert: reported incident on ${corridor}.`;
+    if (alertPrefs.sound) {
+      playChime();
+      speakCommuteAlert(message);
+    }
+    if (alertPrefs.haptics) navigator.vibrate?.([180, 100, 180]);
+    postCommuteNotification(
+      change.kind === "delay" ? `Traffic Alert: +${change.increaseMinutes}m delay on ${corridor}` : `Traffic Alert on ${corridor}`,
+      change.kind === "delay" ? "Live delay increased on your route." : "A new incident was reported on your route.",
+      `nalu-drive-${change.kind}-${drive.fetchedAt}`,
+    );
+  }, [drivingCommitted, drive, alertPrefs.haptics, alertPrefs.sound]);
 
   // ---- "Arrive by" planning -------------------------------------------------
   // Work backwards from the target time to the latest honest departure for each
@@ -2057,6 +2111,7 @@ function Index() {
   function saveSetup(next: Setup) {
     // Unlock audio inside this tap so iOS Safari allows the arrival chime later.
     if (alertPrefs.sound) primeChimeAudio();
+    requestCommuteNotificationPermission();
     if (!configured) chooseDirection(false);
     persist(next);
     window.localStorage.removeItem(SETUP_DISMISSED_KEY);
@@ -2066,6 +2121,7 @@ function Index() {
 
   async function quickStartRoutine() {
     if (alertPrefs.sound) primeChimeAudio();
+    requestCommuteNotificationPermission();
     const home = findByKind(savedPlaces, "home");
     const destination = findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
     if (!home || !destination) {
@@ -2106,6 +2162,7 @@ function Index() {
 
   async function quickStartSavedPlace(kind: "home" | "work") {
     if (alertPrefs.sound) primeChimeAudio();
+    requestCommuteNotificationPermission();
     const destination = findByKind(savedPlaces, kind);
     if (!destination) {
       toast(`Save your ${kind === "home" ? "Home" : "Work"} location first.`, {

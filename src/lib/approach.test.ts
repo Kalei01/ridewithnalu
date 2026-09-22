@@ -108,8 +108,8 @@ describe("evaluateApproach", () => {
 });
 
 describe("parseAlertPrefs", () => {
-  it("defaults to haptics on and sound off", () => {
-    expect(parseAlertPrefs(null)).toEqual({ sound: false, haptics: true, keepOnTransfer: false });
+  it("defaults to sound and haptics on", () => {
+    expect(parseAlertPrefs(null)).toEqual({ sound: true, haptics: true, keepOnTransfer: false });
   });
 
   it("keeps stored values and fills gaps", () => {
@@ -121,6 +121,6 @@ describe("parseAlertPrefs", () => {
   });
 
   it("survives corrupt storage", () => {
-    expect(parseAlertPrefs("{oops")).toEqual({ sound: false, haptics: true, keepOnTransfer: false });
+    expect(parseAlertPrefs("{oops")).toEqual({ sound: true, haptics: true, keepOnTransfer: false });
   });
 });
