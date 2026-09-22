@@ -66,7 +66,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
-const CommuteRouteMap = lazy(() => import("@/components/CommuteRouteMap"));
+const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
 
 function WaveMark({ className }: { className?: string }) {
   return (
@@ -1028,9 +1028,6 @@ function Index() {
 
   const stationCoords = browseStations;
   /* One authoritative rail-station query serves browse, setup, maps and planning. */
-  const _stationDatasetReady = stationCoords.length > 0;
-  void _stationDatasetReady;
-
   function stationPoint(name: string | null | undefined): Coords | null {
     if (!name) return null;
     const wanted = name.trim().toLowerCase();

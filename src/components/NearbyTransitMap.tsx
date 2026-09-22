@@ -79,8 +79,7 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || fittedStopsRef.current === stopsSignature) return;
-    fittedStopsRef.current = stopsSignature;
+    if (!map) return;
     const previousLayer = tileLayerRef.current;
     if (previousLayer) map.removeLayer(previousLayer);
     const next = BASEMAPS[basemap];
@@ -127,7 +126,8 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
   // Fit the viewport once per set of stops, never on each GPS tick.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || fittedStopsRef.current === stopsSignature) return;
+    fittedStopsRef.current = stopsSignature;
     const points: L.LatLngExpression[] = [
       [userRef.current.lat, userRef.current.lon],
       ...stops.map((stop) => [stop.lat, stop.lon] as L.LatLngTuple),

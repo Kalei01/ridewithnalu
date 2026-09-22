@@ -5,6 +5,7 @@ import {
   findByKind,
   parseClockInput,
   parseSavedPlaces,
+  migrateSavedPlaces,
   removePlace,
   swapHomeWork,
   upsertPlace,
@@ -30,6 +31,18 @@ describe("parseSavedPlaces", () => {
     expect(parseSavedPlaces(null)).toEqual([]);
     expect(parseSavedPlaces("not json")).toEqual([]);
     expect(parseSavedPlaces('{"a":1}')).toEqual([]);
+  });
+
+  it("migrates v1 arrival times and setup coordinates without transit ids", () => {
+    const migrated = migrateSavedPlaces(
+      null,
+      JSON.stringify([place({})]),
+      JSON.stringify({ destinationName: "Office", destinationAddress: "55 Merchant St", destLat: 21.31, destLon: -157.86 }),
+      "2026-09-22T00:00:00.000Z",
+    );
+    expect(findByKind(migrated, "home")?.lat).toBe(21.31);
+    expect(findByKind(migrated, "work")?.address).toBe("55 Merchant St");
+    expect(migrated.every((saved) => Boolean(saved.createdAt && saved.updatedAt))).toBe(true);
   });
 
   it("drops entries without coordinates and fills defaults", () => {
