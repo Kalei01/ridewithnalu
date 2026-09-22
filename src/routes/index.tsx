@@ -1435,6 +1435,14 @@ function Index() {
     } }),
   });
   const arriveByDrive = futureDrive ?? drive;
+  // Be honest about where a drive time comes from: measured now, or projected
+  // for a later departure from TomTom's historic profile.
+  const driveBasisLabel = futureDrive?.trafficBasis === "future-estimate"
+    ? `Drive time: TomTom estimate for a ${clockFromSeconds(honoluluSeconds(new Date(futureDepartureIso as string)))} departure, not live traffic`
+    : drive?.trafficBasis === "live"
+      ? "Drive time: TomTom live traffic"
+      : "Drive time: TomTom";
+
   const drivePlan = useMemo(
     () =>
       arriveByTarget === null || !arriveByDrive || !driveAvailable
