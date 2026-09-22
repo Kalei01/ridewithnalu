@@ -34,7 +34,7 @@ export function kindLabel(kind: PlaceKind): string {
   return "Saved place";
 }
 
-export function hasValidCoordinates(point: { lat?: unknown; lon?: unknown }): point is { lat: number; lon: number } {
+export function hasValidCoordinates<T extends { lat?: unknown; lon?: unknown }>(point: T): point is T & { lat: number; lon: number } {
   return typeof point.lat === "number" && Number.isFinite(point.lat)
     && typeof point.lon === "number" && Number.isFinite(point.lon);
 }

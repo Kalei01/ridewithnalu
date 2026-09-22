@@ -19,7 +19,9 @@ const place = (over: Partial<SavedPlace>): SavedPlace => ({
   address: "Ewa Beach, HI",
   lat: 21.31,
   lon: -158.01,
-  arriveBySeconds: null,
+  typicalArrivalSeconds: null,
+  createdAt: "2026-09-22T00:00:00.000Z",
+  updatedAt: "2026-09-22T00:00:00.000Z",
   ...over,
 });
 
@@ -39,7 +41,7 @@ describe("parseSavedPlaces", () => {
     );
     expect(parsed).toHaveLength(1);
     expect(parsed[0]?.label).toBe("Work");
-    expect(parsed[0]?.arriveBySeconds).toBeNull();
+    expect(parsed[0]?.typicalArrivalSeconds).toBeNull();
   });
 });
 

@@ -2,7 +2,7 @@ import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, Car, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Search, Settings, TrainFront, X } from "lucide-react";
+import { Bus, Car, Check, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Search, Settings, TrainFront, X } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
@@ -1400,7 +1400,7 @@ function Index() {
     railMinutes: railWorst,
     driveMinutes,
     driveAvailable,
-    driveDelayMinutes: drive?.delayMinutes,
+    driveDelayMinutes: drive?.delayMinutes ?? null,
     hasMajorIncident: Boolean(drive?.incidents[0]),
     railWaitMinutes: waitForTrain,
     thresholdMinutes: TOSS_UP_MIN,
@@ -2175,9 +2175,9 @@ function Index() {
                 onChange={(event) => chooseArriveBy(event.target.value)}
                 className="mt-2 h-12 w-full bg-background/60 text-2xl font-bold tabular-nums"
               />
-              {activeSavedPlace?.arriveBySeconds !== null && activeSavedPlace?.arriveBySeconds !== undefined && !inbound && (
+              {activeSavedPlace?.typicalArrivalSeconds !== null && activeSavedPlace?.typicalArrivalSeconds !== undefined && !inbound && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Typical arrival saved for {activeSavedPlace.label}: {clockFromSeconds(activeSavedPlace.arriveBySeconds)}
+                  Typical arrival saved for {activeSavedPlace.label}: {clockFromSeconds(activeSavedPlace.typicalArrivalSeconds)}
                 </p>
               )}
 
@@ -3082,7 +3082,9 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
         address: point.address || point.name,
         lat: point.lat,
         lon: point.lon,
-        arriveBySeconds,
+        typicalArrivalSeconds: arriveBySeconds,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }),
     );
     setStatus(`Saved ${label}: ${point.name}.`);
@@ -3250,12 +3252,12 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
                       <Input
                         id={`arrive-${place.id}`}
                         type="time"
-                        value={clockInputValue(place.arriveBySeconds)}
+                        value={clockInputValue(place.typicalArrivalSeconds)}
                         onChange={(event) =>
                           onPlacesChange(
                             upsertPlace(savedPlaces, {
                               ...place,
-                              arriveBySeconds: parseClockInput(event.target.value),
+                              typicalArrivalSeconds: parseClockInput(event.target.value),
                             }),
                           )
                         }
