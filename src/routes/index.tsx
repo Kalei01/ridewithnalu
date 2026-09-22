@@ -2730,6 +2730,51 @@ function RailTripBreakdown({
   );
 }
 
+type WalkHop = {
+  from: { lat: number; lon: number; label: string };
+  to: { lat: number; lon: number; label: string };
+  meters: number;
+  minutes: number;
+};
+
+/** Origin -> boarding stop (or drop-off -> door) on foot, when both points resolve. */
+function walkBetween(
+  from: { lat: number; lon: number; name?: string } | null,
+  to: { lat: number; lon: number; name?: string } | null,
+  toLabel?: string | null,
+  fromLabel?: string | null,
+): WalkHop | null {
+  if (!from || !to) return null;
+  const meters = distanceM(from, to);
+  if (meters < 40) return null;
+  return {
+    from: { lat: from.lat, lon: from.lon, label: titleCase(fromLabel ?? from.name ?? "Start") },
+    to: { lat: to.lat, lon: to.lon, label: titleCase(toLabel ?? to.name ?? "Stop") },
+    meters,
+    minutes: Math.max(1, Math.round(meters / 80.47)),
+  };
+}
+
+function WalkSegment({ walk }: { walk: WalkHop }) {
+  return (
+    <div className="mt-2 text-xs font-semibold leading-relaxed text-foreground">
+      <p className="text-sm font-bold">{formatDistance(walk.meters)} · {walk.minutes} min walk</p>
+      <p className="text-muted-foreground">{walk.from.label} → {walk.to.label}</p>
+      <details className="walking-map-details mt-2">
+        <summary>Show walking map</summary>
+        <div className="map-shell mt-2 overflow-hidden rounded-lg">
+          <ClientOnly fallback={<div className="h-40 animate-pulse bg-muted" />}>
+            <Suspense fallback={<div className="h-40 animate-pulse bg-muted" />}>
+              <WalkingMicroMap from={walk.from} to={walk.to} />
+            </Suspense>
+          </ClientOnly>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+
 function matchLiveArrival(
   result: BusArrivalsResult | undefined,
   route: string | null,
