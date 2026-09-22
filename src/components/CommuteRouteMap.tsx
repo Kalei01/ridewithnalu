@@ -219,7 +219,9 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
       ...current.map((point) => [point.lat, point.lon] as L.LatLngTuple),
     ];
     map.invalidateSize({ animate: false });
-    map.flyToBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, duration: 0.7 });
+    // Snap, never animate: an animated fit on every data refresh is what made the
+    // map appear to twitch while a trip was on screen.
+    map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, animate: false });
   }, [routeSignature]);
 
 
