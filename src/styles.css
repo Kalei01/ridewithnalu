@@ -196,7 +196,7 @@
 .nalu-journey-marker-start {
   background: var(--color-primary);
   color: var(--color-primary-foreground);
-  border-color: var(--color-primary-foreground);
+  border-color: var(--color-foreground);
   border-radius: 999px;
   font-size: 9px;
 }
