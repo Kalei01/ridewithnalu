@@ -6,6 +6,7 @@ const schema = z.object({
   fromLon: z.number(),
   toLat: z.number(),
   toLon: z.number(),
+  departureTime: z.string().datetime({ offset: true }).optional(),
 });
 
 export type DriveIncident = {
@@ -30,9 +31,10 @@ export type DriveTime = {
   path: Array<{ lat: number; lon: number }>;
   incidents: DriveIncident[];
   fetchedAt: number;
+  trafficBasis: "live" | "future-estimate";
 };
 
-const CACHE_MS = 3 * 60_000;
+const CACHE_MS = 5 * 60_000;
 const cache = new Map<string, DriveTime>();
 
 function round(value: number) {
@@ -49,14 +51,21 @@ export const driveTime = createServerFn({ method: "POST" })
 
     const from = `${round(data.fromLat)},${round(data.fromLon)}`;
     const to = `${round(data.toLat)},${round(data.toLon)}`;
-    const cacheKey = `${from}:${to}`;
+    const departureBucket = data.departureTime
+      ? Math.floor(new Date(data.departureTime).getTime() / (5 * 60_000))
+      : "now";
+    const cacheKey = `${from}:${to}:${departureBucket}`;
     const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.fetchedAt < CACHE_MS) return cached;
+    if (cached && Date.now() - cached.fetchedAt < CACHE_MS) {
+      console.info("[drive] cache_hit", { trafficBasis: cached.trafficBasis });
+      return cached;
+    }
+    console.info("[drive] cache_miss", { trafficBasis: data.departureTime ? "future-estimate" : "live" });
 
     const routeUrl =
       `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
       `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
-      `&routeRepresentation=polyline`;
+      `&routeRepresentation=polyline${data.departureTime ? `&departAt=${encodeURIComponent(data.departureTime)}` : ""}`;
 
 
     const response = await fetch(routeUrl);
@@ -106,6 +115,7 @@ export const driveTime = createServerFn({ method: "POST" })
       path: simplifyPath(route?.legs ?? []),
       incidents,
       fetchedAt: Date.now(),
+      trafficBasis: data.departureTime ? "future-estimate" : "live",
     };
 
     cache.set(cacheKey, result);

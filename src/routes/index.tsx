@@ -2,7 +2,7 @@ import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, Car, Check, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Search, Settings, TrainFront, X } from "lucide-react";
+import { Bus, Car, ChevronDown, ChevronRight, Footprints, LocateFixed, RefreshCw, Search, Settings, TrainFront, X } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
@@ -29,11 +29,14 @@ import {
   commutePresets,
   findByKind,
   kindLabel,
+  hasValidCoordinates,
+  makeSavedPlace,
+  migrateSavedPlaces,
   parseClockInput,
-  parseSavedPlaces,
   removePlace,
   swapHomeWork,
   upsertPlace,
+  LEGACY_SAVED_PLACES_KEY,
   SAVED_PLACES_KEY,
   PLACE_KINDS,
   type PlaceKind,
@@ -44,6 +47,10 @@ import {
   driveArriveBy,
   latestRailArrival,
 } from "@/lib/leave-by";
+import { honoluluSecondsToIso } from "@/lib/drive/planner";
+import { compareCommute } from "@/lib/decision/commute-decision";
+import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
+import { VerdictCard } from "@/components/commute/VerdictCard";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -166,7 +173,6 @@ const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
 const PLAN_MODE_KEY = "nalu-plan-mode-v1";
 const ARRIVE_BY_KEY = "nalu-arrive-by-v1";
 
-type PlanMode = "leave-now" | "arrive-by";
 const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 
 type DirectionOverride = { inbound: boolean; at: number };
@@ -630,7 +636,13 @@ function Index() {
     migrateStorage(PARKED_KEY, "parked-v1");
     // Trip tracking was removed; clear any trip state left on the phone.
     window.localStorage.removeItem(ACTIVE_TRIP_KEY);
-    setSavedPlaces(parseSavedPlaces(window.localStorage.getItem(SAVED_PLACES_KEY)));
+    const migratedPlaces = migrateSavedPlaces(
+      window.localStorage.getItem(SAVED_PLACES_KEY),
+      window.localStorage.getItem(LEGACY_SAVED_PLACES_KEY),
+      stored,
+    );
+    setSavedPlaces(migratedPlaces);
+    if (migratedPlaces.length) window.localStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(migratedPlaces));
     const storedMode = window.localStorage.getItem(PLAN_MODE_KEY);
     if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
     setArriveByInput(window.localStorage.getItem(ARRIVE_BY_KEY) ?? "");
@@ -713,6 +725,12 @@ function Index() {
     window.localStorage.removeItem(PARKED_KEY);
     setSettingsOpen(false);
     setOnboardingOpen(false);
+    setSelectedMode("rail");
+    setSelectedDeparture(null);
+    setPlanMode("leave-now");
+    setArriveByInput("");
+    window.localStorage.removeItem(PLAN_MODE_KEY);
+    window.localStorage.removeItem(ARRIVE_BY_KEY);
     window.localStorage.setItem(SETUP_DISMISSED_KEY, "1");
   }
 
@@ -727,7 +745,9 @@ function Index() {
     [now],
   );
 
-  const configured = Boolean(setup.homeStopId && setup.destStopId && setup.destLat && setup.homeLat);
+  const configured = hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon })
+    && hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon });
+  const railConfigured = configured && Boolean(setup.homeStopId && setup.destStopId);
   const browseActive = hydrated && !configured;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
@@ -962,7 +982,7 @@ function Index() {
       Math.floor(afterSeconds / 60),
       planMode,
     ],
-    enabled: hydrated && configured,
+    enabled: hydrated && railConfigured,
     staleTime: 60_000,
     queryFn: async () => {
       if (inbound) {
@@ -1005,15 +1025,10 @@ function Index() {
   }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
   const best = options.find((option) => option.leave_by_seconds === selectedDeparture) ?? earliest;
 
-  const { data: stationCoords = [] } = useQuery({
-    queryKey: ["rail-station-coords"],
-    staleTime: 6 * 60 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("rail_stations");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const stationCoords = browseStations;
+  /* One authoritative rail-station query serves browse, setup, maps and planning. */
+  const _stationDatasetReady = stationCoords.length > 0;
+  void _stationDatasetReady;
 
   function stationPoint(name: string | null | undefined): Coords | null {
     if (!name) return null;
@@ -1125,7 +1140,7 @@ function Index() {
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
   const distanceTrend = useRef<number[]>([]);
   useEffect(() => {
-    if (!configured || !navigator.geolocation) {
+    if (!activeTransitLeg || !navigator.geolocation) {
       setRiderPoint(null);
       return;
     }
@@ -1138,7 +1153,7 @@ function Index() {
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
     );
     return () => navigator.geolocation.clearWatch(watch);
-  }, [configured]);
+  }, [activeTransitLeg]);
 
   // Legs change: start the distance history over so an old ride cannot trigger
   // a "passed your stop" notice on the next one.
@@ -1250,12 +1265,29 @@ function Index() {
     () => (arriveByTarget === null ? null : latestRailArrival(options, arriveByTarget)),
     [options, arriveByTarget],
   );
+  const futureDepartureIso = arriveByActive && drive
+    ? honoluluSecondsToIso(arriveByTarget - (drive.trafficMinutes + 5) * 60, now)
+    : null;
+  const { data: futureDrive } = useQuery({
+    queryKey: ["drive-future", driveFrom.lat, driveFrom.lon, driveTo.lat, driveTo.lon, futureDepartureIso],
+    enabled: Boolean(futureDepartureIso && driveAvailable && configured),
+    staleTime: 5 * 60_000,
+    retry: 1,
+    queryFn: () => fetchDriveTime({ data: {
+      fromLat: driveFrom.lat as number,
+      fromLon: driveFrom.lon as number,
+      toLat: driveTo.lat as number,
+      toLon: driveTo.lon as number,
+      departureTime: futureDepartureIso as string,
+    } }),
+  });
+  const arriveByDrive = futureDrive ?? drive;
   const drivePlan = useMemo(
     () =>
-      arriveByTarget === null || !drive || !driveAvailable
+      arriveByTarget === null || !arriveByDrive || !driveAvailable
         ? null
-        : driveArriveBy(arriveByTarget, drive.trafficMinutes, nowSeconds),
-    [arriveByTarget, drive, driveAvailable, nowSeconds],
+        : driveArriveBy(arriveByTarget, arriveByDrive.trafficMinutes, nowSeconds, 5, Boolean(futureDrive)),
+    [arriveByTarget, arriveByDrive, driveAvailable, nowSeconds, futureDrive],
   );
   const arriveByComparison = useMemo(
     () =>
@@ -1283,7 +1315,7 @@ function Index() {
       ) ?? null
     );
   }, [savedPlaces, setup.destLat, setup.destLon]);
-  const typicalArrival = inbound ? null : activeSavedPlace?.arriveBySeconds ?? null;
+  const typicalArrival = inbound ? null : activeSavedPlace?.typicalArrivalSeconds ?? null;
   useEffect(() => {
     if (!hydrated || arriveByInput || typicalArrival === null) return;
     chooseArriveBy(clockInputValue(typicalArrival));
@@ -1364,18 +1396,16 @@ function Index() {
   // gap stays null and the headline never claims a margin.
   const railWorst = railRange ? railRange.high : null;
   const gap = railWorst !== null && usableDrive && driveMinutes !== null ? driveMinutes - railWorst : null;
-  const verdict: "rail" | "drive" | "same" | "none" =
-    railMinutes === null && !usableDrive
-      ? "none"
-      : railMinutes === null
-        ? "drive"
-        : !usableDrive
-          ? "rail"
-          : Math.abs(gap ?? 0) < TOSS_UP_MIN
-              ? "same"
-              : (gap ?? 0) > 0
-                ? "rail"
-                : "drive";
+  const decision = compareCommute({
+    railMinutes: railWorst,
+    driveMinutes,
+    driveAvailable,
+    driveDelayMinutes: drive?.delayMinutes,
+    hasMajorIncident: Boolean(drive?.incidents[0]),
+    railWaitMinutes: waitForTrain,
+    thresholdMinutes: TOSS_UP_MIN,
+  });
+  const verdict = decision.recommendation;
   useEffect(() => {
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "rail") setSelectedMode("rail");
@@ -1386,7 +1416,7 @@ function Index() {
     if (verdict === "drive" && longWait && waitForTrain !== null) {
       return `Next reachable train is ${waitForTrain} min out`;
     }
-    if (best) {
+    if (verdict === "rail" && best) {
       // Biggest wait inside the chain is the bottleneck worth naming.
       let worstLabel: string | null = null;
       let worstWait = 0;
@@ -1406,8 +1436,8 @@ function Index() {
     if (verdict === "rail" && incident) return `${incidentText(incident)} delays driving`;
     if (drive && drive.delayMinutes >= 5)
       return `The drive is running ${drive.delayMinutes} min slower than usual`;
-    return null;
-  }, [best, drive, verdict, longWait, waitForTrain]);
+    return decision.explanation;
+  }, [best, drive, verdict, longWait, waitForTrain, decision.explanation]);
 
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
