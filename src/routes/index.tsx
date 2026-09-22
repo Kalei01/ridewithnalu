@@ -52,6 +52,7 @@ import { compareCommute } from "@/lib/decision/commute-decision";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
 import { AccountSection } from "@/components/account/AccountSection";
+import { SignInBanner } from "@/components/account/SignInBanner";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -1641,6 +1642,7 @@ function Index() {
   const mapPoints = selectedMode === "drive" ? driveMapPoints : commuteMapPoints;
   // Drive mode traces the real road geometry TomTom used for the ETA.
   const driveMapPath = selectedMode === "drive" ? drive?.path : undefined;
+  const driveTrafficSections = selectedMode === "drive" ? drive?.trafficSections : undefined;
 
   const moments = useMemo<OutdoorMoment[]>(() => {
     if (!best) return [];
@@ -1977,6 +1979,9 @@ function Index() {
               </Button>
             </div>
           </header>
+
+          <SignInBanner />
+
 
           {findByKind(savedPlaces, "home") && routineDestination && (
             <button type="button" onClick={() => void quickStartRoutine()} className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-foreground/[0.03] px-3 py-2 text-left backdrop-blur-md">
@@ -2465,7 +2470,7 @@ function Index() {
             </div>
             <div className="h-72 border-t border-border sm:h-80">
               <ClientOnly fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}>
-                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})} /></Suspense>
+                <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading trip map" />}><CommuteRouteMap points={mapPoints} livePoint={riderPoint} {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})} {...(driveTrafficSections && driveTrafficSections.length > 0 ? { trafficSections: driveTrafficSections } : {})} /></Suspense>
               </ClientOnly>
             </div>
           </section>

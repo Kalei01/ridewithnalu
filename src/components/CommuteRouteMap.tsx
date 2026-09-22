@@ -11,18 +11,27 @@ type JourneyPoint = {
   kind: "start" | "rail" | "bus" | "end";
 };
 
+type TrafficSection = {
+  severity: "moderate" | "heavy";
+  delayMinutes: number;
+  points: Array<{ lat: number; lon: number }>;
+};
+
 type CommuteRouteMapProps = {
   points: JourneyPoint[];
   livePoint: { lat: number; lon: number } | null;
   /** Real road geometry to draw instead of straight hops (used for Drive mode). */
   path?: Array<{ lat: number; lon: number }>;
+  /** Congested stretches drawn in amber/red over the route (Drive mode). */
+  trafficSections?: TrafficSection[];
 };
+
 
 type Basemap = "standard" | "satellite";
 
 const BASEMAPS = {
   standard: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=cb1_3t31_1_b6f69033d24b3d666819845e",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   },
   satellite: {
@@ -43,7 +52,7 @@ function journeyIcon(point: JourneyPoint) {
   });
 }
 
-export default function CommuteRouteMap({ points, livePoint, path }: CommuteRouteMapProps) {
+export default function CommuteRouteMap({ points, livePoint, path, trafficSections }: CommuteRouteMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -99,13 +108,17 @@ export default function CommuteRouteMap({ points, livePoint, path }: CommuteRout
       [
         points.map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join("|"),
         `path:${path?.length ?? 0}:${path?.[0] ? `${path[0].lat.toFixed(4)},${path[0].lon.toFixed(4)}` : ""}`,
+        `traffic:${(trafficSections ?? []).map((section) => `${section.severity}${section.points.length}`).join(",")}`,
       ].join("#"),
-    [points, path],
+    [points, path, trafficSections],
   );
   const pointsRef = useRef(points);
   pointsRef.current = points;
   const pathRef = useRef(path);
   pathRef.current = path;
+  const trafficRef = useRef(trafficSections);
+  trafficRef.current = trafficSections;
+
 
   useEffect(() => {
     const map = mapRef.current;
@@ -136,6 +149,27 @@ export default function CommuteRouteMap({ points, livePoint, path }: CommuteRout
       lineJoin: "round",
       className: "nalu-journey-line",
     }).addTo(routeLayer);
+
+    // Congestion drawn over the corridor: amber for moderate, red for heavy backups.
+    for (const section of trafficRef.current ?? []) {
+      if (section.points.length < 2) continue;
+      const latLngs = section.points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
+      const heavy = section.severity === "heavy";
+      L.polyline(latLngs, {
+        color: heavy ? "#ff453a" : "#ffb020",
+        weight: 6,
+        opacity: 0.95,
+        lineCap: "round",
+        lineJoin: "round",
+        className: "nalu-traffic-line",
+      })
+        .bindTooltip(
+          `${heavy ? "Heavy traffic" : "Slow traffic"}${section.delayMinutes > 0 ? ` · +${section.delayMinutes} min` : ""}`,
+          { direction: "top", sticky: true },
+        )
+        .addTo(routeLayer);
+    }
+
 
     current.forEach((point) => {
       L.marker([point.lat, point.lon], {

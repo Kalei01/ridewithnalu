@@ -30,9 +30,17 @@ export type DriveTime = {
   meters: number;
   /** Road geometry of the driven route, for drawing the real corridor on a map. */
   path: Array<{ lat: number; lon: number }>;
+  /** Congested stretches of the route, for colouring the drawn corridor. */
+  trafficSections: DriveTrafficSection[];
   incidents: DriveIncident[];
   fetchedAt: number;
   trafficBasis: "live" | "future-estimate";
+};
+
+export type DriveTrafficSection = {
+  severity: "moderate" | "heavy";
+  delayMinutes: number;
+  points: Array<{ lat: number; lon: number }>;
 };
 
 const CACHE_MS = 5 * 60_000;
@@ -66,6 +74,7 @@ export const driveTime = createServerFn({ method: "POST" })
     const routeUrl =
       `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
       `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
+      `&sectionType=traffic` +
       `&routeRepresentation=polyline${data.departureTime ? `&departAt=${encodeURIComponent(data.departureTime)}` : ""}`;
 
 
@@ -87,6 +96,14 @@ export const driveTime = createServerFn({ method: "POST" })
           trafficDelayInSeconds?: number;
         };
         legs?: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>;
+        sections?: Array<{
+          sectionType?: string;
+          startPointIndex?: number;
+          endPointIndex?: number;
+          magnitudeOfDelay?: number;
+          delayInSeconds?: number;
+          simpleCategory?: string;
+        }>;
       }>;
     };
     const route = payload.routes?.[0];
@@ -99,7 +116,9 @@ export const driveTime = createServerFn({ method: "POST" })
     // rush hour, so it never becomes the low end of anything shown to a rider.
     const typicalSeconds = summary.historicTrafficTravelTimeInSeconds ?? trafficSeconds;
 
-    const path = simplifyPath(route?.legs ?? []);
+    const fullPath = flattenPath(route?.legs ?? []);
+    const path = thinPath(fullPath);
+    const trafficSections = readTrafficSections(route?.sections ?? [], fullPath);
     const incidents = await fetchIncidents(key, data, path);
 
     const trafficMinutes = Math.round(trafficSeconds / 60);
@@ -115,10 +134,12 @@ export const driveTime = createServerFn({ method: "POST" })
       highMinutes: trafficMinutes + spread,
       meters: summary.lengthInMeters ?? 0,
       path,
+      trafficSections,
       incidents,
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     };
+
 
     cache.set(cacheKey, result);
     return result;
@@ -199,13 +220,9 @@ function readIncidentPoints(coordinates: unknown): GeoPoint[] {
   return out;
 }
 
-/**
- * Flatten TomTom leg geometry and thin it to a payload a phone can draw:
- * enough points to trace the highways, few enough to keep the response small.
- */
-function simplifyPath(
+/** Flatten TomTom leg geometry into one ordered list of route points. */
+function flattenPath(
   legs: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>,
-  maxPoints = 300,
 ): Array<{ lat: number; lon: number }> {
   const all: Array<{ lat: number; lon: number }> = [];
   for (const leg of legs) {
@@ -214,6 +231,14 @@ function simplifyPath(
       all.push({ lat: point.latitude, lon: point.longitude });
     }
   }
+  return all;
+}
+
+/** Thin geometry to a payload a phone can draw without a huge response. */
+function thinPath(
+  all: Array<{ lat: number; lon: number }>,
+  maxPoints = 300,
+): Array<{ lat: number; lon: number }> {
   if (all.length <= maxPoints) return all;
   const step = all.length / maxPoints;
   const out: Array<{ lat: number; lon: number }> = [];
@@ -225,3 +250,35 @@ function simplifyPath(
   if (last) out.push(last);
   return out;
 }
+
+/** Turn TomTom traffic sections into drawable congested stretches of the route. */
+function readTrafficSections(
+  sections: Array<{
+    sectionType?: string;
+    startPointIndex?: number;
+    endPointIndex?: number;
+    magnitudeOfDelay?: number;
+    delayInSeconds?: number;
+  }>,
+  fullPath: Array<{ lat: number; lon: number }>,
+): DriveTrafficSection[] {
+  const out: DriveTrafficSection[] = [];
+  for (const section of sections) {
+    if (section.sectionType && section.sectionType !== "TRAFFIC") continue;
+    const start = section.startPointIndex;
+    const end = section.endPointIndex;
+    if (typeof start !== "number" || typeof end !== "number" || end <= start) continue;
+    const magnitude = section.magnitudeOfDelay ?? 0;
+    if (magnitude < 1) continue;
+    const slice = fullPath.slice(start, Math.min(end + 1, fullPath.length));
+    if (slice.length < 2) continue;
+    out.push({
+      severity: magnitude >= 3 ? "heavy" : "moderate",
+      delayMinutes: Math.round((section.delayInSeconds ?? 0) / 60),
+      points: thinPath(slice, 80),
+    });
+    if (out.length === 12) break;
+  }
+  return out;
+}
+

@@ -28,7 +28,7 @@ export default function WalkingMicroMap({ from, to }: WalkingMicroMapProps) {
       scrollWheelZoom: false,
       doubleClickZoom: false,
     });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=cb1_3t31_1_b6f69033d24b3d666819845e", {
       maxZoom: 20,
       subdomains: "abcd",
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
