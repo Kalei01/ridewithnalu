@@ -11,12 +11,21 @@ type JourneyPoint = {
   kind: "start" | "rail" | "bus" | "end";
 };
 
+type TrafficSection = {
+  severity: "moderate" | "heavy";
+  delayMinutes: number;
+  points: Array<{ lat: number; lon: number }>;
+};
+
 type CommuteRouteMapProps = {
   points: JourneyPoint[];
   livePoint: { lat: number; lon: number } | null;
   /** Real road geometry to draw instead of straight hops (used for Drive mode). */
   path?: Array<{ lat: number; lon: number }>;
+  /** Congested stretches drawn in amber/red over the route (Drive mode). */
+  trafficSections?: TrafficSection[];
 };
+
 
 type Basemap = "standard" | "satellite";
 
