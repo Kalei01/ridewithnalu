@@ -658,7 +658,6 @@ function Index() {
       return legacy;
     };
     const stored = migrateStorage(STORAGE_KEY, "setup-v3");
-    const setupDismissed = migrateStorage(SETUP_DISMISSED_KEY, "setup-dismissed-v1") === "1";
     if (stored) {
       try {
         const saved = { ...emptySetup, ...(JSON.parse(stored) as Partial<Setup>) };
@@ -666,11 +665,10 @@ function Index() {
         setSetup({ ...saved, destinationName: saved.destinationName || saved.destinationAddress });
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
-        if (!setupDismissed) setOnboardingOpen(true);
       }
-    } else if (!setupDismissed) {
-      setOnboardingOpen(true);
     }
+    // First launch lands directly on the home screen; the user opens
+    // WHERE TO? themselves when they are ready to set up a trip.
     migrateStorage(BROWSE_STATION_KEY, "browse-station-v1");
     migrateStorage(BROWSE_LOCATION_DENIED_KEY, "browse-location-denied-v1");
     migrateStorage(LOCATION_DENIED_KEY, "location-denied-v1");
