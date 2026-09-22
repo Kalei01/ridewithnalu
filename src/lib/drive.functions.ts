@@ -168,7 +168,7 @@ async function fetchIncidents(
   key: string,
   points: { fromLat: number; fromLon: number; toLat: number; toLon: number },
   routePath: GeoPoint[],
-): Promise<DriveIncident[]> {
+): Promise<{ onRoute: DriveIncident[]; offRoute: Array<string | null> }> {
   const pad = 0.03;
   const minLat = Math.min(points.fromLat, points.toLat) - pad;
   const maxLat = Math.max(points.fromLat, points.toLat) + pad;
@@ -186,7 +186,7 @@ async function fetchIncidents(
     const response = await fetch(url);
     if (!response.ok) {
       console.error(`TomTom incidents failed [${response.status}]: ${await response.text()}`);
-      return [];
+      return { onRoute: [], offRoute: [] };
     }
     const payload = (await response.json()) as {
       incidents?: Array<{
@@ -200,23 +200,30 @@ async function fetchIncidents(
       }>;
     };
     const out: DriveIncident[] = [];
+    const offRoute: Array<string | null> = [];
     for (const incident of payload.incidents ?? []) {
+      const magnitude = incident.properties?.magnitudeOfDelay ?? 0;
+      const road = incident.properties?.roadNumbers?.[0] ?? null;
       const incidentPoints = readIncidentPoints(incident.geometry?.coordinates);
-      if (!incidentTouchesRoute(incidentPoints, routePath)) continue;
+      if (!incidentTouchesRoute(incidentPoints, routePath)) {
+        // Heavy congestion nearby that this route avoids: worth saying out loud.
+        if (magnitude >= 3 && road) offRoute.push(road);
+        continue;
+      }
       const description = incident.properties?.events?.[0]?.description;
       if (!description) continue;
       // Skip trivial slow-downs; only report what changes the number.
-      if ((incident.properties?.magnitudeOfDelay ?? 0) < 2) continue;
-      const road = incident.properties?.roadNumbers?.[0] ?? null;
+      if (magnitude < 2) continue;
       const delay = incident.properties?.delay;
-      out.push({
-        description,
-        road,
-        delayMinutes: typeof delay === "number" ? Math.round(delay / 60) : null,
-      });
-      if (out.length === 3) break;
+      if (out.length < 3) {
+        out.push({
+          description,
+          road,
+          delayMinutes: typeof delay === "number" ? Math.round(delay / 60) : null,
+        });
+      }
     }
-    return out;
+    return { onRoute: out, offRoute };
   } catch (error) {
     console.error("TomTom incidents error", error);
     return [];
