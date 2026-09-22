@@ -35,6 +35,26 @@ function freewayDirection(fromLon: number, toLon: number): "East" | "West" {
   return toLon >= fromLon ? "East" : "West";
 }
 
+/**
+ * The direction the routing feed itself states, when it states one. TomTom often
+ * labels the carriageway ("H-1 East"), which is more trustworthy than inferring
+ * a heading from where the trip starts and ends.
+ */
+export function guidanceDirection(step: GuidanceInstruction): string | null {
+  const text = [step.roadNumbers?.[0], step.street].filter(Boolean).join(" ");
+  const match = /\b(East|West|North|South)(?:bound)?\b/i.exec(text);
+  if (match?.[1]) return capitalise(match[1]);
+  const abbreviated = /\b(?:H-?\d+|Hwy|Fwy)\s+(E|W|N|S)\b/i.exec(text);
+  if (abbreviated?.[1]) {
+    return { E: "East", W: "West", N: "North", S: "South" }[abbreviated[1].toUpperCase() as "E" | "W" | "N" | "S"];
+  }
+  return null;
+}
+
+function capitalise(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
 function isFreeway(name: string) {
   return /^H-\d/i.test(name) || /\bFwy\b/i.test(name);
 }
@@ -42,6 +62,7 @@ function isFreeway(name: string) {
 function withoutDirection(name: string) {
   return name.replace(/\s+(?:East|West|North|South|Eastbound|Westbound|Northbound|Southbound)$/i, "");
 }
+
 
 /**
  * Pick the handful of roads a driver actually needs to know, from TomTom's
@@ -57,6 +78,8 @@ export function extractCorridor(
   if (!instructions.length) return null;
 
   const spans = new Map<string, { meters: number; firstOffset: number }>();
+  // Direction the feed itself states for each road, preferred over geometry.
+  const statedDirections = new Map<string, string>();
   for (let index = 0; index < instructions.length; index += 1) {
     const step = instructions[index]!;
     const name = stepRoadName(step);
@@ -71,6 +94,9 @@ export function extractCorridor(
     } else {
       spans.set(name, { meters, firstOffset: offset });
     }
+    const base = withoutDirection(name);
+    const stated = guidanceDirection(step);
+    if (stated && !statedDirections.has(base)) statedDirections.set(base, stated);
   }
   if (!spans.size) return null;
 
@@ -85,10 +111,12 @@ export function extractCorridor(
 
   const roads = chosen.map((name) => {
     const baseName = withoutDirection(name);
-    return endpoints && isFreeway(baseName)
-      ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}`
-      : name;
+    if (!isFreeway(baseName)) return name;
+    const stated = statedDirections.get(baseName);
+    if (stated) return `${baseName} ${stated}`;
+    return endpoints ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}` : name;
   });
+
   return { label: `Via ${roads.join(" → ")}`, roads, allRoads: [...spans.keys()] };
 }
 

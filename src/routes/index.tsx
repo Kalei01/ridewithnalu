@@ -136,12 +136,16 @@ type Leg = {
   route_short: string | null;
   route_long: string | null;
   headsign: string | null;
+  /** Display names only; identity comes from the GTFS stop ids below. */
   from: string | null;
   to: string | null;
+  from_stop_id?: string | null;
+  to_stop_id?: string | null;
   depart_seconds: number | null;
   arrive_seconds: number | null;
   minutes: number | null;
 };
+
 
 /** Anything with a name and a point: a suggestion, a saved place, or a draft. */
 type PointLike = { name: string; address: string; lat: number; lon: number };
@@ -169,6 +173,31 @@ const DOWNTOWN_POINT = { lat: 21.3099, lon: -157.8644 };
 const DIRECTION_KEY = "nalu-direction-v1";
 const PARKED_KEY = "nalu-parked-v1";
 const OVERRIDE_MS = 2 * 60 * 60 * 1000;
+
+type RailStation = {
+  stop_id: string;
+  stop_name: string | null;
+  stop_lat: number | null;
+  stop_lon: number | null;
+};
+
+/**
+ * One canonical rail-station query. Browse, the setup picker, the maps and trip
+ * planning all read the same cached GTFS station list.
+ */
+function useRailStations(enabled: boolean) {
+  return useQuery({
+    queryKey: ["rail-stations"],
+    enabled,
+    staleTime: 6 * 60 * 60_000,
+    queryFn: async (): Promise<RailStation[]> => {
+      const { data, error } = await supabase.rpc("rail_stations");
+      if (error) throw error;
+      return (data ?? []) as RailStation[];
+    },
+  });
+}
+
 /** Minutes of padding on the rail chain, and how much a transfer can slip. */
 const RAIL_BUFFER_MIN = 3;
 const RAIL_SLIP_MIN = 4;
@@ -972,16 +1001,8 @@ function Index() {
     );
   }, [browseActive, onboardingOpen, browseStation, browseLocationDenied]);
 
-  const { data: browseStations = [] } = useQuery({
-    queryKey: ["browse-rail-stations"],
-    enabled: hydrated,
-    staleTime: 6 * 60 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("rail_stations");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const { data: browseStations = [] } = useRailStations(hydrated);
+
 
   // If location is unavailable, derive the west-side default from live station
   // coordinates rather than pinning a station name or id into the app.
@@ -1145,19 +1166,31 @@ function Index() {
     return { lat: Number(hit.stop_lat), lon: Number(hit.stop_lon) };
   }
 
+  // GTFS stop ids identify a stop; names are ambiguous and are for display only.
+  const itineraryStopIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (best?.legs ?? [])
+            .flatMap((leg) => [leg.from_stop_id, leg.to_stop_id])
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ),
+    [best],
+  );
   const itineraryStopNames = useMemo(
     () => Array.from(new Set((best?.legs ?? []).flatMap((leg) => [leg.from, leg.to]).filter((name): name is string => Boolean(name)))),
     [best],
   );
   const { data: itineraryStopCoords = [] } = useQuery({
-    queryKey: ["itinerary-stop-coords", itineraryStopNames],
-    enabled: configured && itineraryStopNames.length > 0,
+    queryKey: ["itinerary-stop-coords", itineraryStopIds, itineraryStopNames],
+    enabled: configured && (itineraryStopIds.length > 0 || itineraryStopNames.length > 0),
     staleTime: 6 * 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stops")
-        .select("stop_id,stop_name,stop_lat,stop_lon")
-        .in("stop_name", itineraryStopNames);
+      const query = supabase.from("stops").select("stop_id,stop_name,stop_lat,stop_lon");
+      const { data, error } = itineraryStopIds.length
+        ? await query.in("stop_id", itineraryStopIds)
+        : await query.in("stop_name", itineraryStopNames);
       if (error) throw error;
       return data ?? [];
     },
@@ -1167,9 +1200,11 @@ function Index() {
     ?? best?.legs.find((leg) => leg.mode === "bus")
     ?? null;
   const busStopName = plannedBusLeg?.from;
-  const { data: activeBusStopId = null } = useQuery({
+  // Prefer the planner's own stop id; fall back to the name only for legacy rows.
+  const plannedBusStopId = plannedBusLeg?.from_stop_id ?? null;
+  const { data: lookedUpBusStopId = null } = useQuery({
     queryKey: ["active-bus-stop", busStopName],
-    enabled: Boolean(busStopName),
+    enabled: Boolean(busStopName) && !plannedBusStopId,
     staleTime: 3 * 60 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.from("stops").select("stop_id").eq("stop_name", busStopName as string).limit(1);
@@ -1177,6 +1212,8 @@ function Index() {
       return data?.[0]?.stop_id ?? null;
     },
   });
+  const activeBusStopId = plannedBusStopId ?? lookedUpBusStopId;
+
   const busTarget: BusStopTarget | null = activeBusStopId ? {
     stopId: activeBusStopId,
     scheduled: plannedBusLeg?.depart_seconds ? [{
@@ -1246,8 +1283,12 @@ function Index() {
 
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
   const distanceTrend = useRef<number[]>([]);
+  // High-accuracy GPS is the biggest battery cost in the app, so it runs only
+  // while a saved trip is actually underway on a bus or train, and is released
+  // the moment the leg ends, the trip is ended, or the screen unmounts.
   useEffect(() => {
-    if (!activeTransitLeg || !navigator.geolocation) {
+    const trackingWanted = Boolean(activeTransitLeg) && configured && !browseActive;
+    if (!trackingWanted || !navigator.geolocation) {
       setRiderPoint(null);
       return;
     }
@@ -1259,8 +1300,12 @@ function Index() {
       },
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
     );
-    return () => navigator.geolocation.clearWatch(watch);
-  }, [activeTransitLeg]);
+    return () => {
+      navigator.geolocation.clearWatch(watch);
+      setRiderPoint(null);
+    };
+  }, [activeTransitLeg, configured, browseActive]);
+
 
   // Legs change: start the distance history over so an old ride cannot trigger
   // a "passed your stop" notice on the next one.
@@ -1390,6 +1435,14 @@ function Index() {
     } }),
   });
   const arriveByDrive = futureDrive ?? drive;
+  // Be honest about where a drive time comes from: measured now, or projected
+  // for a later departure from TomTom's historic profile.
+  const driveBasisLabel = futureDrive?.trafficBasis === "future-estimate"
+    ? `Drive time: TomTom estimate for a ${clockFromSeconds(honoluluSeconds(new Date(futureDepartureIso as string)))} departure, not live traffic`
+    : drive?.trafficBasis === "live"
+      ? "Drive time: TomTom live traffic"
+      : "Drive time: TomTom";
+
   const drivePlan = useMemo(
     () =>
       arriveByTarget === null || !arriveByDrive || !driveAvailable
@@ -1639,7 +1692,13 @@ function Index() {
       { id: "start", name: originName, ...origin, kind: "start" },
     ];
 
-    const stopPoint = (name: string | null) => {
+    const stopPoint = (name: string | null, stopId?: string | null) => {
+      if (stopId) {
+        const byId = itineraryStopCoords.find((row) => row.stop_id === stopId);
+        if (byId && byId.stop_lat !== null && byId.stop_lon !== null) {
+          return { lat: Number(byId.stop_lat), lon: Number(byId.stop_lon) };
+        }
+      }
       if (!name) return null;
       const normalized = name.trim().toLowerCase();
       const station = stationPoint(name);
@@ -1652,8 +1711,12 @@ function Index() {
     best.legs.forEach((leg, index) => {
       if (leg.mode !== "rail" && leg.mode !== "bus") return;
       const transitKind: "rail" | "bus" = leg.mode;
-      [leg.from, leg.to].forEach((name, endpointIndex) => {
-        const point = stopPoint(name);
+      const endpoints: Array<[string | null, string | null | undefined]> = [
+        [leg.from, leg.from_stop_id],
+        [leg.to, leg.to_stop_id],
+      ];
+      endpoints.forEach(([name, stopId], endpointIndex) => {
+        const point = stopPoint(name, stopId);
         if (!name || !point) return;
         const last = points[points.length - 1];
         if (last && distanceM(last, point) < 20) return;
@@ -1665,6 +1728,7 @@ function Index() {
         });
       });
     });
+
     points.push({ id: "end", name: destinationName, ...destination, kind: "end" });
     return points;
   }, [best, homePoint, destPoint, inbound, destinationLabel, itineraryStopCoords, stationCoords]);
@@ -2543,7 +2607,7 @@ function Index() {
                     )}
                     {drivePlan && (
                       <p className="mt-2 text-[10px] text-muted-foreground">
-                        Includes {drivePlan.bufferMinutes} min to park and walk in · Drive time: TomTom
+                        Includes {drivePlan.bufferMinutes} min to park and walk in · {driveBasisLabel}
                       </p>
                     )}
                   </div>
@@ -2672,7 +2736,7 @@ function Index() {
               {drive?.corridorLabel
                 ? <RouteCorridor label={drive.corridorLabel} size="compact" />
                 : <p className="mt-4 text-sm font-medium text-foreground">Drive straight {inbound ? `from ${destinationLabel} to your home address` : `from home to ${destinationLabel}`} — no stop at a rail station.</p>}
-              {driveAvailable && driveRange && drive && <p className="mt-3 text-[10px] text-muted-foreground">Drive time: TomTom</p>}
+              {driveAvailable && driveRange && drive && <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>}
               {!driveAvailable && carAwayReason && <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>}
               {driveAvailable && driveFailed && <p className="mt-4 text-sm text-muted-foreground">Live traffic is unavailable right now.</p>}
               {driveAvailable && drive?.incidents[0] && verdict !== "drive" && !incidentDecides && <p className="mt-4 border-l-2 border-warning pl-3 text-base font-bold text-foreground">{trafficDelayText(drive.incidents[0], drive.delayMinutes)}</p>}
@@ -3376,16 +3440,8 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
     },
   });
 
-  const { data: stations = [] } = useQuery({
-    queryKey: ["rail-stations"],
-    enabled: open,
-    staleTime: 6 * 60 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("rail_stations");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const { data: stations = [] } = useRailStations(open);
+
 
   async function useMyLocation() {
     if (!navigator.geolocation) {
