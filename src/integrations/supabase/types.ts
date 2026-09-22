@@ -128,6 +128,30 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       routes: {
         Row: {
           route_id: string
@@ -389,6 +413,30 @@ export type Database = {
           service_id?: string | null
           trip_headsign?: string | null
           trip_id?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          last_setup: Json | null
+          preferences: Json
+          saved_places: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          last_setup?: Json | null
+          preferences?: Json
+          saved_places?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          last_setup?: Json | null
+          preferences?: Json
+          saved_places?: Json
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
