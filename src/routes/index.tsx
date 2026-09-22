@@ -29,11 +29,14 @@ import {
   commutePresets,
   findByKind,
   kindLabel,
+  hasValidCoordinates,
+  makeSavedPlace,
+  migrateSavedPlaces,
   parseClockInput,
-  parseSavedPlaces,
   removePlace,
   swapHomeWork,
   upsertPlace,
+  LEGACY_SAVED_PLACES_KEY,
   SAVED_PLACES_KEY,
   PLACE_KINDS,
   type PlaceKind,
@@ -44,6 +47,10 @@ import {
   driveArriveBy,
   latestRailArrival,
 } from "@/lib/leave-by";
+import { honoluluSecondsToIso } from "@/lib/drive/planner";
+import { compareCommute } from "@/lib/decision/commute-decision";
+import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
+import { VerdictCard } from "@/components/commute/VerdictCard";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -59,7 +66,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
-const CommuteRouteMap = lazy(() => import("@/components/CommuteRouteMap"));
+const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
 
 function WaveMark({ className }: { className?: string }) {
   return (
@@ -166,7 +173,6 @@ const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
 const PLAN_MODE_KEY = "nalu-plan-mode-v1";
 const ARRIVE_BY_KEY = "nalu-arrive-by-v1";
 
-type PlanMode = "leave-now" | "arrive-by";
 const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 
 type DirectionOverride = { inbound: boolean; at: number };
@@ -630,7 +636,13 @@ function Index() {
     migrateStorage(PARKED_KEY, "parked-v1");
     // Trip tracking was removed; clear any trip state left on the phone.
     window.localStorage.removeItem(ACTIVE_TRIP_KEY);
-    setSavedPlaces(parseSavedPlaces(window.localStorage.getItem(SAVED_PLACES_KEY)));
+    const migratedPlaces = migrateSavedPlaces(
+      window.localStorage.getItem(SAVED_PLACES_KEY),
+      window.localStorage.getItem(LEGACY_SAVED_PLACES_KEY),
+      stored,
+    );
+    setSavedPlaces(migratedPlaces);
+    if (migratedPlaces.length) window.localStorage.setItem(SAVED_PLACES_KEY, JSON.stringify(migratedPlaces));
     const storedMode = window.localStorage.getItem(PLAN_MODE_KEY);
     if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
     setArriveByInput(window.localStorage.getItem(ARRIVE_BY_KEY) ?? "");
@@ -672,9 +684,10 @@ function Index() {
     window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
   }
 
-  // A manual choice sticks for 2 hours, then the time-of-day default takes over again.
+  // Direction is explicit. Time of day can inform the first suggestion, but it
+  // must never silently reverse a saved commute for shift or weekend riders.
   const overrideActive = Boolean(override && now.getTime() - override.at < OVERRIDE_MS);
-  const inbound = overrideActive ? Boolean(override?.inbound) : honoluluParts(now).hour >= 12;
+  const inbound = overrideActive ? Boolean(override?.inbound) : false;
 
   function chooseDirection(next: boolean) {
     const entry: DirectionOverride = { inbound: next, at: Date.now() };
@@ -713,6 +726,12 @@ function Index() {
     window.localStorage.removeItem(PARKED_KEY);
     setSettingsOpen(false);
     setOnboardingOpen(false);
+    setSelectedMode("rail");
+    setSelectedDeparture(null);
+    setPlanMode("leave-now");
+    setArriveByInput("");
+    window.localStorage.removeItem(PLAN_MODE_KEY);
+    window.localStorage.removeItem(ARRIVE_BY_KEY);
     window.localStorage.setItem(SETUP_DISMISSED_KEY, "1");
   }
 
@@ -727,7 +746,9 @@ function Index() {
     [now],
   );
 
-  const configured = Boolean(setup.homeStopId && setup.destStopId && setup.destLat && setup.homeLat);
+  const configured = hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon })
+    && hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon });
+  const railConfigured = configured && Boolean(setup.homeStopId && setup.destStopId);
   const browseActive = hydrated && !configured;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
@@ -962,7 +983,7 @@ function Index() {
       Math.floor(afterSeconds / 60),
       planMode,
     ],
-    enabled: hydrated && configured,
+    enabled: hydrated && railConfigured,
     staleTime: 60_000,
     queryFn: async () => {
       if (inbound) {
@@ -1005,16 +1026,8 @@ function Index() {
   }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds]);
   const best = options.find((option) => option.leave_by_seconds === selectedDeparture) ?? earliest;
 
-  const { data: stationCoords = [] } = useQuery({
-    queryKey: ["rail-station-coords"],
-    staleTime: 6 * 60 * 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("rail_stations");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
+  const stationCoords = browseStations;
+  /* One authoritative rail-station query serves browse, setup, maps and planning. */
   function stationPoint(name: string | null | undefined): Coords | null {
     if (!name) return null;
     const wanted = name.trim().toLowerCase();
@@ -1125,7 +1138,7 @@ function Index() {
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
   const distanceTrend = useRef<number[]>([]);
   useEffect(() => {
-    if (!configured || !navigator.geolocation) {
+    if (!activeTransitLeg || !navigator.geolocation) {
       setRiderPoint(null);
       return;
     }
@@ -1138,7 +1151,7 @@ function Index() {
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
     );
     return () => navigator.geolocation.clearWatch(watch);
-  }, [configured]);
+  }, [activeTransitLeg]);
 
   // Legs change: start the distance history over so an old ride cannot trigger
   // a "passed your stop" notice on the next one.
@@ -1227,8 +1240,8 @@ function Index() {
   } = useQuery({
     queryKey: ["drive", driveFrom.lat, driveFrom.lon, driveTo.lat, driveTo.lon],
     enabled: hydrated && configured && driveFrom.lat !== null && driveTo.lat !== null,
-    staleTime: 3 * 60_000,
-    refetchInterval: 3 * 60_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -1250,12 +1263,29 @@ function Index() {
     () => (arriveByTarget === null ? null : latestRailArrival(options, arriveByTarget)),
     [options, arriveByTarget],
   );
+  const futureDepartureIso = arriveByActive && drive
+    ? honoluluSecondsToIso(arriveByTarget - (drive.trafficMinutes + 5) * 60, now)
+    : null;
+  const { data: futureDrive } = useQuery({
+    queryKey: ["drive-future", driveFrom.lat, driveFrom.lon, driveTo.lat, driveTo.lon, futureDepartureIso],
+    enabled: Boolean(futureDepartureIso && driveAvailable && configured),
+    staleTime: 5 * 60_000,
+    retry: 1,
+    queryFn: () => fetchDriveTime({ data: {
+      fromLat: driveFrom.lat as number,
+      fromLon: driveFrom.lon as number,
+      toLat: driveTo.lat as number,
+      toLon: driveTo.lon as number,
+      departureTime: futureDepartureIso as string,
+    } }),
+  });
+  const arriveByDrive = futureDrive ?? drive;
   const drivePlan = useMemo(
     () =>
-      arriveByTarget === null || !drive || !driveAvailable
+      arriveByTarget === null || !arriveByDrive || !driveAvailable
         ? null
-        : driveArriveBy(arriveByTarget, drive.trafficMinutes, nowSeconds),
-    [arriveByTarget, drive, driveAvailable, nowSeconds],
+        : driveArriveBy(arriveByTarget, arriveByDrive.trafficMinutes, nowSeconds, 5, Boolean(futureDrive)),
+    [arriveByTarget, arriveByDrive, driveAvailable, nowSeconds, futureDrive],
   );
   const arriveByComparison = useMemo(
     () =>
@@ -1283,7 +1313,7 @@ function Index() {
       ) ?? null
     );
   }, [savedPlaces, setup.destLat, setup.destLon]);
-  const typicalArrival = inbound ? null : activeSavedPlace?.arriveBySeconds ?? null;
+  const typicalArrival = inbound ? null : activeSavedPlace?.typicalArrivalSeconds ?? null;
   useEffect(() => {
     if (!hydrated || arriveByInput || typicalArrival === null) return;
     chooseArriveBy(clockInputValue(typicalArrival));
@@ -1364,18 +1394,16 @@ function Index() {
   // gap stays null and the headline never claims a margin.
   const railWorst = railRange ? railRange.high : null;
   const gap = railWorst !== null && usableDrive && driveMinutes !== null ? driveMinutes - railWorst : null;
-  const verdict: "rail" | "drive" | "same" | "none" =
-    railMinutes === null && !usableDrive
-      ? "none"
-      : railMinutes === null
-        ? "drive"
-        : !usableDrive
-          ? "rail"
-          : Math.abs(gap ?? 0) < TOSS_UP_MIN
-              ? "same"
-              : (gap ?? 0) > 0
-                ? "rail"
-                : "drive";
+  const decision = compareCommute({
+    railMinutes: railWorst,
+    driveMinutes,
+    driveAvailable,
+    driveDelayMinutes: drive?.delayMinutes ?? null,
+    hasMajorIncident: Boolean(drive?.incidents[0]),
+    railWaitMinutes: waitForTrain,
+    thresholdMinutes: TOSS_UP_MIN,
+  });
+  const verdict = decision.recommendation;
   useEffect(() => {
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "rail") setSelectedMode("rail");
@@ -1386,7 +1414,7 @@ function Index() {
     if (verdict === "drive" && longWait && waitForTrain !== null) {
       return `Next reachable train is ${waitForTrain} min out`;
     }
-    if (best) {
+    if (verdict === "rail" && best) {
       // Biggest wait inside the chain is the bottleneck worth naming.
       let worstLabel: string | null = null;
       let worstWait = 0;
@@ -1406,8 +1434,8 @@ function Index() {
     if (verdict === "rail" && incident) return `${incidentText(incident)} delays driving`;
     if (drive && drive.delayMinutes >= 5)
       return `The drive is running ${drive.delayMinutes} min slower than usual`;
-    return null;
-  }, [best, drive, verdict, longWait, waitForTrain]);
+    return decision.explanation;
+  }, [best, drive, verdict, longWait, waitForTrain, decision.explanation]);
 
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
@@ -2145,9 +2173,9 @@ function Index() {
                 onChange={(event) => chooseArriveBy(event.target.value)}
                 className="mt-2 h-12 w-full bg-background/60 text-2xl font-bold tabular-nums"
               />
-              {activeSavedPlace?.arriveBySeconds !== null && activeSavedPlace?.arriveBySeconds !== undefined && !inbound && (
+              {activeSavedPlace?.typicalArrivalSeconds !== null && activeSavedPlace?.typicalArrivalSeconds !== undefined && !inbound && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Typical arrival saved for {activeSavedPlace.label}: {clockFromSeconds(activeSavedPlace.arriveBySeconds)}
+                  Typical arrival saved for {activeSavedPlace.label}: {clockFromSeconds(activeSavedPlace.typicalArrivalSeconds)}
                 </p>
               )}
 
@@ -2271,7 +2299,7 @@ function Index() {
             </p>
           )}
           {reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
-          {activeDestStopName && (
+          {selectedMode === "rail" && activeDestStopName && (
             <p className="mt-3 text-sm text-muted-foreground">
               {inbound
                 ? `Bus stop you board near ${destinationLabel}: ${titleCase(activeDestStopName)}`
@@ -2289,7 +2317,7 @@ function Index() {
           compact
         />
 
-        {best && mapPoints.length >= 2 && (
+        {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
           <section className="mt-4 overflow-hidden rounded-lg border border-border bg-surface-raised" aria-labelledby="trip-map-title">
             <div className="flex items-center justify-between px-4 py-3">
               <div><h2 id="trip-map-title" className="text-sm font-bold text-foreground">Your route</h2><p className="mt-0.5 text-xs text-muted-foreground">{inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}</p></div>
@@ -2338,7 +2366,7 @@ function Index() {
 
         </section>
 
-        <section className="mb-8 rounded-lg border border-border bg-surface-raised p-5" aria-labelledby="later-title">
+        {selectedMode === "rail" && options.length > 1 && <section className="mb-8 rounded-lg border border-border bg-surface-raised p-5" aria-labelledby="later-title">
           <h2 id="later-title" className="text-lg font-semibold">Alternative Departures</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             Two or three later trips, with the exact arrival each one gets you. Tap one to make it your plan.
@@ -2376,17 +2404,8 @@ function Index() {
               </li>
               );
             })}
-            {options.length <= 1 && (
-              <li className="py-2 text-sm text-muted-foreground">
-                {!configured
-                  ? "Finish setup to see options."
-                  : optionsLoading
-                    ? "Loading schedule…"
-                    : "No other reachable trip with a connection today."}
-              </li>
-            )}
           </ol>
-        </section>
+        </section>}
 
         <Button
           variant="outline"
@@ -3052,7 +3071,9 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
         address: point.address || point.name,
         lat: point.lat,
         lon: point.lon,
-        arriveBySeconds,
+        typicalArrivalSeconds: arriveBySeconds,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }),
     );
     setStatus(`Saved ${label}: ${point.name}.`);
@@ -3102,18 +3123,18 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
   }
 
   function save() {
-    const station = stations.find((item) => item.stop_id === draft.homeStopId);
-    // Prefer the rider's real door: the shared location, then a saved Home
-    // address. Only fall back to the station so the map pins stay honest.
+    // A commute requires exact places. A station is transit access metadata,
+    // never a substitute for the rider's Home coordinates.
     const home = findByKind(savedPlaces, "home");
     onSave({
       ...draft,
-      homeLat: draft.homeLat ?? home?.lat ?? (station?.stop_lat ? Number(station.stop_lat) : null),
-      homeLon: draft.homeLon ?? home?.lon ?? (station?.stop_lon ? Number(station.stop_lon) : null),
+      homeLat: draft.homeLat ?? home?.lat ?? null,
+      homeLon: draft.homeLon ?? home?.lon ?? null,
     });
   }
 
-  const canSave = Boolean(draft.homeStopId && draft.destStopId && draft.destLat);
+  const canSave = hasValidCoordinates({ lat: draft.homeLat, lon: draft.homeLon })
+    && hasValidCoordinates({ lat: draft.destLat, lon: draft.destLon });
   const presets = commutePresets(savedPlaces);
   const originPoint: PointLike | null =
     draft.homeLat !== null && draft.homeLon !== null
@@ -3220,12 +3241,12 @@ function SetupDialog({ open, firstRun, setup, onClose, onSave, alertPrefs, onAle
                       <Input
                         id={`arrive-${place.id}`}
                         type="time"
-                        value={clockInputValue(place.arriveBySeconds)}
+                        value={clockInputValue(place.typicalArrivalSeconds)}
                         onChange={(event) =>
                           onPlacesChange(
                             upsertPlace(savedPlaces, {
                               ...place,
-                              arriveBySeconds: parseClockInput(event.target.value),
+                              typicalArrivalSeconds: parseClockInput(event.target.value),
                             }),
                           )
                         }

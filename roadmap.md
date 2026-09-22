@@ -153,3 +153,13 @@
 - [x] Default newly saved trips to outbound and clarify the WHERE TO? action
 - [x] Keep labeled Start/End map pins above intermediate stops
 - [x] Make alternative departures selectable with leave, arrival, duration, and delay details
+
+## Complete audit and upgrade
+- [x] Separate persistent places from optional transit access metadata, with safe legacy migration
+- [x] Keep end-trip cleanup from deleting Home, Work, custom places, or preferences
+- [x] Validate configured trips by exact origin/destination coordinates; transit can fail independently
+- [x] Add portable places, drive, rail, and centralized decision modules
+- [x] Use five-minute TomTom route caching and time-aware future routing for Arrive By
+- [x] Keep Drive maps and copy strictly door-to-door and scope alternatives to Rail
+- [x] Consolidate the rail station dataset and limit high-accuracy GPS to an active transit leg
+- [x] Prevent automatic direction changes and repeated map bounds fitting
