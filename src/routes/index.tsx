@@ -856,10 +856,17 @@ function Index() {
       && carPlace === "station"
       && (!parkedToday || parkedToday.station === setup.homeStopId),
   );
-  // Driving this direction is only possible if the car is where the trip starts.
-  const driveAvailable = Boolean(setup.allowDrive) && (inbound ? carPlace === "destination" : carPlace === "home");
-  const carAwayReason = !setup.allowDrive
-    ? "Driving is switched off in your settings."
+  // Door-to-door driving is always compared. "I can drive to the station" only
+  // governs the park-and-ride first leg; it never removes the drive option.
+  // The only genuine blocker is a car recorded today somewhere else.
+  const driveAvailable = parkedToday
+    ? inbound
+      ? parkedToday.place === "destination"
+      : parkedToday.place === "home"
+    : true;
+  // Only an explicitly recorded car location explains a missing drive option.
+  const carAwayReason = driveAvailable
+    ? null
     : inbound && carPlace === "station"
       ? `Your car is parked at ${
           parkedToday && parkedToday.station !== setup.homeStopId
@@ -1489,12 +1496,20 @@ function Index() {
   // gap stays null and the headline never claims a margin.
   const railWorst = railRange ? railRange.high : null;
   const gap = railWorst !== null && usableDrive && driveMinutes !== null ? driveMinutes - railWorst : null;
+  // An incident only explains the verdict when it is what actually pushes the
+  // drive past rail; otherwise it is noise and must not colour the headline.
+  const incidentDecides =
+    Boolean(drive?.incidents[0])
+    && railWorst !== null
+    && driveMinutes !== null
+    && driveMinutes > railWorst
+    && driveMinutes - (drive?.incidents[0]?.delayMinutes ?? 0) > railWorst;
   const decision = compareCommute({
     railMinutes: railWorst,
     driveMinutes,
     driveAvailable,
     driveDelayMinutes: drive?.delayMinutes ?? null,
-    hasMajorIncident: Boolean(drive?.incidents[0]),
+    hasMajorIncident: incidentDecides,
     railWaitMinutes: waitForTrain,
     thresholdMinutes: TOSS_UP_MIN,
   });
@@ -1526,11 +1541,11 @@ function Index() {
         return `${worstLabel} connection adds ${Math.round(worstWait / 60)} min of waiting`;
       }
     }
-    if (verdict === "rail" && incident) return `${incidentText(incident)} delays driving`;
+    if (verdict === "rail" && incident && incidentDecides) return `${incidentText(incident)} delays driving`;
     if (drive && drive.delayMinutes >= 5)
       return `The drive is running ${drive.delayMinutes} min slower than usual`;
     return decision.explanation;
-  }, [best, drive, verdict, longWait, waitForTrain, decision.explanation]);
+  }, [best, drive, verdict, longWait, waitForTrain, decision.explanation, incidentDecides]);
 
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
@@ -1961,6 +1976,8 @@ function Index() {
           if (!rail || !out || !back) throw new Error("No reachable transit stops");
           saveSetup({
             ...emptySetup,
+            // Door-to-door driving must always be weighed for a one-tap trip.
+            allowDrive: true,
             homeStopId: rail.stop_id,
             homeStopName: rail.stop_name ?? "",
             homeLat: origin.lat,
@@ -2559,14 +2576,6 @@ function Index() {
             </p>
           )}
           {reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
-          {selectedMode === "rail" && activeDestStopName && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              {inbound
-                ? `Bus stop you board near ${destinationLabel}: ${titleCase(activeDestStopName)}`
-                : `Bus stop near ${destinationLabel} when you arrive: ${titleCase(activeDestStopName)}`}
-              {activeDestWalkM !== null ? `, a ${formatDistance(activeDestWalkM)} walk` : ""}
-            </p>
-          )}
         </section>
 
         <H1ConditionsCard
