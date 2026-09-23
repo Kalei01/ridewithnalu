@@ -53,7 +53,18 @@ export type DriveTrafficSection = {
 };
 
 const CACHE_MS = 2 * 60_000;
+const MAX_CACHE_ENTRIES = 100;
 const cache = new Map<string, DriveTime>();
+
+function cacheDrive(key: string, value: DriveTime) {
+  cache.delete(key);
+  cache.set(key, value);
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (typeof oldest !== "string") break;
+    cache.delete(oldest);
+  }
+}
 
 function round(value: number) {
   // ~10 m precision keeps the cache useful while the phone's GPS jitters.
@@ -164,7 +175,7 @@ export const driveTime = createServerFn({ method: "POST" })
     };
 
 
-    cache.set(cacheKey, result);
+    cacheDrive(cacheKey, result);
     return result;
   });
 

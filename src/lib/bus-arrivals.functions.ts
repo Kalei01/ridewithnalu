@@ -35,7 +35,18 @@ export type BusArrivalsResult = {
 
 type CachedFeed = { expiresAt: number; xml: string };
 const CACHE_MS = 30_000;
+const MAX_CACHE_ENTRIES = 100;
 const cache = new Map<string, CachedFeed>();
+
+function cacheFeed(stopId: string, feed: CachedFeed) {
+  cache.delete(stopId);
+  cache.set(stopId, feed);
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (typeof oldest !== "string") break;
+    cache.delete(oldest);
+  }
+}
 
 function text(xml: string, tag: string) {
   const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
@@ -107,7 +118,7 @@ export const busArrivals = createServerFn({ method: "POST" })
         const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
         if (!response.ok) return failed(false);
         xml = await response.text();
-        cache.set(data.stopId, { xml, expiresAt: Date.now() + CACHE_MS });
+        cacheFeed(data.stopId, { xml, expiresAt: Date.now() + CACHE_MS });
       }
       if (text(xml, "errorMessage")) return failed(false);
 

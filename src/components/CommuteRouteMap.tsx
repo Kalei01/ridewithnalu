@@ -119,9 +119,9 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
     () =>
       [
         points.map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join("|"),
-        `path:${path?.length ?? 0}:${path?.[0] ? `${path[0].lat.toFixed(4)},${path[0].lon.toFixed(4)}` : ""}`,
+        `path:${(path ?? []).map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`,
         `segments:${(segments ?? []).map((segment) => `${segment.id}:${segment.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
-        `traffic:${(trafficSections ?? []).map((section) => `${section.severity}${section.points.length}`).join(",")}`,
+        `traffic:${(trafficSections ?? []).map((section) => `${section.severity}:${section.delayMinutes}:${section.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
       ].join("#"),
     [points, path, segments, trafficSections],
   );
@@ -185,7 +185,7 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
       const latLngs = section.points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
       const heavy = section.severity === "heavy";
       L.polyline(latLngs, {
-        color: heavy ? "#ff453a" : "#ffb020",
+        color: heavy ? "var(--color-traffic-heavy)" : "var(--color-traffic-moderate)",
         weight: 6,
         opacity: 0.95,
         lineCap: "round",
@@ -297,6 +297,7 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
     if (!map || points.length < 2) return;
     const corridor: L.LatLngTuple[] = [
       ...(path ?? []).map((point) => [point.lat, point.lon] as L.LatLngTuple),
+      ...(segments ?? []).flatMap((segment) => segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple)),
       ...points.map((point) => [point.lat, point.lon] as L.LatLngTuple),
     ];
     map.flyToBounds(L.latLngBounds(corridor), {

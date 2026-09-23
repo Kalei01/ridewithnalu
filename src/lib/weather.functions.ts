@@ -53,6 +53,17 @@ type HourlyPeriod = {
 
 const forecastCache = new Map<string, { at: number; periods: HourlyPeriod[] }>();
 const airCache = new Map<string, { at: number; air: AirQuality | null }>();
+const MAX_CACHE_ENTRIES = 64;
+
+function setBoundedCache<T>(cache: Map<string, T>, key: string, value: T) {
+  cache.delete(key);
+  cache.set(key, value);
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (typeof oldest !== "string") break;
+    cache.delete(oldest);
+  }
+}
 
 function coordKey(lat: number, lon: number) {
   // ~1 km buckets: plenty of resolution for a forecast, and cache-friendly.
@@ -104,7 +115,7 @@ async function getHourly(lat: number, lon: number): Promise<HourlyPeriod[] | nul
     };
     const periods = hourlyPayload.properties?.periods ?? [];
     if (!periods.length) return null;
-    forecastCache.set(key, { at: Date.now(), periods });
+    setBoundedCache(forecastCache, key, { at: Date.now(), periods });
     return periods;
   } catch (error) {
     console.error("NWS forecast unavailable", error);
@@ -144,7 +155,7 @@ async function getAir(lat: number, lon: number): Promise<AirQuality | null> {
       if (typeof value === "number" && value > category) category = value;
     }
     const air = category > 0 ? { category } : null;
-    airCache.set(key, { at: Date.now(), air });
+    setBoundedCache(airCache, key, { at: Date.now(), air });
     return air;
   } catch (error) {
     console.error("AirNow unavailable", error);

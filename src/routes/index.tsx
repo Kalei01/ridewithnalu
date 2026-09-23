@@ -744,6 +744,7 @@ function Index() {
   const [arriveByInput, setArriveByInput] = useState("");
   const [alertPrefs, setAlertPrefs] = useState<AlertPrefs>(defaultAlertPrefs);
   const syncedUserRef = useRef<string | null>(null);
+  const syncStateRef = useRef({ savedPlaces, alertPrefs, planMode, arriveByInput, setup, configured: false });
 
   useEffect(() => {
     const migrateStorage = (key: string, legacySuffix: string) => {
@@ -980,6 +981,7 @@ function Index() {
 
   const configured = hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon })
     && hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon });
+  syncStateRef.current = { savedPlaces, alertPrefs, planMode, arriveByInput, setup, configured };
   const railConfigured = configured && Boolean(setup.homeStopId && setup.destStopId);
   const browseActive = hydrated && !configured;
   // A committed drive is what turns on live GPS on the map and the rolling
