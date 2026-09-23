@@ -3267,7 +3267,7 @@ function Index() {
     <main
       className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "rail" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
     >
-      <div className="mx-auto flex w-full max-w-[440px] flex-col">
+      <div className="mx-auto flex w-full max-w-[680px] flex-col">
         {showApproach && approach && (
           <ApproachBanner
             state={approach.state}
@@ -3880,7 +3880,10 @@ function Index() {
         </section>
 
         {selectedMode === "rail" && options.length > 1 && (
-          <section className="alternative-panel mb-8 rounded-lg p-5" aria-labelledby="later-title">
+          <section
+            className="alternative-panel mb-8 min-w-0 max-w-full overflow-hidden rounded-lg p-4 sm:p-5"
+            aria-labelledby="later-title"
+          >
             <div className="flex items-start gap-3">
               <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full border border-recommended/35 bg-recommended/10 text-recommended">
                 <Clock3 className="size-4" />
@@ -3894,7 +3897,7 @@ function Index() {
                 </p>
               </div>
             </div>
-            <ol className="mt-5 grid gap-3">
+            <ol className="mt-5 grid min-w-0 max-w-full gap-3">
               {options
                 .filter((option) => !best || optionIdentity(option) !== optionIdentity(best))
                 .slice(0, 3)
@@ -3906,27 +3909,27 @@ function Index() {
                     ? Math.round((option.leave_by_seconds - best.leave_by_seconds) / 60)
                     : 0;
                   return (
-                    <li key={optionIdentity(option)}>
+                    <li key={optionIdentity(option)} className="min-w-0 max-w-full">
                       <Button
                         type="button"
                         variant="ghost"
                         onClick={() => setSelectedDeparture(optionIdentity(option))}
                         aria-label={`Leave at ${clockFromSeconds(option.leave_by_seconds)} and arrive at ${clockFromSeconds(option.arrive_seconds)}`}
-                        className="alternative-option group h-auto w-full justify-start whitespace-normal rounded-lg p-4 text-left transition-all active:scale-[0.99]"
+                        className="alternative-option group h-auto min-w-0 max-w-full overflow-hidden whitespace-normal rounded-lg p-4 text-left transition-all active:scale-[0.99]"
                       >
-                        <span className="block w-full">
-                          <span className="flex items-start justify-between gap-2">
-                            <span>
+                        <span className="block min-w-0 w-full overflow-hidden">
+                          <span className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                            <span className="min-w-0">
                               <span className="block text-[10px] font-bold uppercase text-muted-foreground">
                                 Option {String.fromCharCode(65 + index)}
                               </span>
-                              <span className="mt-1 flex items-center gap-2 text-xl font-bold tabular-nums text-foreground">
-                                {clockFromSeconds(option.leave_by_seconds)}
-                                <ArrowRight className="size-4 text-recommended transition-transform group-hover:translate-x-0.5" />
-                                {clockFromSeconds(option.arrive_seconds)}
+                              <span className="mt-1 grid grid-cols-[auto_auto_auto] items-center justify-start gap-2 text-xl font-bold tabular-nums text-foreground">
+                                <span>{clockFromSeconds(option.leave_by_seconds)}</span>
+                                <ArrowRight className="size-4 shrink-0 text-recommended transition-transform group-hover:translate-x-0.5" />
+                                <span>{clockFromSeconds(option.arrive_seconds)}</span>
                               </span>
                             </span>
-                            <span className="max-w-[48%] shrink-0 rounded-full border border-border bg-muted/70 px-2.5 py-1 text-right text-[10px] font-bold leading-snug tabular-nums text-muted-foreground">
+                            <span className="w-fit max-w-full rounded-full border border-border bg-muted/70 px-2.5 py-1 text-left text-[10px] font-bold leading-snug tabular-nums text-muted-foreground sm:text-right">
                               {arrivalDifference > 0
                                 ? `Arrives ${arrivalDifference} min later than current`
                                 : arrivalDifference < 0
@@ -3934,12 +3937,12 @@ function Index() {
                                   : "Same arrival as current"}
                             </span>
                           </span>
-                          <span className="mt-4 grid grid-cols-2 gap-3 border-t border-border/70 pt-3 text-sm">
-                            <span>
+                          <span className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-border/70 pt-3 text-sm">
+                            <span className="min-w-0">
                               <span className="block text-[10px] font-semibold uppercase text-muted-foreground">
                                 Compared to current
                               </span>
-                              <span className="mt-1 block font-semibold tabular-nums text-foreground">
+                              <span className="mt-1 block break-words font-semibold tabular-nums text-foreground">
                                 {departureDifference > 0
                                   ? `Leaves ${departureDifference} min later`
                                   : departureDifference < 0
@@ -3947,7 +3950,7 @@ function Index() {
                                     : "Same departure time"}
                               </span>
                             </span>
-                            <span>
+                            <span className="shrink-0">
                               <span className="block text-[10px] font-semibold uppercase text-muted-foreground">
                                 Door to door
                               </span>
@@ -3957,7 +3960,7 @@ function Index() {
                             </span>
                           </span>
                           {option.legs[0] && (
-                            <span className="mt-3 flex items-center gap-2 rounded-md bg-recommended/5 px-3 py-2 text-xs text-muted-foreground">
+                            <span className="mt-3 flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md bg-recommended/5 px-3 py-2 text-xs text-muted-foreground">
                               <span className="size-1.5 shrink-0 rounded-full bg-recommended" />
                               <span className="truncate">{vehicleName(option.legs[0])}</span>
                             </span>
@@ -3971,8 +3974,12 @@ function Index() {
           </section>
         )}
 
-        <Button variant="outline" onClick={endTrip} className="mt-2 h-12 w-full shadow-none">
-          End trip
+        <Button
+          variant="destructive"
+          onClick={endTrip}
+          className="end-trip-action mt-2 h-14 w-full text-base font-black uppercase"
+        >
+          <X className="size-5" /> End Trip
         </Button>
 
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
