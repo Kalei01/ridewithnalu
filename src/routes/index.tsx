@@ -965,14 +965,12 @@ function Index() {
       if (cancelled) return;
       const currentState = syncStateRef.current;
       await Promise.all([
-        supabase
-          .from("profiles")
-          .upsert({
-            id: user.id,
-            display_name: displayName,
-            avatar_url: avatarUrl,
-            updated_at: new Date().toISOString(),
-          }),
+        supabase.from("profiles").upsert({
+          id: user.id,
+          display_name: displayName,
+          avatar_url: avatarUrl,
+          updated_at: new Date().toISOString(),
+        }),
         supabase.from("user_preferences").upsert({
           user_id: user.id,
           saved_places: nextPlaces,
@@ -5387,7 +5385,6 @@ function FeedbackForm({
       // Pre-fill from the signed-in account so riders never retype.
       setEmail((current) => current || signedInEmail);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, signedInEmail]);
 
   async function submit() {
