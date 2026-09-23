@@ -120,9 +120,15 @@ export function makeSavedPlace(input: {
 }
 
 export function upsertPlace(list: SavedPlace[], place: SavedPlace, now = new Date().toISOString()): SavedPlace[] {
-  const previous = list.find((item) => item.id === place.id);
-  const next = { ...place, createdAt: previous?.createdAt ?? place.createdAt ?? now, updatedAt: now };
-  const singleton = next.kind === "home" || next.kind === "work";
+  const singleton = place.kind === "home" || place.kind === "work";
+  const previous = list.find((item) => item.id === place.id)
+    ?? (singleton ? list.find((item) => item.kind === place.kind) : undefined);
+  const next = {
+    ...place,
+    typicalArrivalSeconds: place.typicalArrivalSeconds ?? previous?.typicalArrivalSeconds ?? null,
+    createdAt: previous?.createdAt ?? place.createdAt ?? now,
+    updatedAt: now,
+  };
   return list.filter((item) => item.id !== next.id && !(singleton && item.kind === next.kind)).concat(next).sort(byKindOrder);
 }
 

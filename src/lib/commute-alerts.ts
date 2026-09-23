@@ -12,9 +12,12 @@ export type TrafficAlertChange =
 export function detectTrafficAlert(
   previous: TrafficAlertSnapshot | null,
   current: TrafficAlertSnapshot,
+  baseline: TrafficAlertSnapshot | null = previous,
 ): TrafficAlertChange {
   if (!previous) return null;
-  const increaseMinutes = current.delayMinutes - previous.delayMinutes;
+  // Keep gradual increases from escaping notice when each polling step is
+  // smaller than the five-minute threshold.
+  const increaseMinutes = current.delayMinutes - (baseline?.delayMinutes ?? previous.delayMinutes);
   if (increaseMinutes >= 5) return { kind: "delay", increaseMinutes };
   const oldIncidents = new Set(previous.incidentKeys);
   return current.incidentKeys.some((key) => !oldIncidents.has(key)) ? { kind: "incident" } : null;

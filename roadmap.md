@@ -1,4 +1,4 @@
-- [ ] Redesign Alternative Departures for clarity and visual polish
-- [ ] Audit frontend, backend, data logic, security, accessibility, and release readiness
-- [ ] Fix confirmed defects without changing working product scope
-- [ ] Run targeted tests, full tests, typecheck, and browser verification
+- [x] Redesign Alternative Departures for clarity and visual polish
+- [x] Audit frontend, backend, data logic, security, accessibility, and release readiness
+- [x] Fix confirmed defects without changing working product scope
+- [x] Run targeted tests, full tests, typecheck, and production-build verification

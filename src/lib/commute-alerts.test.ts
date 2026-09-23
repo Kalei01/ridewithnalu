@@ -27,4 +27,14 @@ describe("detectTrafficAlert", () => {
       { delayMinutes: 7, incidentKeys: ["jam:h1"] },
     )).toBeNull();
   });
+
+  it("detects a cumulative increase across small polling steps", () => {
+    expect(
+      detectTrafficAlert(
+        { delayMinutes: 7, incidentKeys: [] },
+        { delayMinutes: 10, incidentKeys: [] },
+        { delayMinutes: 4, incidentKeys: [] },
+      ),
+    ).toEqual({ kind: "delay", increaseMinutes: 6 });
+  });
 });

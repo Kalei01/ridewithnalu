@@ -1844,9 +1844,11 @@ function Index() {
   });
 
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
+  const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
   useEffect(() => {
     if (!drivingCommitted || !drive || drive.trafficBasis !== "live") {
       previousTraffic.current = null;
+      trafficAlertBaseline.current = null;
       return;
     }
     const current: TrafficAlertSnapshot = {
@@ -1856,9 +1858,13 @@ function Index() {
           `${incident.description.trim().toLowerCase()}|${incident.road?.trim().toLowerCase() ?? ""}`,
       ),
     };
-    const change = detectTrafficAlert(previousTraffic.current, current);
+    const change = detectTrafficAlert(previousTraffic.current, current, trafficAlertBaseline.current);
+    if (!trafficAlertBaseline.current) trafficAlertBaseline.current = current;
     previousTraffic.current = current;
     if (!change) return;
+    // Acknowledging this alert starts a new comparison window, preventing the
+    // same cumulative increase from being announced at every refresh.
+    trafficAlertBaseline.current = current;
 
     const corridor =
       drive.corridorLabel?.replace(/^Via\s+/i, "") || drive.incidents[0]?.road || "your route";
