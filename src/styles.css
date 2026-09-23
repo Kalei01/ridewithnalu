@@ -312,13 +312,15 @@
     color: var(--color-foreground);
     min-width: 320px;
     min-height: 100vh;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
     letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior-y: contain;
   }
 
-  button, input {
+  button,
+  input {
     font: inherit;
   }
 }
@@ -350,26 +352,51 @@
 @utility glass-panel {
   border: 1px solid color-mix(in oklch, var(--color-foreground) 14%, transparent);
   background-color: color-mix(in oklch, var(--color-surface-raised) 82%, transparent);
-  box-shadow: 0 18px 48px oklch(0 0 0 / 28%), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  box-shadow:
+    0 18px 48px oklch(0 0 0 / 28%),
+    inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 10%, transparent);
   backdrop-filter: blur(20px) saturate(125%);
 }
 
 .commute-radiance-rail {
-  background-image: radial-gradient(circle at 52% 15%, var(--color-radiance-rail), transparent 38%), linear-gradient(to bottom, oklch(0.115 0.025 245), var(--color-background) 54%, oklch(0.13 0.02 250));
+  background-image:
+    radial-gradient(circle at 52% 15%, var(--color-radiance-rail), transparent 38%),
+    linear-gradient(
+      to bottom,
+      oklch(0.115 0.025 245),
+      var(--color-background) 54%,
+      oklch(0.13 0.02 250)
+    );
 }
 
 .commute-radiance-drive {
-  background-image: radial-gradient(circle at 52% 15%, var(--color-radiance-drive), transparent 38%), linear-gradient(to bottom, oklch(0.115 0.025 245), var(--color-background) 54%, oklch(0.13 0.02 250));
+  background-image:
+    radial-gradient(circle at 52% 15%, var(--color-radiance-drive), transparent 38%),
+    linear-gradient(
+      to bottom,
+      oklch(0.115 0.025 245),
+      var(--color-background) 54%,
+      oklch(0.13 0.02 250)
+    );
 }
 
 .browse-radiance {
   background-color: var(--color-background);
-  background-image: radial-gradient(circle at 18% 8%, var(--color-radiance-rail), transparent 31%), linear-gradient(to bottom, oklch(0.105 0.032 245), var(--color-background) 52%, oklch(0.13 0.02 250));
+  background-image:
+    radial-gradient(circle at 18% 8%, var(--color-radiance-rail), transparent 31%),
+    linear-gradient(
+      to bottom,
+      oklch(0.105 0.032 245),
+      var(--color-background) 52%,
+      oklch(0.13 0.02 250)
+    );
   background-attachment: fixed;
 }
 
 .browse-where-to {
-  box-shadow: 0 12px 34px color-mix(in oklch, var(--color-primary) 24%, transparent), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 34%, transparent);
+  box-shadow:
+    0 12px 34px color-mix(in oklch, var(--color-primary) 24%, transparent),
+    inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 34%, transparent);
 }
 
 .browse-eta-chip,
@@ -411,17 +438,23 @@
 .commitment-panel {
   border: 1px solid color-mix(in oklch, var(--color-primary) 55%, var(--color-border));
   background: color-mix(in oklch, var(--color-surface-raised) 88%, transparent);
-  box-shadow: 0 0 34px color-mix(in oklch, var(--color-primary) 20%, transparent), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 14%, transparent);
+  box-shadow:
+    0 0 34px color-mix(in oklch, var(--color-primary) 20%, transparent),
+    inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 14%, transparent);
   backdrop-filter: blur(20px) saturate(130%);
 }
 
 .commitment-panel.is-live {
   border-color: color-mix(in oklch, var(--color-location) 70%, var(--color-border));
-  box-shadow: 0 0 36px color-mix(in oklch, var(--color-location) 24%, transparent), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 14%, transparent);
+  box-shadow:
+    0 0 36px color-mix(in oklch, var(--color-location) 24%, transparent),
+    inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 14%, transparent);
 }
 
 .commitment-start {
-  box-shadow: 0 8px 28px color-mix(in oklch, var(--color-primary) 32%, transparent), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 34%, transparent);
+  box-shadow:
+    0 8px 28px color-mix(in oklch, var(--color-primary) 32%, transparent),
+    inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 34%, transparent);
 }
 
 .live-pulse {
@@ -454,24 +487,37 @@
 }
 
 @keyframes nalu-live-pulse {
-  0% { opacity: 0.9; transform: scale(0.45); }
-  75%, 100% { opacity: 0; transform: scale(1); }
+  0% {
+    opacity: 0.9;
+    transform: scale(0.45);
+  }
+  75%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .live-pulse::before { animation: none; }
+  .live-pulse::before {
+    animation: none;
+  }
 }
 
 .map-shell {
   border: 1px solid color-mix(in oklch, var(--color-foreground) 14%, transparent);
   background: var(--color-surface-raised);
-  box-shadow: 0 20px 50px oklch(0 0 0 / 34%), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 9%, transparent);
+  box-shadow:
+    0 20px 50px oklch(0 0 0 / 34%),
+    inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 9%, transparent);
 }
 
 .alternative-panel {
   border: 1px solid color-mix(in oklch, var(--color-foreground) 12%, transparent);
   background: color-mix(in oklch, var(--color-surface-raised) 90%, transparent);
-  box-shadow: 0 22px 54px oklch(0 0 0 / 30%), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 8%, transparent);
+  box-shadow:
+    0 22px 54px oklch(0 0 0 / 30%),
+    inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 8%, transparent);
   backdrop-filter: blur(22px) saturate(125%);
 }
 
@@ -484,7 +530,9 @@
 .alternative-option:hover,
 .alternative-option:focus-visible {
   border-color: color-mix(in oklch, var(--color-recommended) 52%, var(--color-border));
-  box-shadow: 0 12px 28px color-mix(in oklch, var(--color-recommended) 10%, transparent), inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 9%, transparent);
+  box-shadow:
+    0 12px 28px color-mix(in oklch, var(--color-recommended) 10%, transparent),
+    inset 0 1px 0 color-mix(in oklch, var(--color-foreground) 9%, transparent);
 }
 
 @utility departures-fade {

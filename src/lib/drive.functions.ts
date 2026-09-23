@@ -89,7 +89,9 @@ export const driveTime = createServerFn({ method: "POST" })
       console.info("[drive] cache_hit", { trafficBasis: cached.trafficBasis });
       return cached;
     }
-    console.info("[drive] cache_miss", { trafficBasis: data.departureTime ? "future-estimate" : "live" });
+    console.info("[drive] cache_miss", {
+      trafficBasis: data.departureTime ? "future-estimate" : "live",
+    });
 
     const routeUrl =
       `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
@@ -97,7 +99,6 @@ export const driveTime = createServerFn({ method: "POST" })
       `&sectionType=traffic` +
       `&routeRepresentation=polyline&instructionsType=text` +
       `${data.departureTime ? `&departAt=${encodeURIComponent(data.departureTime)}` : ""}`;
-
 
     const response = await fetch(routeUrl);
     if (!response.ok) {
@@ -173,7 +174,6 @@ export const driveTime = createServerFn({ method: "POST" })
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     };
-
 
     cacheDrive(cacheKey, result);
     return result;
@@ -327,4 +327,3 @@ function readTrafficSections(
   }
   return out;
 }
-

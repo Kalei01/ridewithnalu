@@ -28,11 +28,15 @@ export default function WalkingMicroMap({ from, to }: WalkingMicroMapProps) {
       scrollWheelZoom: false,
       doubleClickZoom: false,
     });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_3t31_1_b6f69033d24b3d666819845e", {
-      maxZoom: 20,
-      subdomains: "abcd",
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    }).addTo(map);
+    L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_3t31_1_b6f69033d24b3d666819845e",
+      {
+        maxZoom: 20,
+        subdomains: "abcd",
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      },
+    ).addTo(map);
     const start: L.LatLngTuple = [from.lat, from.lon];
     const end: L.LatLngTuple = [to.lat, to.lon];
     const points: L.LatLngTuple[] = [start, end];
@@ -47,8 +51,12 @@ export default function WalkingMicroMap({ from, to }: WalkingMicroMapProps) {
     fromTooltip.textContent = from.label;
     const toTooltip = document.createElement("span");
     toTooltip.textContent = to.label;
-    L.marker(start, { icon: pin("var(--color-location)"), title: from.label }).bindTooltip(fromTooltip).addTo(map);
-    L.marker(end, { icon: pin("var(--color-primary)"), title: to.label }).bindTooltip(toTooltip).addTo(map);
+    L.marker(start, { icon: pin("var(--color-location)"), title: from.label })
+      .bindTooltip(fromTooltip)
+      .addTo(map);
+    L.marker(end, { icon: pin("var(--color-primary)"), title: to.label })
+      .bindTooltip(toTooltip)
+      .addTo(map);
     map.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: 16, animate: false });
     window.requestAnimationFrame(() => map.invalidateSize({ animate: false }));
     return () => {
@@ -56,5 +64,11 @@ export default function WalkingMicroMap({ from, to }: WalkingMicroMapProps) {
     };
   }, [from.lat, from.lon, from.label, to.lat, to.lon, to.label]);
 
-  return <div ref={nodeRef} className="h-40 w-full" aria-label={`Walking map from ${from.label} to ${to.label}`} />;
+  return (
+    <div
+      ref={nodeRef}
+      className="h-40 w-full"
+      aria-label={`Walking map from ${from.label} to ${to.label}`}
+    />
+  );
 }

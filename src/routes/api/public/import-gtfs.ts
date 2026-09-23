@@ -225,9 +225,11 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
           const response = await fetch(GTFS_URL, { signal: AbortSignal.timeout(60_000) });
           if (!response.ok) throw new Error(`Feed download failed (${response.status})`);
           const declaredBytes = Number(response.headers.get("content-length") ?? 0);
-          if (declaredBytes > MAX_FEED_BYTES) throw new Error("Feed download exceeded the safe size limit");
+          if (declaredBytes > MAX_FEED_BYTES)
+            throw new Error("Feed download exceeded the safe size limit");
           const buffer = new Uint8Array(await response.arrayBuffer());
-          if (buffer.byteLength > MAX_FEED_BYTES) throw new Error("Feed download exceeded the safe size limit");
+          if (buffer.byteLength > MAX_FEED_BYTES)
+            throw new Error("Feed download exceeded the safe size limit");
 
           // Pass 1: small files.
           const stops: Row[] = [];
@@ -267,8 +269,7 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
             calendar
               .filter(
                 (row) =>
-                  (row["start_date"] ?? "") <= windowEnd &&
-                  (row["end_date"] ?? "") >= windowStart,
+                  (row["start_date"] ?? "") <= windowEnd && (row["end_date"] ?? "") >= windowStart,
               )
               .map((row) => row["service_id"]!),
           );
@@ -436,9 +437,7 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
           await touch("staging_stop_times", packed.length, packed.length, "completed");
 
           // ---- Atomic swap ---------------------------------------------
-          const { data: swapped, error: swapError } = await supabaseAdmin.rpc(
-            "swap_gtfs_staging",
-          );
+          const { data: swapped, error: swapError } = await supabaseAdmin.rpc("swap_gtfs_staging");
           if (swapError) throw new Error(`swap: ${swapError.message}`);
 
           const duration = Math.round((Date.now() - startedMs) / 1000);

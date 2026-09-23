@@ -127,7 +127,8 @@ function periodAt(periods: HourlyPeriod[], when: number): HourlyPeriod | null {
   for (const period of periods) {
     const start = period.startTime ? Date.parse(period.startTime) : NaN;
     const end = period.endTime ? Date.parse(period.endTime) : NaN;
-    if (Number.isFinite(start) && Number.isFinite(end) && when >= start && when < end) return period;
+    if (Number.isFinite(start) && Number.isFinite(end) && when >= start && when < end)
+      return period;
   }
   return periods[0] ?? null;
 }

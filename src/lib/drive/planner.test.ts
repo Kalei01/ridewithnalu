@@ -10,7 +10,8 @@ describe("drive planner", () => {
   });
 
   it("creates a Hawaii-time future routing instant", () => {
-    expect(honoluluSecondsToIso(7 * 3600 + 30 * 60, new Date("2026-09-22T12:00:00Z")))
-      .toBe("2026-09-22T07:30:00-10:00");
+    expect(honoluluSecondsToIso(7 * 3600 + 30 * 60, new Date("2026-09-22T12:00:00Z"))).toBe(
+      "2026-09-22T07:30:00-10:00",
+    );
   });
 });
