@@ -52,9 +52,21 @@ export type PlaceSuggestion = {
   lon: number;
 };
 
+/** A query that starts with a house number is an address, not a place name. */
+function looksLikeStreetAddress(query: string) {
+  return /^\s*\d/.test(query);
+}
+
+function insideOahu(lat: number, lon: number) {
+  return lat >= 21.2 && lat <= 21.75 && lon >= -158.35 && lon <= -157.6;
+}
+
 /**
- * Live destination suggestions from TomTom fuzzy search, biased to Oahu.
- * Matches place names (e.g. hospitals, malls) as well as street addresses.
+ * Live destination suggestions from TomTom fuzzy search, kept inside Oahu.
+ *
+ * Bias is a bounding box only: an island-centre radius bias pushed town
+ * results (e.g. Ala Moana Center) below identically named listings in
+ * Waipahu and 'Aiea, which sent riders to the wrong side of the island.
  */
 export const searchPlaces = createServerFn({ method: "POST" })
   .inputValidator((input) => searchSchema.parse(input))
@@ -62,17 +74,17 @@ export const searchPlaces = createServerFn({ method: "POST" })
     const key = process.env["TOMTOM_API_KEY"];
     if (!key) throw new Error("Place search is not configured yet.");
 
+    const addressQuery = looksLikeStreetAddress(data.query);
     const params = new URLSearchParams({
       key,
-      limit: "5",
+      limit: "10",
       typeahead: "true",
       countrySet: "US",
-      lat: String(OAHU.lat),
-      lon: String(OAHU.lon),
-      radius: String(OAHU.radius),
       topLeft: OAHU_BOX.topLeft,
       btmRight: OAHU_BOX.btmRight,
-      idxSet: "POI,PAD,Addr,Str,Geo",
+      // A numbered query is a street address: keep shop listings out of it.
+      idxSet: addressQuery ? "PAD,Addr,Str" : "POI,PAD,Addr,Geo,Str",
+      extendedPostalCodesFor: addressQuery ? "PAD,Addr" : "POI,PAD,Addr",
       language: "en-US",
     });
 
@@ -91,25 +103,39 @@ export const searchPlaces = createServerFn({ method: "POST" })
       results?: Array<{
         id?: string;
         type?: string;
+        score?: number;
         poi?: { name?: string };
         position?: { lat?: number; lon?: number };
+        entryPoints?: Array<{ type?: string; position?: { lat?: number; lon?: number } }>;
         address?: { freeformAddress?: string; municipality?: string };
       }>;
     };
 
     const results: PlaceSuggestion[] = [];
-    for (const hit of payload.results ?? []) {
-      const lat = hit.position?.lat;
-      const lon = hit.position?.lon;
+    const seen = new Set<string>();
+    const ranked = [...(payload.results ?? [])].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    for (const hit of ranked) {
+      // Drive to the door, not the middle of the parcel, when TomTom knows it.
+      const entry =
+        hit.entryPoints?.find((point) => point.type === "main")?.position ??
+        hit.entryPoints?.[0]?.position;
+      const lat = entry?.lat ?? hit.position?.lat;
+      const lon = entry?.lon ?? hit.position?.lon;
       if (typeof lat !== "number" || typeof lon !== "number") continue;
+      if (!insideOahu(lat, lon)) continue;
       const address = hit.address?.freeformAddress ?? hit.address?.municipality ?? "";
       const name = hit.poi?.name || address;
       if (!name) continue;
+      // Same name at the same address is one place, however many listings exist.
+      const fingerprint = `${name.toLowerCase()}|${address.toLowerCase()}`;
+      if (seen.has(fingerprint)) continue;
+      seen.add(fingerprint);
       results.push({ id: hit.id ?? `${lat},${lon}`, name, address, lat, lon });
-      if (results.length === 5) break;
+      if (results.length === 6) break;
     }
     return { results };
   });
+
 
 const reverseSchema = z.object({ lat: z.number(), lon: z.number() });
 
