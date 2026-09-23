@@ -2,3 +2,6 @@
 - [x] Audit frontend, backend, data logic, security, accessibility, and release readiness
 - [x] Fix confirmed defects without changing working product scope
 - [x] Run targeted tests, full tests, typecheck, and production-build verification
+- [ ] Keep Alternative Departures contained after refresh on phone and tablet widths
+- [ ] Highlight every End Trip action in red
+- [ ] Verify the active-trip screen on mobile and tablet viewports
