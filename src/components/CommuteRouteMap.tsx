@@ -38,23 +38,38 @@ type CommuteRouteMapProps = {
   trafficSections?: TrafficSection[];
 };
 
-
 type Basemap = "standard" | "satellite";
 
 const BASEMAPS = {
   standard: {
     url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_3t31_1_b6f69033d24b3d666819845e",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution: "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+    attribution:
+      "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
   },
 } as const;
 
 function journeyIcon(point: JourneyPoint) {
-  const glyph = point.kind === "start" ? "START" : point.kind === "end" ? "END" : point.kind === "rail" ? "▰" : "●";
-  const label = point.kind === "start" ? "Start" : point.kind === "end" ? "End" : point.kind === "rail" ? "Rail station" : "Bus stop";
+  const glyph =
+    point.kind === "start"
+      ? "START"
+      : point.kind === "end"
+        ? "END"
+        : point.kind === "rail"
+          ? "▰"
+          : "●";
+  const label =
+    point.kind === "start"
+      ? "Start"
+      : point.kind === "end"
+        ? "End"
+        : point.kind === "rail"
+          ? "Rail station"
+          : "Bus stop";
   const endpoint = point.kind === "start" || point.kind === "end";
   return L.divIcon({
     className: "nalu-marker-shell",
@@ -64,7 +79,23 @@ function journeyIcon(point: JourneyPoint) {
   });
 }
 
-export default function CommuteRouteMap({ points, livePoint, liveHeading, followLive = false, path, segments, trafficSections }: CommuteRouteMapProps) {
+function tooltip(label: string, value: string) {
+  const content = document.createElement("span");
+  const strong = document.createElement("strong");
+  strong.textContent = label;
+  content.append(strong, document.createElement("br"), document.createTextNode(value));
+  return content;
+}
+
+export default function CommuteRouteMap({
+  points,
+  livePoint,
+  liveHeading,
+  followLive = false,
+  path,
+  segments,
+  trafficSections,
+}: CommuteRouteMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -109,7 +140,11 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
     const previousLayer = tileLayerRef.current;
     if (previousLayer) map.removeLayer(previousLayer);
     const next = BASEMAPS[basemap];
-    tileLayerRef.current = L.tileLayer(next.url, { maxZoom: 19, subdomains: "abcd", attribution: next.attribution }).addTo(map);
+    tileLayerRef.current = L.tileLayer(next.url, {
+      maxZoom: 19,
+      subdomains: "abcd",
+      attribution: next.attribution,
+    }).addTo(map);
     tileLayerRef.current.bringToBack();
   }, [basemap]);
 
@@ -118,10 +153,12 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
   const routeSignature = useMemo(
     () =>
       [
-        points.map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join("|"),
-        `path:${path?.length ?? 0}:${path?.[0] ? `${path[0].lat.toFixed(4)},${path[0].lon.toFixed(4)}` : ""}`,
+        points
+          .map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`)
+          .join("|"),
+        `path:${(path ?? []).map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`,
         `segments:${(segments ?? []).map((segment) => `${segment.id}:${segment.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
-        `traffic:${(trafficSections ?? []).map((section) => `${section.severity}${section.points.length}`).join(",")}`,
+        `traffic:${(trafficSections ?? []).map((section) => `${section.severity}:${section.delayMinutes}:${section.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
       ].join("#"),
     [points, path, segments, trafficSections],
   );
@@ -133,7 +170,25 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
   segmentsRef.current = segments;
   const trafficRef = useRef(trafficSections);
   trafficRef.current = trafficSections;
-
+  const fittedGeometryRef = useRef<string | null>(null);
+  const geometrySignature = useMemo(
+    () =>
+      [
+        points
+          .map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`)
+          .join("|"),
+        (path ?? []).map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";"),
+        (segments ?? [])
+          .map(
+            (segment) =>
+              `${segment.id}:${segment.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`,
+          )
+          .join("|"),
+      ].join("#"),
+    [points, path, segments],
+  );
+  const geometrySignatureRef = useRef(geometrySignature);
+  geometrySignatureRef.current = geometrySignature;
 
   useEffect(() => {
     const map = mapRef.current;
@@ -149,17 +204,24 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
       roadPath && roadPath.length > 1
         ? roadPath.map((point) => [point.lat, point.lon] as L.LatLngTuple)
         : current.map((point) => [point.lat, point.lon] as L.LatLngTuple);
-    const transitSegments = segmentsRef.current?.filter((segment) => segment.points.length > 1) ?? [];
-    const drawableSegments = roadPath && roadPath.length > 1
-      ? [{ id: "drive", mode: "drive" as const, points: roadPath }]
-      : transitSegments.length > 0
-        ? transitSegments
-        : [{ id: "fallback", mode: "rail" as const, points: current }];
+    const transitSegments =
+      segmentsRef.current?.filter((segment) => segment.points.length > 1) ?? [];
+    const drawableSegments =
+      roadPath && roadPath.length > 1
+        ? [{ id: "drive", mode: "drive" as const, points: roadPath }]
+        : transitSegments.length > 0
+          ? transitSegments
+          : [{ id: "fallback", mode: "rail" as const, points: current }];
 
     for (const segment of drawableSegments) {
       const latLngs = segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
       const walking = segment.mode === "walk";
-      const color = segment.mode === "bus" ? "var(--color-location)" : segment.mode === "walk" ? "var(--color-muted-foreground)" : "var(--color-primary)";
+      const color =
+        segment.mode === "bus"
+          ? "var(--color-location)"
+          : segment.mode === "walk"
+            ? "var(--color-muted-foreground)"
+            : "var(--color-primary)";
       L.polyline(latLngs, {
         color: "var(--color-background)",
         weight: walking ? 7 : 11,
@@ -185,7 +247,7 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
       const latLngs = section.points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
       const heavy = section.severity === "heavy";
       L.polyline(latLngs, {
-        color: heavy ? "#ff453a" : "#ffb020",
+        color: heavy ? "var(--color-traffic-heavy)" : "var(--color-traffic-moderate)",
         weight: 6,
         opacity: 0.95,
         lineCap: "round",
@@ -199,7 +261,6 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
         .addTo(routeLayer);
     }
 
-
     current.forEach((point) => {
       L.marker([point.lat, point.lon], {
         icon: journeyIcon(point),
@@ -208,22 +269,38 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
         zIndexOffset: point.kind === "start" || point.kind === "end" ? 1500 : 0,
       })
         .bindTooltip(
-          `<strong>${point.kind === "start" ? "Start" : point.kind === "end" ? "End" : point.kind === "rail" ? "Rail" : "Bus"}</strong><br>${point.name}`,
+          tooltip(
+            point.kind === "start"
+              ? "Start"
+              : point.kind === "end"
+                ? "End"
+                : point.kind === "rail"
+                  ? "Rail"
+                  : "Bus",
+            point.name,
+          ),
           { direction: "top", offset: [0, -18] },
         )
         .addTo(routeLayer);
     });
 
     const boundsLatLngs = [
-      ...drawableSegments.flatMap((segment) => segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple)),
+      ...drawableSegments.flatMap((segment) =>
+        segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple),
+      ),
       ...current.map((point) => [point.lat, point.lon] as L.LatLngTuple),
     ];
-    map.invalidateSize({ animate: false });
-    // Snap, never animate: an animated fit on every data refresh is what made the
-    // map appear to twitch while a trip was on screen.
-    map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, animate: false });
+    if (fittedGeometryRef.current !== geometrySignatureRef.current) {
+      fittedGeometryRef.current = geometrySignatureRef.current;
+      map.invalidateSize({ animate: false });
+      // Snap, never animate, and only when route geometry actually changes.
+      map.fitBounds(L.latLngBounds(boundsLatLngs), {
+        padding: [34, 34],
+        maxZoom: 15,
+        animate: false,
+      });
+    }
   }, [routeSignature]);
-
 
   // The live dot moves in place; recreating it (or touching the viewport) on every
   // watchPosition tick is what made the map twitch.
@@ -285,7 +362,6 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
     map.setView([livePoint.lat, livePoint.lon], Math.max(map.getZoom(), 15), { animate: false });
   }, [followLive, livePoint]);
 
-
   const recenter = () => {
     const map = mapRef.current;
     if (!map || !livePoint) return;
@@ -297,6 +373,9 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
     if (!map || points.length < 2) return;
     const corridor: L.LatLngTuple[] = [
       ...(path ?? []).map((point) => [point.lat, point.lon] as L.LatLngTuple),
+      ...(segments ?? []).flatMap((segment) =>
+        segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple),
+      ),
       ...points.map((point) => [point.lat, point.lon] as L.LatLngTuple),
     ];
     map.flyToBounds(L.latLngBounds(corridor), {
@@ -306,11 +385,17 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
     });
   };
 
-
   return (
     <div className="relative z-0 isolate h-full w-full">
-      <div ref={nodeRef} className="h-full w-full" aria-label="Interactive map of your door-to-door commute" />
-      <div className="absolute right-3 top-3 z-[500] flex flex-col items-end gap-2" aria-label="Map controls">
+      <div
+        ref={nodeRef}
+        className="h-full w-full"
+        aria-label="Interactive map of your door-to-door commute"
+      />
+      <div
+        className="absolute right-3 top-3 z-[500] flex flex-col items-end gap-2"
+        aria-label="Map controls"
+      >
         <div className="flex overflow-hidden rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl">
           <Button
             type="button"
@@ -338,10 +423,27 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
           </Button>
         </div>
         <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="icon" onClick={fitRoute} aria-label="Fit full route" title="Fit full route" className="size-11 rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            onClick={fitRoute}
+            aria-label="Fit full route"
+            title="Fit full route"
+            className="size-11 rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl"
+          >
             <Maximize className="size-5" />
           </Button>
-          <Button type="button" variant="secondary" size="icon" onClick={recenter} disabled={!livePoint} aria-label={livePoint ? "Recenter on my location" : "Current location unavailable"} title={livePoint ? "Recenter on my location" : "Current location unavailable"} className="size-11 rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            onClick={recenter}
+            disabled={!livePoint}
+            aria-label={livePoint ? "Recenter on my location" : "Current location unavailable"}
+            title={livePoint ? "Recenter on my location" : "Current location unavailable"}
+            className="size-11 rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl"
+          >
             <LocateFixed className="size-5" />
           </Button>
         </div>

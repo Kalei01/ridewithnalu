@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Unzip, AsyncUnzipInflate } from "fflate";
+import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
 
 const GTFS_URL = "https://www.thebus.org/transitdata/production/google_transit.zip";
 
@@ -20,6 +21,8 @@ const CHUNK_SIZE = 1_000;
 const STALL_MINUTES = 10;
 /** Soft time budget; when exceeded the run stops and the next call resumes. */
 const TIME_BUDGET_MS = 240_000;
+/** Reject an unexpectedly large upstream payload before buffering it. */
+const MAX_FEED_BYTES = 80 * 1024 * 1024;
 
 type Row = Record<string, string>;
 
@@ -130,11 +133,11 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const key = request.headers.get("apikey") ?? "";
-        const expected = process.env["SUPABASE_PUBLISHABLE_KEY"] ?? "";
-        if (!expected || key !== expected) {
-          return Response.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        // This route performs privileged writes and must never accept the
+        // browser-visible publishable key. The scheduler sends a rotating,
+        // timing-safe Bearer credential checked by the generated helper.
+        const authError = await authenticateCronRequest(request);
+        if (authError) return authError;
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const startedMs = Date.now();
@@ -160,12 +163,19 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
 
         const resuming = (running ?? []).length > 0;
         // The hourly watchdog call only ever finishes a stalled run.
-        const mode = await request
-          .json()
-          .then((body: unknown) =>
-            body && typeof body === "object" ? (body as { mode?: string }).mode : undefined,
-          )
-          .catch(() => undefined);
+        let mode: string | undefined;
+        const rawBody = await request.text();
+        if (rawBody.trim()) {
+          try {
+            const body = JSON.parse(rawBody) as unknown;
+            mode = body && typeof body === "object" ? (body as { mode?: string }).mode : undefined;
+          } catch {
+            return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+          }
+        }
+        if (mode !== undefined && mode !== "resume") {
+          return Response.json({ error: "Invalid import mode" }, { status: 400 });
+        }
         if (mode === "resume" && !resuming) {
           return Response.json({ skipped: true, reason: "nothing to resume" });
         }
@@ -212,9 +222,14 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
         try {
           await touch("feed", 0, null, "running");
 
-          const response = await fetch(GTFS_URL);
+          const response = await fetch(GTFS_URL, { signal: AbortSignal.timeout(60_000) });
           if (!response.ok) throw new Error(`Feed download failed (${response.status})`);
+          const declaredBytes = Number(response.headers.get("content-length") ?? 0);
+          if (declaredBytes > MAX_FEED_BYTES)
+            throw new Error("Feed download exceeded the safe size limit");
           const buffer = new Uint8Array(await response.arrayBuffer());
+          if (buffer.byteLength > MAX_FEED_BYTES)
+            throw new Error("Feed download exceeded the safe size limit");
 
           // Pass 1: small files.
           const stops: Row[] = [];
@@ -254,8 +269,7 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
             calendar
               .filter(
                 (row) =>
-                  (row["start_date"] ?? "") <= windowEnd &&
-                  (row["end_date"] ?? "") >= windowStart,
+                  (row["start_date"] ?? "") <= windowEnd && (row["end_date"] ?? "") >= windowStart,
               )
               .map((row) => row["service_id"]!),
           );
@@ -423,9 +437,7 @@ export const Route = createFileRoute("/api/public/import-gtfs")({
           await touch("staging_stop_times", packed.length, packed.length, "completed");
 
           // ---- Atomic swap ---------------------------------------------
-          const { data: swapped, error: swapError } = await supabaseAdmin.rpc(
-            "swap_gtfs_staging",
-          );
+          const { data: swapped, error: swapError } = await supabaseAdmin.rpc("swap_gtfs_staging");
           if (swapError) throw new Error(`swap: ${swapError.message}`);
 
           const duration = Math.round((Date.now() - startedMs) / 1000);

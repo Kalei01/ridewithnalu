@@ -34,9 +34,15 @@ export function kindLabel(kind: PlaceKind): string {
   return "Saved place";
 }
 
-export function hasValidCoordinates<T extends { lat?: unknown; lon?: unknown }>(point: T): point is T & { lat: number; lon: number } {
-  return typeof point.lat === "number" && Number.isFinite(point.lat)
-    && typeof point.lon === "number" && Number.isFinite(point.lon);
+export function hasValidCoordinates<T extends { lat?: unknown; lon?: unknown }>(
+  point: T,
+): point is T & { lat: number; lon: number } {
+  return (
+    typeof point.lat === "number" &&
+    Number.isFinite(point.lat) &&
+    typeof point.lon === "number" &&
+    Number.isFinite(point.lon)
+  );
 }
 
 function normalizePlace(value: unknown, index: number, now: string): SavedPlace | null {
@@ -44,17 +50,26 @@ function normalizePlace(value: unknown, index: number, now: string): SavedPlace 
   const row = value as Record<string, unknown>;
   if (!hasValidCoordinates(row)) return null;
   if (typeof row["name"] !== "string" || !row["name"].trim()) return null;
-  const kind = PLACE_KINDS.includes(row["kind"] as PlaceKind) ? row["kind"] as PlaceKind : "custom";
+  const kind = PLACE_KINDS.includes(row["kind"] as PlaceKind)
+    ? (row["kind"] as PlaceKind)
+    : "custom";
   const legacyArrival = row["arriveBySeconds"];
-  const arrival = typeof row["typicalArrivalSeconds"] === "number"
-    ? row["typicalArrivalSeconds"]
-    : typeof legacyArrival === "number" ? legacyArrival : null;
+  const arrival =
+    typeof row["typicalArrivalSeconds"] === "number"
+      ? row["typicalArrivalSeconds"]
+      : typeof legacyArrival === "number"
+        ? legacyArrival
+        : null;
   return {
-    id: typeof row["id"] === "string" && row["id"] ? row["id"] : `${kind}-${index}-${row.lat},${row.lon}`,
+    id:
+      typeof row["id"] === "string" && row["id"]
+        ? row["id"]
+        : `${kind}-${index}-${row.lat},${row.lon}`,
     kind,
     label: typeof row["label"] === "string" && row["label"].trim() ? row["label"] : kindLabel(kind),
     name: row["name"],
-    address: typeof row["address"] === "string" && row["address"].trim() ? row["address"] : row["name"],
+    address:
+      typeof row["address"] === "string" && row["address"].trim() ? row["address"] : row["name"],
     lat: row.lat,
     lon: row.lon,
     typicalArrivalSeconds: arrival !== null && Number.isFinite(arrival) ? arrival : null,
@@ -77,22 +92,55 @@ export function parseSavedPlaces(raw: string | null, now = new Date().toISOStrin
   }
 }
 
-export function migrateSavedPlaces(currentRaw: string | null, legacyRaw: string | null, legacySetupRaw: string | null, now = new Date().toISOString()): SavedPlace[] {
+export function migrateSavedPlaces(
+  currentRaw: string | null,
+  legacyRaw: string | null,
+  legacySetupRaw: string | null,
+  now = new Date().toISOString(),
+): SavedPlace[] {
   const current = parseSavedPlaces(currentRaw, now);
   if (current.length) return current;
   let migrated = parseSavedPlaces(legacyRaw, now);
   if (legacySetupRaw) {
     try {
       const setup = JSON.parse(legacySetupRaw) as LegacySetup;
-      if (hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon }) && !findByKind(migrated, "home")) {
-        migrated = upsertPlace(migrated, makeSavedPlace({ kind: "home", name: "Home", address: "Home", lat: Number(setup.homeLat), lon: Number(setup.homeLon) }, now));
+      if (
+        hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon }) &&
+        !findByKind(migrated, "home")
+      ) {
+        migrated = upsertPlace(
+          migrated,
+          makeSavedPlace(
+            {
+              kind: "home",
+              name: "Home",
+              address: "Home",
+              lat: Number(setup.homeLat),
+              lon: Number(setup.homeLon),
+            },
+            now,
+          ),
+        );
       }
-      if (hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon }) && !findByKind(migrated, "work")) {
-        const name = typeof setup.destinationName === "string" && setup.destinationName.trim()
-          ? setup.destinationName : "Work";
-        const address = typeof setup.destinationAddress === "string" && setup.destinationAddress.trim()
-          ? setup.destinationAddress : name;
-        migrated = upsertPlace(migrated, makeSavedPlace({ kind: "work", name, address, lat: Number(setup.destLat), lon: Number(setup.destLon) }, now));
+      if (
+        hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon }) &&
+        !findByKind(migrated, "work")
+      ) {
+        const name =
+          typeof setup.destinationName === "string" && setup.destinationName.trim()
+            ? setup.destinationName
+            : "Work";
+        const address =
+          typeof setup.destinationAddress === "string" && setup.destinationAddress.trim()
+            ? setup.destinationAddress
+            : name;
+        migrated = upsertPlace(
+          migrated,
+          makeSavedPlace(
+            { kind: "work", name, address, lat: Number(setup.destLat), lon: Number(setup.destLon) },
+            now,
+          ),
+        );
       }
     } catch {
       // Keep valid legacy places. Never destroy source data after a failed migration.
@@ -101,10 +149,19 @@ export function migrateSavedPlaces(currentRaw: string | null, legacyRaw: string 
   return migrated;
 }
 
-export function makeSavedPlace(input: {
-  id?: string; kind: PlaceKind; label?: string; name: string; address: string;
-  lat: number; lon: number; typicalArrivalSeconds?: number | null;
-}, now = new Date().toISOString()): SavedPlace {
+export function makeSavedPlace(
+  input: {
+    id?: string;
+    kind: PlaceKind;
+    label?: string;
+    name: string;
+    address: string;
+    lat: number;
+    lon: number;
+    typicalArrivalSeconds?: number | null;
+  },
+  now = new Date().toISOString(),
+): SavedPlace {
   return {
     id: input.id ?? `${input.kind}-${Date.now()}`,
     kind: input.kind,
@@ -119,36 +176,72 @@ export function makeSavedPlace(input: {
   };
 }
 
-export function upsertPlace(list: SavedPlace[], place: SavedPlace, now = new Date().toISOString()): SavedPlace[] {
-  const previous = list.find((item) => item.id === place.id);
-  const next = { ...place, createdAt: previous?.createdAt ?? place.createdAt ?? now, updatedAt: now };
-  const singleton = next.kind === "home" || next.kind === "work";
-  return list.filter((item) => item.id !== next.id && !(singleton && item.kind === next.kind)).concat(next).sort(byKindOrder);
+export function upsertPlace(
+  list: SavedPlace[],
+  place: SavedPlace,
+  now = new Date().toISOString(),
+): SavedPlace[] {
+  const singleton = place.kind === "home" || place.kind === "work";
+  const previous =
+    list.find((item) => item.id === place.id) ??
+    (singleton ? list.find((item) => item.kind === place.kind) : undefined);
+  const next = {
+    ...place,
+    typicalArrivalSeconds: place.typicalArrivalSeconds ?? previous?.typicalArrivalSeconds ?? null,
+    createdAt: previous?.createdAt ?? place.createdAt ?? now,
+    updatedAt: now,
+  };
+  return list
+    .filter((item) => item.id !== next.id && !(singleton && item.kind === next.kind))
+    .concat(next)
+    .sort(byKindOrder);
 }
 
-export function removePlace(list: SavedPlace[], id: string): SavedPlace[] { return list.filter((item) => item.id !== id); }
-export function findByKind(list: SavedPlace[], kind: PlaceKind): SavedPlace | null { return list.find((item) => item.kind === kind) ?? null; }
-function byKindOrder(a: SavedPlace, b: SavedPlace) { return PLACE_KINDS.indexOf(a.kind) - PLACE_KINDS.indexOf(b.kind); }
+export function removePlace(list: SavedPlace[], id: string): SavedPlace[] {
+  return list.filter((item) => item.id !== id);
+}
+export function findByKind(list: SavedPlace[], kind: PlaceKind): SavedPlace | null {
+  return list.find((item) => item.kind === kind) ?? null;
+}
+function byKindOrder(a: SavedPlace, b: SavedPlace) {
+  return PLACE_KINDS.indexOf(a.kind) - PLACE_KINDS.indexOf(b.kind);
+}
 
 export function swapHomeWork(list: SavedPlace[], now = new Date().toISOString()): SavedPlace[] {
   const home = findByKind(list, "home");
   const work = findByKind(list, "work");
   if (!home || !work) return list;
-  return list.map((item) => item.id === home.id
-    ? { ...item, kind: "work" as const, label: "Work", updatedAt: now }
-    : item.id === work.id
-      ? { ...item, kind: "home" as const, label: "Home", updatedAt: now }
-      : item).sort(byKindOrder);
+  return list
+    .map((item) =>
+      item.id === home.id
+        ? { ...item, kind: "work" as const, label: "Work", updatedAt: now }
+        : item.id === work.id
+          ? { ...item, kind: "home" as const, label: "Home", updatedAt: now }
+          : item,
+    )
+    .sort(byKindOrder);
 }
 
 export type CommutePreset = { id: string; label: string; from: SavedPlace; to: SavedPlace };
 export function commutePresets(list: SavedPlace[]): CommutePreset[] {
   const home = findByKind(list, "home");
   if (!home) return [];
-  return list.filter((place) => place.id !== home.id).flatMap((place) => [
-    { id: `${home.id}->${place.id}`, label: `${home.label} → ${place.label}`, from: home, to: place },
-    { id: `${place.id}->${home.id}`, label: `${place.label} → ${home.label}`, from: place, to: home },
-  ]);
+  return list
+    .filter((place) => place.id !== home.id)
+    .flatMap((place) => [
+      {
+        id: `${home.id}->${place.id}`,
+        label: `${home.label} → ${place.label}`,
+        from: home,
+        to: place,
+      },
+      {
+        id: `${place.id}->${home.id}`,
+        label: `${place.label} → ${home.label}`,
+        from: place,
+        to: home,
+      },
+    ]);
 }
 
 export function parseClockInput(value: string): number | null {

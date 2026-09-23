@@ -35,7 +35,18 @@ export type BusArrivalsResult = {
 
 type CachedFeed = { expiresAt: number; xml: string };
 const CACHE_MS = 30_000;
+const MAX_CACHE_ENTRIES = 100;
 const cache = new Map<string, CachedFeed>();
+
+function cacheFeed(stopId: string, feed: CachedFeed) {
+  cache.delete(stopId);
+  cache.set(stopId, feed);
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (typeof oldest !== "string") break;
+    cache.delete(oldest);
+  }
+}
 
 function text(xml: string, tag: string) {
   const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
@@ -57,7 +68,8 @@ function honoluluSecondsNow() {
     minute: "2-digit",
     second: "2-digit",
   }).formatToParts(new Date());
-  const number = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  const number = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
   return number("hour") * 3600 + number("minute") * 60 + number("second");
 }
 
@@ -77,13 +89,18 @@ function clock(seconds: number) {
   const wrapped = ((seconds % 86400) + 86400) % 86400;
   const hour = Math.floor(wrapped / 3600);
   const minute = Math.floor((wrapped % 3600) / 60);
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(
-    new Date(Date.UTC(2020, 0, 1, hour, minute)),
-  );
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2020, 0, 1, hour, minute)));
 }
 
 function normalize(value: string | null) {
-  return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 export const busArrivals = createServerFn({ method: "POST" })
@@ -91,7 +108,10 @@ export const busArrivals = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<BusArrivalsResult> => {
     const key = process.env["HEA_API_KEY"];
     const failed = (configured: boolean): BusArrivalsResult => ({
-      arrivals: [], error: true, configured, fetchedAt: Date.now(),
+      arrivals: [],
+      error: true,
+      configured,
+      fetchedAt: Date.now(),
     });
     if (!key) return failed(false);
 
@@ -107,49 +127,61 @@ export const busArrivals = createServerFn({ method: "POST" })
         const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
         if (!response.ok) return failed(false);
         xml = await response.text();
-        cache.set(data.stopId, { xml, expiresAt: Date.now() + CACHE_MS });
+        cacheFeed(data.stopId, { xml, expiresAt: Date.now() + CACHE_MS });
       }
       if (text(xml, "errorMessage")) return failed(false);
 
       const nowSeconds = honoluluSecondsNow();
       const blocks = xml.match(/<arrival\b[^>]*>[\s\S]*?<\/arrival>/gi) ?? [];
-      const arrivals = blocks.flatMap((block): BusArrival[] => {
-        const routeShortName = text(block, "route");
-        const headsign = text(block, "headsign");
-        const predictedClock = text(block, "stopTime");
-        const predictedSeconds = parseClock(predictedClock, nowSeconds);
-        if (predictedSeconds === null) return [];
-        const routeMatches = data.scheduled.filter((item) => normalize(item.routeShortName) === normalize(routeShortName));
-        const headsignMatches = routeMatches.filter((item) => {
-          const a = normalize(item.headsign);
-          const b = normalize(headsign);
-          return !a || !b || a.includes(b) || b.includes(a);
-        });
-        const candidates = headsignMatches.length > 0 ? headsignMatches : routeMatches;
-        const scheduled = candidates.sort(
-          (a, b) => Math.abs(a.scheduledSeconds - predictedSeconds) - Math.abs(b.scheduledSeconds - predictedSeconds),
-        )[0];
-        const scheduledSeconds = scheduled?.scheduledSeconds ?? predictedSeconds;
-        const isLive = text(block, "estimated") === "1";
-        const delayMinutes = isLive ? Math.round((predictedSeconds - scheduledSeconds) / 60) : 0;
-        return [{
-          routeShortName,
-          headsign,
-          estimatedArrivalTime: isLive ? predictedClock : null,
-          scheduledArrivalTime: clock(scheduledSeconds),
-          estimatedSeconds: predictedSeconds,
-          scheduledSeconds,
-          isDelayed: delayMinutes > 2,
-          delayMinutes,
-          minutesAway: Math.max(0, Math.ceil((predictedSeconds - nowSeconds) / 60)),
-          isLive,
-          canceled: text(block, "canceled") === "1",
-        }];
-      }).filter((arrival) => !arrival.canceled).sort((a, b) => a.estimatedSeconds - b.estimatedSeconds);
+      const arrivals = blocks
+        .flatMap((block): BusArrival[] => {
+          const routeShortName = text(block, "route");
+          const headsign = text(block, "headsign");
+          const predictedClock = text(block, "stopTime");
+          const predictedSeconds = parseClock(predictedClock, nowSeconds);
+          if (predictedSeconds === null) return [];
+          const routeMatches = data.scheduled.filter(
+            (item) => normalize(item.routeShortName) === normalize(routeShortName),
+          );
+          const headsignMatches = routeMatches.filter((item) => {
+            const a = normalize(item.headsign);
+            const b = normalize(headsign);
+            return !a || !b || a.includes(b) || b.includes(a);
+          });
+          const candidates = headsignMatches.length > 0 ? headsignMatches : routeMatches;
+          const scheduled = candidates.sort(
+            (a, b) =>
+              Math.abs(a.scheduledSeconds - predictedSeconds) -
+              Math.abs(b.scheduledSeconds - predictedSeconds),
+          )[0];
+          const scheduledSeconds = scheduled?.scheduledSeconds ?? predictedSeconds;
+          const isLive = text(block, "estimated") === "1";
+          const delayMinutes = isLive ? Math.round((predictedSeconds - scheduledSeconds) / 60) : 0;
+          return [
+            {
+              routeShortName,
+              headsign,
+              estimatedArrivalTime: isLive ? predictedClock : null,
+              scheduledArrivalTime: clock(scheduledSeconds),
+              estimatedSeconds: predictedSeconds,
+              scheduledSeconds,
+              isDelayed: delayMinutes > 2,
+              delayMinutes,
+              minutesAway: Math.max(0, Math.ceil((predictedSeconds - nowSeconds) / 60)),
+              isLive,
+              canceled: text(block, "canceled") === "1",
+            },
+          ];
+        })
+        .filter((arrival) => !arrival.canceled)
+        .sort((a, b) => a.estimatedSeconds - b.estimatedSeconds);
 
       return { arrivals, error: false, configured: true, fetchedAt: Date.now() };
     } catch (error) {
-      console.error("TheBus HEA arrivals failed", error instanceof Error ? error.message : "Unknown error");
+      console.error(
+        "TheBus HEA arrivals failed",
+        error instanceof Error ? error.message : "Unknown error",
+      );
       return failed(false);
     }
   });

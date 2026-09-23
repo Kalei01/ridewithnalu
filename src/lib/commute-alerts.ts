@@ -4,17 +4,18 @@ export type TrafficAlertSnapshot = {
 };
 
 export type TrafficAlertChange =
-  | { kind: "delay"; increaseMinutes: number }
-  | { kind: "incident" }
-  | null;
+  { kind: "delay"; increaseMinutes: number } | { kind: "incident" } | null;
 
 /** Compare successive live refreshes without announcing the initial snapshot. */
 export function detectTrafficAlert(
   previous: TrafficAlertSnapshot | null,
   current: TrafficAlertSnapshot,
+  baseline: TrafficAlertSnapshot | null = previous,
 ): TrafficAlertChange {
   if (!previous) return null;
-  const increaseMinutes = current.delayMinutes - previous.delayMinutes;
+  // Keep gradual increases from escaping notice when each polling step is
+  // smaller than the five-minute threshold.
+  const increaseMinutes = current.delayMinutes - (baseline?.delayMinutes ?? previous.delayMinutes);
   if (increaseMinutes >= 5) return { kind: "delay", increaseMinutes };
   const oldIncidents = new Set(previous.incidentKeys);
   return current.incidentKeys.some((key) => !oldIncidents.has(key)) ? { kind: "incident" } : null;
@@ -23,7 +24,8 @@ export function detectTrafficAlert(
 export function requestCommuteNotificationPermission() {
   try {
     if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (window.Notification.permission === "default") void window.Notification.requestPermission().catch(() => {});
+    if (window.Notification.permission === "default")
+      void window.Notification.requestPermission().catch(() => {});
   } catch {
     // Notification access is optional and must never interrupt starting a trip.
   }
@@ -31,7 +33,12 @@ export function requestCommuteNotificationPermission() {
 
 export function postCommuteNotification(title: string, body: string, tag: string) {
   try {
-    if (typeof window === "undefined" || !("Notification" in window) || window.Notification.permission !== "granted") return;
+    if (
+      typeof window === "undefined" ||
+      !("Notification" in window) ||
+      window.Notification.permission !== "granted"
+    )
+      return;
     new window.Notification(title, { body, tag });
   } catch {
     // Some browsers expose Notification but still block construction.
@@ -40,7 +47,12 @@ export function postCommuteNotification(title: string, body: string, tag: string
 
 export function speakCommuteAlert(message: string) {
   try {
-    if (typeof window === "undefined" || !("speechSynthesis" in window) || typeof window.SpeechSynthesisUtterance !== "function") return;
+    if (
+      typeof window === "undefined" ||
+      !("speechSynthesis" in window) ||
+      typeof window.SpeechSynthesisUtterance !== "function"
+    )
+      return;
     const utterance = new window.SpeechSynthesisUtterance(message);
     utterance.lang = "en-US";
     utterance.rate = 0.94;

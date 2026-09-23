@@ -53,7 +53,18 @@ export type DriveTrafficSection = {
 };
 
 const CACHE_MS = 2 * 60_000;
+const MAX_CACHE_ENTRIES = 100;
 const cache = new Map<string, DriveTime>();
+
+function cacheDrive(key: string, value: DriveTime) {
+  cache.delete(key);
+  cache.set(key, value);
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (typeof oldest !== "string") break;
+    cache.delete(oldest);
+  }
+}
 
 function round(value: number) {
   // ~10 m precision keeps the cache useful while the phone's GPS jitters.
@@ -78,7 +89,9 @@ export const driveTime = createServerFn({ method: "POST" })
       console.info("[drive] cache_hit", { trafficBasis: cached.trafficBasis });
       return cached;
     }
-    console.info("[drive] cache_miss", { trafficBasis: data.departureTime ? "future-estimate" : "live" });
+    console.info("[drive] cache_miss", {
+      trafficBasis: data.departureTime ? "future-estimate" : "live",
+    });
 
     const routeUrl =
       `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
@@ -86,7 +99,6 @@ export const driveTime = createServerFn({ method: "POST" })
       `&sectionType=traffic` +
       `&routeRepresentation=polyline&instructionsType=text` +
       `${data.departureTime ? `&departAt=${encodeURIComponent(data.departureTime)}` : ""}`;
-
 
     const response = await fetch(routeUrl);
     if (!response.ok) {
@@ -163,8 +175,7 @@ export const driveTime = createServerFn({ method: "POST" })
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     };
 
-
-    cache.set(cacheKey, result);
+    cacheDrive(cacheKey, result);
     return result;
   });
 
@@ -316,4 +327,3 @@ function readTrafficSections(
   }
   return out;
 }
-

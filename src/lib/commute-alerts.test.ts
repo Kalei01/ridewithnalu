@@ -8,23 +8,39 @@ describe("detectTrafficAlert", () => {
   });
 
   it("detects a delay increase of five minutes", () => {
-    expect(detectTrafficAlert(
-      { delayMinutes: 2, incidentKeys: [] },
-      { delayMinutes: 7, incidentKeys: [] },
-    )).toEqual({ kind: "delay", increaseMinutes: 5 });
+    expect(
+      detectTrafficAlert(
+        { delayMinutes: 2, incidentKeys: [] },
+        { delayMinutes: 7, incidentKeys: [] },
+      ),
+    ).toEqual({ kind: "delay", increaseMinutes: 5 });
   });
 
   it("detects a newly reported incident", () => {
-    expect(detectTrafficAlert(
-      { delayMinutes: 3, incidentKeys: ["jam:h1"] },
-      { delayMinutes: 3, incidentKeys: ["jam:h1", "accident:nimitz"] },
-    )).toEqual({ kind: "incident" });
+    expect(
+      detectTrafficAlert(
+        { delayMinutes: 3, incidentKeys: ["jam:h1"] },
+        { delayMinutes: 3, incidentKeys: ["jam:h1", "accident:nimitz"] },
+      ),
+    ).toEqual({ kind: "incident" });
   });
 
   it("ignores unchanged and small traffic shifts", () => {
-    expect(detectTrafficAlert(
-      { delayMinutes: 3, incidentKeys: ["jam:h1"] },
-      { delayMinutes: 7, incidentKeys: ["jam:h1"] },
-    )).toBeNull();
+    expect(
+      detectTrafficAlert(
+        { delayMinutes: 3, incidentKeys: ["jam:h1"] },
+        { delayMinutes: 7, incidentKeys: ["jam:h1"] },
+      ),
+    ).toBeNull();
+  });
+
+  it("detects a cumulative increase across small polling steps", () => {
+    expect(
+      detectTrafficAlert(
+        { delayMinutes: 7, incidentKeys: [] },
+        { delayMinutes: 10, incidentKeys: [] },
+        { delayMinutes: 4, incidentKeys: [] },
+      ),
+    ).toEqual({ kind: "delay", increaseMinutes: 6 });
   });
 });
