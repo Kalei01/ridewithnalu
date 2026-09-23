@@ -1858,7 +1858,11 @@ function Index() {
           `${incident.description.trim().toLowerCase()}|${incident.road?.trim().toLowerCase() ?? ""}`,
       ),
     };
-    const change = detectTrafficAlert(previousTraffic.current, current, trafficAlertBaseline.current);
+    const change = detectTrafficAlert(
+      previousTraffic.current,
+      current,
+      trafficAlertBaseline.current,
+    );
     if (!trafficAlertBaseline.current) trafficAlertBaseline.current = current;
     previousTraffic.current = current;
     if (!change) return;
