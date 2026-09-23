@@ -2,7 +2,7 @@ import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BriefcaseBusiness, Bus, Car, Check, ChevronDown, ChevronRight, Footprints, House, LocateFixed, Navigation, Radio, RefreshCw, Search, Settings, TrainFront, UserRound, X } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, Bus, Car, Check, ChevronDown, ChevronRight, Clock3, Footprints, House, LocateFixed, Navigation, Radio, RefreshCw, Search, Settings, TrainFront, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -184,6 +184,11 @@ type Option = {
   total_minutes: number;
   legs: Leg[];
 };
+
+/** Departure time alone is not unique: distinct routes can leave together. */
+function optionIdentity(option: Option) {
+  return `${option.leave_by_seconds}:${option.depart_seconds}:${option.arrive_seconds}:${option.total_minutes}:${option.legs.map((leg) => `${leg.mode}:${leg.route_short ?? ""}:${leg.from_stop_id ?? leg.from ?? ""}:${leg.to_stop_id ?? leg.to ?? ""}`).join("|")}`;
+}
 
 const STORAGE_KEY = "nalu-setup-v3";
 const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
@@ -809,6 +814,11 @@ function Index() {
         const current = merged.get(place.id);
         if (!current || place.updatedAt >= current.updatedAt) merged.set(place.id, place);
       }
+      const latestState = syncStateRef.current;
+      for (const place of latestState.savedPlaces) {
+        const current = merged.get(place.id);
+        if (!current || place.updatedAt >= current.updatedAt) merged.set(place.id, place);
+      }
       const nextPlaces = Array.from(merged.values());
       if (nextPlaces.length) persistPlaces(nextPlaces);
       if (!window.localStorage.getItem(STORAGE_KEY) && data?.last_setup && typeof data.last_setup === "object") {
@@ -824,13 +834,15 @@ function Index() {
       }
       const displayName = typeof user.user_metadata?.["full_name"] === "string" ? user.user_metadata["full_name"] : null;
       const avatarUrl = typeof user.user_metadata?.["avatar_url"] === "string" ? user.user_metadata["avatar_url"] : null;
+      if (cancelled) return;
+      const currentState = syncStateRef.current;
       await Promise.all([
         supabase.from("profiles").upsert({ id: user.id, display_name: displayName, avatar_url: avatarUrl, updated_at: new Date().toISOString() }),
         supabase.from("user_preferences").upsert({
           user_id: user.id,
           saved_places: nextPlaces,
-          preferences: { alertPrefs, planMode, arriveByInput },
-          last_setup: window.localStorage.getItem(STORAGE_KEY) ? setup : data?.last_setup ?? null,
+          preferences: { alertPrefs: currentState.alertPrefs, planMode: currentState.planMode, arriveByInput: currentState.arriveByInput },
+          last_setup: currentState.configured ? currentState.setup : data?.last_setup ?? null,
           updated_at: new Date().toISOString(),
         }),
       ]);
@@ -1257,13 +1269,13 @@ function Index() {
   // Options arrive in earliest-door-arrival order. A slightly later trip is
   // available by choice, but is never silently preferred.
   const earliest = options[0];
-  const [selectedDeparture, setSelectedDeparture] = useState<number | null>(null);
+  const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null);
   useEffect(() => {
     // A locked transit trip keeps its itinerary even as fresher options arrive.
     if (commitment?.mode === "rail") return;
     setSelectedDeparture(null);
   }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds, commitment]);
-  const liveBest = options.find((option) => option.leave_by_seconds === selectedDeparture) ?? earliest;
+  const liveBest = options.find((option) => optionIdentity(option) === selectedDeparture) ?? earliest;
   // While riding, the itinerary on screen is the one boarded — including its
   // transfers — not whatever is fastest to leave now.
   const best = commitment?.mode === "rail" && lockedOptionRef.current
@@ -1487,13 +1499,14 @@ function Index() {
     const alight = legStops.find((stop) => stop.isAlight) ?? legStops[legStops.length - 1];
     return alight && alight.lat !== null && alight.lon !== null ? { lat: alight.lat, lon: alight.lon } : null;
   }, [legStops]);
-  if (riderPoint && alightPoint) {
+  useEffect(() => {
+    if (!riderPoint || !alightPoint) return;
     const distance = distanceM(riderPoint, alightPoint);
     const trend = distanceTrend.current;
     if (trend[trend.length - 1] !== distance) {
       distanceTrend.current = [...trend, distance].slice(-4);
     }
-  }
+  }, [riderPoint, alightPoint]);
 
   const previousApproachState = useRef<ApproachState | null>(null);
   // Where the rider is along the leg, by GPS when available, otherwise by clock.
@@ -1680,7 +1693,7 @@ function Index() {
   );
 
   // In arrive-by mode the itinerary shown is the latest one that still makes it.
-  const arriveByLeaveBy = arriveByActive ? railPick?.option?.leave_by_seconds ?? null : null;
+  const arriveByLeaveBy = arriveByActive && railPick?.option ? optionIdentity(railPick.option) : null;
   useEffect(() => {
     if (arriveByLeaveBy !== null) setSelectedDeparture(arriveByLeaveBy);
   }, [arriveByLeaveBy]);
@@ -3062,14 +3075,18 @@ function Index() {
 
         </section>
 
-        {selectedMode === "rail" && options.length > 1 && <section className="mb-8 rounded-lg border border-border bg-surface-raised p-5" aria-labelledby="later-title">
-          <h2 id="later-title" className="text-lg font-semibold">Alternative Departures</h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Other departures compared with your current plan. Tap one to make it your plan.
-          </p>
-          <ol className="mt-4 grid gap-3">
-            {options.filter((option) => option.leave_by_seconds !== best?.leave_by_seconds).slice(0, 3).map((option, index) => {
-              const selected = option.leave_by_seconds === best?.leave_by_seconds;
+        {selectedMode === "rail" && options.length > 1 && <section className="alternative-panel mb-8 rounded-lg p-5" aria-labelledby="later-title">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full border border-recommended/35 bg-recommended/10 text-recommended">
+              <Clock3 className="size-4" />
+            </span>
+            <div>
+              <h2 id="later-title" className="text-xl font-bold text-foreground">Alternative departures</h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Choose another door-to-door trip.</p>
+            </div>
+          </div>
+          <ol className="mt-5 grid gap-3">
+            {options.filter((option) => !best || optionIdentity(option) !== optionIdentity(best)).slice(0, 3).map((option, index) => {
               const arrivalDifference = best
                 ? Math.round((option.arrive_seconds - best.arrive_seconds) / 60)
                 : 0;
@@ -3077,29 +3094,33 @@ function Index() {
                 ? Math.round((option.leave_by_seconds - best.leave_by_seconds) / 60)
                 : 0;
               return (
-              <li key={`${option.leave_by_seconds}-${index}`}>
+              <li key={optionIdentity(option)}>
                 <Button
                   type="button"
                   variant="ghost"
-                  aria-pressed={selected}
-                  onClick={() => setSelectedDeparture(selected ? null : option.leave_by_seconds)}
-                  className={`h-auto w-full justify-start whitespace-normal rounded-lg border p-4 text-left transition-colors ${selected ? "border-recommended bg-recommended/10" : "border-border bg-background/40 hover:border-muted-foreground"}`}
+                  onClick={() => setSelectedDeparture(optionIdentity(option))}
+                  aria-label={`Leave at ${clockFromSeconds(option.leave_by_seconds)} and arrive at ${clockFromSeconds(option.arrive_seconds)}`}
+                  className="alternative-option group h-auto w-full justify-start whitespace-normal rounded-lg p-4 text-left transition-all active:scale-[0.99]"
                 >
                   <span className="block w-full">
-                  <span className="flex items-start justify-between gap-3">
-                    <span className="text-base font-bold leading-snug text-foreground">
-                      If you leave at <span className="tabular-nums">{clockFromSeconds(option.leave_by_seconds)}</span>,
-                      you arrive at <span className="tabular-nums">{clockFromSeconds(option.arrive_seconds)}</span>
+                  <span className="flex items-start justify-between gap-2">
+                    <span>
+                      <span className="block text-[10px] font-bold uppercase text-muted-foreground">Option {String.fromCharCode(65 + index)}</span>
+                      <span className="mt-1 flex items-center gap-2 text-xl font-bold tabular-nums text-foreground">
+                        {clockFromSeconds(option.leave_by_seconds)}
+                        <ArrowRight className="size-4 text-recommended transition-transform group-hover:translate-x-0.5" />
+                        {clockFromSeconds(option.arrive_seconds)}
+                      </span>
                     </span>
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground">
+                    <span className="max-w-[48%] shrink-0 rounded-full border border-border bg-muted/70 px-2.5 py-1 text-right text-[10px] font-bold leading-snug tabular-nums text-muted-foreground">
                       {arrivalDifference > 0 ? `Arrives ${arrivalDifference} min later than current` : arrivalDifference < 0 ? `Arrives ${Math.abs(arrivalDifference)} min earlier than current` : "Same arrival as current"}
                     </span>
                   </span>
-                  <span className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
-                    <span><span className="block text-xs text-muted-foreground">Compared with current departure</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{departureDifference > 0 ? `Leaves ${departureDifference} min later` : departureDifference < 0 ? `Leaves ${Math.abs(departureDifference)} min earlier` : "Same departure time"}</span></span>
-                    <span><span className="block text-xs text-muted-foreground">Total duration</span><span className="mt-0.5 block font-semibold tabular-nums text-foreground">{option.total_minutes} min</span></span>
+                  <span className="mt-4 grid grid-cols-2 gap-3 border-t border-border/70 pt-3 text-sm">
+                    <span><span className="block text-[10px] font-semibold uppercase text-muted-foreground">Compared to current</span><span className="mt-1 block font-semibold tabular-nums text-foreground">{departureDifference > 0 ? `Leaves ${departureDifference} min later` : departureDifference < 0 ? `Leaves ${Math.abs(departureDifference)} min earlier` : "Same departure time"}</span></span>
+                    <span><span className="block text-[10px] font-semibold uppercase text-muted-foreground">Door to door</span><span className="mt-1 block text-lg font-bold tabular-nums text-foreground">{option.total_minutes} min</span></span>
                   </span>
-                  {option.legs[0] && <span className="mt-3 block truncate text-xs text-muted-foreground">{vehicleName(option.legs[0])}</span>}
+                  {option.legs[0] && <span className="mt-3 flex items-center gap-2 rounded-md bg-recommended/5 px-3 py-2 text-xs text-muted-foreground"><span className="size-1.5 shrink-0 rounded-full bg-recommended" /><span className="truncate">{vehicleName(option.legs[0])}</span></span>}
                   </span>
                 </Button>
               </li>

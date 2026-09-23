@@ -133,6 +133,17 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
   segmentsRef.current = segments;
   const trafficRef = useRef(trafficSections);
   trafficRef.current = trafficSections;
+  const fittedGeometryRef = useRef<string | null>(null);
+  const geometrySignature = useMemo(
+    () => [
+      points.map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join("|"),
+      (path ?? []).map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";"),
+      (segments ?? []).map((segment) => `${segment.id}:${segment.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|"),
+    ].join("#"),
+    [points, path, segments],
+  );
+  const geometrySignatureRef = useRef(geometrySignature);
+  geometrySignatureRef.current = geometrySignature;
 
 
   useEffect(() => {
@@ -218,10 +229,12 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
       ...drawableSegments.flatMap((segment) => segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple)),
       ...current.map((point) => [point.lat, point.lon] as L.LatLngTuple),
     ];
-    map.invalidateSize({ animate: false });
-    // Snap, never animate: an animated fit on every data refresh is what made the
-    // map appear to twitch while a trip was on screen.
-    map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, animate: false });
+    if (fittedGeometryRef.current !== geometrySignatureRef.current) {
+      fittedGeometryRef.current = geometrySignatureRef.current;
+      map.invalidateSize({ animate: false });
+      // Snap, never animate, and only when route geometry actually changes.
+      map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, animate: false });
+    }
   }, [routeSignature]);
 
 
