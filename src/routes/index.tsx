@@ -17,6 +17,8 @@ import {
   Navigation,
   Radio,
   RefreshCw,
+  RotateCcw,
+
   Search,
   Settings,
   TrainFront,
@@ -3979,8 +3981,9 @@ function Index() {
           onClick={endTrip}
           className="end-trip-action mt-2 h-14 w-full text-base font-black uppercase"
         >
-          <X className="size-5" /> End Trip
+          <RotateCcw className="size-5" /> Reset
         </Button>
+
 
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
           <span>Schedule data from the agency feed</span>
