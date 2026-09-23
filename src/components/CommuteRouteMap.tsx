@@ -64,6 +64,14 @@ function journeyIcon(point: JourneyPoint) {
   });
 }
 
+function tooltip(label: string, value: string) {
+  const content = document.createElement("span");
+  const strong = document.createElement("strong");
+  strong.textContent = label;
+  content.append(strong, document.createElement("br"), document.createTextNode(value));
+  return content;
+}
+
 export default function CommuteRouteMap({ points, livePoint, liveHeading, followLive = false, path, segments, trafficSections }: CommuteRouteMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
@@ -218,10 +226,7 @@ export default function CommuteRouteMap({ points, livePoint, liveHeading, follow
         keyboard: true,
         zIndexOffset: point.kind === "start" || point.kind === "end" ? 1500 : 0,
       })
-        .bindTooltip(
-          `<strong>${point.kind === "start" ? "Start" : point.kind === "end" ? "End" : point.kind === "rail" ? "Rail" : "Bus"}</strong><br>${point.name}`,
-          { direction: "top", offset: [0, -18] },
-        )
+        .bindTooltip(tooltip(point.kind === "start" ? "Start" : point.kind === "end" ? "End" : point.kind === "rail" ? "Rail" : "Bus", point.name), { direction: "top", offset: [0, -18] })
         .addTo(routeLayer);
     });
 

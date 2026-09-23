@@ -1,5 +1,5 @@
 /** Pure, portable helpers for interpreting TomTom drive estimates. */
-export const DRIVE_DESTINATION_BUFFER_MIN = 5;
+export const DRIVE_DESTINATION_BUFFER_MIN = 0;
 
 export type DrivePlan = {
   leaveBySeconds: number;

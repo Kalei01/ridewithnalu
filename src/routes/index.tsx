@@ -1650,7 +1650,7 @@ function Index() {
     [options, arriveByTarget],
   );
   const futureDepartureIso = arriveByActive && !arriveByPassed && drive
-    ? honoluluSecondsToIso(arriveByTarget - (drive.trafficMinutes + 5) * 60, now)
+    ? honoluluSecondsToIso(arriveByTarget - drive.trafficMinutes * 60, now)
     : null;
   const { data: futureDrive } = useQuery({
     queryKey: ["drive-future", driveFrom.lat, driveFrom.lon, driveTo.lat, driveTo.lon, futureDepartureIso],
@@ -1678,7 +1678,7 @@ function Index() {
     () =>
       arriveByTarget === null || !arriveByDrive || !driveAvailable
         ? null
-        : driveArriveBy(arriveByTarget, arriveByDrive.trafficMinutes, nowSeconds, 5, Boolean(futureDrive)),
+        : driveArriveBy(arriveByTarget, arriveByDrive.trafficMinutes, nowSeconds, undefined, Boolean(futureDrive)),
     [arriveByTarget, arriveByDrive, driveAvailable, nowSeconds, futureDrive],
   );
   const arriveByComparison = useMemo(
@@ -2760,15 +2760,14 @@ function Index() {
           />
         )}
 
-        <div role="tablist" aria-label="Trip direction" className="grid grid-cols-2 gap-1 rounded-full bg-surface-raised p-1">
+         <div role="group" aria-label="Trip direction" className="grid grid-cols-2 gap-1 rounded-full bg-surface-raised p-1">
           {[
             { label: "To destination", value: false },
             { label: "To home", value: true },
           ].map((tab) => (
             <button
               key={tab.label}
-              role="tab"
-              aria-selected={inbound === tab.value}
+               aria-pressed={inbound === tab.value}
               onClick={() => chooseDirection(tab.value)}
               className={`min-h-11 rounded-full text-sm font-semibold transition-colors ${
                 inbound === tab.value ? "bg-recommended text-recommended-foreground" : "text-muted-foreground"
@@ -2806,15 +2805,14 @@ function Index() {
 
         <section className="mt-4 rounded-lg border border-border bg-surface-raised p-4" aria-labelledby="plan-mode-title">
           <h2 id="plan-mode-title" className="sr-only">When do you need to travel?</h2>
-          <div role="tablist" aria-label="Planning mode" className="grid grid-cols-2 gap-1 rounded-full bg-background/60 p-1">
+           <div role="group" aria-label="Planning mode" className="grid grid-cols-2 gap-1 rounded-full bg-background/60 p-1">
             {[
               { label: "Leave now", value: "leave-now" as PlanMode },
               { label: "Arrive by", value: "arrive-by" as PlanMode },
             ].map((tab) => (
               <button
                 key={tab.value}
-                role="tab"
-                aria-selected={planMode === tab.value}
+                 aria-pressed={planMode === tab.value}
                 onClick={() => choosePlanMode(tab.value)}
                 className={`min-h-11 rounded-full text-sm font-semibold transition-colors ${
                   planMode === tab.value ? "bg-recommended text-recommended-foreground" : "text-muted-foreground"
@@ -2898,7 +2896,7 @@ function Index() {
                     ) : (
                       <p className="mt-2 text-sm text-muted-foreground">{driveLoading ? "Checking live traffic…" : "Live traffic is unavailable right now."}</p>
                     )}
-                    {drivePlan && (
+                     {drivePlan && drivePlan.bufferMinutes > 0 && (
                       <p className="mt-2 text-[10px] text-muted-foreground">
                         Includes {drivePlan.bufferMinutes} min to park and walk in · {driveBasisLabel}
                       </p>
@@ -3037,13 +3035,13 @@ function Index() {
 
         <section className="py-6" aria-labelledby="mode-details-title">
           <h2 id="mode-details-title" className="sr-only">Trip details</h2>
-          <div role="tablist" aria-label="Travel mode" className="glass-panel grid grid-cols-2 gap-1 rounded-lg p-1">
-            <Button type="button" role="tab" aria-selected={selectedMode === "rail"} disabled={Boolean(commitment)} variant="ghost" onClick={() => chooseMode("rail")} className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}>
+           <div role="group" aria-label="Travel mode" className="glass-panel grid grid-cols-2 gap-1 rounded-lg p-1">
+             <Button type="button" aria-pressed={selectedMode === "rail"} disabled={Boolean(commitment)} variant="ghost" onClick={() => chooseMode("rail")} className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}>
               <TrainFront /> Rail {railRange ? `· ${railRange.high} min` : ""}
               {!commitment && verdict === "rail" && <span className="mode-winner-badge">Faster than driving</span>}
               {lockedMode === "rail" && <span className="mode-winner-badge">On this trip</span>}
             </Button>
-            <Button type="button" role="tab" aria-selected={selectedMode === "drive"} disabled={Boolean(commitment)} variant="ghost" onClick={() => chooseMode("drive")} className={`relative h-14 disabled:opacity-100 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}>
+             <Button type="button" aria-pressed={selectedMode === "drive"} disabled={Boolean(commitment)} variant="ghost" onClick={() => chooseMode("drive")} className={`relative h-14 disabled:opacity-100 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}>
               <Car /> Drive {driveAvailable && driveRange ? `· ${driveRange.high} min` : ""}
               {!commitment && verdict === "drive" && <span className="mode-winner-badge">Faster than transit</span>}
               {lockedMode === "drive" && <span className="mode-winner-badge">On this trip</span>}

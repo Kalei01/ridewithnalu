@@ -17,7 +17,13 @@ export function compareCommute(input: DecisionInput): CommuteDecision {
   const drive = input.driveAvailable ? input.driveMinutes : null;
   if (input.railMinutes === null && drive === null) return { recommendation: "none", differenceMinutes: null, explanation: null };
   if (input.railMinutes === null) return { recommendation: "drive", differenceMinutes: null, explanation: "Driving is the available option right now" };
-  if (drive === null) return { recommendation: "rail", differenceMinutes: null, explanation: "Driving is not available from your starting point" };
+  if (drive === null) return {
+    recommendation: "rail",
+    differenceMinutes: null,
+    explanation: input.driveAvailable
+      ? "A current drive time could not be calculated"
+      : "Driving is not available from your starting point",
+  };
   const difference = drive - input.railMinutes;
   const recommendation: Recommendation = Math.abs(difference) < threshold ? "same" : difference > 0 ? "rail" : "drive";
   if (recommendation === "rail" && input.hasMajorIncident) return { recommendation, differenceMinutes: Math.abs(difference), explanation: "Rail avoids a reported traffic incident" };

@@ -20,4 +20,9 @@ describe("compareCommute", () => {
     expect(compareCommute({ railMinutes: 41, driveMinutes: 55, driveAvailable: true }).explanation)
       .toBe("Rail and bus are about 14 min faster than driving");
   });
+
+  it("distinguishes a traffic lookup failure from an unavailable car", () => {
+    expect(compareCommute({ railMinutes: 50, driveMinutes: null, driveAvailable: true }).explanation)
+      .toBe("A current drive time could not be calculated");
+  });
 });

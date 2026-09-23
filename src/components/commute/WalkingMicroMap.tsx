@@ -43,8 +43,12 @@ export default function WalkingMicroMap({ from, to }: WalkingMicroMapProps) {
       dashArray: "7 8",
       lineCap: "round",
     }).addTo(map);
-    L.marker(start, { icon: pin("var(--color-location)"), title: from.label }).bindTooltip(from.label).addTo(map);
-    L.marker(end, { icon: pin("var(--color-primary)"), title: to.label }).bindTooltip(to.label).addTo(map);
+    const fromTooltip = document.createElement("span");
+    fromTooltip.textContent = from.label;
+    const toTooltip = document.createElement("span");
+    toTooltip.textContent = to.label;
+    L.marker(start, { icon: pin("var(--color-location)"), title: from.label }).bindTooltip(fromTooltip).addTo(map);
+    L.marker(end, { icon: pin("var(--color-primary)"), title: to.label }).bindTooltip(toTooltip).addTo(map);
     map.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: 16, animate: false });
     window.requestAnimationFrame(() => map.invalidateSize({ animate: false }));
     return () => {

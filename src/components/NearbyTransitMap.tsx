@@ -119,7 +119,9 @@ export default function NearbyTransitMap({ userPoint, stops, selectedStopId, onS
         keyboard: true,
       });
       marker.on("click", () => onSelectStopRef.current(stop.stopId));
-      marker.bindTooltip(stop.stopName, { direction: "top", offset: [0, -18] });
+      const tooltip = document.createElement("span");
+      tooltip.textContent = stop.stopName;
+      marker.bindTooltip(tooltip, { direction: "top", offset: [0, -18] });
       marker.addTo(markers);
     }
   }, [stopsSignature, selectedStopId]);
