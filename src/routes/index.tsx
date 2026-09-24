@@ -3688,9 +3688,17 @@ function Index() {
                   <p className="text-sm font-black uppercase text-foreground">
                     Live navigation active
                   </p>
+                  {liveEta ? (
+                    <p className="mt-0.5 text-sm font-bold tabular-nums text-foreground" aria-live="polite">
+                      Arrive {clockFromSeconds(liveEta.arriveSeconds)} · {liveEta.remainingMin} min left
+                      {liveEta.meters ? ` · ${formatDistance(liveEta.meters)}` : ""}
+                    </p>
+                  ) : null}
                   <p className="mt-0.5 text-xs font-semibold text-muted-foreground">
                     {lockedMode === "drive"
-                      ? "GPS & traffic · Updating every 2 min"
+                      ? liveEta?.live
+                        ? "Live from your GPS position · traffic every minute"
+                        : "Waiting for GPS…"
                       : "Stops & alerts locked"}
                   </p>
                 </div>
