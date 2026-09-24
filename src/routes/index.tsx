@@ -23,7 +23,6 @@ import {
   Radio,
   RefreshCw,
   RotateCcw,
-
   Search,
   Settings,
   TrainFront,
@@ -1910,7 +1909,6 @@ function Index() {
     return { remainingMin, arriveSeconds: best.arrive_seconds, meters: null, live: true };
   }, [commitment, liveDrive, drive, best, liveTick]);
 
-
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
   const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
   useEffect(() => {
@@ -2911,10 +2909,7 @@ function Index() {
             <ChevronRight className="size-5 text-primary-foreground/70" />
           </Button>
 
-          <ShortcutGrid
-            places={savedPlaces}
-            onStart={(slot) => void quickStartSavedPlace(slot)}
-          />
+          <ShortcutGrid places={savedPlaces} onStart={(slot) => void quickStartSavedPlace(slot)} />
 
           {browseUserPoint && (
             <section
@@ -3672,8 +3667,12 @@ function Index() {
                     Live navigation active
                   </p>
                   {liveEta ? (
-                    <p className="mt-0.5 text-sm font-bold tabular-nums text-foreground" aria-live="polite">
-                      Arrive {clockFromSeconds(liveEta.arriveSeconds)} · {liveEta.remainingMin} min left
+                    <p
+                      className="mt-0.5 text-sm font-bold tabular-nums text-foreground"
+                      aria-live="polite"
+                    >
+                      Arrive {clockFromSeconds(liveEta.arriveSeconds)} · {liveEta.remainingMin} min
+                      left
                       {liveEta.meters ? ` · ${formatDistance(liveEta.meters)}` : ""}
                     </p>
                   ) : null}
@@ -4035,7 +4034,6 @@ function Index() {
         >
           <RotateCcw className="size-5" /> Reset
         </Button>
-
 
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
           <span>Schedule data from the agency feed</span>
@@ -4803,7 +4801,11 @@ function ShortcutGrid({
     try {
       const raw = window.localStorage.getItem(SHORTCUTS_KEY);
       const parsed: unknown = raw ? JSON.parse(raw) : null;
-      if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string") && parsed.length) {
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((item) => typeof item === "string") &&
+        parsed.length
+      ) {
         setSlots(parsed.slice(0, MAX_SHORTCUTS));
       }
     } catch {
@@ -5052,9 +5054,7 @@ function SetupDialog({
         // Confirm the exact spot in plain words, so a wrong pin is obvious.
         const address = await lookupAddress({ data: { lat, lon } }).catch(() => null);
         if (address?.label) {
-          setStatus(
-            `Detected: ${address.label}.${precision}`,
-          );
+          setStatus(`Detected: ${address.label}.${precision}`);
         }
       },
       (error) => {
@@ -5330,150 +5330,152 @@ function SetupDialog({
 
           {!firstRun && (
             <section className="grid gap-3 rounded-lg border border-border p-4">
-            <div className="flex items-center justify-between gap-3">
-              <Label className="text-sm">Saved places</Label>
-              {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onPlacesChange(swapHomeWork(savedPlaces))}
-                >
-                  Swap Home &amp; Work
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Save Home, Work, School, Gym or anywhere else once, then start a trip with one tap.
-            </p>
-
-            {presets.length > 0 && (
-              <div className="flex flex-wrap gap-2" aria-label="Commute presets">
-                {presets.map((preset) => (
+              <div className="flex items-center justify-between gap-3">
+                <Label className="text-sm">Saved places</Label>
+                {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
                   <Button
-                    key={preset.id}
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    disabled={busy}
-                    onClick={() => applyPreset(preset.from, preset.to)}
+                    onClick={() => onPlacesChange(swapHomeWork(savedPlaces))}
                   >
-                    {preset.label}
+                    Swap Home &amp; Work
                   </Button>
-                ))}
+                )}
               </div>
-            )}
+              <p className="text-xs text-muted-foreground">
+                Save Home, Work, School, Gym or anywhere else once, then start a trip with one tap.
+              </p>
 
-            {savedPlaces.length > 0 && (
-              <ul className="grid gap-3">
-                {savedPlaces.map((place) => (
-                  <li key={place.id} className="grid gap-2 rounded-lg bg-surface-raised p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
+              {presets.length > 0 && (
+                <div className="flex flex-wrap gap-2" aria-label="Commute presets">
+                  {presets.map((preset) => (
+                    <Button
+                      key={preset.id}
+                      variant="secondary"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => applyPreset(preset.from, preset.to)}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
+              {savedPlaces.length > 0 && (
+                <ul className="grid gap-3">
+                  {savedPlaces.map((place) => (
+                    <li key={place.id} className="grid gap-2 rounded-lg bg-surface-raised p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <Input
+                            aria-label={`Label for ${place.name}`}
+                            value={place.label}
+                            onChange={(event) =>
+                              onPlacesChange(
+                                upsertPlace(savedPlaces, { ...place, label: event.target.value }),
+                              )
+                            }
+                            className="h-9 bg-background/60 font-semibold"
+                          />
+                          <p className="mt-1 truncate text-xs text-muted-foreground">
+                            {place.name}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Remove ${place.label}`}
+                          onClick={() => onPlacesChange(removePlace(savedPlaces, place.id))}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Label
+                          htmlFor={`arrive-${place.id}`}
+                          className="text-xs text-muted-foreground"
+                        >
+                          Typical arrival
+                        </Label>
                         <Input
-                          aria-label={`Label for ${place.name}`}
-                          value={place.label}
+                          id={`arrive-${place.id}`}
+                          type="time"
+                          value={clockInputValue(place.typicalArrivalSeconds)}
                           onChange={(event) =>
                             onPlacesChange(
-                              upsertPlace(savedPlaces, { ...place, label: event.target.value }),
+                              upsertPlace(savedPlaces, {
+                                ...place,
+                                typicalArrivalSeconds: parseClockInput(event.target.value),
+                              }),
                             )
                           }
-                          className="h-9 bg-background/60 font-semibold"
+                          className="h-9 w-32 bg-background/60 tabular-nums"
                         />
-                        <p className="mt-1 truncate text-xs text-muted-foreground">{place.name}</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => applyOrigin(place)}
+                        >
+                          Start here
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => selectPlace(place)}
+                        >
+                          Go here
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Remove ${place.label}`}
-                        onClick={() => onPlacesChange(removePlace(savedPlaces, place.id))}
-                      >
-                        <X className="size-4" />
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Label
-                        htmlFor={`arrive-${place.id}`}
-                        className="text-xs text-muted-foreground"
-                      >
-                        Typical arrival
-                      </Label>
-                      <Input
-                        id={`arrive-${place.id}`}
-                        type="time"
-                        value={clockInputValue(place.typicalArrivalSeconds)}
-                        onChange={(event) =>
-                          onPlacesChange(
-                            upsertPlace(savedPlaces, {
-                              ...place,
-                              typicalArrivalSeconds: parseClockInput(event.target.value),
-                            }),
-                          )
-                        }
-                        className="h-9 w-32 bg-background/60 tabular-nums"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => applyOrigin(place)}
-                      >
-                        Start here
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => selectPlace(place)}
-                      >
-                        Go here
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-              <Select value={saveKind} onValueChange={(value) => setSaveKind(value as PlaceKind)}>
-                <SelectTrigger className="h-10 w-32 bg-surface-raised">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLACE_KINDS.map((kind) => (
-                    <SelectItem key={kind} value={kind}>
-                      {kind === "custom" ? "Custom" : kindLabel(kind)}
-                    </SelectItem>
+                    </li>
                   ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="time"
-                aria-label="Typical arrival time for the place you are saving"
-                value={saveTime}
-                onChange={(event) => setSaveTime(event.target.value)}
-                className="h-10 w-32 bg-surface-raised tabular-nums"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!originPoint}
-                onClick={() =>
-                  originPoint && savePlace(saveKind, originPoint, parseClockInput(saveTime))
-                }
-              >
-                Save start
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!destinationPoint}
-                onClick={() =>
-                  destinationPoint &&
-                  savePlace(saveKind, destinationPoint, parseClockInput(saveTime))
-                }
-              >
-                Save destination
-              </Button>
-            </div>
+                </ul>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                <Select value={saveKind} onValueChange={(value) => setSaveKind(value as PlaceKind)}>
+                  <SelectTrigger className="h-10 w-32 bg-surface-raised">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PLACE_KINDS.map((kind) => (
+                      <SelectItem key={kind} value={kind}>
+                        {kind === "custom" ? "Custom" : kindLabel(kind)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="time"
+                  aria-label="Typical arrival time for the place you are saving"
+                  value={saveTime}
+                  onChange={(event) => setSaveTime(event.target.value)}
+                  className="h-10 w-32 bg-surface-raised tabular-nums"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!originPoint}
+                  onClick={() =>
+                    originPoint && savePlace(saveKind, originPoint, parseClockInput(saveTime))
+                  }
+                >
+                  Save start
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!destinationPoint}
+                  onClick={() =>
+                    destinationPoint &&
+                    savePlace(saveKind, destinationPoint, parseClockInput(saveTime))
+                  }
+                >
+                  Save destination
+                </Button>
+              </div>
             </section>
           )}
 
