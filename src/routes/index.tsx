@@ -4981,7 +4981,7 @@ function SetupDialog({
   useEffect(() => {
     if (!open || setup.homeLat !== null) return;
     void queryLocationPermission().then((state) => {
-      if (state === "granted") void useMyLocation();
+      if (state === "granted") void locateMe();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -5004,7 +5004,7 @@ function SetupDialog({
 
   const { data: stations = [] } = useRailStations(open);
 
-  async function useMyLocation() {
+  async function locateMe() {
     if (!navigator.geolocation) {
       setStatus("This device cannot share its location. Pick a saved place below.");
       return;
@@ -5238,7 +5238,7 @@ function SetupDialog({
                 size="sm"
                 className="shrink-0"
                 disabled={busy}
-                onClick={useMyLocation}
+                onClick={locateMe}
               >
                 Current location
               </Button>

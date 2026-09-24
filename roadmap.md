@@ -5,6 +5,6 @@
 - [x] Keep Alternative Departures contained after refresh on phone and tablet widths
 - [x] Highlight every End Trip action in red
 - [x] Verify the active-trip screen on mobile and tablet viewports
-- [ ] Setup: From (current location) / To only; auto-derive station; remove drive toggle
-- [ ] Saved places management in Settings with pills; customizable home shortcuts
-- [ ] Live ETA recalculation from GPS during active commute
+- [x] Setup: From (current location) / To only; auto-derive station; remove drive toggle
+- [x] Saved places management in Settings with pills; customizable home shortcuts
+- [x] Live ETA recalculation from GPS during active commute
