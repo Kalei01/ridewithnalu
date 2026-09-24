@@ -13,12 +13,16 @@ import {
   Clock3,
   Footprints,
   House,
+  Dumbbell,
+  GraduationCap,
+  MapPin,
+  Pencil,
+  Plus,
   LocateFixed,
   Navigation,
   Radio,
   RefreshCw,
   RotateCcw,
-
   Search,
   Settings,
   TrainFront,
@@ -1845,6 +1849,66 @@ function Index() {
       }),
   });
 
+  // ---- Live ETA while underway ----------------------------------------------
+  // Re-route from the moving GPS position whenever the rider has travelled
+  // roughly 250 m, and at least every minute for rolling traffic.
+  const liveOriginBucket =
+    drivingCommitted && riderPoint
+      ? `${Math.round(riderPoint.lat / 0.0025)}:${Math.round(riderPoint.lon / 0.0025)}`
+      : null;
+  const liveOriginRef = useRef<Coords | null>(null);
+  useEffect(() => {
+    if (riderPoint) liveOriginRef.current = riderPoint;
+  }, [riderPoint]);
+  const { data: liveDrive } = useQuery({
+    queryKey: ["live-drive", liveOriginBucket, driveTo.lat, driveTo.lon],
+    enabled: hydrated && Boolean(liveOriginBucket) && driveTo.lat !== null,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    placeholderData: (previous) => previous,
+    retry: 1,
+    queryFn: () => {
+      const origin = liveOriginRef.current ?? riderPoint;
+      if (!origin) throw new Error("No live position yet.");
+      return fetchDriveTime({
+        data: {
+          fromLat: origin.lat,
+          fromLon: origin.lon,
+          toLat: driveTo.lat as number,
+          toLon: driveTo.lon as number,
+          forceRefresh: true,
+        },
+      });
+    },
+  });
+  const [liveTick, setLiveTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!commitment) return;
+    setLiveTick(Date.now());
+    const timer = window.setInterval(() => setLiveTick(Date.now()), 10_000);
+    return () => window.clearInterval(timer);
+  }, [commitment]);
+  const liveEta = useMemo(() => {
+    if (!commitment) return null;
+    const tickSeconds = honoluluSeconds(new Date(liveTick));
+    if (commitment.mode === "drive") {
+      const basis = liveDrive ?? drive;
+      if (!basis) return null;
+      const elapsedMin = Math.max(0, (liveTick - basis.fetchedAt) / 60_000);
+      const remainingMin = Math.max(1, Math.round(basis.trafficMinutes - elapsedMin));
+      return {
+        remainingMin,
+        arriveSeconds: tickSeconds + remainingMin * 60,
+        meters: basis.meters as number | null,
+        live: Boolean(liveDrive),
+      };
+    }
+    if (!best?.arrive_seconds) return null;
+    const remainingMin = Math.max(0, Math.round((best.arrive_seconds - tickSeconds) / 60));
+    return { remainingMin, arriveSeconds: best.arrive_seconds, meters: null, live: true };
+  }, [commitment, liveDrive, drive, best, liveTick]);
+
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
   const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
   useEffect(() => {
@@ -2635,16 +2699,16 @@ function Index() {
     chooseDirection(honoluluParts(now).hour >= 12);
   }
 
-  async function quickStartSavedPlace(kind: "home" | "work") {
+  async function quickStartSavedPlace(slot: string) {
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
     void refreshTrafficNow();
-    const destination = findByKind(savedPlaces, kind);
+    const destination = resolveShortcut(savedPlaces, slot);
     if (!destination) {
-      toast(`Save your ${kind === "home" ? "Home" : "Work"} location first.`, {
-        description: "You can add it in Saved locations.",
+      toast(`Save your ${shortcutLabel(savedPlaces, slot)} location first.`, {
+        description: "Add it under Saved places in Settings.",
       });
-      setOnboardingOpen(true);
+      setSettingsOpen(true);
       return;
     }
     if (!navigator.geolocation) {
@@ -2700,7 +2764,7 @@ function Index() {
             destReturnStopName: back.stop_name ?? "",
             destReturnWalkM: Number(back.distance_m),
           });
-          chooseDirection(kind === "home");
+          chooseDirection(false);
           const accuracy = position.coords.accuracy;
           const precision = Number.isFinite(accuracy)
             ? `Accurate to about ${formatDistance(accuracy)}`
@@ -2845,32 +2909,7 @@ function Index() {
             <ChevronRight className="size-5 text-primary-foreground/70" />
           </Button>
 
-          <div className="mt-2 grid grid-cols-2 gap-2" aria-label="Saved place quick actions">
-            {(["home", "work"] as const).map((kind) => {
-              const place = findByKind(savedPlaces, kind);
-              const Icon = kind === "home" ? House : BriefcaseBusiness;
-              const label = kind === "home" ? "Home" : "Work";
-              return (
-                <Button
-                  key={kind}
-                  variant="outline"
-                  onClick={() => void quickStartSavedPlace(kind)}
-                  className="glass-panel h-14 justify-start gap-3 border-primary/30 bg-primary/5 px-3 text-foreground hover:bg-primary/10"
-                  aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
-                >
-                  <span className="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
-                    <Icon className="size-4" />
-                  </span>
-                  <span className="min-w-0 text-left">
-                    <span className="block text-sm font-bold">{label}</span>
-                    <span className="block truncate text-[11px] font-medium text-muted-foreground">
-                      {place ? place.name : "Set location"}
-                    </span>
-                  </span>
-                </Button>
-              );
-            })}
-          </div>
+          <ShortcutGrid places={savedPlaces} onStart={(slot) => void quickStartSavedPlace(slot)} />
 
           {browseUserPoint && (
             <section
@@ -3627,9 +3666,21 @@ function Index() {
                   <p className="text-sm font-black uppercase text-foreground">
                     Live navigation active
                   </p>
+                  {liveEta ? (
+                    <p
+                      className="mt-0.5 text-sm font-bold tabular-nums text-foreground"
+                      aria-live="polite"
+                    >
+                      Arrive {clockFromSeconds(liveEta.arriveSeconds)} · {liveEta.remainingMin} min
+                      left
+                      {liveEta.meters ? ` · ${formatDistance(liveEta.meters)}` : ""}
+                    </p>
+                  ) : null}
                   <p className="mt-0.5 text-xs font-semibold text-muted-foreground">
                     {lockedMode === "drive"
-                      ? "GPS & traffic · Updating every 2 min"
+                      ? liveEta?.live
+                        ? "Live from your GPS position · traffic every minute"
+                        : "Waiting for GPS…"
                       : "Stops & alerts locked"}
                   </p>
                 </div>
@@ -3983,7 +4034,6 @@ function Index() {
         >
           <RotateCcw className="size-5" /> Reset
         </Button>
-
 
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
           <span>Schedule data from the agency feed</span>
@@ -4683,6 +4733,196 @@ function SettingsExpiryBanner() {
   );
 }
 
+function PlacePills({
+  places,
+  disabled,
+  onPick,
+}: {
+  places: SavedPlace[];
+  disabled: boolean;
+  onPick: (place: SavedPlace) => void;
+}) {
+  if (!places.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2" aria-label="Saved places">
+      {places.map((place) => {
+        const Icon = shortcutIcon(place.kind);
+        return (
+          <Button
+            key={place.id}
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={disabled}
+            onClick={() => onPick(place)}
+            className="h-9 gap-1.5 rounded-full px-3"
+          >
+            <Icon className="size-3.5" /> {place.label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
+const SHORTCUTS_KEY = "nalu-shortcuts-v1";
+const DEFAULT_SHORTCUTS = ["home", "work"];
+const MAX_SHORTCUTS = 4;
+
+/** A shortcut slot is a place kind (home/work/school/gym) or a saved place id. */
+function resolveShortcut(places: SavedPlace[], slot: string): SavedPlace | null {
+  if ((PLACE_KINDS as string[]).includes(slot) && slot !== "custom") {
+    return findByKind(places, slot as PlaceKind);
+  }
+  return places.find((place) => place.id === slot) ?? null;
+}
+function shortcutLabel(places: SavedPlace[], slot: string): string {
+  if ((PLACE_KINDS as string[]).includes(slot)) return kindLabel(slot as PlaceKind);
+  return places.find((place) => place.id === slot)?.label ?? "Saved place";
+}
+function shortcutIcon(slot: string) {
+  if (slot === "home") return House;
+  if (slot === "work") return BriefcaseBusiness;
+  if (slot === "school") return GraduationCap;
+  if (slot === "gym") return Dumbbell;
+  return MapPin;
+}
+
+function ShortcutGrid({
+  places,
+  onStart,
+}: {
+  places: SavedPlace[];
+  onStart: (slot: string) => void;
+}) {
+  const [slots, setSlots] = useState<string[]>(DEFAULT_SHORTCUTS);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SHORTCUTS_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((item) => typeof item === "string") &&
+        parsed.length
+      ) {
+        setSlots(parsed.slice(0, MAX_SHORTCUTS));
+      }
+    } catch {
+      // Keep defaults when storage is unreadable.
+    }
+  }, []);
+  function update(next: string[]) {
+    setSlots(next);
+    window.localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(next));
+  }
+  const choices = [
+    ...(["home", "work", "school", "gym"] as const).map((kind) => ({
+      value: kind as string,
+      label: kindLabel(kind),
+    })),
+    ...places
+      .filter((place) => place.kind === "custom")
+      .map((place) => ({ value: place.id, label: place.label })),
+  ];
+  const unused = choices.filter((choice) => !slots.includes(choice.value));
+
+  return (
+    <div className="mt-2">
+      <div className="grid grid-cols-2 gap-2" aria-label="Saved place shortcuts">
+        {slots.map((slot, index) => {
+          const place = resolveShortcut(places, slot);
+          const Icon = shortcutIcon(slot);
+          const label = shortcutLabel(places, slot);
+          if (editing) {
+            return (
+              <div
+                key={`${slot}-${index}`}
+                className="glass-panel flex h-14 items-center gap-1 rounded-md border border-primary/30 px-2"
+              >
+                <Select
+                  value={slot}
+                  onValueChange={(value) => {
+                    const next = [...slots];
+                    const swapIndex = next.indexOf(value);
+                    // Picking a slot already pinned elsewhere swaps the two.
+                    if (swapIndex >= 0) next[swapIndex] = slot;
+                    next[index] = value;
+                    update(next);
+                  }}
+                >
+                  <SelectTrigger
+                    className="h-10 min-w-0 flex-1 bg-transparent"
+                    aria-label={`Shortcut ${index + 1}`}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {choices.map((choice) => (
+                      <SelectItem key={choice.value} value={choice.value}>
+                        {choice.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0"
+                  aria-label={`Remove ${label} shortcut`}
+                  disabled={slots.length <= 1}
+                  onClick={() => update(slots.filter((_, i) => i !== index))}
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
+            );
+          }
+          return (
+            <Button
+              key={`${slot}-${index}`}
+              variant="outline"
+              onClick={() => onStart(slot)}
+              className="glass-panel h-14 min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 px-3 text-foreground hover:bg-primary/10"
+              aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
+            >
+              <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 text-left">
+                <span className="block truncate text-sm font-bold">{label}</span>
+                <span className="block truncate text-[11px] font-medium text-muted-foreground">
+                  {place ? place.name : "Set location"}
+                </span>
+              </span>
+            </Button>
+          );
+        })}
+        {editing && slots.length < MAX_SHORTCUTS && unused.length > 0 && (
+          <Button
+            variant="outline"
+            className="h-14 gap-2 border-dashed border-primary/40 bg-transparent text-muted-foreground"
+            onClick={() => update([...slots, unused[0]!.value])}
+          >
+            <Plus className="size-4" /> Add shortcut
+          </Button>
+        )}
+      </div>
+      <div className="mt-1 flex justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 text-xs text-muted-foreground"
+          onClick={() => setEditing((value) => !value)}
+        >
+          {editing ? <Check className="size-3.5" /> : <Pencil className="size-3.5" />}
+          {editing ? "Done" : "Edit shortcuts"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function SetupDialog({
   open,
   firstRun,
@@ -4705,11 +4945,15 @@ function SetupDialog({
   const [permissionBlocked, setPermissionBlocked] = useState(false);
   const [saveKind, setSaveKind] = useState<PlaceKind>("work");
   const [saveTime, setSaveTime] = useState("");
+  const [originLabel, setOriginLabel] = useState("Current location");
+  // Distance to the best boarding station; decides walk vs park-and-ride.
+  const [stationDistanceM, setStationDistanceM] = useState<number | null>(null);
 
   useEffect(() => {
     if (open) {
       setDraft(setup);
       setStatus(null);
+      setOriginLabel(setup.homeLat !== null ? "Your starting point" : "Current location");
       setPlaceQuery("");
       setDebouncedQuery("");
     }
@@ -4733,6 +4977,15 @@ function SetupDialog({
     };
   }, [open, setup]);
 
+  // From defaults to the current location the first time a trip is set up.
+  useEffect(() => {
+    if (!open || setup.homeLat !== null) return;
+    void queryLocationPermission().then((state) => {
+      if (state === "granted") void locateMe();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // 300ms debounce so typing does not fire a search per keystroke.
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(placeQuery.trim()), 300);
@@ -4751,9 +5004,9 @@ function SetupDialog({
 
   const { data: stations = [] } = useRailStations(open);
 
-  async function useMyLocation() {
+  async function locateMe() {
     if (!navigator.geolocation) {
-      setStatus("This device cannot share its location. Pick your station below.");
+      setStatus("This device cannot share its location. Pick a saved place below.");
       return;
     }
     // Check without prompting first: if it is already blocked, skip the request
@@ -4763,12 +5016,12 @@ function SetupDialog({
       setPermissionBlocked(true);
       window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
       setStatus(
-        "Location is blocked in your browser. Follow the steps below to allow it, or pick your station from the list.",
+        "Location is blocked in your browser. Follow the steps below to allow it, or pick a saved place.",
       );
       return;
     }
     setBusy(true);
-    setStatus("Finding your nearest rail station…");
+    setStatus("Finding where you are…");
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const lat = position.coords.latitude;
@@ -4781,7 +5034,7 @@ function SetupDialog({
         setBusy(false);
         const nearest = data?.[0];
         if (error || !nearest) {
-          setStatus("Could not match a station. Pick one below.");
+          setStatus("Could not plan from here. Pick a saved place.");
           return;
         }
         setDraft((current) => ({
@@ -4791,19 +5044,17 @@ function SetupDialog({
           homeStopId: nearest.stop_id,
           homeStopName: nearest.stop_name ?? "",
         }));
+        setOriginLabel("Current location");
+        setStationDistanceM(Number(nearest.distance_m));
         const accuracy = position.coords.accuracy;
         const precision = Number.isFinite(accuracy)
           ? ` Accurate to about ${formatDistance(accuracy)}.`
           : "";
-        setStatus(
-          `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.${precision}`,
-        );
+        setStatus(`Using your current location.${precision}`);
         // Confirm the exact spot in plain words, so a wrong pin is obvious.
         const address = await lookupAddress({ data: { lat, lon } }).catch(() => null);
         if (address?.label) {
-          setStatus(
-            `Detected: ${address.label}.${precision} Nearest station: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip away.`,
-          );
+          setStatus(`Detected: ${address.label}.${precision}`);
         }
       },
       (error) => {
@@ -4812,20 +5063,21 @@ function SetupDialog({
           setPermissionBlocked(true);
           window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
           setStatus(
-            "Location is blocked in your browser. Follow the steps below to allow it, or pick your station from the list.",
+            "Location is blocked in your browser. Follow the steps below to allow it, or pick a saved place.",
           );
           return;
         }
-        setStatus("Location was not shared. Pick your station below.");
+        setStatus("Location was not shared. Pick a saved place below.");
       },
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }
 
   /** Use a point as the starting side: remember the door and derive its station. */
-  async function applyOrigin(place: PointLike) {
+  async function applyOrigin(place: PointLike, label?: string) {
     setBusy(true);
-    setStatus("Finding the station nearest that address…");
+    setOriginLabel(label ?? place.name);
+    setStatus(null);
     try {
       const { data } = await supabase.rpc("nearest_stop", {
         p_lat: place.lat,
@@ -4840,11 +5092,7 @@ function SetupDialog({
         homeStopId: nearest?.stop_id ?? current.homeStopId,
         homeStopName: nearest?.stop_name ?? current.homeStopName,
       }));
-      setStatus(
-        nearest
-          ? `Starting from ${place.name}. Nearest station: ${stationLabel(nearest.stop_name)}.`
-          : `Starting from ${place.name}. Pick a station below.`,
-      );
+      if (nearest) setStationDistanceM(Number(nearest.distance_m));
     } finally {
       setBusy(false);
     }
@@ -4929,6 +5177,8 @@ function SetupDialog({
     const home = findByKind(savedPlaces, "home");
     onSave({
       ...draft,
+      // Walk when the station is close; otherwise plan park-and-ride driving.
+      allowDrive: stationDistanceM === null ? draft.allowDrive : stationDistanceM > 1200,
       homeLat: draft.homeLat ?? home?.lat ?? null,
       homeLon: draft.homeLon ?? home?.lon ?? null,
     });
@@ -4958,20 +5208,6 @@ function SetupDialog({
           lon: draft.destLon,
         }
       : null;
-  const selectedStation = stations.find((station) => station.stop_id === draft.homeStopId);
-  const setupWalk =
-    draft.homeLat !== null &&
-    draft.homeLon !== null &&
-    selectedStation?.stop_lat !== null &&
-    selectedStation?.stop_lat !== undefined &&
-    selectedStation.stop_lon !== null &&
-    selectedStation.stop_lon !== undefined
-      ? walkingEstimate(
-          { lat: draft.homeLat, lon: draft.homeLon },
-          { lat: Number(selectedStation.stop_lat), lon: Number(selectedStation.stop_lon) },
-        )
-      : null;
-
   return (
     <Dialog
       open={open}
@@ -4984,204 +5220,40 @@ function SetupDialog({
         <DialogHeader className="text-left">
           <DialogTitle className="text-2xl">{firstRun ? "WHERE TO?" : "Your trip"}</DialogTitle>
           <DialogDescription>
-            Nalu needs your starting point and destination once. Guests stay on-device; signing in
-            enables private sync.
+            Where you’re starting and where you’re going. Nalu picks the best station and route for you.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-5">
-          <section className="grid gap-3 rounded-lg border border-border p-4">
-            <div className="flex items-center justify-between gap-3">
-              <Label className="text-sm">Saved locations</Label>
-              {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onPlacesChange(swapHomeWork(savedPlaces))}
-                >
-                  Swap Home &amp; Work
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Save Home, Work, School, Gym or anywhere else once, then start a trip with one tap.
-            </p>
-
-            {presets.length > 0 && (
-              <div className="flex flex-wrap gap-2" aria-label="Commute presets">
-                {presets.map((preset) => (
-                  <Button
-                    key={preset.id}
-                    variant="secondary"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => applyPreset(preset.from, preset.to)}
-                  >
-                    {preset.label}
-                  </Button>
-                ))}
-              </div>
-            )}
-
-            {savedPlaces.length > 0 && (
-              <ul className="grid gap-3">
-                {savedPlaces.map((place) => (
-                  <li key={place.id} className="grid gap-2 rounded-lg bg-surface-raised p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <Input
-                          aria-label={`Label for ${place.name}`}
-                          value={place.label}
-                          onChange={(event) =>
-                            onPlacesChange(
-                              upsertPlace(savedPlaces, { ...place, label: event.target.value }),
-                            )
-                          }
-                          className="h-9 bg-background/60 font-semibold"
-                        />
-                        <p className="mt-1 truncate text-xs text-muted-foreground">{place.name}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Remove ${place.label}`}
-                        onClick={() => onPlacesChange(removePlace(savedPlaces, place.id))}
-                      >
-                        <X className="size-4" />
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Label
-                        htmlFor={`arrive-${place.id}`}
-                        className="text-xs text-muted-foreground"
-                      >
-                        Typical arrival
-                      </Label>
-                      <Input
-                        id={`arrive-${place.id}`}
-                        type="time"
-                        value={clockInputValue(place.typicalArrivalSeconds)}
-                        onChange={(event) =>
-                          onPlacesChange(
-                            upsertPlace(savedPlaces, {
-                              ...place,
-                              typicalArrivalSeconds: parseClockInput(event.target.value),
-                            }),
-                          )
-                        }
-                        className="h-9 w-32 bg-background/60 tabular-nums"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => applyOrigin(place)}
-                      >
-                        Start here
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => selectPlace(place)}
-                      >
-                        Go here
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-              <Select value={saveKind} onValueChange={(value) => setSaveKind(value as PlaceKind)}>
-                <SelectTrigger className="h-10 w-32 bg-surface-raised">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLACE_KINDS.map((kind) => (
-                    <SelectItem key={kind} value={kind}>
-                      {kind === "custom" ? "Custom" : kindLabel(kind)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="time"
-                aria-label="Typical arrival time for the place you are saving"
-                value={saveTime}
-                onChange={(event) => setSaveTime(event.target.value)}
-                className="h-10 w-32 bg-surface-raised tabular-nums"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!originPoint}
-                onClick={() =>
-                  originPoint && savePlace(saveKind, originPoint, parseClockInput(saveTime))
-                }
-              >
-                Save start
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!destinationPoint}
-                onClick={() =>
-                  destinationPoint &&
-                  savePlace(saveKind, destinationPoint, parseClockInput(saveTime))
-                }
-              >
-                Save destination
-              </Button>
-            </div>
-          </section>
           <div className="grid gap-2">
-            <Label>Home station</Label>
-            <p className="text-sm text-muted-foreground">The station nearest where you live.</p>
-            <Button
-              variant="outline"
-              onClick={useMyLocation}
+            <Label>From</Label>
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <LocateFixed className="size-4 shrink-0 text-primary" />
+                <p className="truncate font-medium">{originLabel}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0"
+                disabled={busy}
+                onClick={locateMe}
+              >
+                <LocateFixed className="size-4" /> Locate
+              </Button>
+            </div>
+            <PlacePills
+              places={savedPlaces}
               disabled={busy}
-              className="h-12 justify-start"
-            >
-              <LocateFixed className="size-4" /> Use my location
-            </Button>
+              onPick={(place) => void applyOrigin(place, place.label)}
+            />
             {permissionBlocked && (
               <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
-            )}
-            <Select
-              value={draft.homeStopId}
-              onValueChange={(stopId) =>
-                setDraft((current) => ({
-                  ...current,
-                  homeStopId: stopId,
-                  homeStopName:
-                    stations.find((station) => station.stop_id === stopId)?.stop_name ?? "",
-                }))
-              }
-            >
-              <SelectTrigger className="h-12 bg-surface-raised">
-                <SelectValue placeholder="Choose a station" />
-              </SelectTrigger>
-              <SelectContent>
-                {stations.map((station) => (
-                  <SelectItem key={station.stop_id} value={station.stop_id}>
-                    {stationLabel(station.stop_name)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {setupWalk && (
-              <p className="text-sm font-semibold text-foreground">
-                Walk to {stationLabel(draft.homeStopName)} Station · {setupWalk.minutes} min ·{" "}
-                {formatDistance(setupWalk.meters)}
-              </p>
             )}
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="destination">Destination</Label>
+            <Label htmlFor="destination">To</Label>
             {draft.destinationName ? (
               <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
                 <div className="min-w-0">
@@ -5202,6 +5274,7 @@ function SetupDialog({
               </div>
             ) : (
               <>
+                <PlacePills places={savedPlaces} disabled={busy} onPick={selectPlace} />
                 <Input
                   id="destination"
                   className="h-12 bg-surface-raised"
@@ -5241,22 +5314,6 @@ function SetupDialog({
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-4 rounded-lg bg-surface-raised px-4 py-3">
-            <Label htmlFor="drive" className="leading-snug">
-              I can drive to the station
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                Lets Nalu use driving for the first leg.
-              </span>
-            </Label>
-            <Switch
-              id="drive"
-              checked={draft.allowDrive}
-              onCheckedChange={(checked) =>
-                setDraft((current) => ({ ...current, allowDrive: checked }))
-              }
-            />
-          </div>
-
           <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
             GO
           </Button>
@@ -5267,6 +5324,157 @@ function SetupDialog({
                 Location
               </p>
               <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
+            </section>
+          )}
+
+          {!firstRun && (
+            <section className="grid gap-3 rounded-lg border border-border p-4">
+              <div className="flex items-center justify-between gap-3">
+                <Label className="text-sm">Saved places</Label>
+                {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onPlacesChange(swapHomeWork(savedPlaces))}
+                  >
+                    Swap Home &amp; Work
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Save Home, Work, School, Gym or anywhere else once, then start a trip with one tap.
+              </p>
+
+              {presets.length > 0 && (
+                <div className="flex flex-wrap gap-2" aria-label="Commute presets">
+                  {presets.map((preset) => (
+                    <Button
+                      key={preset.id}
+                      variant="secondary"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => applyPreset(preset.from, preset.to)}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
+              {savedPlaces.length > 0 && (
+                <ul className="grid gap-3">
+                  {savedPlaces.map((place) => (
+                    <li key={place.id} className="grid gap-2 rounded-lg bg-surface-raised p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <Input
+                            aria-label={`Label for ${place.name}`}
+                            value={place.label}
+                            onChange={(event) =>
+                              onPlacesChange(
+                                upsertPlace(savedPlaces, { ...place, label: event.target.value }),
+                              )
+                            }
+                            className="h-9 bg-background/60 font-semibold"
+                          />
+                          <p className="mt-1 truncate text-xs text-muted-foreground">
+                            {place.name}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Remove ${place.label}`}
+                          onClick={() => onPlacesChange(removePlace(savedPlaces, place.id))}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Label
+                          htmlFor={`arrive-${place.id}`}
+                          className="text-xs text-muted-foreground"
+                        >
+                          Typical arrival
+                        </Label>
+                        <Input
+                          id={`arrive-${place.id}`}
+                          type="time"
+                          value={clockInputValue(place.typicalArrivalSeconds)}
+                          onChange={(event) =>
+                            onPlacesChange(
+                              upsertPlace(savedPlaces, {
+                                ...place,
+                                typicalArrivalSeconds: parseClockInput(event.target.value),
+                              }),
+                            )
+                          }
+                          className="h-9 w-32 bg-background/60 tabular-nums"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => applyOrigin(place)}
+                        >
+                          Start here
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => selectPlace(place)}
+                        >
+                          Go here
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                <Select value={saveKind} onValueChange={(value) => setSaveKind(value as PlaceKind)}>
+                  <SelectTrigger className="h-10 w-32 bg-surface-raised">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PLACE_KINDS.map((kind) => (
+                      <SelectItem key={kind} value={kind}>
+                        {kind === "custom" ? "Custom" : kindLabel(kind)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="time"
+                  aria-label="Typical arrival time for the place you are saving"
+                  value={saveTime}
+                  onChange={(event) => setSaveTime(event.target.value)}
+                  className="h-10 w-32 bg-surface-raised tabular-nums"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!originPoint}
+                  onClick={() =>
+                    originPoint && savePlace(saveKind, originPoint, parseClockInput(saveTime))
+                  }
+                >
+                  Save start
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!destinationPoint}
+                  onClick={() =>
+                    destinationPoint &&
+                    savePlace(saveKind, destinationPoint, parseClockInput(saveTime))
+                  }
+                >
+                  Save destination
+                </Button>
+              </div>
             </section>
           )}
 
