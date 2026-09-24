@@ -2696,16 +2696,16 @@ function Index() {
     chooseDirection(honoluluParts(now).hour >= 12);
   }
 
-  async function quickStartSavedPlace(kind: "home" | "work") {
+  async function quickStartSavedPlace(slot: string) {
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
     void refreshTrafficNow();
-    const destination = findByKind(savedPlaces, kind);
+    const destination = resolveShortcut(savedPlaces, slot);
     if (!destination) {
-      toast(`Save your ${kind === "home" ? "Home" : "Work"} location first.`, {
-        description: "You can add it in Saved locations.",
+      toast(`Save your ${shortcutLabel(savedPlaces, slot)} location first.`, {
+        description: "Add it under Saved places in Settings.",
       });
-      setOnboardingOpen(true);
+      setSettingsOpen(true);
       return;
     }
     if (!navigator.geolocation) {
@@ -2761,7 +2761,7 @@ function Index() {
             destReturnStopName: back.stop_name ?? "",
             destReturnWalkM: Number(back.distance_m),
           });
-          chooseDirection(kind === "home");
+          chooseDirection(false);
           const accuracy = position.coords.accuracy;
           const precision = Number.isFinite(accuracy)
             ? `Accurate to about ${formatDistance(accuracy)}`
