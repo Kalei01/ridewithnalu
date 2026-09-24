@@ -4735,6 +4735,38 @@ function SettingsExpiryBanner() {
   );
 }
 
+function PlacePills({
+  places,
+  disabled,
+  onPick,
+}: {
+  places: SavedPlace[];
+  disabled: boolean;
+  onPick: (place: SavedPlace) => void;
+}) {
+  if (!places.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2" aria-label="Saved places">
+      {places.map((place) => {
+        const Icon = shortcutIcon(place.kind);
+        return (
+          <Button
+            key={place.id}
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={disabled}
+            onClick={() => onPick(place)}
+            className="h-9 gap-1.5 rounded-full px-3"
+          >
+            <Icon className="size-3.5" /> {place.label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
 const SHORTCUTS_KEY = "nalu-shortcuts-v1";
 const DEFAULT_SHORTCUTS = ["home", "work"];
 const MAX_SHORTCUTS = 4;
@@ -4911,11 +4943,15 @@ function SetupDialog({
   const [permissionBlocked, setPermissionBlocked] = useState(false);
   const [saveKind, setSaveKind] = useState<PlaceKind>("work");
   const [saveTime, setSaveTime] = useState("");
+  const [originLabel, setOriginLabel] = useState("Current location");
+  // Distance to the best boarding station; decides walk vs park-and-ride.
+  const [stationDistanceM, setStationDistanceM] = useState<number | null>(null);
 
   useEffect(() => {
     if (open) {
       setDraft(setup);
       setStatus(null);
+      setOriginLabel(setup.homeLat !== null ? "Your starting point" : "Current location");
       setPlaceQuery("");
       setDebouncedQuery("");
     }
@@ -4939,6 +4975,15 @@ function SetupDialog({
     };
   }, [open, setup]);
 
+  // From defaults to the current location the first time a trip is set up.
+  useEffect(() => {
+    if (!open || setup.homeLat !== null) return;
+    void queryLocationPermission().then((state) => {
+      if (state === "granted") void useMyLocation();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // 300ms debounce so typing does not fire a search per keystroke.
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(placeQuery.trim()), 300);
@@ -4959,7 +5004,7 @@ function SetupDialog({
 
   async function useMyLocation() {
     if (!navigator.geolocation) {
-      setStatus("This device cannot share its location. Pick your station below.");
+      setStatus("This device cannot share its location. Pick a saved place below.");
       return;
     }
     // Check without prompting first: if it is already blocked, skip the request
@@ -4969,12 +5014,12 @@ function SetupDialog({
       setPermissionBlocked(true);
       window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
       setStatus(
-        "Location is blocked in your browser. Follow the steps below to allow it, or pick your station from the list.",
+        "Location is blocked in your browser. Follow the steps below to allow it, or pick a saved place.",
       );
       return;
     }
     setBusy(true);
-    setStatus("Finding your nearest rail station…");
+    setStatus("Finding where you are…");
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const lat = position.coords.latitude;
@@ -4987,7 +5032,7 @@ function SetupDialog({
         setBusy(false);
         const nearest = data?.[0];
         if (error || !nearest) {
-          setStatus("Could not match a station. Pick one below.");
+          setStatus("Could not plan from here. Pick a saved place.");
           return;
         }
         setDraft((current) => ({
@@ -4997,18 +5042,18 @@ function SetupDialog({
           homeStopId: nearest.stop_id,
           homeStopName: nearest.stop_name ?? "",
         }));
+        setOriginLabel("Current location");
+        setStationDistanceM(Number(nearest.distance_m));
         const accuracy = position.coords.accuracy;
         const precision = Number.isFinite(accuracy)
           ? ` Accurate to about ${formatDistance(accuracy)}.`
           : "";
-        setStatus(
-          `Home station near you: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip from your location.${precision}`,
-        );
+        setStatus(`Using your current location.${precision}`);
         // Confirm the exact spot in plain words, so a wrong pin is obvious.
         const address = await lookupAddress({ data: { lat, lon } }).catch(() => null);
         if (address?.label) {
           setStatus(
-            `Detected: ${address.label}.${precision} Nearest station: ${stationLabel(nearest.stop_name)}, a ${formatDistance(nearest.distance_m)} trip away.`,
+            `Detected: ${address.label}.${precision}`,
           );
         }
       },
@@ -5018,20 +5063,21 @@ function SetupDialog({
           setPermissionBlocked(true);
           window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
           setStatus(
-            "Location is blocked in your browser. Follow the steps below to allow it, or pick your station from the list.",
+            "Location is blocked in your browser. Follow the steps below to allow it, or pick a saved place.",
           );
           return;
         }
-        setStatus("Location was not shared. Pick your station below.");
+        setStatus("Location was not shared. Pick a saved place below.");
       },
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }
 
   /** Use a point as the starting side: remember the door and derive its station. */
-  async function applyOrigin(place: PointLike) {
+  async function applyOrigin(place: PointLike, label?: string) {
     setBusy(true);
-    setStatus("Finding the station nearest that address…");
+    setOriginLabel(label ?? place.name);
+    setStatus(null);
     try {
       const { data } = await supabase.rpc("nearest_stop", {
         p_lat: place.lat,
@@ -5046,11 +5092,7 @@ function SetupDialog({
         homeStopId: nearest?.stop_id ?? current.homeStopId,
         homeStopName: nearest?.stop_name ?? current.homeStopName,
       }));
-      setStatus(
-        nearest
-          ? `Starting from ${place.name}. Nearest station: ${stationLabel(nearest.stop_name)}.`
-          : `Starting from ${place.name}. Pick a station below.`,
-      );
+      if (nearest) setStationDistanceM(Number(nearest.distance_m));
     } finally {
       setBusy(false);
     }
@@ -5135,6 +5177,8 @@ function SetupDialog({
     const home = findByKind(savedPlaces, "home");
     onSave({
       ...draft,
+      // Walk when the station is close; otherwise plan park-and-ride driving.
+      allowDrive: stationDistanceM === null ? draft.allowDrive : stationDistanceM > 1200,
       homeLat: draft.homeLat ?? home?.lat ?? null,
       homeLon: draft.homeLon ?? home?.lon ?? null,
     });
@@ -5164,20 +5208,6 @@ function SetupDialog({
           lon: draft.destLon,
         }
       : null;
-  const selectedStation = stations.find((station) => station.stop_id === draft.homeStopId);
-  const setupWalk =
-    draft.homeLat !== null &&
-    draft.homeLon !== null &&
-    selectedStation?.stop_lat !== null &&
-    selectedStation?.stop_lat !== undefined &&
-    selectedStation.stop_lon !== null &&
-    selectedStation.stop_lon !== undefined
-      ? walkingEstimate(
-          { lat: draft.homeLat, lon: draft.homeLon },
-          { lat: Number(selectedStation.stop_lat), lon: Number(selectedStation.stop_lon) },
-        )
-      : null;
-
   return (
     <Dialog
       open={open}
