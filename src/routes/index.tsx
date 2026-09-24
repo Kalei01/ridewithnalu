@@ -5220,8 +5220,7 @@ function SetupDialog({
         <DialogHeader className="text-left">
           <DialogTitle className="text-2xl">{firstRun ? "WHERE TO?" : "Your trip"}</DialogTitle>
           <DialogDescription>
-            Nalu needs your starting point and destination once. Guests stay on-device; signing in
-            enables private sync.
+            Where you’re starting and where you’re going. Nalu picks the best station and route for you.
           </DialogDescription>
         </DialogHeader>
 
@@ -5240,7 +5239,7 @@ function SetupDialog({
                 disabled={busy}
                 onClick={locateMe}
               >
-                Current location
+                <LocateFixed className="size-4" /> Locate
               </Button>
             </div>
             <PlacePills
