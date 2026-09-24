@@ -5196,9 +5196,112 @@ function SetupDialog({
         </DialogHeader>
 
         <div className="grid gap-5">
-          <section className="grid gap-3 rounded-lg border border-border p-4">
+          <div className="grid gap-2">
+            <Label>From</Label>
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <LocateFixed className="size-4 shrink-0 text-primary" />
+                <p className="truncate font-medium">{originLabel}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0"
+                disabled={busy}
+                onClick={useMyLocation}
+              >
+                Current location
+              </Button>
+            </div>
+            <PlacePills
+              places={savedPlaces}
+              disabled={busy}
+              onPick={(place) => void applyOrigin(place, place.label)}
+            />
+            {permissionBlocked && (
+              <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="destination">To</Label>
+            {draft.destinationName ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{draft.destinationName}</p>
+                  {draft.destinationAddress !== draft.destinationName && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {draft.destinationAddress}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  className="shrink-0"
+                  onClick={() => setDraft((current) => ({ ...current, destinationName: "" }))}
+                >
+                  Change
+                </Button>
+              </div>
+            ) : (
+              <>
+                <PlacePills places={savedPlaces} disabled={busy} onPick={selectPlace} />
+                <Input
+                  id="destination"
+                  className="h-12 bg-surface-raised"
+                  placeholder="Search for a place or address"
+                  autoComplete="off"
+                  value={placeQuery}
+                  onChange={(event) => setPlaceQuery(event.target.value)}
+                />
+                {searching && <p className="text-sm text-muted-foreground">Searching…</p>}
+                {suggestions.length > 0 && (
+                  <ul className="divide-y divide-border overflow-hidden rounded-lg bg-surface-raised">
+                    {suggestions.map((place) => (
+                      <li key={place.id}>
+                        <button
+                          type="button"
+                          onClick={() => selectPlace(place)}
+                          disabled={busy}
+                          className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                        >
+                          <span className="block truncate font-medium">{place.name}</span>
+                          {place.address && place.address !== place.name && (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {place.address}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {!searching && debouncedQuery.length >= 2 && suggestions.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No places matched. Try a different name.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
+            GO
+          </Button>
+
+          {!firstRun && permissionBlocked && (
+            <section className="space-y-2 border-t border-border pt-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Location
+              </p>
+              <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
+            </section>
+          )}
+
+          {!firstRun && (
+            <section className="grid gap-3 rounded-lg border border-border p-4">
             <div className="flex items-center justify-between gap-3">
-              <Label className="text-sm">Saved locations</Label>
+              <Label className="text-sm">Saved places</Label>
               {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
                 <Button
                   variant="ghost"
@@ -5341,138 +5444,6 @@ function SetupDialog({
                 Save destination
               </Button>
             </div>
-          </section>
-          <div className="grid gap-2">
-            <Label>Home station</Label>
-            <p className="text-sm text-muted-foreground">The station nearest where you live.</p>
-            <Button
-              variant="outline"
-              onClick={useMyLocation}
-              disabled={busy}
-              className="h-12 justify-start"
-            >
-              <LocateFixed className="size-4" /> Use my location
-            </Button>
-            {permissionBlocked && (
-              <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
-            )}
-            <Select
-              value={draft.homeStopId}
-              onValueChange={(stopId) =>
-                setDraft((current) => ({
-                  ...current,
-                  homeStopId: stopId,
-                  homeStopName:
-                    stations.find((station) => station.stop_id === stopId)?.stop_name ?? "",
-                }))
-              }
-            >
-              <SelectTrigger className="h-12 bg-surface-raised">
-                <SelectValue placeholder="Choose a station" />
-              </SelectTrigger>
-              <SelectContent>
-                {stations.map((station) => (
-                  <SelectItem key={station.stop_id} value={station.stop_id}>
-                    {stationLabel(station.stop_name)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {setupWalk && (
-              <p className="text-sm font-semibold text-foreground">
-                Walk to {stationLabel(draft.homeStopName)} Station · {setupWalk.minutes} min ·{" "}
-                {formatDistance(setupWalk.meters)}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="destination">Destination</Label>
-            {draft.destinationName ? (
-              <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{draft.destinationName}</p>
-                  {draft.destinationAddress !== draft.destinationName && (
-                    <p className="truncate text-xs text-muted-foreground">
-                      {draft.destinationAddress}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  className="shrink-0"
-                  onClick={() => setDraft((current) => ({ ...current, destinationName: "" }))}
-                >
-                  Change
-                </Button>
-              </div>
-            ) : (
-              <>
-                <Input
-                  id="destination"
-                  className="h-12 bg-surface-raised"
-                  placeholder="Search for a place or address"
-                  autoComplete="off"
-                  value={placeQuery}
-                  onChange={(event) => setPlaceQuery(event.target.value)}
-                />
-                {searching && <p className="text-sm text-muted-foreground">Searching…</p>}
-                {suggestions.length > 0 && (
-                  <ul className="divide-y divide-border overflow-hidden rounded-lg bg-surface-raised">
-                    {suggestions.map((place) => (
-                      <li key={place.id}>
-                        <button
-                          type="button"
-                          onClick={() => selectPlace(place)}
-                          disabled={busy}
-                          className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/40"
-                        >
-                          <span className="block truncate font-medium">{place.name}</span>
-                          {place.address && place.address !== place.name && (
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {place.address}
-                            </span>
-                          )}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {!searching && debouncedQuery.length >= 2 && suggestions.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    No places matched. Try a different name.
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between gap-4 rounded-lg bg-surface-raised px-4 py-3">
-            <Label htmlFor="drive" className="leading-snug">
-              I can drive to the station
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                Lets Nalu use driving for the first leg.
-              </span>
-            </Label>
-            <Switch
-              id="drive"
-              checked={draft.allowDrive}
-              onCheckedChange={(checked) =>
-                setDraft((current) => ({ ...current, allowDrive: checked }))
-              }
-            />
-          </div>
-
-          <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
-            GO
-          </Button>
-
-          {!firstRun && permissionBlocked && (
-            <section className="space-y-2 border-t border-border pt-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Location
-              </p>
-              <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
             </section>
           )}
 
