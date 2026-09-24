@@ -13,6 +13,11 @@ import {
   Clock3,
   Footprints,
   House,
+  Dumbbell,
+  GraduationCap,
+  MapPin,
+  Pencil,
+  Plus,
   LocateFixed,
   Navigation,
   Radio,
@@ -2906,32 +2911,10 @@ function Index() {
             <ChevronRight className="size-5 text-primary-foreground/70" />
           </Button>
 
-          <div className="mt-2 grid grid-cols-2 gap-2" aria-label="Saved place quick actions">
-            {(["home", "work"] as const).map((kind) => {
-              const place = findByKind(savedPlaces, kind);
-              const Icon = kind === "home" ? House : BriefcaseBusiness;
-              const label = kind === "home" ? "Home" : "Work";
-              return (
-                <Button
-                  key={kind}
-                  variant="outline"
-                  onClick={() => void quickStartSavedPlace(kind)}
-                  className="glass-panel h-14 justify-start gap-3 border-primary/30 bg-primary/5 px-3 text-foreground hover:bg-primary/10"
-                  aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
-                >
-                  <span className="grid size-8 place-items-center rounded-md bg-primary/15 text-primary">
-                    <Icon className="size-4" />
-                  </span>
-                  <span className="min-w-0 text-left">
-                    <span className="block text-sm font-bold">{label}</span>
-                    <span className="block truncate text-[11px] font-medium text-muted-foreground">
-                      {place ? place.name : "Set location"}
-                    </span>
-                  </span>
-                </Button>
-              );
-            })}
-          </div>
+          <ShortcutGrid
+            places={savedPlaces}
+            onStart={(slot) => void quickStartSavedPlace(slot)}
+          />
 
           {browseUserPoint && (
             <section
@@ -4749,6 +4732,160 @@ function SettingsExpiryBanner() {
     >
       Transit data expires {expiryLabel(expiry.expiresOn)} · refresh needed
     </p>
+  );
+}
+
+const SHORTCUTS_KEY = "nalu-shortcuts-v1";
+const DEFAULT_SHORTCUTS = ["home", "work"];
+const MAX_SHORTCUTS = 4;
+
+/** A shortcut slot is a place kind (home/work/school/gym) or a saved place id. */
+function resolveShortcut(places: SavedPlace[], slot: string): SavedPlace | null {
+  if ((PLACE_KINDS as string[]).includes(slot) && slot !== "custom") {
+    return findByKind(places, slot as PlaceKind);
+  }
+  return places.find((place) => place.id === slot) ?? null;
+}
+function shortcutLabel(places: SavedPlace[], slot: string): string {
+  if ((PLACE_KINDS as string[]).includes(slot)) return kindLabel(slot as PlaceKind);
+  return places.find((place) => place.id === slot)?.label ?? "Saved place";
+}
+function shortcutIcon(slot: string) {
+  if (slot === "home") return House;
+  if (slot === "work") return BriefcaseBusiness;
+  if (slot === "school") return GraduationCap;
+  if (slot === "gym") return Dumbbell;
+  return MapPin;
+}
+
+function ShortcutGrid({
+  places,
+  onStart,
+}: {
+  places: SavedPlace[];
+  onStart: (slot: string) => void;
+}) {
+  const [slots, setSlots] = useState<string[]>(DEFAULT_SHORTCUTS);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SHORTCUTS_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string") && parsed.length) {
+        setSlots(parsed.slice(0, MAX_SHORTCUTS));
+      }
+    } catch {
+      // Keep defaults when storage is unreadable.
+    }
+  }, []);
+  function update(next: string[]) {
+    setSlots(next);
+    window.localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(next));
+  }
+  const choices = [
+    ...(["home", "work", "school", "gym"] as const).map((kind) => ({
+      value: kind as string,
+      label: kindLabel(kind),
+    })),
+    ...places
+      .filter((place) => place.kind === "custom")
+      .map((place) => ({ value: place.id, label: place.label })),
+  ];
+  const unused = choices.filter((choice) => !slots.includes(choice.value));
+
+  return (
+    <div className="mt-2">
+      <div className="grid grid-cols-2 gap-2" aria-label="Saved place shortcuts">
+        {slots.map((slot, index) => {
+          const place = resolveShortcut(places, slot);
+          const Icon = shortcutIcon(slot);
+          const label = shortcutLabel(places, slot);
+          if (editing) {
+            return (
+              <div
+                key={`${slot}-${index}`}
+                className="glass-panel flex h-14 items-center gap-1 rounded-md border border-primary/30 px-2"
+              >
+                <Select
+                  value={slot}
+                  onValueChange={(value) => {
+                    const next = [...slots];
+                    const swapIndex = next.indexOf(value);
+                    // Picking a slot already pinned elsewhere swaps the two.
+                    if (swapIndex >= 0) next[swapIndex] = slot;
+                    next[index] = value;
+                    update(next);
+                  }}
+                >
+                  <SelectTrigger
+                    className="h-10 min-w-0 flex-1 bg-transparent"
+                    aria-label={`Shortcut ${index + 1}`}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {choices.map((choice) => (
+                      <SelectItem key={choice.value} value={choice.value}>
+                        {choice.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0"
+                  aria-label={`Remove ${label} shortcut`}
+                  disabled={slots.length <= 1}
+                  onClick={() => update(slots.filter((_, i) => i !== index))}
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
+            );
+          }
+          return (
+            <Button
+              key={`${slot}-${index}`}
+              variant="outline"
+              onClick={() => onStart(slot)}
+              className="glass-panel h-14 min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 px-3 text-foreground hover:bg-primary/10"
+              aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
+            >
+              <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 text-left">
+                <span className="block truncate text-sm font-bold">{label}</span>
+                <span className="block truncate text-[11px] font-medium text-muted-foreground">
+                  {place ? place.name : "Set location"}
+                </span>
+              </span>
+            </Button>
+          );
+        })}
+        {editing && slots.length < MAX_SHORTCUTS && unused.length > 0 && (
+          <Button
+            variant="outline"
+            className="h-14 gap-2 border-dashed border-primary/40 bg-transparent text-muted-foreground"
+            onClick={() => update([...slots, unused[0]!.value])}
+          >
+            <Plus className="size-4" /> Add shortcut
+          </Button>
+        )}
+      </div>
+      <div className="mt-1 flex justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 text-xs text-muted-foreground"
+          onClick={() => setEditing((value) => !value)}
+        >
+          {editing ? <Check className="size-3.5" /> : <Pencil className="size-3.5" />}
+          {editing ? "Done" : "Edit shortcuts"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
