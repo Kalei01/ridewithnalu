@@ -1845,6 +1845,67 @@ function Index() {
       }),
   });
 
+  // ---- Live ETA while underway ----------------------------------------------
+  // Re-route from the moving GPS position whenever the rider has travelled
+  // roughly 250 m, and at least every minute for rolling traffic.
+  const liveOriginBucket =
+    drivingCommitted && riderPoint
+      ? `${Math.round(riderPoint.lat / 0.0025)}:${Math.round(riderPoint.lon / 0.0025)}`
+      : null;
+  const liveOriginRef = useRef<Coords | null>(null);
+  useEffect(() => {
+    if (riderPoint) liveOriginRef.current = riderPoint;
+  }, [riderPoint]);
+  const { data: liveDrive } = useQuery({
+    queryKey: ["live-drive", liveOriginBucket, driveTo.lat, driveTo.lon],
+    enabled: hydrated && Boolean(liveOriginBucket) && driveTo.lat !== null,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    placeholderData: (previous) => previous,
+    retry: 1,
+    queryFn: () => {
+      const origin = liveOriginRef.current ?? riderPoint;
+      if (!origin) throw new Error("No live position yet.");
+      return fetchDriveTime({
+        data: {
+          fromLat: origin.lat,
+          fromLon: origin.lon,
+          toLat: driveTo.lat as number,
+          toLon: driveTo.lon as number,
+          forceRefresh: true,
+        },
+      });
+    },
+  });
+  const [liveTick, setLiveTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!commitment) return;
+    setLiveTick(Date.now());
+    const timer = window.setInterval(() => setLiveTick(Date.now()), 10_000);
+    return () => window.clearInterval(timer);
+  }, [commitment]);
+  const liveEta = useMemo(() => {
+    if (!commitment) return null;
+    const tickSeconds = honoluluSeconds(new Date(liveTick));
+    if (commitment.mode === "drive") {
+      const basis = liveDrive ?? drive;
+      if (!basis) return null;
+      const elapsedMin = Math.max(0, (liveTick - basis.fetchedAt) / 60_000);
+      const remainingMin = Math.max(1, Math.round(basis.trafficMinutes - elapsedMin));
+      return {
+        remainingMin,
+        arriveSeconds: tickSeconds + remainingMin * 60,
+        meters: basis.meters as number | null,
+        live: Boolean(liveDrive),
+      };
+    }
+    if (!best?.arrive_seconds) return null;
+    const remainingMin = Math.max(0, Math.round((best.arrive_seconds - tickSeconds) / 60));
+    return { remainingMin, arriveSeconds: best.arrive_seconds, meters: null, live: true };
+  }, [commitment, liveDrive, drive, best, liveTick]);
+
+
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
   const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
   useEffect(() => {
