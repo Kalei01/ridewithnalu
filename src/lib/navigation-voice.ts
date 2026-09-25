@@ -12,6 +12,13 @@ export const FAR_ANNOUNCE_M = 805; // ~0.5 mile
 export const NEAR_ANNOUNCE_M = 91; // ~300 ft
 export const PASSED_M = 30;
 
+export type RouteMatch = {
+  point: { lat: number; lon: number };
+  segmentIndex: number;
+  distanceM: number;
+  bearing: number;
+};
+
 export function metersBetween(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
   const r = 6371000;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
@@ -98,6 +105,73 @@ export function bearingBetween(a: { lat: number; lon: number }, b: { lat: number
     Math.cos(a.lat * toRad) * Math.sin(b.lat * toRad) -
     Math.sin(a.lat * toRad) * Math.cos(b.lat * toRad) * Math.cos((b.lon - a.lon) * toRad);
   return (Math.atan2(y, x) / toRad + 360) % 360;
+}
+
+function angleDifference(a: number, b: number) {
+  return Math.abs(((a - b + 540) % 360) - 180);
+}
+
+/**
+ * Match a GPS fix to a forward section of the route. The small backward
+ * allowance handles noisy fixes without jumping to a nearby opposing ramp.
+ */
+export function matchRoutePoint(
+  point: { lat: number; lon: number },
+  path: Array<{ lat: number; lon: number }>,
+  previousIndex: number | null = null,
+  heading: number | null = null,
+): RouteMatch | null {
+  if (path.length < 2) return null;
+  const start = previousIndex === null ? 0 : Math.max(0, previousIndex - 3);
+  const end = previousIndex === null ? path.length - 1 : Math.min(path.length - 1, previousIndex + 220);
+  const latScale = 111_320;
+  const lonScale = Math.cos((point.lat * Math.PI) / 180) * latScale;
+  let best: RouteMatch | null = null;
+  let bestScore = Infinity;
+
+  for (let i = start; i < end; i += 1) {
+    const a = path[i];
+    const b = path[i + 1];
+    if (!a || !b) continue;
+    const ax = (a.lon - point.lon) * lonScale;
+    const ay = (a.lat - point.lat) * latScale;
+    const bx = (b.lon - point.lon) * lonScale;
+    const by = (b.lat - point.lat) * latScale;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lengthSq = dx * dx + dy * dy;
+    const t = lengthSq > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lengthSq)) : 0;
+    const x = ax + dx * t;
+    const y = ay + dy * t;
+    const distanceM = Math.hypot(x, y);
+    const segmentBearing = bearingBetween(a, b);
+    const headingPenalty = heading === null ? 0 : Math.max(0, angleDifference(segmentBearing, heading) - 50) * 1.8;
+    const backwardPenalty = previousIndex !== null && i < previousIndex ? (previousIndex - i) * 12 : 0;
+    const score = distanceM + headingPenalty + backwardPenalty;
+    if (score >= bestScore) continue;
+    bestScore = score;
+    best = {
+      point: {
+        lat: point.lat + y / latScale,
+        lon: point.lon + x / lonScale,
+      },
+      segmentIndex: i,
+      distanceM,
+      bearing: segmentBearing,
+    };
+  }
+  return best;
+}
+
+/** Ignore very uncertain fixes and impossible jumps before they affect routing. */
+export function isUsableNavigationFix(
+  previous: { point: { lat: number; lon: number }; timestamp: number } | null,
+  next: { point: { lat: number; lon: number }; timestamp: number; accuracy: number },
+) {
+  if (!Number.isFinite(next.accuracy) || next.accuracy > 55) return false;
+  if (!previous) return true;
+  const elapsedSeconds = Math.max(1, (next.timestamp - previous.timestamp) / 1000);
+  return metersBetween(previous.point, next.point) / elapsedSeconds < 75;
 }
 
 export function smoothBearing(

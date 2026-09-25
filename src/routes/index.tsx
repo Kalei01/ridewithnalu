@@ -95,7 +95,7 @@ import { SignInBanner } from "@/components/account/SignInBanner";
 import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrivalRange, destinationAccess } from "@/lib/destination-access";
-import { announcementFor, nextManeuver, smoothBearing, turnGlyph } from "@/lib/navigation-voice";
+import { announcementFor, isUsableNavigationFix, metersBetween, nextManeuver, smoothBearing, turnGlyph } from "@/lib/navigation-voice";
 import { track } from "@/lib/analytics";
 import { NotificationsSection } from "@/components/account/NotificationsSection";
 import { AnalyticsConsentBanner, PrivacySection } from "@/components/account/PrivacySection";
@@ -1699,6 +1699,8 @@ function Index() {
 
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
   const [riderHeading, setRiderHeading] = useState<number | null>(null);
+  const [riderSpeed, setRiderSpeed] = useState<number | null>(null);
+  const acceptedNavFix = useRef<{ point: Coords; timestamp: number } | null>(null);
   const distanceTrend = useRef<number[]>([]);
   // High-accuracy GPS is the biggest battery cost in the app, so it runs only
   // while a saved trip is actually underway — on a bus or train, or on a drive
@@ -1714,9 +1716,15 @@ function Index() {
     }
     const watch = navigator.geolocation.watchPosition(
       (position) => {
-        setRiderPoint({ lat: position.coords.latitude, lon: position.coords.longitude });
+        const point = { lat: position.coords.latitude, lon: position.coords.longitude };
+        const nextFix = { point, timestamp: position.timestamp, accuracy: position.coords.accuracy };
+        if (!isUsableNavigationFix(acceptedNavFix.current, nextFix)) return;
+        acceptedNavFix.current = { point, timestamp: position.timestamp };
+        setRiderPoint(point);
         const heading = position.coords.heading;
         setRiderHeading(typeof heading === "number" && !Number.isNaN(heading) ? heading : null);
+        const speed = position.coords.speed;
+        setRiderSpeed(typeof speed === "number" && !Number.isNaN(speed) ? speed : null);
       },
       (error) => {
         setRiderPoint(null);
@@ -1729,6 +1737,8 @@ function Index() {
       navigator.geolocation.clearWatch(watch);
       setRiderPoint(null);
       setRiderHeading(null);
+      setRiderSpeed(null);
+      acceptedNavFix.current = null;
     };
   }, [activeTransitLeg, drivingCommitted, configured, browseActive]);
 
@@ -1859,30 +1869,43 @@ function Index() {
   });
 
   // ---- Live ETA while underway ----------------------------------------------
-  // Re-route from the moving GPS position whenever the rider has travelled
-  // roughly 250 m, and at least every minute for rolling traffic.
-  const liveOriginBucket =
-    drivingCommitted && riderPoint
-      ? `${Math.round(riderPoint.lat / 0.0025)}:${Math.round(riderPoint.lon / 0.0025)}`
-      : null;
+  // Re-route only after meaningful progress or the two-minute traffic cadence.
+  // This avoids GPS jitter at grid boundaries repeatedly replacing a good path.
+  const [liveRouteOrigin, setLiveRouteOrigin] = useState<Coords | null>(null);
   const liveOriginRef = useRef<Coords | null>(null);
   useEffect(() => {
     if (riderPoint) liveOriginRef.current = riderPoint;
   }, [riderPoint]);
+  useEffect(() => {
+    if (!drivingCommitted || !riderPoint) {
+      setLiveRouteOrigin(null);
+      return;
+    }
+    setLiveRouteOrigin((current) =>
+      !current || metersBetween(current, riderPoint) >= 800 ? riderPoint : current,
+    );
+  }, [drivingCommitted, riderPoint]);
+  useEffect(() => {
+    if (!drivingCommitted) return;
+    const timer = window.setInterval(() => {
+      const latest = liveOriginRef.current;
+      if (latest) setLiveRouteOrigin(latest);
+    }, 2 * 60_000);
+    return () => window.clearInterval(timer);
+  }, [drivingCommitted]);
   // Race guard: every live re-route is stamped with a sequence number and only
   // the newest response ever reaches the screen, so a slow older TomTom reply
   // can't overwrite a fresher ETA.
   const liveSeqRef = useRef(0);
   const { data: liveDriveRaw } = useQuery({
-    queryKey: ["live-drive", liveOriginBucket, driveTo.lat, driveTo.lon],
-    enabled: hydrated && Boolean(liveOriginBucket) && driveTo.lat !== null,
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    queryKey: ["live-drive", liveRouteOrigin?.lat, liveRouteOrigin?.lon, driveTo.lat, driveTo.lon],
+    enabled: hydrated && Boolean(liveRouteOrigin) && driveTo.lat !== null,
+    staleTime: 2 * 60_000,
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,
     queryFn: async () => {
-      const origin = liveOriginRef.current ?? riderPoint;
+      const origin = liveRouteOrigin;
       if (!origin) throw new Error("No live position yet.");
       const seq = ++liveSeqRef.current;
       const result = await fetchDriveTime({
@@ -1971,13 +1994,13 @@ function Index() {
     setNavBearing((previous) =>
       smoothBearing(previous, {
         gpsHeading: riderHeading,
-        speedMps: null,
+        speedMps: riderSpeed,
         from: lastNavPoint.current,
         to: riderPoint,
       }),
     );
     lastNavPoint.current = riderPoint;
-  }, [riderPoint, riderHeading, drivingCommitted]);
+  }, [riderPoint, riderHeading, riderSpeed, drivingCommitted]);
   const passedTurns = useRef(new Set<string>());
   const spokenTurns = useRef(new Set<string>());
   useEffect(() => {
