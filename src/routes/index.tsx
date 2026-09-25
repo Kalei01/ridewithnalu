@@ -1961,7 +1961,7 @@ function Index() {
   const [navMuted, setNavMuted] = useState(false);
   const mapboxToken = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as
     string | undefined;
-  const headingUpNav = Boolean(drivingCommitted && mapboxToken);
+  const headingUpNav = Boolean(commitment && mapboxToken);
   const navBasis = drivingCommitted ? (liveDrive ?? drive) : null;
   const navPath = navBasis?.path ?? [];
   const [navBearing, setNavBearing] = useState<number | null>(null);
@@ -3940,7 +3940,21 @@ function Index() {
                 >
                   {headingUpNav ? (
                     <LiveNavMap
-                      lines={[{ id: "drive", mode: "drive", points: navPath }]}
+                      lines={
+                        lockedMode === "drive"
+                          ? [
+                              {
+                                id: "drive",
+                                mode: "drive",
+                                points: navPath.length > 1 ? navPath : (driveMapPath ?? []),
+                              },
+                            ]
+                          : (transitMapSegments as Array<{
+                              id: string;
+                              mode: "walk" | "drive" | "bus" | "rail";
+                              points: Array<{ lat: number; lon: number }>;
+                            }>)
+                      }
                       destination={
                         driveTo.lat !== null && driveTo.lon !== null
                           ? { lat: driveTo.lat, lon: driveTo.lon }

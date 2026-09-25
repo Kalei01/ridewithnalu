@@ -40,9 +40,14 @@ export function PrivacySection() {
         />
       </div>
       <ul className="grid gap-1.5 text-xs leading-relaxed text-muted-foreground">
-        <li>Your GPS position is used on this device for live directions and is never sent to analytics.</li>
+        <li>
+          Your GPS position is used on this device for live directions and is never sent to
+          analytics.
+        </li>
         <li>Home, work and other saved addresses are never included in usage stats.</li>
-        <li>Traffic and route lookups send only the start and end points needed to plan the trip.</li>
+        <li>
+          Traffic and route lookups send only the start and end points needed to plan the trip.
+        </li>
       </ul>
     </section>
   );
@@ -52,8 +57,10 @@ export function PrivacySection() {
 export function AnalyticsConsentBanner() {
   const consent = useConsent();
   const [ready, setReady] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   useEffect(() => setReady(true), []);
-  if (!ready || consent !== null) return null;
+  // Only an "Allow" answer is remembered; declining or ignoring asks again next launch.
+  if (!ready || consent === "granted" || dismissed) return null;
   return (
     <div
       role="region"
@@ -65,7 +72,14 @@ export function AnalyticsConsentBanner() {
         You can change this anytime in Settings.
       </p>
       <div className="mt-2 flex justify-end gap-2">
-        <Button size="sm" variant="ghost" onClick={() => setAnalyticsConsent("denied")}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setAnalyticsConsent("denied");
+            setDismissed(true);
+          }}
+        >
           No thanks
         </Button>
         <Button size="sm" onClick={() => setAnalyticsConsent("granted")}>
