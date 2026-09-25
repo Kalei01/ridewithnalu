@@ -127,6 +127,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { HOLO_FARES } from "@/lib/fares";
 import { AskNalu, BeatTheRush, MorningPulse, WeeklyDigestCard } from "@/components/ai/NaluAi";
 import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
@@ -2047,11 +2048,10 @@ function Index() {
       .then((result) => {
         if (!result.ok) return;
         setRescue(result.value);
-        if (!navMuted) speakCommuteAlert(result.value.spoken);
         postCommuteNotification(result.value.headline, result.value.spoken, "nalu-rescue");
       })
       .catch(() => {});
-  }, [liveDrive, drivingCommitted, liveRouteOrigin, driveTo.lat, driveTo.lon, fetchRescue, navMuted]);
+  }, [liveDrive, drivingCommitted, liveRouteOrigin, driveTo.lat, driveTo.lon, fetchRescue]);
   useWakeLock(Boolean(commitment));
   useEffect(() => {
     track("app_opened");
@@ -2103,6 +2103,10 @@ function Index() {
 
   // ---- Heading-up navigation & turn-by-turn voice -----------------------------
   const [navMuted, setNavMuted] = useState(false);
+  useEffect(() => {
+    if (rescue && !navMuted) speakCommuteAlert(rescue.spoken);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rescue]);
   const mapboxToken = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as
     string | undefined;
   const headingUpNav = Boolean(commitment && mapboxToken);
