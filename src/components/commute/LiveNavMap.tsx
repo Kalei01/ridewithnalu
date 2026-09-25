@@ -93,12 +93,8 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    const colors = {
-      drive: cssVar("--color-primary", "#4fb3ff"),
-      rail: cssVar("--color-primary", "#4fb3ff"),
-      bus: cssVar("--color-location", "#38e0c0"),
-      walk: cssVar("--color-muted-foreground", "#9aa4b2"),
-    };
+    // Mapbox only parses plain colours (not oklch theme tokens), so use hex.
+    const colors = { drive: "#4fb3ff", rail: "#4fb3ff", bus: "#38e0c0", walk: "#c7d0db" };
     const data: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: lines
@@ -127,7 +123,11 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       type: "line",
       source: "nalu-route",
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": ["get", "color"], "line-width": 7 },
+      paint: {
+        "line-color": ["get", "color"],
+        "line-width": 7,
+        "line-dasharray": ["case", ["get", "walk"], ["literal", [1, 1.5]], ["literal", [1, 0]]],
+      },
     });
     if (destination) {
       const el = document.createElement("span");
@@ -146,7 +146,11 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       const el = document.createElement("div");
       el.className = "nalu-nav-puck";
       el.innerHTML = '<span class="nalu-nav-puck-arrow"></span>';
-      markerRef.current = new mapboxgl.Marker({ element: el, rotationAlignment: "map", pitchAlignment: "map" })
+      markerRef.current = new mapboxgl.Marker({
+        element: el,
+        rotationAlignment: "map",
+        pitchAlignment: "map",
+      })
         .setLngLat([livePoint.lon, livePoint.lat])
         .addTo(map);
     } else {
@@ -170,7 +174,13 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     setFollowing(true);
     const map = mapRef.current;
     if (map && livePoint)
-      map.easeTo({ center: [livePoint.lon, livePoint.lat], bearing: bearing ?? 0, pitch: 55, zoom: 16, duration: 700 });
+      map.easeTo({
+        center: [livePoint.lon, livePoint.lat],
+        bearing: bearing ?? 0,
+        pitch: 55,
+        zoom: 16,
+        duration: 700,
+      });
   };
 
   if (!token) return null;
@@ -191,7 +201,9 @@ export default function LiveNavMap(props: LiveNavMapProps) {
               <p className="text-2xl font-black leading-none tabular-nums text-foreground">
                 {maneuver.distanceText}
               </p>
-              <p className="mt-1 truncate text-sm font-semibold text-foreground/85">{maneuver.road}</p>
+              <p className="mt-1 truncate text-sm font-semibold text-foreground/85">
+                {maneuver.road}
+              </p>
             </div>
           </div>
         ) : (
@@ -199,13 +211,20 @@ export default function LiveNavMap(props: LiveNavMapProps) {
         )}
         <div className="flex shrink-0 flex-col items-end gap-2">
           {eta && (
-            <div className="nav-hud pointer-events-auto rounded-xl px-3 py-2 text-right" aria-live="polite">
-              <p className="text-lg font-black leading-none tabular-nums text-foreground">{eta.arrive}</p>
+            <div
+              className="nav-hud pointer-events-auto rounded-xl px-3 py-2 text-right"
+              aria-live="polite"
+            >
+              <p className="text-lg font-black leading-none tabular-nums text-foreground">
+                {eta.arrive}
+              </p>
               <p className="mt-1 text-[11px] font-bold tabular-nums text-muted-foreground">
                 {eta.minutes} min{eta.distance ? ` · ${eta.distance}` : ""}
               </p>
               {eta.range && (
-                <p className="text-[10px] font-semibold tabular-nums text-muted-foreground">{eta.range}</p>
+                <p className="text-[10px] font-semibold tabular-nums text-muted-foreground">
+                  {eta.range}
+                </p>
               )}
             </div>
           )}
