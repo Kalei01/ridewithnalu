@@ -46,7 +46,9 @@ export function MorningPulse({
 }) {
   const clock = useHonoluluClock();
   const fetchPulse = useServerFn(morningPulse);
-  const inWindow = Boolean(clock && weekdays.includes(clock.weekday) && clock.hour >= 6 && clock.hour < 8);
+  const inWindow = Boolean(
+    clock && weekdays.includes(clock.weekday) && clock.hour >= 6 && clock.hour < 8,
+  );
   const { data, isLoading } = useQuery({
     queryKey: ["morning-pulse", home?.lat, home?.lon, work?.lat, work?.lon],
     enabled: inWindow && Boolean(home && work),
@@ -118,8 +120,9 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
         <TrendingUp className="size-4 text-warning" /> Beat the rush: leave before {leaveBy}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        {data.delayMinutes} min slower than usual{data.roads?.length ? ` on ${data.roads.join(", ")}` : ""},
-        and it's building — {data.nowMinutes} min now vs {data.laterMinutes} min in 30 min.
+        {data.delayMinutes} min slower than usual
+        {data.roads?.length ? ` on ${data.roads.join(", ")}` : ""}, and it's building —{" "}
+        {data.nowMinutes} min now vs {data.laterMinutes} min in 30 min.
       </p>
     </section>
   );
@@ -161,9 +164,15 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           {busy ? "Planning…" : "Ask Nalu"}
         </Button>
         {!origin && (
-          <p className="text-xs text-muted-foreground">Tip: allow location so Nalu knows where you're starting.</p>
+          <p className="text-xs text-muted-foreground">
+            Tip: allow location so Nalu knows where you're starting.
+          </p>
         )}
-        {answer && !answer.ok && <p role="alert" className="text-sm text-warning">{answer.error}</p>}
+        {answer && !answer.ok && (
+          <p role="alert" className="text-sm text-warning">
+            {answer.error}
+          </p>
+        )}
         {answer?.ok && (
           <div className="rounded-md bg-surface-raised p-3 text-sm" aria-live="polite">
             <p className="font-semibold text-foreground">{answer.value.recommendation}</p>
@@ -173,7 +182,9 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
                 <li key={i}>{s}</li>
               ))}
             </ol>
-            {answer.value.caveat && <p className="mt-2 text-xs text-muted-foreground">{answer.value.caveat}</p>}
+            {answer.value.caveat && (
+              <p className="mt-2 text-xs text-muted-foreground">{answer.value.caveat}</p>
+            )}
           </div>
         )}
       </div>
@@ -192,8 +203,8 @@ export function WeeklyDigestCard() {
         <CalendarCheck className="size-4 text-primary" /> Your week
       </p>
       <p className="mt-2 text-sm text-foreground">
-        {digest.trips} trip{digest.trips === 1 ? "" : "s"} ({digest.driveTrips} drive, {digest.railTrips} Skyline) ·
-        about {digest.averageMinutes} min each.
+        {digest.trips} trip{digest.trips === 1 ? "" : "s"} ({digest.driveTrips} drive,{" "}
+        {digest.railTrips} Skyline) · about {digest.averageMinutes} min each.
       </p>
       <p className="mt-1 text-sm text-primary">
         {digest.minutesSaved > 0

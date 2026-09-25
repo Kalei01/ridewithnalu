@@ -176,7 +176,13 @@ export async function nearestStation(point: Pt) {
     p_rail_only: true,
   });
   const row = (Array.isArray(data) ? data[0] : data) as
-    | { stop_id?: string; stop_name?: string; stop_lat?: number; stop_lon?: number; distance_m?: number }
+    | {
+        stop_id?: string;
+        stop_name?: string;
+        stop_lat?: number;
+        stop_lon?: number;
+        distance_m?: number;
+      }
     | undefined;
   if (!row?.stop_id) return null;
   return {
@@ -203,7 +209,11 @@ export async function railBetween(fromStop: string, toPoint: Pt, afterSeconds: n
     p_dest_lat: toPoint.lat,
     p_dest_lon: toPoint.lon,
   });
-  const rows = (data ?? []) as Array<{ depart_seconds: number; arrive_seconds: number; total_minutes: number }>;
+  const rows = (data ?? []) as Array<{
+    depart_seconds: number;
+    arrive_seconds: number;
+    total_minutes: number;
+  }>;
   return { destStation: dest.name, trips: rows.slice(0, 2) };
 }
 
@@ -302,7 +312,10 @@ export async function runAskNalu(query: string, origin: Pt | null) {
       currentTime: tool({
         description: "Current Honolulu time as ISO and seconds since midnight.",
         inputSchema: z.object({}),
-        execute: async () => ({ iso: new Date().toISOString(), secondsSinceMidnight: honoluluSeconds() }),
+        execute: async () => ({
+          iso: new Date().toISOString(),
+          secondsSinceMidnight: honoluluSeconds(),
+        }),
       }),
     },
     output: Output.object({ schema: PlanAnswer }),

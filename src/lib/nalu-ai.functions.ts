@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const point = z.object({ lat: z.number().min(21).max(22), lon: z.number().min(-158.4).max(-157.5) });
+const point = z.object({
+  lat: z.number().min(21).max(22),
+  lon: z.number().min(-158.4).max(-157.5),
+});
 
 export type AiResult<T> = { ok: true; value: T } | { ok: false; error: string };
 

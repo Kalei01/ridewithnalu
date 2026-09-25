@@ -39,7 +39,9 @@ export function SignInBanner() {
         size="sm"
         variant="outline"
         className="h-7 shrink-0 px-2 text-xs"
-        onClick={() => void lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })}
+        onClick={() =>
+          void lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })
+        }
       >
         <LogIn className="size-3.5" /> Google
       </Button>
@@ -47,11 +49,19 @@ export function SignInBanner() {
         size="sm"
         variant="outline"
         className="h-7 shrink-0 px-2 text-xs"
-        onClick={() => void lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin })}
+        onClick={() =>
+          void lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin })
+        }
       >
         Apple
       </Button>
-      <Button size="icon" variant="ghost" aria-label="Dismiss sign-in suggestion" className="size-7 shrink-0 text-muted-foreground" onClick={dismiss}>
+      <Button
+        size="icon"
+        variant="ghost"
+        aria-label="Dismiss sign-in suggestion"
+        className="size-7 shrink-0 text-muted-foreground"
+        onClick={dismiss}
+      >
         <X className="size-4" />
       </Button>
     </div>
