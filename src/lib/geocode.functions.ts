@@ -148,7 +148,9 @@ export const searchPlaces = createServerFn({ method: "POST" })
         return null;
       });
       if (venue) {
-        const rest = results.filter((row) => row.address.toLowerCase() !== venue.address.toLowerCase());
+        const rest = results.filter(
+          (row) => row.address.toLowerCase() !== venue.address.toLowerCase(),
+        );
         return { results: [venue, ...rest].slice(0, 6) };
       }
     }

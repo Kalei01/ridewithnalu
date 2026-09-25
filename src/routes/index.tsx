@@ -3930,7 +3930,12 @@ function Index() {
                 primeSpeech();
                 requestCommuteNotificationPermission();
                 setNavMuted(false);
-                setAlertPrefs((prev) => ({ ...prev, sound: true, haptics: true, keepOnTransfer: true }));
+                setAlertPrefs((prev) => ({
+                  ...prev,
+                  sound: true,
+                  haptics: true,
+                  keepOnTransfer: true,
+                }));
                 commitMode(selectedMode);
               }}
               className="commitment-start h-auto min-h-16 w-full gap-3 px-5 py-4 text-left"
@@ -3983,7 +3988,13 @@ function Index() {
                     lockedMode === "drive"
                       ? (navBasis?.maneuvers ?? []).map((m) => m.instruction).filter(Boolean)
                       : transitMapSegments.map((seg) =>
-                          seg.mode === "walk" ? "Walk" : seg.mode === "bus" ? "Bus" : seg.mode === "rail" ? "Skyline rail" : "Drive",
+                          seg.mode === "walk"
+                            ? "Walk"
+                            : seg.mode === "bus"
+                              ? "Bus"
+                              : seg.mode === "rail"
+                                ? "Skyline rail"
+                                : "Drive",
                         )
                   }
                   onEnd={endTrip}
@@ -5180,30 +5191,30 @@ function ShortcutGrid({
           }
           return (
             <div key={`${slot}-${index}`} className="relative min-w-0">
-            <Button
-              variant="outline"
-              onClick={() => (place ? onStart(slot) : setQuickEdit(slot))}
-              className="glass-panel h-14 w-full min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 pl-3 pr-9 text-foreground hover:bg-primary/10"
-              aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
-            >
-              <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
-                <Icon className="size-4" />
-              </span>
-              <span className="min-w-0 text-left">
-                <span className="block truncate text-sm font-bold">{label}</span>
-                <span className="block truncate text-[11px] font-medium text-muted-foreground">
-                  {place ? place.name : "Set location"}
+              <Button
+                variant="outline"
+                onClick={() => (place ? onStart(slot) : setQuickEdit(slot))}
+                className="glass-panel h-14 w-full min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 pl-3 pr-9 text-foreground hover:bg-primary/10"
+                aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                  <Icon className="size-4" />
                 </span>
-              </span>
-            </Button>
-            <button
-              type="button"
-              onClick={() => setQuickEdit(slot)}
-              aria-label={`Change ${label} address`}
-              className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground"
-            >
-              <Pencil className="size-3.5" />
-            </button>
+                <span className="min-w-0 text-left">
+                  <span className="block truncate text-sm font-bold">{label}</span>
+                  <span className="block truncate text-[11px] font-medium text-muted-foreground">
+                    {place ? place.name : "Set location"}
+                  </span>
+                </span>
+              </Button>
+              <button
+                type="button"
+                onClick={() => setQuickEdit(slot)}
+                aria-label={`Change ${label} address`}
+                className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+              >
+                <Pencil className="size-3.5" />
+              </button>
             </div>
           );
         })}
@@ -5275,9 +5286,16 @@ function QuickPlaceDialog({
 
   function choose(hit: PlaceSuggestion) {
     if (!slot) return;
-    const kind: PlaceKind = current?.kind ?? ((PLACE_KINDS as string[]).includes(slot) ? (slot as PlaceKind) : "custom");
+    const kind: PlaceKind =
+      current?.kind ?? ((PLACE_KINDS as string[]).includes(slot) ? (slot as PlaceKind) : "custom");
     const place = makeSavedPlace({
-      ...(current ? { id: current.id, label: current.label, typicalArrivalSeconds: current.typicalArrivalSeconds } : {}),
+      ...(current
+        ? {
+            id: current.id,
+            label: current.label,
+            typicalArrivalSeconds: current.typicalArrivalSeconds,
+          }
+        : {}),
       kind,
       name: hit.name,
       address: hit.address,
@@ -6119,7 +6137,6 @@ function FeedbackForm({
   );
 }
 
-
 /** Inline map card normally; an edge-to-edge navigation screen during a live trip. */
 function NavShell({
   fullscreen,
@@ -6181,7 +6198,12 @@ function NavBottomCard({
               {open ? "Hide route" : "Route details"}
             </span>
           </button>
-          <Button type="button" variant="destructive" onClick={onEnd} className="h-11 shrink-0 px-5 font-black uppercase">
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onEnd}
+            className="h-11 shrink-0 px-5 font-black uppercase"
+          >
             <X className="size-4" /> End
           </Button>
         </div>
@@ -6190,12 +6212,16 @@ function NavBottomCard({
             {steps.length ? (
               steps.map((step, i) => (
                 <li key={`${i}-${step}`} className="flex gap-2">
-                  <span className="w-5 shrink-0 text-right font-bold tabular-nums text-muted-foreground">{i + 1}</span>
+                  <span className="w-5 shrink-0 text-right font-bold tabular-nums text-muted-foreground">
+                    {i + 1}
+                  </span>
                   <span className="min-w-0">{step}</span>
                 </li>
               ))
             ) : (
-              <li className="text-muted-foreground">Route steps will appear once the route loads.</li>
+              <li className="text-muted-foreground">
+                Route steps will appear once the route loads.
+              </li>
             )}
           </ol>
         )}

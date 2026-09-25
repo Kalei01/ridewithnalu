@@ -20,6 +20,6 @@
 
 ## Destination audit & commute HUD
 - [x] TomTom search/geocode: bounding box, multi-result, venue consensus (Ala Moana)
-- [ ] Full-screen active commute HUD (top maneuver bar, bottom card, drawer, scroll lock)
-- [ ] Auto-enable voice + alerts on Start Drive/Transit, prime audio
-- [ ] Inline quick-edit for shortcut places
+- [x] Full-screen active commute HUD (top maneuver bar, bottom card, drawer, scroll lock)
+- [x] Auto-enable voice + alerts on Start Drive/Transit, prime audio
+- [x] Inline quick-edit for shortcut places
