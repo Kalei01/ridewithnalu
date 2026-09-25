@@ -32,10 +32,10 @@
 - [x] Morning Pulse, Ask Nalu, Beat the Rush, mid-commute rescue, weekly digest
 
 ## Live navigation reliability (Sep 25)
-- [ ] Detect sustained off-route distance or divergent heading and reroute immediately from the latest fix
-- [ ] Replace stale maneuver guidance with rerouting status while recalculation is active
-- [ ] Trim completed route geometry behind the vehicle
-- [ ] Tune heading-up camera to 40° pitch, closer zoom, and non-competing transitions
-- [ ] Hide the Lovable badge globally
-- [ ] Keep the homepage clean after sign-in without disrupting saved-place sync
-- [ ] Add navigation matching/reroute tests and verify the work-to-home flow
+- [x] Detect sustained off-route distance or divergent heading and reroute immediately from the latest fix
+- [x] Replace stale maneuver guidance with rerouting status while recalculation is active
+- [x] Trim completed route geometry behind the vehicle
+- [x] Tune heading-up camera to 40° pitch, closer zoom, and non-competing transitions
+- [x] Hide the Lovable badge globally
+- [x] Keep the homepage clean after sign-in without disrupting saved-place sync
+- [x] Add navigation matching/reroute tests and verify the work-to-home flow
