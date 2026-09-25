@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1997,6 +1998,15 @@ function Index() {
   const mapboxToken = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as
     string | undefined;
   const headingUpNav = Boolean(commitment && mapboxToken);
+  // Full-screen navigation owns every gesture: stop the page behind it from scrolling.
+  useEffect(() => {
+    if (!headingUpNav) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [headingUpNav]);
   const navBasis = drivingCommitted ? (liveDrive ?? drive) : null;
   const navPath = navBasis?.path ?? [];
   const [navBearing, setNavBearing] = useState<number | null>(null);
@@ -3909,9 +3919,13 @@ function Index() {
             <Button
               type="button"
               onClick={() => {
+                // Starting a trip means "tell me everything": unlock chime and speech
+                // inside this tap (iOS Safari), unmute voice and turn every alert on.
                 primeChimeAudio();
-                // Unlock speech inside the tap so iOS Safari allows turn prompts later.
-                if (selectedMode === "drive") primeSpeech();
+                primeSpeech();
+                requestCommuteNotificationPermission();
+                setNavMuted(false);
+                setAlertPrefs((prev) => ({ ...prev, sound: true, haptics: true, keepOnTransfer: true }));
                 commitMode(selectedMode);
               }}
               className="commitment-start h-auto min-h-16 w-full gap-3 px-5 py-4 text-left"
@@ -3954,8 +3968,22 @@ function Index() {
                   : `${transitMapSegments.length} trip legs`}
               </span>
             </div>
-            <div
-              className={`border-t border-border ${headingUpNav ? "h-[62dvh] min-h-[420px]" : "h-72 sm:h-80"}`}
+            <NavShell
+              fullscreen={headingUpNav}
+              overlay={
+                <NavBottomCard
+                  mode={lockedMode === "drive" ? "drive" : "rail"}
+                  delayMinutes={lockedMode === "drive" ? (navBasis?.delayMinutes ?? null) : null}
+                  steps={
+                    lockedMode === "drive"
+                      ? (navBasis?.maneuvers ?? []).map((m) => m.instruction).filter(Boolean)
+                      : transitMapSegments.map((seg) =>
+                          seg.mode === "walk" ? "Walk" : seg.mode === "bus" ? "Bus" : seg.mode === "rail" ? "Skyline rail" : "Drive",
+                        )
+                  }
+                  onEnd={endTrip}
+                />
+              }
             >
               <ClientOnly
                 fallback={
@@ -3975,6 +4003,7 @@ function Index() {
                 >
                   {headingUpNav ? (
                     <LiveNavMap
+                      recenterBottom={176}
                       lines={
                         lockedMode === "drive"
                           ? [
@@ -4036,7 +4065,7 @@ function Index() {
                   )}
                 </Suspense>
               </ClientOnly>
-            </div>
+            </NavShell>
           </section>
         )}
 
@@ -5974,6 +6003,91 @@ function FeedbackForm({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+
+/** Inline map card normally; an edge-to-edge navigation screen during a live trip. */
+function NavShell({
+  fullscreen,
+  overlay,
+  children,
+}: {
+  fullscreen: boolean;
+  overlay: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  if (!fullscreen || typeof document === "undefined") {
+    return <div className="h-72 border-t border-border sm:h-80">{children}</div>;
+  }
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-background" role="dialog" aria-label="Live navigation">
+      <div className="h-full w-full">{children}</div>
+      {overlay}
+    </div>,
+    document.body,
+  );
+}
+
+function NavBottomCard({
+  mode,
+  delayMinutes,
+  steps,
+  onEnd,
+}: {
+  mode: "drive" | "rail";
+  delayMinutes: number | null;
+  steps: string[];
+  onEnd: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const traffic =
+    mode === "rail"
+      ? "Transit live"
+      : delayMinutes === null
+        ? "Checking traffic"
+        : delayMinutes >= 5
+          ? `Heavy · +${Math.round(delayMinutes)} min`
+          : delayMinutes >= 2
+            ? `Moderate · +${Math.round(delayMinutes)} min`
+            : "Traffic clear";
+  return (
+    <div className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-20">
+      <div className="nav-hud pointer-events-auto rounded-2xl p-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            className="flex min-w-0 items-center gap-2 text-left"
+          >
+            <span className="truncate rounded-full bg-muted px-3 py-1 text-xs font-black uppercase text-foreground">
+              {traffic}
+            </span>
+            <span className="shrink-0 text-xs font-bold text-muted-foreground">
+              {open ? "Hide route" : "Route details"}
+            </span>
+          </button>
+          <Button type="button" variant="destructive" onClick={onEnd} className="h-11 shrink-0 px-5 font-black uppercase">
+            <X className="size-4" /> End
+          </Button>
+        </div>
+        {open && (
+          <ol className="mt-3 max-h-[40dvh] space-y-2 overflow-y-auto overscroll-contain text-sm text-foreground">
+            {steps.length ? (
+              steps.map((step, i) => (
+                <li key={`${i}-${step}`} className="flex gap-2">
+                  <span className="w-5 shrink-0 text-right font-bold tabular-nums text-muted-foreground">{i + 1}</span>
+                  <span className="min-w-0">{step}</span>
+                </li>
+              ))
+            ) : (
+              <li className="text-muted-foreground">Route steps will appear once the route loads.</li>
+            )}
+          </ol>
+        )}
+      </div>
     </div>
   );
 }

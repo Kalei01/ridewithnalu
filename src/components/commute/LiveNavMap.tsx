@@ -28,6 +28,8 @@ export type LiveNavMapProps = {
   eta: { arrive: string; range: string | null; minutes: number; distance: string | null } | null;
   muted: boolean;
   onToggleMute: () => void;
+  /** Lift Recenter above a bottom overlay (px). */
+  recenterBottom?: number;
 };
 
 const GLYPHS: Record<TurnGlyph, typeof ArrowUp> = {
@@ -277,6 +279,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
         <Button
           type="button"
           onClick={recenter}
+          style={props.recenterBottom ? { bottom: props.recenterBottom } : undefined}
           className="absolute bottom-4 left-1/2 z-10 h-11 -translate-x-1/2 gap-2 rounded-full px-5 font-bold shadow-xl"
         >
           <LocateFixed className="size-4" /> Recenter
