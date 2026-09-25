@@ -152,6 +152,65 @@ export type Database = {
         }
         Relationships: []
       }
+      push_deliveries: {
+        Row: {
+          dedupe_key: string
+          id: string
+          sent_at: string
+          token: string
+        }
+        Insert: {
+          dedupe_key: string
+          id?: string
+          sent_at?: string
+          token: string
+        }
+        Update: {
+          dedupe_key?: string
+          id?: string
+          sent_at?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_deliveries_token_fkey"
+            columns: ["token"]
+            isOneToOne: false
+            referencedRelation: "push_subscriptions"
+            referencedColumns: ["token"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          categories: string[]
+          created_at: string
+          quiet_end_min: number | null
+          quiet_start_min: number | null
+          token: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          categories?: string[]
+          created_at?: string
+          quiet_end_min?: number | null
+          quiet_start_min?: number | null
+          token: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          categories?: string[]
+          created_at?: string
+          quiet_end_min?: number | null
+          quiet_start_min?: number | null
+          token?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       routes: {
         Row: {
           route_id: string

@@ -42,6 +42,8 @@ export type DriveTime = {
   corridorRoads: string[];
   /** Congested nearby roads this route avoids entirely. */
   bypassedRoads: string[];
+  /** Turn-by-turn maneuvers from TomTom guidance, for voice and the nav HUD. */
+  maneuvers: Array<{ lat: number; lon: number; maneuver: string; instruction: string; road: string | null }>;
   fetchedAt: number;
   trafficBasis: "live" | "future-estimate";
 };
@@ -126,7 +128,15 @@ export const driveTime = createServerFn({ method: "POST" })
           delayInSeconds?: number;
           simpleCategory?: string;
         }>;
-        guidance?: { instructions?: GuidanceInstruction[] };
+        guidance?: {
+          instructions?: Array<
+            GuidanceInstruction & {
+              point?: { latitude?: number; longitude?: number };
+              message?: string;
+              combinedMessage?: string;
+            }
+          >;
+        };
       }>;
     };
     const route = payload.routes?.[0];
@@ -171,6 +181,23 @@ export const driveTime = createServerFn({ method: "POST" })
       corridorLabel: corridor?.label ?? null,
       corridorRoads: corridor?.roads ?? [],
       bypassedRoads,
+      maneuvers: (route?.guidance?.instructions ?? [])
+        .filter(
+          (step) =>
+            typeof step.point?.latitude === "number" &&
+            typeof step.point?.longitude === "number" &&
+            step.maneuver &&
+            step.maneuver !== "DEPART" &&
+            step.message,
+        )
+        .slice(0, 80)
+        .map((step) => ({
+          lat: step.point?.latitude as number,
+          lon: step.point?.longitude as number,
+          maneuver: step.maneuver as string,
+          instruction: (step.message as string).replace(/<[^>]*>/g, ""),
+          road: step.street ?? step.roadNumbers?.[0] ?? step.signpostText ?? null,
+        })),
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     };
