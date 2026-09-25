@@ -34,7 +34,11 @@ export function readAnalyticsConsent(): AnalyticsConsent {
 }
 
 export function setAnalyticsConsent(value: "granted" | "denied") {
-  window.localStorage.setItem(ANALYTICS_CONSENT_KEY, value);
+  try {
+    window.localStorage.setItem(ANALYTICS_CONSENT_KEY, value);
+  } catch {
+    /* private mode: the in-memory dismissal still hides the banner */
+  }
   window.dispatchEvent(new CustomEvent(CONSENT_EVENT));
   if (value === "denied") {
     client?.opt_out_capturing();

@@ -16,10 +16,10 @@ export function AccountSection() {
   const name = user?.user_metadata?.["full_name"] as string | undefined;
   const avatar = user?.user_metadata?.["avatar_url"] as string | undefined;
 
-  async function google() {
+  async function social(provider: "google" | "apple") {
     setMessage(null);
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (result.error) setMessage("Google sign-in is unavailable right now.");
+    const result = await lovable.auth.signInWithOAuth(provider, { redirect_uri: window.location.origin });
+    if (result.error) setMessage(`${provider === "google" ? "Google" : "Apple"} sign-in is unavailable right now.`);
   }
 
   async function emailAuth(mode: "signin" | "signup") {
@@ -56,7 +56,8 @@ export function AccountSection() {
       ) : (
         <div className="grid gap-3 rounded-lg bg-surface-raised p-4">
           <p className="text-sm text-muted-foreground">Optional. Guest access stays fully available.</p>
-          <Button variant="outline" onClick={() => void google()}><LogIn /> Continue with Google</Button>
+          <Button variant="outline" onClick={() => void social("google")}><LogIn /> Continue with Google</Button>
+          <Button variant="outline" onClick={() => void social("apple")}><LogIn /> Continue with Apple</Button>
           <div className="grid gap-2 border-t border-border pt-3">
             <Label htmlFor="account-email">Email</Label>
             <Input id="account-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
