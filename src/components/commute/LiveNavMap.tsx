@@ -79,6 +79,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   const routeIndexRef = useRef<number | null>(null);
   const routeIdentityRef = useRef("");
   const divergentFixesRef = useRef(0);
+  const evaluatedFixRef = useRef("");
   const followRef = useRef(true);
   const [following, setFollowing] = useState(true);
   const [ready, setReady] = useState(false);
@@ -93,6 +94,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     routeIdentityRef.current = routeIdentity;
     routeIndexRef.current = null;
     divergentFixesRef.current = 0;
+    evaluatedFixRef.current = "";
   }
   const match = useMemo(
     () => (livePoint ? matchRoutePoint(livePoint, path, routeIndexRef.current, bearing) : null),
@@ -127,6 +129,9 @@ export default function LiveNavMap(props: LiveNavMapProps) {
 
   useEffect(() => {
     if (!livePoint || !match) return;
+    const fixKey = `${livePoint.lat}:${livePoint.lon}:${bearing ?? "none"}`;
+    if (evaluatedFixRef.current === fixKey) return;
+    evaluatedFixRef.current = fixKey;
     const deviation = routeDeviation(match, bearing, divergentFixesRef.current);
     divergentFixesRef.current = deviation.divergentFixes;
     onRouteStateChange?.({
@@ -263,6 +268,8 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     followRef.current = true;
     setFollowing(true);
     const map = mapRef.current;
+    if (map && displayedPoint)
+      map.stop();
     if (map && displayedPoint)
       map.easeTo({
         center: [displayedPoint.lon, displayedPoint.lat],
