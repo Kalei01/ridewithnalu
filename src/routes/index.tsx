@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { ClientOnly, createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -837,7 +837,7 @@ function H1ConditionsCard({
 }
 
 function Index() {
-  const { user } = useAuth();
+  const { user, signedInAt } = useAuth();
   const [now, setNow] = useState(() => new Date());
   const [hydrated, setHydrated] = useState(false);
   const [setup, setSetup] = useState<Setup>(emptySetup);
@@ -963,14 +963,6 @@ function Index() {
       }
       const nextPlaces = Array.from(merged.values());
       if (nextPlaces.length) persistPlaces(nextPlaces);
-      if (
-        !window.localStorage.getItem(STORAGE_KEY) &&
-        data?.last_setup &&
-        typeof data.last_setup === "object"
-      ) {
-        const restored = { ...emptySetup, ...(data.last_setup as Partial<Setup>) };
-        persist(restored);
-      }
       const preferences =
         data?.preferences &&
         typeof data.preferences === "object" &&
@@ -1139,6 +1131,11 @@ function Index() {
   // mode where departures stay visible and a new trip can be set up anytime.
   function endTrip() {
     setSetup(emptySetup);
+    syncStateRef.current = {
+      ...syncStateRef.current,
+      setup: emptySetup,
+      configured: false,
+    };
     window.localStorage.removeItem(STORAGE_KEY);
     setOverride(null);
     window.localStorage.removeItem(DIRECTION_KEY);
@@ -1157,6 +1154,30 @@ function Index() {
     // polling, both of which are gated on an active committed drive.
     releaseCommitment();
   }
+
+  const handledSignInRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!signedInAt || handledSignInRef.current === signedInAt) return;
+    handledSignInRef.current = signedInAt;
+    // Authentication may finish after local hydration or cloud sync. Clear only
+    // transient trip state; saved places and account preferences remain intact.
+    setSetup(emptySetup);
+    syncStateRef.current = {
+      ...syncStateRef.current,
+      setup: emptySetup,
+      configured: false,
+    };
+    window.localStorage.removeItem(STORAGE_KEY);
+    setCommitment(null);
+    lockedOptionRef.current = null;
+    window.localStorage.removeItem(COMMIT_KEY);
+    setOverride(null);
+    window.localStorage.removeItem(DIRECTION_KEY);
+    setSelectedDeparture(null);
+    setSelectedMode("rail");
+    setOnboardingOpen(false);
+    setSettingsOpen(false);
+  }, [signedInAt]);
 
   const timeText = useMemo(
     () =>
@@ -1955,6 +1976,14 @@ function Index() {
   // Re-route only after meaningful progress or the two-minute traffic cadence.
   // This avoids GPS jitter at grid boundaries repeatedly replacing a good path.
   const [liveRouteOrigin, setLiveRouteOrigin] = useState<Coords | null>(null);
+  const [rerouteRequest, setRerouteRequest] = useState<{
+    point: Coords;
+    bearing: number | null;
+    nonce: number;
+  } | null>(null);
+  const [rerouting, setRerouting] = useState(false);
+  const rerouteTimerRef = useRef<number | null>(null);
+  const lastRerouteAtRef = useRef(0);
   const liveOriginRef = useRef<Coords | null>(null);
   useEffect(() => {
     if (riderPoint) liveOriginRef.current = riderPoint;
@@ -1962,6 +1991,8 @@ function Index() {
   useEffect(() => {
     if (!drivingCommitted || !riderPoint) {
       setLiveRouteOrigin(null);
+      setRerouteRequest(null);
+      setRerouting(false);
       return;
     }
     setLiveRouteOrigin((current) =>
@@ -1980,8 +2011,15 @@ function Index() {
   // the newest response ever reaches the screen, so a slow older TomTom reply
   // can't overwrite a fresher ETA.
   const liveSeqRef = useRef(0);
-  const { data: liveDriveRaw } = useQuery({
-    queryKey: ["live-drive", liveRouteOrigin?.lat, liveRouteOrigin?.lon, driveTo.lat, driveTo.lon],
+  const { data: liveDriveRaw, isError: liveDriveFailed } = useQuery({
+    queryKey: [
+      "live-drive",
+      liveRouteOrigin?.lat,
+      liveRouteOrigin?.lon,
+      driveTo.lat,
+      driveTo.lon,
+      rerouteRequest?.nonce ?? 0,
+    ],
     enabled: hydrated && Boolean(liveRouteOrigin) && driveTo.lat !== null,
     staleTime: 2 * 60_000,
     refetchInterval: 2 * 60_000,
@@ -1999,6 +2037,9 @@ function Index() {
           toLat: driveTo.lat as number,
           toLon: driveTo.lon as number,
           forceRefresh: true,
+          ...(rerouteRequest?.bearing === null || rerouteRequest?.bearing === undefined
+            ? {}
+            : { bearing: rerouteRequest.bearing }),
         },
       });
       return { ...result, seq };
@@ -2014,7 +2055,11 @@ function Index() {
     setLiveDrive((current) =>
       current && current.seq >= liveDriveRaw.seq ? current : liveDriveRaw,
     );
+    setRerouting(false);
   }, [liveDriveRaw, drivingCommitted]);
+  useEffect(() => {
+    if (liveDriveFailed) setRerouting(false);
+  }, [liveDriveFailed]);
   // Mid-commute rescue advisor: a delay spike of 8+ minutes over the delay at
   // trip start asks Nalu AI to weigh alternate corridors and a Skyline hub.
   const fetchRescue = useServerFn(rescueAdvice);
@@ -2135,6 +2180,41 @@ function Index() {
     );
     lastNavPoint.current = riderPoint;
   }, [riderPoint, riderHeading, riderSpeed, drivingCommitted]);
+  const handleRouteStateChange = useCallback(
+    (state: { offRoute: boolean; crossTrackM: number; headingDivergence: number | null }) => {
+      if (!drivingCommitted || !riderPoint) return;
+      if (!state.offRoute) {
+        if (rerouteTimerRef.current !== null) {
+          window.clearTimeout(rerouteTimerRef.current);
+          rerouteTimerRef.current = null;
+          setRerouting(false);
+        }
+        return;
+      }
+      if (rerouting) return;
+      if (Date.now() - lastRerouteAtRef.current < 12_000) return;
+      if (rerouteTimerRef.current !== null) return;
+      setRerouting(true);
+      rerouteTimerRef.current = window.setTimeout(() => {
+        rerouteTimerRef.current = null;
+        const latest = liveOriginRef.current;
+        if (!latest) {
+          setRerouting(false);
+          return;
+        }
+        lastRerouteAtRef.current = Date.now();
+        setLiveRouteOrigin(latest);
+        setRerouteRequest({ point: latest, bearing: navBearing, nonce: Date.now() });
+      }, 1_200);
+    },
+    [drivingCommitted, riderPoint, rerouting, navBearing],
+  );
+  useEffect(
+    () => () => {
+      if (rerouteTimerRef.current !== null) window.clearTimeout(rerouteTimerRef.current);
+    },
+    [],
+  );
   const passedTurns = useRef(new Set<string>());
   const spokenTurns = useRef(new Set<string>());
   useEffect(() => {
@@ -4262,6 +4342,8 @@ function Index() {
                       }
                       muted={navMuted}
                       onToggleMute={() => setNavMuted((value) => !value)}
+                      rerouting={rerouting}
+                      onRouteStateChange={handleRouteStateChange}
                     />
                   ) : (
                     <CommuteRouteMap

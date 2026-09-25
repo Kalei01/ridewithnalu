@@ -118,8 +118,44 @@ export function bearingBetween(a: { lat: number; lon: number }, b: { lat: number
   return (Math.atan2(y, x) / toRad + 360) % 360;
 }
 
-function angleDifference(a: number, b: number) {
+export function angleDifference(a: number, b: number) {
   return Math.abs(((a - b + 540) % 360) - 180);
+}
+
+export type RouteDeviation = {
+  crossTrackM: number;
+  headingDivergence: number | null;
+  divergentFixes: number;
+  offRoute: boolean;
+};
+
+/**
+ * Navigation-grade route deviation state. Distance is decisive immediately;
+ * heading needs two fixes so one noisy compass sample cannot force a reroute.
+ */
+export function routeDeviation(
+  match: RouteMatch | null,
+  heading: number | null,
+  previousDivergentFixes = 0,
+): RouteDeviation {
+  const crossTrackM = match?.distanceM ?? Infinity;
+  const headingDivergence =
+    match && heading !== null ? angleDifference(match.bearing, heading) : null;
+  const divergentFixes =
+    headingDivergence !== null && headingDivergence > 60 ? previousDivergentFixes + 1 : 0;
+  return {
+    crossTrackM,
+    headingDivergence,
+    divergentFixes,
+    offRoute: crossTrackM > 45 || divergentFixes >= 2,
+  };
+}
+
+/** Keep the snapped vehicle point and only the route still ahead. */
+export function trimRoutePath(path: RouteMatch["point"][], match: RouteMatch | null) {
+  if (!match || path.length < 2 || match.segmentIndex < 0 || match.segmentIndex >= path.length - 1)
+    return path;
+  return [match.point, ...path.slice(match.segmentIndex + 1)];
 }
 
 /**

@@ -10,6 +10,8 @@ const schema = z.object({
   toLat: z.number(),
   toLon: z.number(),
   departureTime: z.string().datetime({ offset: true }).optional(),
+  /** Direction of travel for an active reroute, so the route begins forward. */
+  bearing: z.number().min(0).max(360).optional(),
   /** Active navigation and manual refreshes bypass the two-minute server cache. */
   forceRefresh: z.boolean().optional(),
 });
@@ -85,7 +87,9 @@ export const driveTime = createServerFn({ method: "POST" })
     const departureBucket = data.departureTime
       ? Math.floor(new Date(data.departureTime).getTime() / (5 * 60_000))
       : "now";
-    const cacheKey = `${from}:${to}:${departureBucket}`;
+    const headingBucket =
+      data.bearing === undefined ? "none" : Math.round((data.bearing % 360) / 15) * 15;
+    const cacheKey = `${from}:${to}:${departureBucket}:${headingBucket}`;
     const cached = cache.get(cacheKey);
     if (!data.forceRefresh && cached && Date.now() - cached.fetchedAt < CACHE_MS) {
       console.info("[drive] cache_hit", { trafficBasis: cached.trafficBasis });
@@ -100,6 +104,7 @@ export const driveTime = createServerFn({ method: "POST" })
       `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
       `&sectionType=traffic` +
       `&routeRepresentation=polyline&instructionsType=text` +
+      `${data.bearing === undefined ? "" : `&vehicleHeading=${Math.round(data.bearing % 360)}`}` +
       `${data.departureTime ? `&departAt=${encodeURIComponent(data.departureTime)}` : ""}`;
 
     const response = await fetch(routeUrl);

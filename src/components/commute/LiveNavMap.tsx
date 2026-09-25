@@ -15,7 +15,12 @@ import {
   VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { matchRoutePoint, type TurnGlyph } from "@/lib/navigation-voice";
+import {
+  matchRoutePoint,
+  routeDeviation,
+  trimRoutePath,
+  type TurnGlyph,
+} from "@/lib/navigation-voice";
 
 type Pt = { lat: number; lon: number };
 
@@ -28,6 +33,12 @@ export type LiveNavMapProps = {
   eta: { arrive: string; range: string | null; minutes: number; distance: string | null } | null;
   muted: boolean;
   onToggleMute: () => void;
+  rerouting?: boolean;
+  onRouteStateChange?: (state: {
+    offRoute: boolean;
+    crossTrackM: number;
+    headingDivergence: number | null;
+  }) => void;
   /** Lift Recenter above a bottom overlay (px). */
   recenterBottom?: number;
 };
@@ -50,12 +61,25 @@ function navPadding(map: mapboxgl.Map) {
 }
 
 export default function LiveNavMap(props: LiveNavMapProps) {
-  const { lines, destination, livePoint, bearing, maneuver, eta, muted, onToggleMute } = props;
+  const {
+    lines,
+    destination,
+    livePoint,
+    bearing,
+    maneuver,
+    eta,
+    muted,
+    onToggleMute,
+    rerouting = false,
+    onRouteStateChange,
+  } = props;
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const routeIndexRef = useRef<number | null>(null);
   const routeIdentityRef = useRef("");
+  const divergentFixesRef = useRef(0);
+  const evaluatedFixRef = useRef("");
   const followRef = useRef(true);
   const [following, setFollowing] = useState(true);
   const [ready, setReady] = useState(false);
@@ -69,6 +93,8 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   if (routeIdentityRef.current !== routeIdentity) {
     routeIdentityRef.current = routeIdentity;
     routeIndexRef.current = null;
+    divergentFixesRef.current = 0;
+    evaluatedFixRef.current = "";
   }
   const match = useMemo(
     () => (livePoint ? matchRoutePoint(livePoint, path, routeIndexRef.current, bearing) : null),
@@ -78,8 +104,42 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   const displayedPoint = match && match.distanceM <= 80 ? match.point : livePoint;
   // GPS heading when moving; otherwise the route's own forward direction, so
   // the road ahead points straight up even at 0 mph.
-  const heading = match?.bearing ?? bearing;
+  const heading = bearing ?? match?.bearing ?? null;
+  const renderedLines = useMemo(() => {
+    if (!match) return lines;
+    let offset = 0;
+    const forward: typeof lines = [];
+    for (const line of lines) {
+      const lastSegment = offset + Math.max(0, line.points.length - 2);
+      if (match.segmentIndex > lastSegment) {
+        offset += line.points.length;
+        continue;
+      }
+      if (match.segmentIndex >= offset) {
+        const localMatch = { ...match, segmentIndex: match.segmentIndex - offset };
+        forward.push({ ...line, points: trimRoutePath(line.points, localMatch) });
+      } else {
+        forward.push(line);
+      }
+      offset += line.points.length;
+    }
+    return forward.length ? forward : lines;
+  }, [lines, match]);
   const token = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as string | undefined;
+
+  useEffect(() => {
+    if (!livePoint || !match) return;
+    const fixKey = `${livePoint.lat}:${livePoint.lon}:${bearing ?? "none"}`;
+    if (evaluatedFixRef.current === fixKey) return;
+    evaluatedFixRef.current = fixKey;
+    const deviation = routeDeviation(match, bearing, divergentFixesRef.current);
+    divergentFixesRef.current = deviation.divergentFixes;
+    onRouteStateChange?.({
+      offRoute: deviation.offRoute,
+      crossTrackM: deviation.crossTrackM,
+      headingDivergence: deviation.headingDivergence,
+    });
+  }, [livePoint, match, bearing, onRouteStateChange]);
 
   useEffect(() => {
     if (!nodeRef.current || mapRef.current || !token) return;
@@ -89,8 +149,8 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       container: nodeRef.current,
       style: "mapbox://styles/mapbox/navigation-night-v1",
       center: [start.lon, start.lat],
-      zoom: 16,
-      pitch: 55,
+      zoom: 17,
+      pitch: 40,
       bearing: heading ?? 0,
       attributionControl: true,
     });
@@ -120,7 +180,9 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   }, [token]);
 
   // Route lines.
-  const lineKey = lines.map((l) => `${l.id}:${l.points.length}:${l.points[0]?.lat}`).join("|");
+  const lineKey = renderedLines
+    .map((l) => `${l.id}:${l.points.length}:${l.points[0]?.lat}:${l.points[0]?.lon}`)
+    .join("|");
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -128,7 +190,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     const colors = { drive: "#35d7ff", rail: "#35d7ff", bus: "#38e0c0", walk: "#f2f6fb" };
     const data: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
-      features: lines
+      features: renderedLines
         .filter((l) => l.points.length > 1)
         .map((l) => ({
           type: "Feature",
@@ -189,14 +251,15 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     }
     if (heading !== null) markerRef.current.setRotation(heading);
     if (!followRef.current) return;
+    map.stop();
     map.easeTo({
       center: [displayedPoint.lon, displayedPoint.lat],
       bearing: heading ?? map.getBearing(),
       padding: navPadding(map),
-      pitch: 60,
-      zoom: Math.max(map.getZoom(), 16),
-      duration: 1200,
-      easing: (t) => t * (2 - t),
+      pitch: 40,
+      zoom: Math.max(map.getZoom(), 16.9),
+      duration: 1000,
+      easing: (t) => t,
       essential: true,
     });
   }, [displayedPoint, heading]);
@@ -206,13 +269,15 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     setFollowing(true);
     const map = mapRef.current;
     if (map && displayedPoint)
+      map.stop();
+    if (map && displayedPoint)
       map.easeTo({
         center: [displayedPoint.lon, displayedPoint.lat],
         bearing: heading ?? 0,
         padding: navPadding(map),
-        pitch: 60,
-        zoom: 16.5,
-        duration: 700,
+        pitch: 40,
+        zoom: 17,
+        duration: 650,
       });
   };
 
@@ -224,7 +289,18 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       <div ref={nodeRef} className="h-full w-full" aria-label="Heading-up navigation map" />
 
       <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-start justify-between gap-2">
-        {maneuver && Glyph ? (
+        {rerouting ? (
+          <div
+            className="nav-hud pointer-events-auto min-w-0 max-w-[62%] rounded-xl px-4 py-3"
+            role="status"
+            aria-live="assertive"
+          >
+            <p className="text-base font-black text-foreground">Rerouting…</p>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">
+              Proceeding to route…
+            </p>
+          </div>
+        ) : maneuver && Glyph ? (
           <div
             className="nav-hud pointer-events-auto flex min-w-0 max-w-[62%] items-center gap-3 rounded-xl px-3 py-2.5"
             aria-live="polite"
