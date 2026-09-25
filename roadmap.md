@@ -17,3 +17,9 @@
 - [x] WHERE TO one-tap pills (Home/Work/Gym/Add)
 - [x] Turn-by-turn voice (0.5 mi / 300 ft), dedupe, speech priming, wake lock
 - [x] Mapbox heading-up commute map + top HUD + mute toggle + recenter
+
+## Destination audit & commute HUD
+- [x] TomTom search/geocode: bounding box, multi-result, venue consensus (Ala Moana)
+- [x] Full-screen active commute HUD (top maneuver bar, bottom card, drawer, scroll lock)
+- [x] Auto-enable voice + alerts on Start Drive/Transit, prime audio
+- [x] Inline quick-edit for shortcut places

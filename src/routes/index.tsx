@@ -1,5 +1,7 @@
+import { createPortal } from "react-dom";
 import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -1997,6 +1999,15 @@ function Index() {
   const mapboxToken = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as
     string | undefined;
   const headingUpNav = Boolean(commitment && mapboxToken);
+  // Full-screen navigation owns every gesture: stop the page behind it from scrolling.
+  useEffect(() => {
+    if (!headingUpNav) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [headingUpNav]);
   const navBasis = drivingCommitted ? (liveDrive ?? drive) : null;
   const navPath = navBasis?.path ?? [];
   const [navBearing, setNavBearing] = useState<number | null>(null);
@@ -3088,7 +3099,11 @@ function Index() {
             </Button>
           </div>
 
-          <ShortcutGrid places={savedPlaces} onStart={(slot) => void quickStartSavedPlace(slot)} />
+          <ShortcutGrid
+            places={savedPlaces}
+            onStart={(slot) => void quickStartSavedPlace(slot)}
+            onPlacesChange={persistPlaces}
+          />
 
           {browseUserPoint && (
             <section
@@ -3909,9 +3924,18 @@ function Index() {
             <Button
               type="button"
               onClick={() => {
+                // Starting a trip means "tell me everything": unlock chime and speech
+                // inside this tap (iOS Safari), unmute voice and turn every alert on.
                 primeChimeAudio();
-                // Unlock speech inside the tap so iOS Safari allows turn prompts later.
-                if (selectedMode === "drive") primeSpeech();
+                primeSpeech();
+                requestCommuteNotificationPermission();
+                setNavMuted(false);
+                setAlertPrefs((prev) => ({
+                  ...prev,
+                  sound: true,
+                  haptics: true,
+                  keepOnTransfer: true,
+                }));
                 commitMode(selectedMode);
               }}
               className="commitment-start h-auto min-h-16 w-full gap-3 px-5 py-4 text-left"
@@ -3954,8 +3978,28 @@ function Index() {
                   : `${transitMapSegments.length} trip legs`}
               </span>
             </div>
-            <div
-              className={`border-t border-border ${headingUpNav ? "h-[62dvh] min-h-[420px]" : "h-72 sm:h-80"}`}
+            <NavShell
+              fullscreen={headingUpNav}
+              overlay={
+                <NavBottomCard
+                  mode={lockedMode === "drive" ? "drive" : "rail"}
+                  delayMinutes={lockedMode === "drive" ? (navBasis?.delayMinutes ?? null) : null}
+                  steps={
+                    lockedMode === "drive"
+                      ? (navBasis?.maneuvers ?? []).map((m) => m.instruction).filter(Boolean)
+                      : transitMapSegments.map((seg) =>
+                          seg.mode === "walk"
+                            ? "Walk"
+                            : seg.mode === "bus"
+                              ? "Bus"
+                              : seg.mode === "rail"
+                                ? "Skyline rail"
+                                : "Drive",
+                        )
+                  }
+                  onEnd={endTrip}
+                />
+              }
             >
               <ClientOnly
                 fallback={
@@ -3975,6 +4019,7 @@ function Index() {
                 >
                   {headingUpNav ? (
                     <LiveNavMap
+                      recenterBottom={176}
                       lines={
                         lockedMode === "drive"
                           ? [
@@ -4036,7 +4081,7 @@ function Index() {
                   )}
                 </Suspense>
               </ClientOnly>
-            </div>
+            </NavShell>
           </section>
         )}
 
@@ -5054,11 +5099,14 @@ function shortcutIcon(slot: string) {
 function ShortcutGrid({
   places,
   onStart,
+  onPlacesChange,
 }: {
   places: SavedPlace[];
   onStart: (slot: string) => void;
+  onPlacesChange: (next: SavedPlace[]) => void;
 }) {
   const [slots, setSlots] = useState<string[]>(DEFAULT_SHORTCUTS);
+  const [quickEdit, setQuickEdit] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   useEffect(() => {
     try {
@@ -5142,23 +5190,32 @@ function ShortcutGrid({
             );
           }
           return (
-            <Button
-              key={`${slot}-${index}`}
-              variant="outline"
-              onClick={() => onStart(slot)}
-              className="glass-panel h-14 min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 px-3 text-foreground hover:bg-primary/10"
-              aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
-            >
-              <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
-                <Icon className="size-4" />
-              </span>
-              <span className="min-w-0 text-left">
-                <span className="block truncate text-sm font-bold">{label}</span>
-                <span className="block truncate text-[11px] font-medium text-muted-foreground">
-                  {place ? place.name : "Set location"}
+            <div key={`${slot}-${index}`} className="relative min-w-0">
+              <Button
+                variant="outline"
+                onClick={() => (place ? onStart(slot) : setQuickEdit(slot))}
+                className="glass-panel h-14 w-full min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 pl-3 pr-9 text-foreground hover:bg-primary/10"
+                aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                  <Icon className="size-4" />
                 </span>
-              </span>
-            </Button>
+                <span className="min-w-0 text-left">
+                  <span className="block truncate text-sm font-bold">{label}</span>
+                  <span className="block truncate text-[11px] font-medium text-muted-foreground">
+                    {place ? place.name : "Set location"}
+                  </span>
+                </span>
+              </Button>
+              <button
+                type="button"
+                onClick={() => setQuickEdit(slot)}
+                aria-label={`Change ${label} address`}
+                className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            </div>
           );
         })}
         {editing && slots.length < MAX_SHORTCUTS && unused.length > 0 && (
@@ -5182,7 +5239,109 @@ function ShortcutGrid({
           {editing ? "Done" : "Edit shortcuts"}
         </Button>
       </div>
+      <QuickPlaceDialog
+        slot={quickEdit}
+        places={places}
+        onClose={() => setQuickEdit(null)}
+        onSave={(next) => {
+          onPlacesChange(next);
+          setQuickEdit(null);
+        }}
+      />
     </div>
+  );
+}
+
+/** Search and replace one shortcut's address in place, without opening Settings. */
+function QuickPlaceDialog({
+  slot,
+  places,
+  onClose,
+  onSave,
+}: {
+  slot: string | null;
+  places: SavedPlace[];
+  onClose: () => void;
+  onSave: (next: SavedPlace[]) => void;
+}) {
+  const findPlaces = useServerFn(searchPlaces);
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    setQuery("");
+    setDebounced("");
+  }, [slot]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(query.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  const { data: results = [], isFetching } = useQuery({
+    queryKey: ["place-search", debounced],
+    enabled: Boolean(slot) && debounced.length >= 2,
+    staleTime: 5 * 60_000,
+    queryFn: async () => (await findPlaces({ data: { query: debounced } })).results,
+  });
+  const current = slot ? resolveShortcut(places, slot) : null;
+  const label = slot ? shortcutLabel(places, slot) : "";
+
+  function choose(hit: PlaceSuggestion) {
+    if (!slot) return;
+    const kind: PlaceKind =
+      current?.kind ?? ((PLACE_KINDS as string[]).includes(slot) ? (slot as PlaceKind) : "custom");
+    const place = makeSavedPlace({
+      ...(current
+        ? {
+            id: current.id,
+            label: current.label,
+            typicalArrivalSeconds: current.typicalArrivalSeconds,
+          }
+        : {}),
+      kind,
+      name: hit.name,
+      address: hit.address,
+      lat: hit.lat,
+      lon: hit.lon,
+    });
+    onSave(upsertPlace(places, place));
+    toast(`${label} updated`, { description: hit.address || hit.name });
+  }
+
+  return (
+    <Dialog open={Boolean(slot)} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Change {label}</DialogTitle>
+          <DialogDescription>
+            {current ? `Now: ${current.address}` : "Search for a place or street address."}
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          autoFocus
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search a place or address"
+          aria-label={`New ${label} address`}
+        />
+        <ul className="max-h-72 space-y-1 overflow-y-auto" aria-live="polite">
+          {isFetching && <li className="px-2 py-2 text-sm text-muted-foreground">Searching…</li>}
+          {!isFetching && debounced.length >= 2 && results.length === 0 && (
+            <li className="px-2 py-2 text-sm text-muted-foreground">No places found on Oʻahu.</li>
+          )}
+          {results.map((hit) => (
+            <li key={hit.id}>
+              <button
+                type="button"
+                onClick={() => choose(hit)}
+                className="w-full rounded-md px-3 py-2 text-left hover:bg-primary/10"
+              >
+                <span className="block truncate text-sm font-bold text-foreground">{hit.name}</span>
+                <span className="block truncate text-xs text-muted-foreground">{hit.address}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -5974,6 +6133,99 @@ function FeedbackForm({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Inline map card normally; an edge-to-edge navigation screen during a live trip. */
+function NavShell({
+  fullscreen,
+  overlay,
+  children,
+}: {
+  fullscreen: boolean;
+  overlay: ReactNode;
+  children: ReactNode;
+}) {
+  if (!fullscreen || typeof document === "undefined") {
+    return <div className="h-72 border-t border-border sm:h-80">{children}</div>;
+  }
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-background" role="dialog" aria-label="Live navigation">
+      <div className="h-full w-full">{children}</div>
+      {overlay}
+    </div>,
+    document.body,
+  );
+}
+
+function NavBottomCard({
+  mode,
+  delayMinutes,
+  steps,
+  onEnd,
+}: {
+  mode: "drive" | "rail";
+  delayMinutes: number | null;
+  steps: string[];
+  onEnd: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const traffic =
+    mode === "rail"
+      ? "Transit live"
+      : delayMinutes === null
+        ? "Checking traffic"
+        : delayMinutes >= 5
+          ? `Heavy · +${Math.round(delayMinutes)} min`
+          : delayMinutes >= 2
+            ? `Moderate · +${Math.round(delayMinutes)} min`
+            : "Traffic clear";
+  return (
+    <div className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-20">
+      <div className="nav-hud pointer-events-auto rounded-2xl p-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            className="flex min-w-0 items-center gap-2 text-left"
+          >
+            <span className="truncate rounded-full bg-muted px-3 py-1 text-xs font-black uppercase text-foreground">
+              {traffic}
+            </span>
+            <span className="shrink-0 text-xs font-bold text-muted-foreground">
+              {open ? "Hide route" : "Route details"}
+            </span>
+          </button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onEnd}
+            className="h-11 shrink-0 px-5 font-black uppercase"
+          >
+            <X className="size-4" /> End
+          </Button>
+        </div>
+        {open && (
+          <ol className="mt-3 max-h-[40dvh] space-y-2 overflow-y-auto overscroll-contain text-sm text-foreground">
+            {steps.length ? (
+              steps.map((step, i) => (
+                <li key={`${i}-${step}`} className="flex gap-2">
+                  <span className="w-5 shrink-0 text-right font-bold tabular-nums text-muted-foreground">
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0">{step}</span>
+                </li>
+              ))
+            ) : (
+              <li className="text-muted-foreground">
+                Route steps will appear once the route loads.
+              </li>
+            )}
+          </ol>
+        )}
+      </div>
     </div>
   );
 }
