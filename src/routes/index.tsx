@@ -1912,6 +1912,7 @@ function Index() {
     queryKey: ["live-drive", liveRouteOrigin?.lat, liveRouteOrigin?.lon, driveTo.lat, driveTo.lon],
     enabled: hydrated && Boolean(liveRouteOrigin) && driveTo.lat !== null,
     staleTime: 2 * 60_000,
+    refetchInterval: 2 * 60_000,
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,
