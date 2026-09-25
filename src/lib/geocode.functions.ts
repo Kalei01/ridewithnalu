@@ -4,43 +4,85 @@ import { z } from "zod";
 const schema = z.object({ address: z.string().min(3).max(200) });
 const searchSchema = z.object({ query: z.string().min(2).max(200) });
 
-// Oahu bias: island centre plus a bounding box so suggestions stay local.
-const OAHU = { lat: 21.4389, lon: -158.0001, radius: 70000 };
+// Oahu bias: a bounding box only. An island-centre radius bias ranks
+// identically named listings in Waipahu/'Aiea above the real town venue.
 const OAHU_BOX = { topLeft: "21.75,-158.35", btmRight: "21.20,-157.60" };
 
-/** Geocodes a free-text address with TomTom. Called once, then cached client-side. */
+type TomTomHit = {
+  id?: string;
+  type?: string;
+  score?: number;
+  poi?: { name?: string };
+  position?: { lat?: number; lon?: number };
+  entryPoints?: Array<{ type?: string; position?: { lat?: number; lon?: number } }>;
+  address?: {
+    freeformAddress?: string;
+    municipality?: string;
+    streetNumber?: string;
+    streetName?: string;
+  };
+};
+
+/** Door position when TomTom knows it, otherwise the listing position. */
+function hitPoint(hit: TomTomHit) {
+  const entry =
+    hit.entryPoints?.find((point) => point.type === "main")?.position ??
+    hit.entryPoints?.[0]?.position;
+  const lat = entry?.lat ?? hit.position?.lat;
+  const lon = entry?.lon ?? hit.position?.lon;
+  return typeof lat === "number" && typeof lon === "number" ? { lat, lon } : null;
+}
+
+async function tomtomSearch(
+  endpoint: "search" | "poiSearch",
+  query: string,
+  params: Record<string, string>,
+): Promise<TomTomHit[]> {
+  const search = new URLSearchParams({
+    countrySet: "US",
+    topLeft: OAHU_BOX.topLeft,
+    btmRight: OAHU_BOX.btmRight,
+    language: "en-US",
+    ...params,
+  });
+  const url = `https://api.tomtom.com/search/2/${endpoint}/${encodeURIComponent(query)}.json?${search}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const body = await response.text();
+    console.error(`TomTom ${endpoint} failed [${response.status}]: ${body}`);
+    throw new Error(`Place search failed (${response.status}).`);
+  }
+  const payload = (await response.json()) as { results?: TomTomHit[] };
+  return payload.results ?? [];
+}
+
+/** Geocodes free text inside Oahu, preferring named places for non-address queries. */
 export const geocodeAddress = createServerFn({ method: "POST" })
   .inputValidator((input) => schema.parse(input))
   .handler(async ({ data }) => {
     const key = process.env["TOMTOM_API_KEY"];
     if (!key) throw new Error("Address lookup is not configured yet.");
-
-    const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(
-      data.address,
-    )}.json?key=${key}&limit=1&countrySet=US&lat=${OAHU.lat}&lon=${OAHU.lon}&radius=${OAHU.radius}`;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      const body = await response.text();
-      console.error(`TomTom geocode failed [${response.status}]: ${body}`);
-      throw new Error(`Address lookup failed (${response.status}).`);
-    }
-
-    const payload = (await response.json()) as {
-      results?: Array<{
-        position?: { lat?: number; lon?: number };
-        address?: { freeformAddress?: string };
-      }>;
-    };
-    const hit = payload.results?.[0];
-    if (!hit?.position?.lat || !hit.position.lon) {
-      return { found: false as const };
-    }
+    const addressQuery = looksLikeStreetAddress(data.address);
+    const hits = await tomtomSearch("search", data.address, {
+      key,
+      limit: "10",
+      idxSet: addressQuery ? "PAD,Addr,Str" : "POI,PAD,Addr,Geo,Str",
+    });
+    const ranked = hits
+      .map((hit) => ({ hit, point: hitPoint(hit) }))
+      .filter((row) => row.point && insideOahu(row.point.lat, row.point.lon))
+      .sort(
+        (a, b) =>
+          (!addressQuery ? Number(b.hit.type === "POI") - Number(a.hit.type === "POI") : 0) ||
+          (b.hit.score ?? 0) - (a.hit.score ?? 0),
+      );
+    const best = ranked[0];
+    if (!best?.point) return { found: false as const };
     return {
       found: true as const,
-      lat: hit.position.lat,
-      lon: hit.position.lon,
-      label: hit.address?.freeformAddress ?? data.address,
+      lat: best.point.lat,
+      lon: best.point.lon,
+      label: best.hit.address?.freeformAddress ?? data.address,
     };
   });
 
@@ -75,54 +117,21 @@ export const searchPlaces = createServerFn({ method: "POST" })
     if (!key) throw new Error("Place search is not configured yet.");
 
     const addressQuery = looksLikeStreetAddress(data.query);
-    const params = new URLSearchParams({
+    const hits = await tomtomSearch("search", data.query, {
       key,
       limit: "10",
       typeahead: "true",
-      countrySet: "US",
-      topLeft: OAHU_BOX.topLeft,
-      btmRight: OAHU_BOX.btmRight,
       // A numbered query is a street address: keep shop listings out of it.
       idxSet: addressQuery ? "PAD,Addr,Str" : "POI,PAD,Addr,Geo,Str",
       extendedPostalCodesFor: addressQuery ? "PAD,Addr" : "POI,PAD,Addr",
-      language: "en-US",
     });
-
-    const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent(
-      data.query,
-    )}.json?${params.toString()}`;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      const body = await response.text();
-      console.error(`TomTom search failed [${response.status}]: ${body}`);
-      throw new Error(`Place search failed (${response.status}).`);
-    }
-
-    const payload = (await response.json()) as {
-      results?: Array<{
-        id?: string;
-        type?: string;
-        score?: number;
-        poi?: { name?: string };
-        position?: { lat?: number; lon?: number };
-        entryPoints?: Array<{ type?: string; position?: { lat?: number; lon?: number } }>;
-        address?: { freeformAddress?: string; municipality?: string };
-      }>;
-    };
 
     const results: PlaceSuggestion[] = [];
     const seen = new Set<string>();
-    const ranked = [...(payload.results ?? [])].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const ranked = [...hits].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     for (const hit of ranked) {
-      // Drive to the door, not the middle of the parcel, when TomTom knows it.
-      const entry =
-        hit.entryPoints?.find((point) => point.type === "main")?.position ??
-        hit.entryPoints?.[0]?.position;
-      const lat = entry?.lat ?? hit.position?.lat;
-      const lon = entry?.lon ?? hit.position?.lon;
-      if (typeof lat !== "number" || typeof lon !== "number") continue;
-      if (!insideOahu(lat, lon)) continue;
+      const point = hitPoint(hit);
+      if (!point || !insideOahu(point.lat, point.lon)) continue;
       const address = hit.address?.freeformAddress ?? hit.address?.municipality ?? "";
       const name = hit.poi?.name || address;
       if (!name) continue;
@@ -130,12 +139,83 @@ export const searchPlaces = createServerFn({ method: "POST" })
       const fingerprint = `${name.toLowerCase()}|${address.toLowerCase()}`;
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
-      results.push({ id: hit.id ?? `${lat},${lon}`, name, address, lat, lon });
-      if (results.length === 6) break;
+      results.push({ id: hit.id ?? `${point.lat},${point.lon}`, name, address, ...point });
     }
-    return { results };
+
+    if (!addressQuery) {
+      const venue = await resolveAmbiguousVenue(key, data.query, results).catch((error) => {
+        console.error("Venue disambiguation failed", error);
+        return null;
+      });
+      if (venue) {
+        const rest = results.filter((row) => row.address.toLowerCase() !== venue.address.toLowerCase());
+        return { results: [venue, ...rest].slice(0, 6) };
+      }
+    }
+    return { results: results.slice(0, 6) };
   });
 
+const GENERIC_VENUE_WORDS = /\b(shopping\s+cent(er|re)|cent(er|re)|mall|plaza|marketplace)\b/gi;
+
+function normalizeStreet(hit: TomTomHit) {
+  const number = hit.address?.streetNumber?.trim();
+  const street = (hit.address?.streetName ?? "")
+    .replace(/\bBlvd\b\.?/i, "Boulevard")
+    .replace(/\bAve\b\.?/i, "Avenue")
+    .replace(/\bSt\b\.?/i, "Street")
+    .replace(/\bHwy\b\.?/i, "Highway")
+    .trim()
+    .toLowerCase();
+  return number && street ? `${number} ${street}` : null;
+}
+
+/**
+ * TomTom's Oahu data holds several listings that share one venue's name at
+ * unrelated addresses (e.g. "Ala Moana Shopping Center" filed in Waipahu and
+ * 'Aiea). When a typed name maps to 3+ addresses, the real venue is the
+ * address its tenants agree on: search the core name and take the street
+ * address shared by the most listings, then suggest that first.
+ */
+async function resolveAmbiguousVenue(
+  key: string,
+  query: string,
+  results: PlaceSuggestion[],
+): Promise<PlaceSuggestion | null> {
+  const typed = query.trim().toLowerCase();
+  const sameName = results.filter((row) => row.name.toLowerCase() === typed);
+  const addresses = new Set(sameName.map((row) => row.address.toLowerCase()));
+  if (addresses.size < 3) return null;
+
+  const core = query.replace(GENERIC_VENUE_WORDS, " ").replace(/\s+/g, " ").trim();
+  if (core.length < 3) return null;
+  const tenants = await tomtomSearch("poiSearch", core, { key, limit: "100" });
+  const coreLower = core.toLowerCase();
+  const groups = new Map<string, TomTomHit[]>();
+  for (const hit of tenants) {
+    const point = hitPoint(hit);
+    if (!point || !insideOahu(point.lat, point.lon)) continue;
+    const street = normalizeStreet(hit);
+    if (!street) continue;
+    const mentionsName =
+      (hit.poi?.name ?? "").toLowerCase().includes(coreLower) || street.includes(coreLower);
+    if (!mentionsName) continue;
+    groups.set(street, [...(groups.get(street) ?? []), hit]);
+  }
+  const ordered = [...groups.values()].sort((a, b) => b.length - a.length);
+  const top = ordered[0];
+  // Require a clear consensus so a tie never silently wins.
+  if (!top || top.length < 5 || top.length < (ordered[1]?.length ?? 0) * 2) return null;
+  const points = top.map(hitPoint).filter((p): p is { lat: number; lon: number } => Boolean(p));
+  const median = (values: number[]) => values.sort((a, b) => a - b)[Math.floor(values.length / 2)]!;
+  const sample = top[0]!;
+  return {
+    id: `venue:${normalizeStreet(sample)}`,
+    name: query.trim().replace(/\b\w/g, (c) => c.toUpperCase()),
+    address: sample.address?.freeformAddress ?? "",
+    lat: median(points.map((p) => p.lat)),
+    lon: median(points.map((p) => p.lon)),
+  };
+}
 
 const reverseSchema = z.object({ lat: z.number(), lon: z.number() });
 
