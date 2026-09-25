@@ -53,10 +53,18 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const routeIndexRef = useRef<number | null>(null);
+  const routeIdentityRef = useRef("");
   const followRef = useRef(true);
   const [following, setFollowing] = useState(true);
   const [ready, setReady] = useState(false);
   const path = useMemo(() => lines.flatMap((line) => line.points), [lines]);
+  const routeIdentity = lines
+    .map((line) => `${line.id}:${line.points.length}:${line.points[0]?.lat}:${line.points.at(-1)?.lat}`)
+    .join("|");
+  if (routeIdentityRef.current !== routeIdentity) {
+    routeIdentityRef.current = routeIdentity;
+    routeIndexRef.current = null;
+  }
   const match = useMemo(
     () => (livePoint ? matchRoutePoint(livePoint, path, routeIndexRef.current, bearing) : null),
     [livePoint, path, bearing],
