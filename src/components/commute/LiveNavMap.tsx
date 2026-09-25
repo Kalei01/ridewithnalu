@@ -15,7 +15,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { bearingBetween, metersBetween, type TurnGlyph } from "@/lib/navigation-voice";
+import { matchRoutePoint, type TurnGlyph } from "@/lib/navigation-voice";
 
 type Pt = { lat: number; lon: number };
 
@@ -41,28 +41,6 @@ const GLYPHS: Record<TurnGlyph, typeof ArrowUp> = {
   arrive: Flag,
 };
 
-/** Bearing of the route just ahead of a point: nearest vertex to one ~40 m further on. */
-function routeForwardBearing(point: Pt | null, lines: LiveNavMapProps["lines"]): number | null {
-  const path = lines.flatMap((l) => l.points);
-  if (path.length < 2) return null;
-  const from = point ?? path[0]!;
-  let nearest = 0;
-  let best = Infinity;
-  path.forEach((p, i) => {
-    const d = metersBetween(from, p);
-    if (d < best) {
-      best = d;
-      nearest = i;
-    }
-  });
-  const start = path[nearest]!;
-  for (let i = nearest + 1; i < path.length; i++) {
-    if (metersBetween(start, path[i]!) >= 40) return bearingBetween(start, path[i]!);
-  }
-  const last = path[path.length - 1]!;
-  return nearest < path.length - 1 ? bearingBetween(start, last) : null;
-}
-
 /** Push the puck into the lower third so the road ahead fills the screen. */
 function navPadding(map: mapboxgl.Map) {
   const h = map.getContainer().clientHeight;
@@ -74,18 +52,31 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const routeIndexRef = useRef<number | null>(null);
+  const routeIdentityRef = useRef("");
   const followRef = useRef(true);
   const [following, setFollowing] = useState(true);
   const [ready, setReady] = useState(false);
-  const lineKeyForBearing = lines.map((l) => `${l.id}:${l.points.length}`).join("|");
-  const forward = useMemo(
-    () => routeForwardBearing(livePoint, lines),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [livePoint?.lat, livePoint?.lon, lineKeyForBearing],
+  const path = useMemo(() => lines.flatMap((line) => line.points), [lines]);
+  const routeIdentity = lines
+    .map(
+      (line) =>
+        `${line.id}:${line.points.length}:${line.points[0]?.lat}:${line.points.at(-1)?.lat}`,
+    )
+    .join("|");
+  if (routeIdentityRef.current !== routeIdentity) {
+    routeIdentityRef.current = routeIdentity;
+    routeIndexRef.current = null;
+  }
+  const match = useMemo(
+    () => (livePoint ? matchRoutePoint(livePoint, path, routeIndexRef.current, bearing) : null),
+    [livePoint, path, bearing],
   );
+  if (match && match.distanceM <= 80) routeIndexRef.current = match.segmentIndex;
+  const displayedPoint = match && match.distanceM <= 80 ? match.point : livePoint;
   // GPS heading when moving; otherwise the route's own forward direction, so
   // the road ahead points straight up even at 0 mph.
-  const heading = bearing ?? forward;
+  const heading = match?.bearing ?? bearing;
   const token = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as string | undefined;
 
   useEffect(() => {
@@ -110,7 +101,13 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     map.on("dragstart", stopFollow);
     map.on("rotatestart", stopFollow);
     map.on("pitchstart", stopFollow);
-    map.on("load", () => setReady(true));
+    map.on("load", () => {
+      for (const layer of map.getStyle().layers ?? []) {
+        if (/traffic|congestion|incidents/i.test(layer.id))
+          map.setLayoutProperty(layer.id, "visibility", "none");
+      }
+      setReady(true);
+    });
     mapRef.current = map;
     return () => {
       map.remove();
@@ -126,7 +123,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     const map = mapRef.current;
     if (!map || !ready) return;
     // Mapbox only parses plain colours (not oklch theme tokens), so use hex.
-    const colors = { drive: "#4fb3ff", rail: "#4fb3ff", bus: "#38e0c0", walk: "#c7d0db" };
+    const colors = { drive: "#35d7ff", rail: "#35d7ff", bus: "#38e0c0", walk: "#f2f6fb" };
     const data: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: lines
@@ -148,7 +145,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       type: "line",
       source: "nalu-route",
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#0b1220", "line-width": 12, "line-opacity": 0.85 },
+      paint: { "line-color": "#07111f", "line-width": 18, "line-opacity": 0.96 },
     });
     map.addLayer({
       id: "nalu-route-line",
@@ -157,7 +154,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       layout: { "line-cap": "round", "line-join": "round" },
       paint: {
         "line-color": ["get", "color"],
-        "line-width": 7,
+        "line-width": 11,
         "line-dasharray": ["case", ["get", "walk"], ["literal", [1, 1.5]], ["literal", [1, 0]]],
       },
     });
@@ -173,7 +170,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   // Live puck and heading-up camera.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !livePoint) return;
+    if (!map || !displayedPoint) return;
     if (!markerRef.current) {
       const el = document.createElement("div");
       el.className = "nalu-nav-puck";
@@ -183,32 +180,32 @@ export default function LiveNavMap(props: LiveNavMapProps) {
         rotationAlignment: "map",
         pitchAlignment: "map",
       })
-        .setLngLat([livePoint.lon, livePoint.lat])
+        .setLngLat([displayedPoint.lon, displayedPoint.lat])
         .addTo(map);
     } else {
-      markerRef.current.setLngLat([livePoint.lon, livePoint.lat]);
+      markerRef.current.setLngLat([displayedPoint.lon, displayedPoint.lat]);
     }
     if (heading !== null) markerRef.current.setRotation(heading);
     if (!followRef.current) return;
     map.easeTo({
-      center: [livePoint.lon, livePoint.lat],
+      center: [displayedPoint.lon, displayedPoint.lat],
       bearing: heading ?? map.getBearing(),
       padding: navPadding(map),
       pitch: 60,
       zoom: Math.max(map.getZoom(), 16),
-      duration: 900,
+      duration: 1200,
       easing: (t) => t * (2 - t),
       essential: true,
     });
-  }, [livePoint, heading]);
+  }, [displayedPoint, heading]);
 
   const recenter = () => {
     followRef.current = true;
     setFollowing(true);
     const map = mapRef.current;
-    if (map && livePoint)
+    if (map && displayedPoint)
       map.easeTo({
-        center: [livePoint.lon, livePoint.lat],
+        center: [displayedPoint.lon, displayedPoint.lat],
         bearing: heading ?? 0,
         padding: navPadding(map),
         pitch: 60,
