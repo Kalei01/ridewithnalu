@@ -30,3 +30,12 @@
 - [x] Station card: TheBus feeders for long walks, Park & Ride tag, compact pill when far, HOLO transfer note
 - [ ] Skyline system-status pill — blocked: no reliable live status source
 - [x] Morning Pulse, Ask Nalu, Beat the Rush, mid-commute rescue, weekly digest
+
+## Live navigation reliability (Sep 25)
+- [ ] Detect sustained off-route distance or divergent heading and reroute immediately from the latest fix
+- [ ] Replace stale maneuver guidance with rerouting status while recalculation is active
+- [ ] Trim completed route geometry behind the vehicle
+- [ ] Tune heading-up camera to 40° pitch, closer zoom, and non-competing transitions
+- [ ] Hide the Lovable badge globally
+- [ ] Keep the homepage clean after sign-in without disrupting saved-place sync
+- [ ] Add navigation matching/reroute tests and verify the work-to-home flow
