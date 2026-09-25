@@ -382,6 +382,24 @@ export type Database = {
         }
         Relationships: []
       }
+      station_parking: {
+        Row: {
+          name_match: string
+          note: string | null
+          status: string
+        }
+        Insert: {
+          name_match: string
+          note?: string | null
+          status: string
+        }
+        Update: {
+          name_match?: string
+          note?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       stop_times: {
         Row: {
           arrival_time: string | null
@@ -609,6 +627,23 @@ export type Database = {
           route_short_name: string
           to_stop_id: string
           to_stop_name: string
+        }[]
+      }
+      feeder_bus_to_station: {
+        Args: {
+          p_after_seconds: number
+          p_lat: number
+          p_lon: number
+          p_station: string
+        }
+        Returns: {
+          alight_stop_name: string
+          arrive_seconds: number
+          board_stop_name: string
+          board_walk_m: number
+          depart_seconds: number
+          ride_minutes: number
+          route_short_name: string
         }[]
       }
       gtfs_data_expiry: {
