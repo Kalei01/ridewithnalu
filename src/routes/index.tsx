@@ -92,6 +92,10 @@ import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
 import { AccountSection } from "@/components/account/AccountSection";
 import { SignInBanner } from "@/components/account/SignInBanner";
 import { useAuth } from "@/hooks/use-auth";
+import { useWakeLock } from "@/hooks/use-wake-lock";
+import { track } from "@/lib/analytics";
+import { NotificationsSection } from "@/components/account/NotificationsSection";
+import { AnalyticsConsentBanner, PrivacySection } from "@/components/account/PrivacySection";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -1085,6 +1089,7 @@ function Index() {
   function commitMode(next: "rail" | "drive") {
     requestCommuteNotificationPermission();
     const entry: Commitment = { mode: next, at: Date.now() };
+    track("active_trip_started", { mode: next });
     setCommitment(entry);
     setSelectedMode(next);
     // Freeze the itinerary in front of the rider, transfers included.
@@ -1882,6 +1887,10 @@ function Index() {
       });
     },
   });
+  useWakeLock(Boolean(commitment));
+  useEffect(() => {
+    track("app_opened");
+  }, []);
   const [liveTick, setLiveTick] = useState(() => Date.now());
   useEffect(() => {
     if (!commitment) return;
@@ -2898,6 +2907,7 @@ function Index() {
           )}
 
           <DataExpiryNotice />
+          <AnalyticsConsentBanner />
 
           <Button
             onClick={() => setOnboardingOpen(true)}
@@ -5479,6 +5489,10 @@ function SetupDialog({
           )}
 
           {!firstRun && <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />}
+
+          {!firstRun && <NotificationsSection />}
+
+          {!firstRun && <PrivacySection />}
 
           {!firstRun && <AccountSection />}
 
