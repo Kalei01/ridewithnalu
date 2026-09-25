@@ -1265,9 +1265,9 @@ function Index() {
         destStopId: out?.stop_id ?? current.destStopId,
         destStopName: out?.stop_name ?? current.destStopName,
         destStopWalkM: out ? Number(out.distance_m) : current.destStopWalkM,
-        destReturnStopId: back.stop_id,
-        destReturnStopName: back.stop_name ?? "",
-        destReturnWalkM: Number(back.distance_m),
+        destReturnStopId: back?.stop_id ?? "",
+        destReturnStopName: back?.stop_name ?? "",
+        destReturnWalkM: Number(back?.distance_m ?? 0),
       }));
     })();
     return () => {
@@ -2917,19 +2917,13 @@ function Index() {
     setSettingsOpen(false);
   }
 
-  async function quickStartRoutine() {
-    if (alertPrefs.sound) primeChimeAudio();
-    requestCommuteNotificationPermission();
-    void refreshTrafficNow();
-    const home = findByKind(savedPlaces, "home");
-    const destination =
-      findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
-    if (!home || !destination) {
-      setOnboardingOpen(true);
-      return;
-    }
+  /** Transit stops for a one-tap trip; missing stops fall back to a drive-only plan. */
+  async function findTripStops(
+    origin: { lat: number; lon: number },
+    destination: { lat: number; lon: number },
+  ) {
     const [station, arriving, boarding] = await Promise.all([
-      supabase.rpc("nearest_stop", { p_lat: home.lat, p_lon: home.lon, p_rail_only: true }),
+      supabase.rpc("nearest_stop", { p_lat: origin.lat, p_lon: origin.lon, p_rail_only: true }),
       supabase.rpc("directional_dest_stop", {
         p_lat: destination.lat,
         p_lon: destination.lon,
@@ -2941,29 +2935,46 @@ function Index() {
         p_toward_rail: true,
       }),
     ]);
-    const rail = station.data?.[0];
-    const out = arriving.data?.[0];
-    const back = boarding.data?.[0];
-    if (!rail || !out || !back) {
+    for (const result of [station, arriving, boarding])
+      if (result.error) console.error("Stop lookup error", result.error);
+    return { rail: station.data?.[0], out: arriving.data?.[0], back: boarding.data?.[0] };
+  }
+
+  async function quickStartRoutine() {
+    if (alertPrefs.sound) primeChimeAudio();
+    requestCommuteNotificationPermission();
+    void refreshTrafficNow();
+    const home = findByKind(savedPlaces, "home");
+    const destination =
+      findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
+    if (!home || !destination) {
       setOnboardingOpen(true);
       return;
     }
+    let stops: Awaited<ReturnType<typeof findTripStops>>;
+    try {
+      stops = await findTripStops(home, destination);
+    } catch (error) {
+      console.error("Quick start stop lookup failed", error);
+      stops = { rail: undefined, out: undefined, back: undefined };
+    }
+    const { rail, out, back } = stops;
     saveSetup({
       ...emptySetup,
-      homeStopId: rail.stop_id,
-      homeStopName: rail.stop_name ?? "",
+      homeStopId: rail?.stop_id ?? "",
+      homeStopName: rail?.stop_name ?? "",
       homeLat: home.lat,
       homeLon: home.lon,
       destinationName: destination.name,
       destinationAddress: destination.address,
       destLat: destination.lat,
       destLon: destination.lon,
-      destStopId: out.stop_id,
-      destStopName: out.stop_name ?? "",
-      destStopWalkM: Number(out.distance_m),
-      destReturnStopId: back.stop_id,
-      destReturnStopName: back.stop_name ?? "",
-      destReturnWalkM: Number(back.distance_m),
+      destStopId: out?.stop_id ?? "",
+      destStopName: out?.stop_name ?? "",
+      destStopWalkM: Number(out?.distance_m ?? 0),
+      destReturnStopId: back?.stop_id ?? "",
+      destReturnStopName: back?.stop_name ?? "",
+      destReturnWalkM: Number(back?.distance_m ?? 0),
     });
     chooseDirection(honoluluParts(now).hour >= 12);
   }
@@ -2993,45 +3004,35 @@ function Index() {
       async (position) => {
         const origin = { lat: position.coords.latitude, lon: position.coords.longitude };
         try {
-          const [station, arriving, boarding] = await Promise.all([
-            supabase.rpc("nearest_stop", {
-              p_lat: origin.lat,
-              p_lon: origin.lon,
-              p_rail_only: true,
-            }),
-            supabase.rpc("directional_dest_stop", {
-              p_lat: destination.lat,
-              p_lon: destination.lon,
-              p_toward_rail: false,
-            }),
-            supabase.rpc("directional_dest_stop", {
-              p_lat: destination.lat,
-              p_lon: destination.lon,
-              p_toward_rail: true,
-            }),
-          ]);
-          const rail = station.data?.[0];
-          const out = arriving.data?.[0];
-          const back = boarding.data?.[0];
-          if (!rail || !out || !back) throw new Error("No reachable transit stops");
+          const apart = Math.hypot(
+            (origin.lat - destination.lat) * 111_000,
+            (origin.lon - destination.lon) * 111_000 * Math.cos((origin.lat * Math.PI) / 180),
+          );
+          if (apart < 150) {
+            toast.success(`You’re already at ${destination.label}.`, { id: toastId });
+            return;
+          }
+          const stops = await findTripStops(origin, destination);
+          const { rail, out, back } = stops;
+
           saveSetup({
             ...emptySetup,
             // Door-to-door driving must always be weighed for a one-tap trip.
             allowDrive: true,
-            homeStopId: rail.stop_id,
-            homeStopName: rail.stop_name ?? "",
+            homeStopId: rail?.stop_id ?? "",
+            homeStopName: rail?.stop_name ?? "",
             homeLat: origin.lat,
             homeLon: origin.lon,
             destinationName: destination.name,
             destinationAddress: destination.address,
             destLat: destination.lat,
             destLon: destination.lon,
-            destStopId: out.stop_id,
-            destStopName: out.stop_name ?? "",
-            destStopWalkM: Number(out.distance_m),
-            destReturnStopId: back.stop_id,
-            destReturnStopName: back.stop_name ?? "",
-            destReturnWalkM: Number(back.distance_m),
+            destStopId: out?.stop_id ?? "",
+            destStopName: out?.stop_name ?? "",
+            destStopWalkM: Number(out?.distance_m ?? 0),
+            destReturnStopId: back?.stop_id ?? "",
+            destReturnStopName: back?.stop_name ?? "",
+            destReturnWalkM: Number(back?.distance_m ?? 0),
           });
           chooseDirection(false);
           const accuracy = position.coords.accuracy;
@@ -3048,7 +3049,8 @@ function Index() {
                 .filter(Boolean)
                 .join(" · ") || undefined,
           });
-        } catch {
+        } catch (error) {
+          console.error("Quick trip failed", error);
           toast.error("Nalu couldn’t build that trip right now.", {
             id: toastId,
             description: "Try again or use WHERE TO?.",
@@ -5773,12 +5775,12 @@ function SetupDialog({
         destinationAddress: place.address || place.name,
         destLat: place.lat,
         destLon: place.lon,
-        destStopId: out.stop_id,
-        destStopName: out.stop_name ?? "",
-        destStopWalkM: Number(out.distance_m),
-        destReturnStopId: back.stop_id,
-        destReturnStopName: back.stop_name ?? "",
-        destReturnWalkM: Number(back.distance_m),
+        destStopId: out?.stop_id ?? "",
+        destStopName: out?.stop_name ?? "",
+        destStopWalkM: Number(out?.distance_m ?? 0),
+        destReturnStopId: back?.stop_id ?? "",
+        destReturnStopName: back?.stop_name ?? "",
+        destReturnWalkM: Number(back?.distance_m ?? 0),
       }));
       setPlaceQuery("");
       setDebouncedQuery("");

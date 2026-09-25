@@ -63,17 +63,20 @@ export const geocodeAddress = createServerFn({ method: "POST" })
     const key = process.env["TOMTOM_API_KEY"];
     if (!key) throw new Error("Address lookup is not configured yet.");
     const addressQuery = looksLikeStreetAddress(data.address);
-    const hits = await tomtomSearch("search", data.address, {
-      key,
-      limit: "10",
-      idxSet: addressQuery ? "PAD,Addr,Str" : "POI,PAD,Addr,Geo,Str",
-    });
+    const hits = addressQuery
+      ? await addressSearch(data.address, { key, limit: "10" })
+      : await tomtomSearch("search", data.address, {
+          key,
+          limit: "10",
+          idxSet: "POI,PAD,Addr,Geo,Str",
+        });
     const ranked = hits
       .map((hit) => ({ hit, point: hitPoint(hit) }))
-      .filter((row) => row.point && insideOahu(row.point.lat, row.point.lon))
-      .sort(
+      .filter((row) => row.point && insideOahu(row.point.lat, row.point.lon));
+    if (!addressQuery)
+      ranked.sort(
         (a, b) =>
-          (!addressQuery ? Number(b.hit.type === "POI") - Number(a.hit.type === "POI") : 0) ||
+          Number(b.hit.type === "POI") - Number(a.hit.type === "POI") ||
           (b.hit.score ?? 0) - (a.hit.score ?? 0),
       );
     const best = ranked[0];
@@ -93,6 +96,50 @@ export type PlaceSuggestion = {
   lat: number;
   lon: number;
 };
+
+/**
+ * Leeward/central Oʻahu house numbers are tax-map "zone-number" pairs
+ * (e.g. 91-1160). Riders often type them without the hyphen ("911160" or
+ * "91 1160"), which TomTom can't match to the house, so it falls back to the
+ * street centre. Returns the hyphenated form, or null when not applicable.
+ */
+export function hyphenateOahuHouseNumber(query: string): string | null {
+  const match = /^\s*(9[1-6])(?:\s+|-?)(\d{1,4})\b(.*)$/.exec(query);
+  if (!match) return null;
+  const [, zone, number, rest] = match;
+  if (/^\s*9[1-6]-\d/.test(query)) return null; // already hyphenated
+  // A bare "91 1160" with a space, or 5–6 digit run, is the parcel pattern.
+  const raw = query.trim();
+  if (!/^9[1-6]\s+\d/.test(raw) && !/^9[1-6]\d{3,4}\b/.test(raw)) return null;
+  return `${zone}-${number}${rest}`.replace(/\s+/g, " ").trim();
+}
+
+/** Searches the typed query plus the hyphenated Oʻahu form; point addresses first. */
+async function addressSearch(query: string, params: Record<string, string>) {
+  const hyphenated = hyphenateOahuHouseNumber(query);
+  const queries = hyphenated ? [hyphenated, query] : [query];
+  const batches = await Promise.all(
+    queries.map((q) => tomtomSearch("search", q, { ...params, idxSet: "PAD,Addr,Str" })),
+  );
+  const wanted = (hyphenated ?? query).match(/^\s*([\d-]+)/)?.[1];
+  const seen = new Set<string>();
+  return batches
+    .flat()
+    .filter((hit) => {
+      const id = hit.id ?? JSON.stringify(hit.position);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .map((hit) => ({
+      hit,
+      rank:
+        (hit.type === "Point Address" ? 2 : 0) +
+        (wanted && hit.address?.streetNumber === wanted ? 3 : 0),
+    }))
+    .sort((a, b) => b.rank - a.rank || (b.hit.score ?? 0) - (a.hit.score ?? 0))
+    .map((row) => row.hit);
+}
 
 /** A query that starts with a house number is an address, not a place name. */
 function looksLikeStreetAddress(query: string) {
@@ -117,18 +164,25 @@ export const searchPlaces = createServerFn({ method: "POST" })
     if (!key) throw new Error("Place search is not configured yet.");
 
     const addressQuery = looksLikeStreetAddress(data.query);
-    const hits = await tomtomSearch("search", data.query, {
-      key,
-      limit: "10",
-      typeahead: "true",
-      // A numbered query is a street address: keep shop listings out of it.
-      idxSet: addressQuery ? "PAD,Addr,Str" : "POI,PAD,Addr,Geo,Str",
-      extendedPostalCodesFor: addressQuery ? "PAD,Addr" : "POI,PAD,Addr",
-    });
+    // A numbered query is a street address: keep shop listings out of it.
+    const hits = addressQuery
+      ? await addressSearch(data.query, {
+          key,
+          limit: "10",
+          typeahead: "true",
+          extendedPostalCodesFor: "PAD,Addr",
+        })
+      : await tomtomSearch("search", data.query, {
+          key,
+          limit: "10",
+          typeahead: "true",
+          idxSet: "POI,PAD,Addr,Geo,Str",
+          extendedPostalCodesFor: "POI,PAD,Addr",
+        });
 
     const results: PlaceSuggestion[] = [];
     const seen = new Set<string>();
-    const ranked = [...hits].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const ranked = addressQuery ? hits : [...hits].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     for (const hit of ranked) {
       const point = hitPoint(hit);
       if (!point || !insideOahu(point.lat, point.lon)) continue;
