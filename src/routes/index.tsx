@@ -127,6 +127,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { AskNalu, BeatTheRush, MorningPulse, WeeklyDigestCard } from "@/components/ai/NaluAi";
+import { rescueAdvice } from "@/lib/nalu-ai.functions";
+import { finishTripLog, startTripLog } from "@/lib/trip-log";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
@@ -1102,6 +1105,13 @@ function Index() {
   function commitMode(next: "rail" | "drive") {
     requestCommuteNotificationPermission();
     const entry: Commitment = { mode: next, at: Date.now() };
+    const driveEst = drive?.trafficMinutes ?? null;
+    startTripLog({
+      mode: next,
+      startedAt: entry.at,
+      chosenMinutes: next === "drive" ? driveEst : railMinutes,
+      otherMinutes: next === "drive" ? railMinutes : driveEst,
+    });
     track("active_trip_started", { mode: next });
     setCommitment(entry);
     setSelectedMode(next);
@@ -1112,6 +1122,7 @@ function Index() {
 
   /** Release the lock so Nalu can recommend again. */
   function releaseCommitment() {
+    finishTripLog();
     setCommitment(null);
     lockedOptionRef.current = null;
     window.localStorage.removeItem(COMMIT_KEY);
@@ -1369,6 +1380,64 @@ function Index() {
     if (browseStation?.userLat == null || browseStation.userLon == null) return null;
     return { lat: browseStation.userLat, lon: browseStation.userLon };
   }, [browseStation?.userLat, browseStation?.userLon]);
+
+  // Station card: far riders see a compact pill; long walks get TheBus feeders.
+  const [stationExpanded, setStationExpanded] = useState(false);
+  const browseFar = Boolean(
+    browseUserPoint && browseStation && distanceM(browseUserPoint, browseStation) > 2414,
+  );
+  const browseWalkMinutes =
+    browseUserPoint && browseStation ? walkingEstimate(browseUserPoint, browseStation).minutes : null;
+  const trainsEveryMinutes = useMemo(() => {
+    const gaps = browseDirections
+      .map((d) =>
+        d[0] && d[1] ? Math.round((d[1].departure_seconds - d[0].departure_seconds) / 60) : null,
+      )
+      .filter((g): g is number => g !== null && g > 0 && g < 60);
+    return gaps.length ? Math.min(...gaps) : null;
+  }, [browseDirections]);
+  const { data: feederBuses = [] } = useQuery({
+    queryKey: [
+      "feeder-bus",
+      browseStation?.stopId,
+      browseUserPoint?.lat.toFixed(3),
+      browseUserPoint?.lon.toFixed(3),
+      Math.floor(afterSeconds / 300),
+    ],
+    enabled: browseActive && Boolean(browseStation && browseUserPoint) && (browseWalkMinutes ?? 0) > 18,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("feeder_bus_to_station", {
+        p_lat: browseUserPoint!.lat,
+        p_lon: browseUserPoint!.lon,
+        p_station: browseStation!.stopId,
+        p_after_seconds: afterSeconds,
+      });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const { data: parkingRows = [] } = useQuery({
+    queryKey: ["station-parking"],
+    staleTime: 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("station_parking").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const stationParking = useMemo(() => {
+    const name = (browseStation?.stopName ?? "").toLowerCase();
+    return parkingRows.find((row) => name.includes(row.name_match)) ?? null;
+  }, [parkingRows, browseStation?.stopName]);
+  const browseHome = useMemo(() => {
+    const p = findByKind(savedPlaces, "home");
+    return p && p.lat != null && p.lon != null ? { lat: p.lat, lon: p.lon, label: p.label } : null;
+  }, [savedPlaces]);
+  const browseWork = useMemo(() => {
+    const p = findByKind(savedPlaces, "work");
+    return p && p.lat != null && p.lon != null ? { lat: p.lat, lon: p.lon, label: p.label } : null;
+  }, [savedPlaces]);
 
   const { data: nearbyStops = [], isLoading: nearbyStopsLoading } = useQuery({
     queryKey: [
@@ -1945,6 +2014,44 @@ function Index() {
       current && current.seq >= liveDriveRaw.seq ? current : liveDriveRaw,
     );
   }, [liveDriveRaw, drivingCommitted]);
+  // Mid-commute rescue advisor: a delay spike of 8+ minutes over the delay at
+  // trip start asks Nalu AI to weigh alternate corridors and a Skyline hub.
+  const fetchRescue = useServerFn(rescueAdvice);
+  const rescueBaseline = useRef<number | null>(null);
+  const rescueAsked = useRef(false);
+  const [rescue, setRescue] = useState<{ headline: string; spoken: string } | null>(null);
+  useEffect(() => {
+    if (!drivingCommitted) {
+      rescueBaseline.current = null;
+      rescueAsked.current = false;
+      setRescue(null);
+      return;
+    }
+    if (!liveDrive || !liveRouteOrigin || driveTo.lat === null || driveTo.lon === null) return;
+    if (rescueBaseline.current === null) {
+      rescueBaseline.current = liveDrive.delayMinutes;
+      return;
+    }
+    const spike = liveDrive.delayMinutes - rescueBaseline.current;
+    if (spike < 8 || rescueAsked.current) return;
+    rescueAsked.current = true;
+    void fetchRescue({
+      data: {
+        from: liveRouteOrigin,
+        to: { lat: driveTo.lat, lon: driveTo.lon },
+        currentMinutes: liveDrive.trafficMinutes,
+        spikeMinutes: spike,
+        currentRoads: liveDrive.corridorRoads.slice(0, 10).map((r) => r.slice(0, 40)),
+      },
+    })
+      .then((result) => {
+        if (!result.ok) return;
+        setRescue(result.value);
+        if (!navMuted) speakCommuteAlert(result.value.spoken);
+        postCommuteNotification(result.value.headline, result.value.spoken, "nalu-rescue");
+      })
+      .catch(() => {});
+  }, [liveDrive, drivingCommitted, liveRouteOrigin, driveTo.lat, driveTo.lon, fetchRescue, navMuted]);
   useWakeLock(Boolean(commitment));
   useEffect(() => {
     track("app_opened");
@@ -3057,6 +3164,13 @@ function Index() {
 
           <DataExpiryNotice />
           <AnalyticsConsentBanner />
+          <MorningPulse
+            home={browseHome}
+            work={browseWork}
+            trainsEveryMinutes={trainsEveryMinutes}
+          />
+          <BeatTheRush home={browseHome} work={browseWork} />
+          <WeeklyDigestCard />
 
           <Button
             onClick={() => setOnboardingOpen(true)}
@@ -3151,6 +3265,26 @@ function Index() {
             </section>
           )}
 
+          {browseStation && browseFar && !stationExpanded ? (
+            <button
+              type="button"
+              onClick={() => setStationExpanded(true)}
+              className="glass-panel mt-4 flex w-full min-w-0 items-center gap-2 rounded-full px-4 py-3 text-left text-sm"
+              aria-label="Show Skyline station details"
+            >
+              <TrainFront className="size-4 shrink-0 text-primary" />
+              <span className="truncate font-semibold text-foreground">
+                {stationLabel(browseStation.stopName)}
+              </span>
+              <span className="truncate text-muted-foreground">
+                {browseUserPoint
+                  ? ` · ${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min drive`
+                  : ""}
+                {trainsEveryMinutes ? ` · Trains every ${trainsEveryMinutes} min` : ""}
+              </span>
+              <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
+            </button>
+          ) : (
           <section
             className="glass-panel mt-4 rounded-lg p-4"
             aria-labelledby="browse-station-title"
@@ -3171,18 +3305,62 @@ function Index() {
                 </h2>
                 {browseStation && <LandmarkHint name={browseStation.stopName} />}
               </div>
+              {browseFar && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Collapse station card"
+                  onClick={() => setStationExpanded(false)}
+                >
+                  <ChevronDown className="size-4 rotate-180" />
+                </Button>
+              )}
             </div>
+            {browseStation && (
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
+                {stationParking && (
+                  <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
+                    {stationParking.status === "limited"
+                      ? "Limited parking"
+                      : "Park & Ride available"}
+                    {stationParking.note ? ` · ${stationParking.note}` : ""}
+                  </span>
+                )}
+                {trainsEveryMinutes && (
+                  <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                    Trains every {trainsEveryMinutes} min
+                  </span>
+                )}
+              </div>
+            )}
             {browseStation && browseUserPoint && (
               <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-foreground">
-                <span className="browse-eta-chip">
-                  Walk {walkingEstimate(browseUserPoint, browseStation).minutes} min ·{" "}
-                  {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
-                </span>
+                {browseWalkMinutes !== null && browseWalkMinutes <= 18 && (
+                  <span className="browse-eta-chip">
+                    Walk {browseWalkMinutes} min ·{" "}
+                    {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
+                  </span>
+                )}
+                {browseWalkMinutes !== null &&
+                  browseWalkMinutes > 18 &&
+                  feederBuses.slice(0, 2).map((bus) => (
+                    <span key={bus.route_short_name} className="browse-eta-chip">
+                      <Bus className="mr-1 inline size-3.5" />
+                      Take TheBus {bus.route_short_name} · {bus.ride_minutes} min ride · leaves{" "}
+                      {clockFromSeconds(bus.depart_seconds)}
+                    </span>
+                  ))}
                 <span className="browse-eta-chip">
                   Drive about{" "}
                   {Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min
                 </span>
               </div>
+            )}
+            {browseStation && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                HOLO fare {HOLO_FARES.singleRide} includes free transfers between TheBus and
+                Skyline for {HOLO_FARES.transferWindowHours} hours.
+              </p>
             )}
             {browseLocationDenied && browseStation && (
               <p className="mt-2 text-xs text-muted-foreground">
@@ -3303,7 +3481,7 @@ function Index() {
                               clockFromSeconds(first.departure_seconds)
                             )}
                           </p>
-                          {walk && walkState && (
+                          {walk && walkState && walk.minutes <= 18 && (
                             <p
                               className={`mt-2 text-xs font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}
                             >
@@ -3332,6 +3510,9 @@ function Index() {
               {h1HasMeaningfulDelay ? " · H-1 is delayed, so Skyline may be especially useful" : ""}
             </p>
           </section>
+          )}
+
+          <AskNalu origin={browseUserPoint} />
 
           {browseUserPoint && (
             <details className="glass-panel mt-3 rounded-lg">
@@ -4009,6 +4190,18 @@ function Index() {
                   />
                 }
               >
+                {rescue && drivingCommitted && (
+                  <div
+                    role="alert"
+                    className="fixed inset-x-3 top-24 z-[1200] rounded-lg border border-warning/60 bg-background/95 p-3 shadow-lg backdrop-blur-md"
+                  >
+                    <p className="text-sm font-semibold text-foreground">{rescue.headline}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{rescue.spoken}</p>
+                    <Button size="sm" variant="ghost" className="mt-1 h-7 px-2" onClick={() => setRescue(null)}>
+                      Dismiss
+                    </Button>
+                  </div>
+                )}
                 <Suspense
                   fallback={
                     <div
