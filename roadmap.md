@@ -8,3 +8,11 @@
 - [x] Setup: From (current location) / To only; auto-derive station; remove drive toggle
 - [x] Saved places management in Settings with pills; customizable home shortcuts
 - [x] Live ETA recalculation from GPS during active commute
+
+## Queued batch (Sep 2026)
+- [ ] Firebase push: opt-in categories, quiet hours, token refresh/removal, dedupe
+- [ ] PostHog privacy-first analytics + consent + legal copy
+- [ ] Door-to-door ETA: destination access buffers by zone, arrival ranges, stale-response guards
+- [ ] WHERE TO one-tap pills (Home/Work/Gym/Add)
+- [ ] Turn-by-turn voice (0.5 mi / 300 ft), dedupe, speech priming, wake lock
+- [ ] Mapbox heading-up commute map + top HUD + mute toggle + recenter
