@@ -1162,6 +1162,11 @@ function Index() {
     // Authentication may finish after local hydration or cloud sync. Clear only
     // transient trip state; saved places and account preferences remain intact.
     setSetup(emptySetup);
+    syncStateRef.current = {
+      ...syncStateRef.current,
+      setup: emptySetup,
+      configured: false,
+    };
     window.localStorage.removeItem(STORAGE_KEY);
     setCommitment(null);
     lockedOptionRef.current = null;
