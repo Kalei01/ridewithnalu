@@ -23,3 +23,10 @@
 - [x] Full-screen active commute HUD (top maneuver bar, bottom card, drawer, scroll lock)
 - [x] Auto-enable voice + alerts on Start Drive/Transit, prime audio
 - [x] Inline quick-edit for shortcut places
+
+## Sign-in, station card & Nalu AI (Sep 25)
+- [x] Google + Apple sign-in for any rider (email/password kept)
+- [x] Usage-stats "Allow" hides instantly and stays hidden
+- [x] Station card: TheBus feeders for long walks, Park & Ride tag, compact pill when far, HOLO transfer note
+- [ ] Skyline system-status pill — blocked: no reliable live status source
+- [x] Morning Pulse, Ask Nalu, Beat the Rush, mid-commute rescue, weekly digest
