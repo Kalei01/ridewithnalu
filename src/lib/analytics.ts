@@ -50,15 +50,15 @@ export function onAnalyticsConsentChange(listener: () => void) {
 }
 
 export function analyticsAvailable() {
-  return Boolean(import.meta.env.VITE_LOVABLE_CONNECTOR_POSTHOG_API_KEY);
+  return Boolean(import.meta.env["VITE_LOVABLE_CONNECTOR_POSTHOG_API_KEY"]);
 }
 
 function load(): Promise<PostHog | null> {
   if (client) return Promise.resolve(client);
   if (loading) return loading;
-  const token = import.meta.env.VITE_LOVABLE_CONNECTOR_POSTHOG_API_KEY as string | undefined;
+  const token = import.meta.env["VITE_LOVABLE_CONNECTOR_POSTHOG_API_KEY"] as string | undefined;
   if (!token || typeof window === "undefined") return Promise.resolve(null);
-  const region = import.meta.env.VITE_LOVABLE_CONNECTOR_POSTHOG_REGION || "us";
+  const region = import.meta.env["VITE_LOVABLE_CONNECTOR_POSTHOG_REGION"] || "us";
   loading = import("posthog-js")
     .then(({ default: posthog }) => {
       posthog.init(token, {

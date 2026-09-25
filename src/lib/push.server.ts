@@ -37,7 +37,7 @@ export type PushMessage = {
   title: string;
   body: string;
   dedupeKey: string;
-  path?: string;
+  path?: string | undefined;
 };
 
 /** Send to one subscription, honouring opt-in, quiet hours, and dedupe. */
@@ -56,8 +56,8 @@ export async function sendToSubscription(
     .insert({ token: sub.token, dedupe_key: message.dedupeKey.slice(0, 200) });
   if (dedupeError) return "skipped"; // unique violation: already delivered
 
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const connectionKey = process.env.FIREBASE_MESSAGING_API_KEY;
+  const lovableKey = process.env["LOVABLE_API_KEY"];
+  const connectionKey = process.env["FIREBASE_MESSAGING_API_KEY"];
   if (!lovableKey || !connectionKey) throw new Error("Push notifications are not configured.");
 
   const response = await fetch(`${GATEWAY_URL}/v1/projects/_/messages:send`, {

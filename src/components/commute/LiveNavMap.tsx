@@ -55,7 +55,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   const followRef = useRef(true);
   const [following, setFollowing] = useState(true);
   const [ready, setReady] = useState(false);
-  const token = import.meta.env.VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN as string | undefined;
+  const token = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as string | undefined;
 
   useEffect(() => {
     if (!nodeRef.current || mapRef.current || !token) return;
@@ -70,8 +70,8 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       bearing: bearing ?? 0,
       attributionControl: true,
     });
-    const stopFollow = (event: { originalEvent?: unknown }) => {
-      if (!event.originalEvent) return; // programmatic camera moves
+    const stopFollow = (event: object) => {
+      if (!("originalEvent" in event)) return;
       followRef.current = false;
       setFollowing(false);
     };
