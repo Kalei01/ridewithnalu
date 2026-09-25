@@ -3099,7 +3099,11 @@ function Index() {
             </Button>
           </div>
 
-          <ShortcutGrid places={savedPlaces} onStart={(slot) => void quickStartSavedPlace(slot)} />
+          <ShortcutGrid
+            places={savedPlaces}
+            onStart={(slot) => void quickStartSavedPlace(slot)}
+            onPlacesChange={persistPlaces}
+          />
 
           {browseUserPoint && (
             <section
@@ -5084,11 +5088,14 @@ function shortcutIcon(slot: string) {
 function ShortcutGrid({
   places,
   onStart,
+  onPlacesChange,
 }: {
   places: SavedPlace[];
   onStart: (slot: string) => void;
+  onPlacesChange: (next: SavedPlace[]) => void;
 }) {
   const [slots, setSlots] = useState<string[]>(DEFAULT_SHORTCUTS);
+  const [quickEdit, setQuickEdit] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   useEffect(() => {
     try {
@@ -5172,10 +5179,10 @@ function ShortcutGrid({
             );
           }
           return (
+            <div key={`${slot}-${index}`} className="relative min-w-0">
             <Button
-              key={`${slot}-${index}`}
               variant="outline"
-              onClick={() => onStart(slot)}
+              onClick={() => (place ? onStart(slot) : setQuickEdit(slot))}
               className="glass-panel h-14 min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 px-3 text-foreground hover:bg-primary/10"
               aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
             >
@@ -5189,6 +5196,15 @@ function ShortcutGrid({
                 </span>
               </span>
             </Button>
+            <button
+              type="button"
+              onClick={() => setQuickEdit(slot)}
+              aria-label={`Change ${label} address`}
+              className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+            >
+              <Pencil className="size-3.5" />
+            </button>
+            </div>
           );
         })}
         {editing && slots.length < MAX_SHORTCUTS && unused.length > 0 && (
@@ -5212,7 +5228,102 @@ function ShortcutGrid({
           {editing ? "Done" : "Edit shortcuts"}
         </Button>
       </div>
+      <QuickPlaceDialog
+        slot={quickEdit}
+        places={places}
+        onClose={() => setQuickEdit(null)}
+        onSave={(next) => {
+          onPlacesChange(next);
+          setQuickEdit(null);
+        }}
+      />
     </div>
+  );
+}
+
+/** Search and replace one shortcut's address in place, without opening Settings. */
+function QuickPlaceDialog({
+  slot,
+  places,
+  onClose,
+  onSave,
+}: {
+  slot: string | null;
+  places: SavedPlace[];
+  onClose: () => void;
+  onSave: (next: SavedPlace[]) => void;
+}) {
+  const findPlaces = useServerFn(searchPlaces);
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    setQuery("");
+    setDebounced("");
+  }, [slot]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(query.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  const { data: results = [], isFetching } = useQuery({
+    queryKey: ["place-search", debounced],
+    enabled: Boolean(slot) && debounced.length >= 2,
+    staleTime: 5 * 60_000,
+    queryFn: async () => (await findPlaces({ data: { query: debounced } })).results,
+  });
+  const current = slot ? resolveShortcut(places, slot) : null;
+  const label = slot ? shortcutLabel(places, slot) : "";
+
+  function choose(hit: PlaceSuggestion) {
+    if (!slot) return;
+    const kind: PlaceKind = current?.kind ?? ((PLACE_KINDS as string[]).includes(slot) ? (slot as PlaceKind) : "custom");
+    const place = makeSavedPlace({
+      ...(current ? { id: current.id, label: current.label, typicalArrivalSeconds: current.typicalArrivalSeconds } : {}),
+      kind,
+      name: hit.name,
+      address: hit.address,
+      lat: hit.lat,
+      lon: hit.lon,
+    });
+    onSave(upsertPlace(places, place));
+    toast(`${label} updated`, { description: hit.address || hit.name });
+  }
+
+  return (
+    <Dialog open={Boolean(slot)} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Change {label}</DialogTitle>
+          <DialogDescription>
+            {current ? `Now: ${current.address}` : "Search for a place or street address."}
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          autoFocus
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search a place or address"
+          aria-label={`New ${label} address`}
+        />
+        <ul className="max-h-72 space-y-1 overflow-y-auto" aria-live="polite">
+          {isFetching && <li className="px-2 py-2 text-sm text-muted-foreground">Searching…</li>}
+          {!isFetching && debounced.length >= 2 && results.length === 0 && (
+            <li className="px-2 py-2 text-sm text-muted-foreground">No places found on Oʻahu.</li>
+          )}
+          {results.map((hit) => (
+            <li key={hit.id}>
+              <button
+                type="button"
+                onClick={() => choose(hit)}
+                className="w-full rounded-md px-3 py-2 text-left hover:bg-primary/10"
+              >
+                <span className="block truncate text-sm font-bold text-foreground">{hit.name}</span>
+                <span className="block truncate text-xs text-muted-foreground">{hit.address}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
   );
 }
 
