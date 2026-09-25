@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -15,7 +15,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { TurnGlyph } from "@/lib/navigation-voice";
+import { bearingBetween, metersBetween, type TurnGlyph } from "@/lib/navigation-voice";
 
 type Pt = { lat: number; lon: number };
 
@@ -41,10 +41,32 @@ const GLYPHS: Record<TurnGlyph, typeof ArrowUp> = {
   arrive: Flag,
 };
 
-function cssVar(name: string, fallback: string) {
-  if (typeof window === "undefined") return fallback;
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
+/** Bearing of the route just ahead of a point: nearest vertex to one ~40 m further on. */
+function routeForwardBearing(point: Pt | null, lines: LiveNavMapProps["lines"]): number | null {
+  const path = lines.flatMap((l) => l.points);
+  if (path.length < 2) return null;
+  const from = point ?? path[0]!;
+  let nearest = 0;
+  let best = Infinity;
+  path.forEach((p, i) => {
+    const d = metersBetween(from, p);
+    if (d < best) {
+      best = d;
+      nearest = i;
+    }
+  });
+  const start = path[nearest]!;
+  for (let i = nearest + 1; i < path.length; i++) {
+    if (metersBetween(start, path[i]!) >= 40) return bearingBetween(start, path[i]!);
+  }
+  const last = path[path.length - 1]!;
+  return nearest < path.length - 1 ? bearingBetween(start, last) : null;
+}
+
+/** Push the puck into the lower third so the road ahead fills the screen. */
+function navPadding(map: mapboxgl.Map) {
+  const h = map.getContainer().clientHeight;
+  return { top: Math.round(h * 0.5), bottom: Math.round(h * 0.06), left: 0, right: 0 };
 }
 
 export default function LiveNavMap(props: LiveNavMapProps) {
@@ -55,6 +77,15 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   const followRef = useRef(true);
   const [following, setFollowing] = useState(true);
   const [ready, setReady] = useState(false);
+  const lineKeyForBearing = lines.map((l) => `${l.id}:${l.points.length}`).join("|");
+  const forward = useMemo(
+    () => routeForwardBearing(livePoint, lines),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [livePoint?.lat, livePoint?.lon, lineKeyForBearing],
+  );
+  // GPS heading when moving; otherwise the route's own forward direction, so
+  // the road ahead points straight up even at 0 mph.
+  const heading = bearing ?? forward;
   const token = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as string | undefined;
 
   useEffect(() => {
@@ -67,9 +98,10 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       center: [start.lon, start.lat],
       zoom: 16,
       pitch: 55,
-      bearing: bearing ?? 0,
+      bearing: heading ?? 0,
       attributionControl: true,
     });
+    map.setPadding(navPadding(map));
     const stopFollow = (event: object) => {
       if (!("originalEvent" in event)) return;
       followRef.current = false;
@@ -156,18 +188,19 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     } else {
       markerRef.current.setLngLat([livePoint.lon, livePoint.lat]);
     }
-    if (bearing !== null) markerRef.current.setRotation(bearing);
+    if (heading !== null) markerRef.current.setRotation(heading);
     if (!followRef.current) return;
     map.easeTo({
       center: [livePoint.lon, livePoint.lat],
-      bearing: bearing ?? map.getBearing(),
-      pitch: 55,
-      zoom: Math.max(map.getZoom(), 15.5),
+      bearing: heading ?? map.getBearing(),
+      padding: navPadding(map),
+      pitch: 60,
+      zoom: Math.max(map.getZoom(), 16),
       duration: 900,
       easing: (t) => t * (2 - t),
       essential: true,
     });
-  }, [livePoint, bearing]);
+  }, [livePoint, heading]);
 
   const recenter = () => {
     followRef.current = true;
