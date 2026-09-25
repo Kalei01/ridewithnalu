@@ -95,7 +95,14 @@ import { SignInBanner } from "@/components/account/SignInBanner";
 import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrivalRange, destinationAccess } from "@/lib/destination-access";
-import { announcementFor, isUsableNavigationFix, metersBetween, nextManeuver, smoothBearing, turnGlyph } from "@/lib/navigation-voice";
+import {
+  announcementFor,
+  isUsableNavigationFix,
+  metersBetween,
+  nextManeuver,
+  smoothBearing,
+  turnGlyph,
+} from "@/lib/navigation-voice";
 import { track } from "@/lib/analytics";
 import { NotificationsSection } from "@/components/account/NotificationsSection";
 import { AnalyticsConsentBanner, PrivacySection } from "@/components/account/PrivacySection";
@@ -1717,7 +1724,11 @@ function Index() {
     const watch = navigator.geolocation.watchPosition(
       (position) => {
         const point = { lat: position.coords.latitude, lon: position.coords.longitude };
-        const nextFix = { point, timestamp: position.timestamp, accuracy: position.coords.accuracy };
+        const nextFix = {
+          point,
+          timestamp: position.timestamp,
+          accuracy: position.coords.accuracy,
+        };
         if (!isUsableNavigationFix(acceptedNavFix.current, nextFix)) return;
         acceptedNavFix.current = { point, timestamp: position.timestamp };
         setRiderPoint(point);

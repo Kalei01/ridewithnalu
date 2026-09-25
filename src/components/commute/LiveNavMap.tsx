@@ -58,7 +58,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   const [ready, setReady] = useState(false);
   const path = useMemo(() => lines.flatMap((line) => line.points), [lines]);
   const match = useMemo(
-    () => livePoint ? matchRoutePoint(livePoint, path, routeIndexRef.current, bearing) : null,
+    () => (livePoint ? matchRoutePoint(livePoint, path, routeIndexRef.current, bearing) : null),
     [livePoint, path, bearing],
   );
   if (match && match.distanceM <= 80) routeIndexRef.current = match.segmentIndex;
@@ -92,7 +92,8 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     map.on("pitchstart", stopFollow);
     map.on("load", () => {
       for (const layer of map.getStyle().layers ?? []) {
-        if (/traffic|congestion|incidents/i.test(layer.id)) map.setLayoutProperty(layer.id, "visibility", "none");
+        if (/traffic|congestion|incidents/i.test(layer.id))
+          map.setLayoutProperty(layer.id, "visibility", "none");
       }
       setReady(true);
     });

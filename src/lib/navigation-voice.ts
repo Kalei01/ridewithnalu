@@ -82,7 +82,15 @@ function lowerFirst(value: string) {
   return value ? value.charAt(0).toLowerCase() + value.slice(1) : value;
 }
 
-export type TurnGlyph = "left" | "right" | "slight-left" | "slight-right" | "uturn" | "straight" | "arrive" | "roundabout";
+export type TurnGlyph =
+  | "left"
+  | "right"
+  | "slight-left"
+  | "slight-right"
+  | "uturn"
+  | "straight"
+  | "arrive"
+  | "roundabout";
 
 export function turnGlyph(code: string): TurnGlyph {
   if (code === "ARRIVE" || code.startsWith("ARRIVE")) return "arrive";
@@ -90,7 +98,10 @@ export function turnGlyph(code: string): TurnGlyph {
   if (code.includes("U_TURN") || code.includes("UTURN")) return "uturn";
   if (/(KEEP|BEAR|EXIT|SLIGHT)_?.*LEFT|LEFT_.*(EXIT|RAMP)/.test(code) && !code.startsWith("TURN_"))
     return "slight-left";
-  if (/(KEEP|BEAR|EXIT|SLIGHT)_?.*RIGHT|RIGHT_.*(EXIT|RAMP)/.test(code) && !code.startsWith("TURN_"))
+  if (
+    /(KEEP|BEAR|EXIT|SLIGHT)_?.*RIGHT|RIGHT_.*(EXIT|RAMP)/.test(code) &&
+    !code.startsWith("TURN_")
+  )
     return "slight-right";
   if (code.includes("LEFT")) return "left";
   if (code.includes("RIGHT")) return "right";
@@ -123,7 +134,8 @@ export function matchRoutePoint(
 ): RouteMatch | null {
   if (path.length < 2) return null;
   const start = previousIndex === null ? 0 : Math.max(0, previousIndex - 3);
-  const end = previousIndex === null ? path.length - 1 : Math.min(path.length - 1, previousIndex + 220);
+  const end =
+    previousIndex === null ? path.length - 1 : Math.min(path.length - 1, previousIndex + 220);
   const latScale = 111_320;
   const lonScale = Math.cos((point.lat * Math.PI) / 180) * latScale;
   let best: RouteMatch | null = null;
@@ -145,8 +157,10 @@ export function matchRoutePoint(
     const y = ay + dy * t;
     const distanceM = Math.hypot(x, y);
     const segmentBearing = bearingBetween(a, b);
-    const headingPenalty = heading === null ? 0 : Math.max(0, angleDifference(segmentBearing, heading) - 50) * 1.8;
-    const backwardPenalty = previousIndex !== null && i < previousIndex ? (previousIndex - i) * 12 : 0;
+    const headingPenalty =
+      heading === null ? 0 : Math.max(0, angleDifference(segmentBearing, heading) - 50) * 1.8;
+    const backwardPenalty =
+      previousIndex !== null && i < previousIndex ? (previousIndex - i) * 12 : 0;
     const score = distanceM + headingPenalty + backwardPenalty;
     if (score >= bestScore) continue;
     bestScore = score;
