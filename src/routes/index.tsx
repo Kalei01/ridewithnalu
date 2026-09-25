@@ -93,7 +93,6 @@ import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByCo
 import { VerdictCard } from "@/components/commute/VerdictCard";
 import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
 import { AccountSection } from "@/components/account/AccountSection";
-import { SignInBanner } from "@/components/account/SignInBanner";
 import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrivalRange, destinationAccess } from "@/lib/destination-access";
@@ -3231,8 +3230,6 @@ function Index() {
             </div>
           </header>
 
-          <SignInBanner />
-
           {findByKind(savedPlaces, "home") && routineDestination && (
             <button
               type="button"
@@ -3249,7 +3246,6 @@ function Index() {
           )}
 
           <DataExpiryNotice />
-          <AnalyticsConsentBanner />
           <MorningPulse
             home={browseHome}
             work={browseWork}
@@ -3597,6 +3593,8 @@ function Index() {
             </p>
           </section>
           )}
+
+          <AnalyticsConsentBanner />
 
           <AskNalu origin={browseUserPoint} />
 
