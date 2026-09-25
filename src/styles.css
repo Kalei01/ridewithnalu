@@ -5,6 +5,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+[class*="lovable-badge"],
+#lovable-badge,
+a[href*="lovable.dev"][class*="badge"],
+.lovable-badge {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 /*
  * Design system definition.
  *

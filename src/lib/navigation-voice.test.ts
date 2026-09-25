@@ -4,7 +4,9 @@ import {
   isUsableNavigationFix,
   matchRoutePoint,
   nextManeuver,
+  routeDeviation,
   smoothBearing,
+  trimRoutePath,
   turnGlyph,
   type Maneuver,
 } from "./navigation-voice";
@@ -85,6 +87,34 @@ describe("turn-by-turn voice", () => {
         accuracy: 8,
       }),
     ).toBe(true);
+  });
+  it("flags distance immediately and heading divergence after two fixes", () => {
+    const match = {
+      point: { lat: 21.3, lon: -157.9 },
+      segmentIndex: 1,
+      distanceM: 20,
+      bearing: 90,
+    };
+    const first = routeDeviation(match, 170, 0);
+    expect(first.offRoute).toBe(false);
+    expect(first.divergentFixes).toBe(1);
+    expect(routeDeviation(match, 170, first.divergentFixes).offRoute).toBe(true);
+    expect(routeDeviation({ ...match, distanceM: 46 }, 90, 0).offRoute).toBe(true);
+  });
+  it("trims the traveled route behind the matched vehicle point", () => {
+    const path = [
+      { lat: 21.3, lon: -158 },
+      { lat: 21.31, lon: -157.99 },
+      { lat: 21.32, lon: -157.98 },
+      { lat: 21.33, lon: -157.97 },
+    ];
+    const match = {
+      point: { lat: 21.315, lon: -157.985 },
+      segmentIndex: 1,
+      distanceM: 5,
+      bearing: 45,
+    };
+    expect(trimRoutePath(path, match)).toEqual([match.point, path[2], path[3]]);
   });
 });
 
