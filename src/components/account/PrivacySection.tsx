@@ -82,7 +82,13 @@ export function AnalyticsConsentBanner() {
         >
           No thanks
         </Button>
-        <Button size="sm" onClick={() => setAnalyticsConsent("granted")}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setAnalyticsConsent("granted");
+            setDismissed(true);
+          }}
+        >
           Allow
         </Button>
       </div>

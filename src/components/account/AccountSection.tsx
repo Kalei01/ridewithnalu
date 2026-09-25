@@ -16,19 +16,28 @@ export function AccountSection() {
   const name = user?.user_metadata?.["full_name"] as string | undefined;
   const avatar = user?.user_metadata?.["avatar_url"] as string | undefined;
 
-  async function google() {
+  async function social(provider: "google" | "apple") {
     setMessage(null);
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (result.error) setMessage("Google sign-in is unavailable right now.");
+    const result = await lovable.auth.signInWithOAuth(provider, {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error)
+      setMessage(`${provider === "google" ? "Google" : "Apple"} sign-in is unavailable right now.`);
   }
 
   async function emailAuth(mode: "signin" | "signup") {
     setMessage(null);
-    const result = mode === "signin"
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
+    const result =
+      mode === "signin"
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: window.location.origin },
+          });
     if (result.error) setMessage(result.error.message);
-    else if (mode === "signup" && !result.data.session) setMessage("Check your email to confirm your account.");
+    else if (mode === "signup" && !result.data.session)
+      setMessage("Check your email to confirm your account.");
   }
 
   async function resetPassword() {
@@ -36,7 +45,9 @@ export function AccountSection() {
       setMessage("Enter your email first.");
       return;
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
     setMessage(error ? error.message : "Check your email for a password reset link.");
   }
 
@@ -47,27 +58,81 @@ export function AccountSection() {
       {user ? (
         <div className="rounded-lg bg-surface-raised p-4">
           <div className="flex items-center gap-3">
-            <Avatar><AvatarImage src={avatar} alt="" /><AvatarFallback>{(name || user.email || "N")[0]?.toUpperCase()}</AvatarFallback></Avatar>
-            <div className="min-w-0"><p className="truncate font-semibold">{name || "Nalu rider"}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div>
+            <Avatar>
+              <AvatarImage src={avatar} alt="" />
+              <AvatarFallback>{(name || user.email || "N")[0]?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate font-semibold">{name || "Nalu rider"}</p>
+              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Your saved places and preferences sync across signed-in devices.</p>
-          <Button variant="outline" className="mt-3 w-full" onClick={() => void supabase.auth.signOut()}><LogOut /> Sign out</Button>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Your saved places and preferences sync across signed-in devices.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-3 w-full"
+            onClick={() => void supabase.auth.signOut()}
+          >
+            <LogOut /> Sign out
+          </Button>
         </div>
       ) : (
         <div className="grid gap-3 rounded-lg bg-surface-raised p-4">
-          <p className="text-sm text-muted-foreground">Optional. Guest access stays fully available.</p>
-          <Button variant="outline" onClick={() => void google()}><LogIn /> Continue with Google</Button>
+          <p className="text-sm text-muted-foreground">
+            Optional. Guest access stays fully available.
+          </p>
+          <Button variant="outline" onClick={() => void social("google")}>
+            <LogIn /> Continue with Google
+          </Button>
+          <Button variant="outline" onClick={() => void social("apple")}>
+            <LogIn /> Continue with Apple
+          </Button>
           <div className="grid gap-2 border-t border-border pt-3">
             <Label htmlFor="account-email">Email</Label>
-            <Input id="account-email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+            <Input
+              id="account-email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
             <Label htmlFor="account-password">Password</Label>
-            <Input id="account-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} />
-            <div className="grid grid-cols-2 gap-2"><Button onClick={() => void emailAuth("signin")} disabled={!email || !password}>Sign in</Button><Button variant="outline" onClick={() => void emailAuth("signup")} disabled={!email || password.length < 6}>Create account</Button></div>
-            <Button variant="link" className="h-auto justify-start px-0 text-xs" onClick={() => void resetPassword()}>Forgot password?</Button>
+            <Input
+              id="account-password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={() => void emailAuth("signin")} disabled={!email || !password}>
+                Sign in
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => void emailAuth("signup")}
+                disabled={!email || password.length < 6}
+              >
+                Create account
+              </Button>
+            </div>
+            <Button
+              variant="link"
+              className="h-auto justify-start px-0 text-xs"
+              onClick={() => void resetPassword()}
+            >
+              Forgot password?
+            </Button>
           </div>
         </div>
       )}
-      {message && <p role="status" className="text-xs text-muted-foreground">{message}</p>}
+      {message && (
+        <p role="status" className="text-xs text-muted-foreground">
+          {message}
+        </p>
+      )}
     </section>
   );
 }

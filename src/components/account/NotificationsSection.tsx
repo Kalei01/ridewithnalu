@@ -20,14 +20,17 @@ import { removePushSubscription, savePushSubscription, sendTestPush } from "@/li
 
 const STATUS_COPY = {
   "not-configured": "Notifications aren't set up for this app yet.",
-  unsupported: "This browser doesn't support notifications. On iPhone, add Nalu to your Home Screen first.",
+  unsupported:
+    "This browser doesn't support notifications. On iPhone, add Nalu to your Home Screen first.",
   "open-in-new-tab": "Open Nalu in its own tab (or the installed app) to turn on notifications.",
   denied: "Notifications are blocked. Allow them for this site in your browser settings.",
 } as const;
 
 export function NotificationsSection() {
   const [prefs, setPrefs] = useState<PushPrefs>(() =>
-    typeof window === "undefined" ? { categories: [], quietStart: "22:00", quietEnd: "06:00", token: null } : readPushPrefs(),
+    typeof window === "undefined"
+      ? { categories: [], quietStart: "22:00", quietEnd: "06:00", token: null }
+      : readPushPrefs(),
   );
   const [busy, setBusy] = useState(false);
   const save = useServerFn(savePushSubscription);
@@ -128,16 +131,33 @@ export function NotificationsSection() {
       ))}
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1">
-          <Label htmlFor="quiet-start" className="text-xs">Quiet from</Label>
-          <Input id="quiet-start" type="time" value={prefs.quietStart} onChange={(e) => void updateQuiet("quietStart", e.target.value)} className="bg-surface-raised" />
+          <Label htmlFor="quiet-start" className="text-xs">
+            Quiet from
+          </Label>
+          <Input
+            id="quiet-start"
+            type="time"
+            value={prefs.quietStart}
+            onChange={(e) => void updateQuiet("quietStart", e.target.value)}
+            className="bg-surface-raised"
+          />
         </div>
         <div className="grid gap-1">
-          <Label htmlFor="quiet-end" className="text-xs">Until</Label>
-          <Input id="quiet-end" type="time" value={prefs.quietEnd} onChange={(e) => void updateQuiet("quietEnd", e.target.value)} className="bg-surface-raised" />
+          <Label htmlFor="quiet-end" className="text-xs">
+            Until
+          </Label>
+          <Input
+            id="quiet-end"
+            type="time"
+            value={prefs.quietEnd}
+            onChange={(e) => void updateQuiet("quietEnd", e.target.value)}
+            className="bg-surface-raised"
+          />
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        During quiet hours only stop and transfer alerts you asked for on an active trip come through.
+        During quiet hours only stop and transfer alerts you asked for on an active trip come
+        through.
       </p>
       {prefs.token && prefs.categories.length > 0 && (
         <Button
@@ -145,7 +165,13 @@ export function NotificationsSection() {
           size="sm"
           onClick={() =>
             void test({ data: { token: prefs.token as string } })
-              .then((r) => toast(r.status === "sent" ? "Test notification sent." : "Couldn't send a test right now."))
+              .then((r) =>
+                toast(
+                  r.status === "sent"
+                    ? "Test notification sent."
+                    : "Couldn't send a test right now.",
+                ),
+              )
               .catch(() => toast.error("Couldn't send a test right now."))
           }
         >
