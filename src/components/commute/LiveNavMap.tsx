@@ -59,7 +59,10 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   const [ready, setReady] = useState(false);
   const path = useMemo(() => lines.flatMap((line) => line.points), [lines]);
   const routeIdentity = lines
-    .map((line) => `${line.id}:${line.points.length}:${line.points[0]?.lat}:${line.points.at(-1)?.lat}`)
+    .map(
+      (line) =>
+        `${line.id}:${line.points.length}:${line.points[0]?.lat}:${line.points.at(-1)?.lat}`,
+    )
     .join("|");
   if (routeIdentityRef.current !== routeIdentity) {
     routeIdentityRef.current = routeIdentity;
