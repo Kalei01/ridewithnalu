@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -6015,8 +6016,8 @@ function NavShell({
   children,
 }: {
   fullscreen: boolean;
-  overlay: React.ReactNode;
-  children: React.ReactNode;
+  overlay: ReactNode;
+  children: ReactNode;
 }) {
   if (!fullscreen || typeof document === "undefined") {
     return <div className="h-72 border-t border-border sm:h-80">{children}</div>;
