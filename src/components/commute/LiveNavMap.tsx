@@ -209,9 +209,10 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     if (map && livePoint)
       map.easeTo({
         center: [livePoint.lon, livePoint.lat],
-        bearing: bearing ?? 0,
-        pitch: 55,
-        zoom: 16,
+        bearing: heading ?? 0,
+        padding: navPadding(map),
+        pitch: 60,
+        zoom: 16.5,
         duration: 700,
       });
   };
