@@ -5183,7 +5183,7 @@ function ShortcutGrid({
             <Button
               variant="outline"
               onClick={() => (place ? onStart(slot) : setQuickEdit(slot))}
-              className="glass-panel h-14 min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 px-3 text-foreground hover:bg-primary/10"
+              className="glass-panel h-14 w-full min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 pl-3 pr-9 text-foreground hover:bg-primary/10"
               aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
             >
               <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
