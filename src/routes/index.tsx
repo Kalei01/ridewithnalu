@@ -1865,7 +1865,11 @@ function Index() {
   useEffect(() => {
     if (riderPoint) liveOriginRef.current = riderPoint;
   }, [riderPoint]);
-  const { data: liveDrive } = useQuery({
+  // Race guard: every live re-route is stamped with a sequence number and only
+  // the newest response ever reaches the screen, so a slow older TomTom reply
+  // can't overwrite a fresher ETA.
+  const liveSeqRef = useRef(0);
+  const { data: liveDriveRaw } = useQuery({
     queryKey: ["live-drive", liveOriginBucket, driveTo.lat, driveTo.lon],
     enabled: hydrated && Boolean(liveOriginBucket) && driveTo.lat !== null,
     staleTime: 60_000,
@@ -1873,10 +1877,11 @@ function Index() {
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,
-    queryFn: () => {
+    queryFn: async () => {
       const origin = liveOriginRef.current ?? riderPoint;
       if (!origin) throw new Error("No live position yet.");
-      return fetchDriveTime({
+      const seq = ++liveSeqRef.current;
+      const result = await fetchDriveTime({
         data: {
           fromLat: origin.lat,
           fromLon: origin.lon,
@@ -1885,8 +1890,18 @@ function Index() {
           forceRefresh: true,
         },
       });
+      return { ...result, seq };
     },
   });
+  const [liveDrive, setLiveDrive] = useState<(typeof liveDriveRaw & object) | null>(null);
+  useEffect(() => {
+    if (!drivingCommitted) {
+      setLiveDrive(null);
+      return;
+    }
+    if (!liveDriveRaw) return;
+    setLiveDrive((current) => (current && current.seq >= liveDriveRaw.seq ? current : liveDriveRaw));
+  }, [liveDriveRaw, drivingCommitted]);
   useWakeLock(Boolean(commitment));
   useEffect(() => {
     track("app_opened");
@@ -1906,17 +1921,80 @@ function Index() {
       if (!basis) return null;
       const elapsedMin = Math.max(0, (liveTick - basis.fetchedAt) / 60_000);
       const remainingMin = Math.max(1, Math.round(basis.trafficMinutes - elapsedMin));
+      const access = destinationAccess(driveTo, inbound ? "home" : null);
+      const window = arrivalRange(
+        tickSeconds,
+        {
+          low: Math.max(1, basis.lowMinutes - elapsedMin),
+          expected: remainingMin,
+          high: Math.max(remainingMin, basis.highMinutes - elapsedMin),
+        },
+        access,
+      );
       return {
         remainingMin,
         arriveSeconds: tickSeconds + remainingMin * 60,
         meters: basis.meters as number | null,
         live: Boolean(liveDrive),
+        range: `${clockFromSeconds(window.earliestSeconds)} – ${clockFromSeconds(window.latestSeconds)}`,
       };
     }
     if (!best?.arrive_seconds) return null;
     const remainingMin = Math.max(0, Math.round((best.arrive_seconds - tickSeconds) / 60));
-    return { remainingMin, arriveSeconds: best.arrive_seconds, meters: null, live: true };
-  }, [commitment, liveDrive, drive, best, liveTick]);
+    return {
+      remainingMin,
+      arriveSeconds: best.arrive_seconds,
+      meters: null,
+      live: true,
+      range: null as string | null,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commitment, liveDrive, drive, best, liveTick, inbound, driveTo.lat, driveTo.lon]);
+
+  // ---- Heading-up navigation & turn-by-turn voice -----------------------------
+  const [navMuted, setNavMuted] = useState(false);
+  const mapboxToken = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as
+    | string
+    | undefined;
+  const headingUpNav = Boolean(drivingCommitted && mapboxToken);
+  const navBasis = drivingCommitted ? (liveDrive ?? drive) : null;
+  const navPath = navBasis?.path ?? [];
+  const [navBearing, setNavBearing] = useState<number | null>(null);
+  const lastNavPoint = useRef<Coords | null>(null);
+  useEffect(() => {
+    if (!drivingCommitted || !riderPoint) return;
+    setNavBearing((previous) =>
+      smoothBearing(previous, {
+        gpsHeading: riderHeading,
+        speedMps: null,
+        from: lastNavPoint.current,
+        to: riderPoint,
+      }),
+    );
+    lastNavPoint.current = riderPoint;
+  }, [riderPoint, riderHeading, drivingCommitted]);
+  const passedTurns = useRef(new Set<string>());
+  const spokenTurns = useRef(new Set<string>());
+  useEffect(() => {
+    if (drivingCommitted) return;
+    passedTurns.current = new Set();
+    spokenTurns.current = new Set();
+    lastNavPoint.current = null;
+    setNavBearing(null);
+  }, [drivingCommitted]);
+  const nextTurn = useMemo(
+    () =>
+      navBasis && riderPoint
+        ? nextManeuver(riderPoint, navBasis.maneuvers ?? [], passedTurns.current)
+        : null,
+    [navBasis, riderPoint],
+  );
+  useEffect(() => {
+    if (!drivingCommitted || !nextTurn) return;
+    // Record thresholds even while muted so unmuting never replays old turns.
+    const phrase = announcementFor(nextTurn, spokenTurns.current);
+    if (phrase && !navMuted) speakCommuteAlert(phrase);
+  }, [nextTurn, drivingCommitted, navMuted]);
 
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
   const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
@@ -2127,7 +2205,27 @@ function Index() {
   const railMinutes = best ? best.total_minutes + RAIL_BUFFER_MIN : null;
   const railRange =
     railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
-  const driveRange = drive ? { low: drive.lowMinutes, high: drive.highMinutes } : null;
+  // Door to door: road time plus the parking/walk buffer at the destination.
+  const driveAccess = destinationAccess(driveTo, inbound ? "home" : null);
+  const driveArrival = drive
+    ? arrivalRange(
+        nowSeconds,
+        { low: drive.lowMinutes, expected: drive.trafficMinutes, high: drive.highMinutes },
+        driveAccess,
+      )
+    : null;
+  const driveWindow = driveArrival
+    ? `${clockFromSeconds(driveArrival.earliestSeconds)} – ${clockFromSeconds(driveArrival.latestSeconds)}`
+    : null;
+  const driveRange = drive
+    ? {
+        low: drive.lowMinutes + driveAccess.lowMin,
+        high: drive.highMinutes + driveAccess.highMin,
+      }
+    : null;
+  const railWindow = best
+    ? `${clockFromSeconds(best.arrive_seconds - 60)} – ${clockFromSeconds(best.arrive_seconds + RAIL_SLIP_MIN * 60)}`
+    : null;
   // The verdict compares exactly the number each column shows: the worst case.
   const driveMinutes = driveRange ? driveRange.high : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
@@ -2919,6 +3017,35 @@ function Index() {
             <ChevronRight className="size-5 text-primary-foreground/70" />
           </Button>
 
+          <div className="mt-3 flex flex-wrap justify-center gap-2" aria-label="Quick destinations">
+            {(["home", "work", "gym"] as const).map((kind) => {
+              const Icon = shortcutIcon(kind);
+              const saved = Boolean(findByKind(savedPlaces, kind));
+              return (
+                <Button
+                  key={kind}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void quickStartSavedPlace(kind)}
+                  className={`h-9 gap-1.5 rounded-full px-3.5 ${saved ? "" : "opacity-70"}`}
+                  aria-label={saved ? `Plan a trip to ${kindLabel(kind)}` : `Set up ${kindLabel(kind)}`}
+                >
+                  <Icon className="size-3.5" /> {kindLabel(kind)}
+                </Button>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSettingsOpen(true)}
+              className="h-9 gap-1.5 rounded-full px-3.5"
+            >
+              <Plus className="size-3.5" /> Add Place
+            </Button>
+          </div>
+
           <ShortcutGrid places={savedPlaces} onStart={(slot) => void quickStartSavedPlace(slot)} />
 
           {browseUserPoint && (
@@ -3499,10 +3626,27 @@ function Index() {
                       </p>
                       {drive && driveAvailable && (
                         <p className="text-xs font-semibold text-muted-foreground">
-                          {drive.trafficMinutes} min driving
+                          {drive.trafficMinutes} min driving + ~{driveAccess.typicalMin} min parking
                         </p>
                       )}
                     </div>
+                    {drive && driveAvailable && driveArrival && !drivePlan && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-sm font-bold tabular-nums text-foreground">
+                          Arrive {driveWindow}
+                        </summary>
+                        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                          <li>
+                            Road time {drive.lowMinutes}–{drive.highMinutes} min (expected{" "}
+                            {drive.trafficMinutes})
+                          </li>
+                          <li>
+                            {driveAccess.label} {driveAccess.lowMin}–{driveAccess.highMin} min
+                          </li>
+                          <li>Expected at the door {clockFromSeconds(driveArrival.expectedSeconds)}</li>
+                        </ul>
+                      </details>
+                    )}
                     {drivePlan?.feasible && !arriveByPassed ? (
                       <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
                         Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
@@ -3612,27 +3756,35 @@ function Index() {
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
                 </p>
               </div>
+              {railWindow && (
+                <p className="col-span-3 text-sm font-semibold tabular-nums text-muted-foreground">
+                  At the door {railWindow}
+                </p>
+              )}
             </div>
           )}
-          {verdict === "drive" && drive && driveRange && (
+          {verdict === "drive" && drive && driveRange && driveArrival && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
               <div className="metric-glass">
                 <p className="text-xs text-muted-foreground">Leave</p>
                 <p className="mt-1 text-xl font-bold text-recommended">Now</p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">Arrive</p>
+                <p className="text-xs text-muted-foreground">At the door</p>
                 <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
-                  {clockFromSeconds(nowSeconds + drive.trafficMinutes * 60)}
+                  {clockFromSeconds(driveArrival.expectedSeconds)}
                 </p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-xs text-muted-foreground">Door to door</p>
                 <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
                   {driveRange.high}
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
                 </p>
               </div>
+              <p className="col-span-3 text-sm font-semibold tabular-nums text-muted-foreground">
+                Arrive {driveWindow}
+              </p>
             </div>
           )}
           {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
@@ -3684,6 +3836,11 @@ function Index() {
                       Arrive {clockFromSeconds(liveEta.arriveSeconds)} · {liveEta.remainingMin} min
                       left
                       {liveEta.meters ? ` · ${formatDistance(liveEta.meters)}` : ""}
+                      {liveEta.range ? (
+                        <span className="block text-xs font-semibold text-muted-foreground">
+                          Door to door {liveEta.range}
+                        </span>
+                      ) : null}
                     </p>
                   ) : null}
                   <p className="mt-0.5 text-xs font-semibold text-muted-foreground">
@@ -3709,6 +3866,8 @@ function Index() {
               type="button"
               onClick={() => {
                 primeChimeAudio();
+                // Unlock speech inside the tap so iOS Safari allows turn prompts later.
+                if (selectedMode === "drive") primeSpeech();
                 commitMode(selectedMode);
               }}
               className="commitment-start h-auto min-h-16 w-full gap-3 px-5 py-4 text-left"
@@ -3751,7 +3910,9 @@ function Index() {
                   : `${transitMapSegments.length} trip legs`}
               </span>
             </div>
-            <div className="h-72 border-t border-border sm:h-80">
+            <div
+              className={`border-t border-border ${headingUpNav ? "h-[62dvh] min-h-[420px]" : "h-72 sm:h-80"}`}
+            >
               <ClientOnly
                 fallback={
                   <div
@@ -3768,19 +3929,55 @@ function Index() {
                     />
                   }
                 >
-                  <CommuteRouteMap
-                    points={mapPoints}
-                    livePoint={riderPoint}
-                    liveHeading={riderHeading}
-                    followLive={Boolean(commitment)}
-                    {...(selectedMode === "rail" && transitMapSegments.length > 0
-                      ? { segments: transitMapSegments }
-                      : {})}
-                    {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})}
-                    {...(driveTrafficSections && driveTrafficSections.length > 0
-                      ? { trafficSections: driveTrafficSections }
-                      : {})}
-                  />
+                  {headingUpNav ? (
+                    <LiveNavMap
+                      lines={[{ id: "drive", mode: "drive", points: navPath }]}
+                      destination={
+                        driveTo.lat !== null && driveTo.lon !== null
+                          ? { lat: driveTo.lat, lon: driveTo.lon }
+                          : null
+                      }
+                      livePoint={riderPoint}
+                      bearing={navBearing}
+                      maneuver={
+                        nextTurn
+                          ? {
+                              glyph: turnGlyph(nextTurn.maneuver.maneuver),
+                              distanceText: formatDistance(nextTurn.distanceM),
+                              road:
+                                nextTurn.maneuver.road ?? nextTurn.maneuver.instruction,
+                            }
+                          : null
+                      }
+                      eta={
+                        liveEta
+                          ? {
+                              arrive: clockFromSeconds(liveEta.arriveSeconds),
+                              range: liveEta.range,
+                              minutes: liveEta.remainingMin,
+                              distance: liveEta.meters ? formatDistance(liveEta.meters) : null,
+                            }
+                          : null
+                      }
+                      muted={navMuted}
+                      onToggleMute={() => setNavMuted((value) => !value)}
+                    />
+                  ) : (
+                    <CommuteRouteMap
+                      points={mapPoints}
+                      livePoint={riderPoint}
+                      liveHeading={riderHeading}
+                      followLive={Boolean(commitment)}
+                      {...(selectedMode === "rail" && transitMapSegments.length > 0
+                        ? { segments: transitMapSegments }
+                        : {})}
+                      {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})}
+                      {...(driveTrafficSections && driveTrafficSections.length > 0
+                        ? { trafficSections: driveTrafficSections }
+                        : {})}
+                    />
+                  )}
+
                 </Suspense>
               </ClientOnly>
             </div>
