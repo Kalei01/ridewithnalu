@@ -1131,6 +1131,11 @@ function Index() {
   // mode where departures stay visible and a new trip can be set up anytime.
   function endTrip() {
     setSetup(emptySetup);
+    syncStateRef.current = {
+      ...syncStateRef.current,
+      setup: emptySetup,
+      configured: false,
+    };
     window.localStorage.removeItem(STORAGE_KEY);
     setOverride(null);
     window.localStorage.removeItem(DIRECTION_KEY);

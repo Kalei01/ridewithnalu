@@ -116,6 +116,20 @@ describe("turn-by-turn voice", () => {
     };
     expect(trimRoutePath(path, match)).toEqual([match.point, path[2], path[3]]);
   });
+  it("replays a work-to-home deviation and keeps only the forward route", () => {
+    const workToHome = [
+      { lat: 21.307, lon: -157.86 },
+      { lat: 21.32, lon: -157.9 },
+      { lat: 21.35, lon: -157.95 },
+      { lat: 21.39, lon: -158.0 },
+    ];
+    const onRoute = matchRoutePoint({ lat: 21.335, lon: -157.925 }, workToHome, 0, 300);
+    expect(routeDeviation(onRoute, 300).offRoute).toBe(false);
+    expect(trimRoutePath(workToHome, onRoute)[0]).toEqual(onRoute?.point);
+
+    const deviated = matchRoutePoint({ lat: 21.337, lon: -157.924 }, workToHome, 1, 300);
+    expect(routeDeviation(deviated, 300).offRoute).toBe(true);
+  });
 });
 
 describe("destination access", () => {
