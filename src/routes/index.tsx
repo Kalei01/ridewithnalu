@@ -1904,7 +1904,9 @@ function Index() {
       return;
     }
     if (!liveDriveRaw) return;
-    setLiveDrive((current) => (current && current.seq >= liveDriveRaw.seq ? current : liveDriveRaw));
+    setLiveDrive((current) =>
+      current && current.seq >= liveDriveRaw.seq ? current : liveDriveRaw,
+    );
   }, [liveDriveRaw, drivingCommitted]);
   useWakeLock(Boolean(commitment));
   useEffect(() => {
@@ -1958,8 +1960,7 @@ function Index() {
   // ---- Heading-up navigation & turn-by-turn voice -----------------------------
   const [navMuted, setNavMuted] = useState(false);
   const mapboxToken = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as
-    | string
-    | undefined;
+    string | undefined;
   const headingUpNav = Boolean(drivingCommitted && mapboxToken);
   const navBasis = drivingCommitted ? (liveDrive ?? drive) : null;
   const navPath = navBasis?.path ?? [];
@@ -3033,7 +3034,9 @@ function Index() {
                   size="sm"
                   onClick={() => void quickStartSavedPlace(kind)}
                   className={`h-9 gap-1.5 rounded-full px-3.5 ${saved ? "" : "opacity-70"}`}
-                  aria-label={saved ? `Plan a trip to ${kindLabel(kind)}` : `Set up ${kindLabel(kind)}`}
+                  aria-label={
+                    saved ? `Plan a trip to ${kindLabel(kind)}` : `Set up ${kindLabel(kind)}`
+                  }
                 >
                   <Icon className="size-3.5" /> {kindLabel(kind)}
                 </Button>
@@ -3647,7 +3650,9 @@ function Index() {
                           <li>
                             {driveAccess.label} {driveAccess.lowMin}–{driveAccess.highMin} min
                           </li>
-                          <li>Expected at the door {clockFromSeconds(driveArrival.expectedSeconds)}</li>
+                          <li>
+                            Expected at the door {clockFromSeconds(driveArrival.expectedSeconds)}
+                          </li>
                         </ul>
                       </details>
                     )}
@@ -3948,8 +3953,7 @@ function Index() {
                           ? {
                               glyph: turnGlyph(nextTurn.maneuver.maneuver),
                               distanceText: formatDistance(nextTurn.distanceM),
-                              road:
-                                nextTurn.maneuver.road ?? nextTurn.maneuver.instruction,
+                              road: nextTurn.maneuver.road ?? nextTurn.maneuver.instruction,
                             }
                           : null
                       }
@@ -3981,7 +3985,6 @@ function Index() {
                         : {})}
                     />
                   )}
-
                 </Suspense>
               </ClientOnly>
             </div>
@@ -5431,7 +5434,8 @@ function SetupDialog({
         <DialogHeader className="text-left">
           <DialogTitle className="text-2xl">{firstRun ? "WHERE TO?" : "Your trip"}</DialogTitle>
           <DialogDescription>
-            Where you’re starting and where you’re going. Nalu picks the best station and route for you.
+            Where you’re starting and where you’re going. Nalu picks the best station and route for
+            you.
           </DialogDescription>
         </DialogHeader>
 
