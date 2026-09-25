@@ -48,6 +48,7 @@ import {
   postCommuteNotification,
   requestCommuteNotificationPermission,
   speakCommuteAlert,
+  primeSpeech,
   type TrafficAlertSnapshot,
 } from "@/lib/commute-alerts";
 import {
@@ -93,6 +94,8 @@ import { AccountSection } from "@/components/account/AccountSection";
 import { SignInBanner } from "@/components/account/SignInBanner";
 import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { arrivalRange, destinationAccess } from "@/lib/destination-access";
+import { announcementFor, nextManeuver, smoothBearing, turnGlyph } from "@/lib/navigation-voice";
 import { track } from "@/lib/analytics";
 import { NotificationsSection } from "@/components/account/NotificationsSection";
 import { AnalyticsConsentBanner, PrivacySection } from "@/components/account/PrivacySection";
@@ -118,6 +121,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
+const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
 
 function WaveMark({ className }: { className?: string }) {
@@ -1922,7 +1926,7 @@ function Index() {
       const elapsedMin = Math.max(0, (liveTick - basis.fetchedAt) / 60_000);
       const remainingMin = Math.max(1, Math.round(basis.trafficMinutes - elapsedMin));
       const access = destinationAccess(driveTo, inbound ? "home" : null);
-      const window = arrivalRange(
+      const win = arrivalRange(
         tickSeconds,
         {
           low: Math.max(1, basis.lowMinutes - elapsedMin),
@@ -1936,7 +1940,7 @@ function Index() {
         arriveSeconds: tickSeconds + remainingMin * 60,
         meters: basis.meters as number | null,
         live: Boolean(liveDrive),
-        range: `${clockFromSeconds(window.earliestSeconds)} – ${clockFromSeconds(window.latestSeconds)}`,
+        range: `${clockFromSeconds(win.earliestSeconds)} – ${clockFromSeconds(win.latestSeconds)}`,
       };
     }
     if (!best?.arrive_seconds) return null;

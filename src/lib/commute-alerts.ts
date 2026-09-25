@@ -63,3 +63,15 @@ export function speakCommuteAlert(message: string) {
     // Speech is best-effort on browsers that suspend audio in the background.
   }
 }
+
+/** Speak a silent utterance inside a user tap so iOS Safari unlocks speech. */
+export function primeSpeech() {
+  try {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const utterance = new window.SpeechSynthesisUtterance(" ");
+    utterance.volume = 0;
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // Best-effort only.
+  }
+}
