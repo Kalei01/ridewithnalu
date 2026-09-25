@@ -2172,7 +2172,16 @@ function Index() {
   }, [riderPoint, riderHeading, riderSpeed, drivingCommitted]);
   const handleRouteStateChange = useCallback(
     (state: { offRoute: boolean; crossTrackM: number; headingDivergence: number | null }) => {
-      if (!drivingCommitted || !riderPoint || !state.offRoute || rerouting) return;
+      if (!drivingCommitted || !riderPoint) return;
+      if (!state.offRoute) {
+        if (rerouteTimerRef.current !== null) {
+          window.clearTimeout(rerouteTimerRef.current);
+          rerouteTimerRef.current = null;
+          setRerouting(false);
+        }
+        return;
+      }
+      if (rerouting) return;
       if (Date.now() - lastRerouteAtRef.current < 12_000) return;
       if (rerouteTimerRef.current !== null) return;
       setRerouting(true);
