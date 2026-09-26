@@ -184,7 +184,7 @@ export function parseAlertPrefs(raw: string | null): AlertPrefs {
  */
 let sharedContext: AudioContext | null = null;
 
-function audioContext(): AudioContext | null {
+export function audioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctx) return null;
