@@ -2073,7 +2073,7 @@ function Index() {
         if (current) return current;
         try {
           const cached = window.sessionStorage.getItem(LIVE_ROUTE_CACHE_KEY);
-          return cached ? (JSON.parse(cached) as NonNullable<typeof liveDriveRaw>) : null;
+          return cached ? (JSON.parse(cached) as never) : null;
         } catch {
           return null;
         }
