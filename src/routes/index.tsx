@@ -2029,7 +2029,7 @@ function Index() {
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,
-    queryFn: async ({ signal }) => {
+    queryFn: async () => {
       const origin = liveRouteOrigin;
       if (!origin) throw new Error("No live position yet.");
       const seq = ++liveSeqRef.current;
@@ -2037,8 +2037,8 @@ function Index() {
       liveAbortRef.current?.abort();
       const controller = new AbortController();
       liveAbortRef.current = controller;
-      signal.addEventListener("abort", () => controller.abort(), { once: true });
       const result = await fetchDriveTime({
+        signal: controller.signal,
         data: {
           fromLat: origin.lat,
           fromLon: origin.lon,
