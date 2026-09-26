@@ -2054,10 +2054,6 @@ function Index() {
       return { ...result, seq };
     },
   });
-  useEffect(() => {
-    if (!commitment || navMuted) return;
-    return keepNavigationAudioAlive();
-  }, [commitment, navMuted]);
   const [liveDrive, setLiveDrive] = useState<(typeof liveDriveRaw & object) | null>(null);
   useEffect(() => {
     if (!drivingCommitted) {
@@ -2077,7 +2073,7 @@ function Index() {
         if (current) return current;
         try {
           const cached = window.sessionStorage.getItem(LIVE_ROUTE_CACHE_KEY);
-          return cached ? (JSON.parse(cached) as typeof current) : null;
+          return cached ? (JSON.parse(cached) as NonNullable<typeof liveDriveRaw>) : null;
         } catch {
           return null;
         }
@@ -2186,6 +2182,10 @@ function Index() {
 
   // ---- Heading-up navigation & turn-by-turn voice -----------------------------
   const [navMuted, setNavMuted] = useState(false);
+  useEffect(() => {
+    if (!commitment || navMuted) return;
+    return keepNavigationAudioAlive();
+  }, [commitment, navMuted]);
   useEffect(() => {
     if (rescue && !navMuted) speakCommuteAlert(rescue.spoken);
     // eslint-disable-next-line react-hooks/exhaustive-deps
