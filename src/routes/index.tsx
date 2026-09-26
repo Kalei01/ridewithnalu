@@ -51,6 +51,7 @@ import {
   requestCommuteNotificationPermission,
   speakCommuteAlert,
   primeSpeech,
+  keepNavigationAudioAlive,
   type TrafficAlertSnapshot,
 } from "@/lib/commute-alerts";
 import {
@@ -290,6 +291,7 @@ const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
 const PLAN_MODE_KEY = "nalu-plan-mode-v1";
 const ARRIVE_BY_KEY = "nalu-arrive-by-v1";
 const COMMIT_KEY = "nalu-committed-mode-v1";
+const LIVE_ROUTE_CACHE_KEY = "nalu-live-route-v1";
 
 /** The mode a commuter has committed to for the trip underway. */
 type Commitment = { mode: "rail" | "drive"; at: number };
@@ -2010,6 +2012,8 @@ function Index() {
   // the newest response ever reaches the screen, so a slow older TomTom reply
   // can't overwrite a fresher ETA.
   const liveSeqRef = useRef(0);
+  const liveAbortRef = useRef<AbortController | null>(null);
+  const lastRouteAppliedAtRef = useRef(0);
   const { data: liveDriveRaw, isError: liveDriveFailed } = useQuery({
     queryKey: [
       "live-drive",
@@ -2025,11 +2029,17 @@ function Index() {
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const origin = liveRouteOrigin;
       if (!origin) throw new Error("No live position yet.");
       const seq = ++liveSeqRef.current;
+      // Cancel any older in-flight TomTom request; only the newest fix matters.
+      liveAbortRef.current?.abort();
+      const controller = new AbortController();
+      liveAbortRef.current = controller;
+      signal.addEventListener("abort", () => controller.abort(), { once: true });
       const result = await fetchDriveTime({
+        signal: controller.signal,
         data: {
           fromLat: origin.lat,
           fromLon: origin.lon,
@@ -2044,16 +2054,45 @@ function Index() {
       return { ...result, seq };
     },
   });
+  useEffect(() => {
+    if (!commitment || navMuted) return;
+    return keepNavigationAudioAlive();
+  }, [commitment, navMuted]);
   const [liveDrive, setLiveDrive] = useState<(typeof liveDriveRaw & object) | null>(null);
   useEffect(() => {
     if (!drivingCommitted) {
       setLiveDrive(null);
+      liveAbortRef.current?.abort();
+      try {
+        window.sessionStorage.removeItem(LIVE_ROUTE_CACHE_KEY);
+      } catch {
+        // storage unavailable
+      }
       return;
     }
-    if (!liveDriveRaw) return;
+    if (!liveDriveRaw) {
+      // Cellular dropout or reload: fall back to the last good route so the
+      // map and HUD keep working.
+      setLiveDrive((current) => {
+        if (current) return current;
+        try {
+          const cached = window.sessionStorage.getItem(LIVE_ROUTE_CACHE_KEY);
+          return cached ? (JSON.parse(cached) as typeof current) : null;
+        } catch {
+          return null;
+        }
+      });
+      return;
+    }
     setLiveDrive((current) =>
       current && current.seq >= liveDriveRaw.seq ? current : liveDriveRaw,
     );
+    lastRouteAppliedAtRef.current = Date.now();
+    try {
+      window.sessionStorage.setItem(LIVE_ROUTE_CACHE_KEY, JSON.stringify(liveDriveRaw));
+    } catch {
+      // quota or private mode
+    }
     setRerouting(false);
   }, [liveDriveRaw, drivingCommitted]);
   useEffect(() => {
@@ -2191,7 +2230,9 @@ function Index() {
         return;
       }
       if (rerouting) return;
-      if (Date.now() - lastRerouteAtRef.current < 12_000) return;
+      // 5 s cooldown after a route lands, so overpass GPS jitter can't loop.
+      if (Date.now() - lastRouteAppliedAtRef.current < 5_000) return;
+      if (Date.now() - lastRerouteAtRef.current < 5_000) return;
       if (rerouteTimerRef.current !== null) return;
       setRerouting(true);
       rerouteTimerRef.current = window.setTimeout(() => {
@@ -4035,6 +4076,24 @@ function Index() {
           )}
         </section>
 
+        {configured && (verdict === "rail" || verdict === "drive") && gap !== null && (
+          <div
+            role="status"
+            className={`-mx-2 mt-5 flex items-center gap-3 rounded-2xl border px-4 py-3 text-lg font-black ${
+              verdict === "drive"
+                ? "border-recommended/50 bg-recommended/15 text-foreground"
+                : "border-primary/50 bg-primary/15 text-foreground"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`size-3 shrink-0 rounded-full ${verdict === "drive" ? "bg-recommended" : "bg-primary"}`}
+            />
+            {verdict === "drive"
+              ? `Drive is ${Math.abs(gap)} min faster right now`
+              : `Take Skyline · Saves ${Math.abs(gap)} min over driving`}
+          </div>
+        )}
         <section
           className="verdict-lift glass-panel -mx-2 mt-5 rounded-lg px-5 py-7 animate-in fade-in duration-300"
           aria-labelledby="verdict-title"
@@ -4176,14 +4235,11 @@ function Index() {
                   </p>
                 </div>
               </div>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={endTrip}
-                className="h-12 w-full shrink-0 px-6 font-black uppercase sm:w-auto"
-              >
-                <X className="size-4" /> End Trip
-              </Button>
+              <HoldToEndButton
+                onEnd={endTrip}
+                label="End Trip"
+                className="h-12 w-full shrink-0 px-6 sm:w-auto"
+              />
             </div>
           ) : (
             <Button
@@ -6438,6 +6494,68 @@ function NavShell({
   );
 }
 
+/** Hold for 1 s to end, so a bump on the freeway can't cancel navigation. */
+function HoldToEndButton({
+  onEnd,
+  label,
+  className,
+}: {
+  onEnd: () => void;
+  label: string;
+  className?: string;
+}) {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<number | null>(null);
+  const start = () => {
+    if (timer.current !== null) return;
+    setHolding(true);
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      setHolding(false);
+      if ("vibrate" in navigator) navigator.vibrate?.(40);
+      onEnd();
+    }, 1000);
+  };
+  const cancel = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+    setHolding(false);
+  };
+  useEffect(() => cancel, []);
+  return (
+    <Button
+      type="button"
+      variant="destructive"
+      aria-label={`Hold to ${label.toLowerCase()}`}
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
+          e.preventDefault();
+          start();
+        }
+      }}
+      onKeyUp={cancel}
+      className={`relative touch-none select-none overflow-hidden font-black uppercase ${className ?? ""}`}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 bg-foreground/25"
+        style={{
+          width: holding ? "100%" : "0%",
+          transition: holding ? "width 1s linear" : "width 150ms ease-out",
+        }}
+      />
+      <span className="relative flex items-center gap-2">
+        <X className="size-4" /> {holding ? "Keep holding…" : `Hold to ${label}`}
+      </span>
+    </Button>
+  );
+}
+
 function NavBottomCard({
   mode,
   delayMinutes,
@@ -6461,7 +6579,7 @@ function NavBottomCard({
             ? `Moderate · +${Math.round(delayMinutes)} min`
             : "Traffic clear";
   return (
-    <div className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-20">
+    <div className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-20 max-lg:landscape:left-auto max-lg:landscape:w-80">
       <div className="nav-hud pointer-events-auto rounded-2xl p-3">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <button
@@ -6477,14 +6595,7 @@ function NavBottomCard({
               {open ? "Hide route" : "Route details"}
             </span>
           </button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={onEnd}
-            className="h-11 shrink-0 px-5 font-black uppercase"
-          >
-            <X className="size-4" /> End
-          </Button>
+          <HoldToEndButton onEnd={onEnd} label="End" className="h-11 shrink-0 px-5" />
         </div>
         {open && (
           <ol className="mt-3 max-h-[40dvh] space-y-2 overflow-y-auto overscroll-contain text-sm text-foreground">
