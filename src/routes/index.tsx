@@ -2039,7 +2039,7 @@ function Index() {
       liveAbortRef.current = controller;
       signal.addEventListener("abort", () => controller.abort(), { once: true });
       const result = await fetchDriveTime({
-        signal: controller.signal,
+        signal: controller.signal as AbortSignal,
         data: {
           fromLat: origin.lat,
           fromLon: origin.lon,
