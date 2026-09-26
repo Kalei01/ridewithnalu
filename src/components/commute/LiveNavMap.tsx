@@ -56,8 +56,29 @@ const GLYPHS: Record<TurnGlyph, typeof ArrowUp> = {
 
 /** Push the puck into the lower third so the road ahead fills the screen. */
 function navPadding(map: mapboxgl.Map) {
-  const h = map.getContainer().clientHeight;
+  const { clientHeight: h, clientWidth: w } = map.getContainer();
+  // Landscape car mount: the maneuver card sits on the left, so shift the
+  // puck right of it and keep less vertical headroom.
+  if (w > h && h < 600)
+    return { top: Math.round(h * 0.35), bottom: Math.round(h * 0.05), left: Math.round(w * 0.3), right: 0 };
   return { top: Math.round(h * 0.5), bottom: Math.round(h * 0.06), left: 0, right: 0 };
+}
+
+/** Honolulu daylight (HST, no DST): day roughly 6:15 AM – 6:30 PM. */
+export function isHonoluluDaytime(now = new Date()) {
+  const minutes = ((now.getUTCHours() - 10 + 24) % 24) * 60 + now.getUTCMinutes();
+  return minutes >= 6 * 60 + 15 && minutes < 18 * 60 + 30;
+}
+
+function useNavStyle() {
+  const [day, setDay] = useState(() => isHonoluluDaytime());
+  useEffect(() => {
+    const tick = () => setDay(isHonoluluDaytime());
+    tick();
+    const t = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+  return day ? "mapbox://styles/mapbox/navigation-day-v1" : "mapbox://styles/mapbox/navigation-night-v1";
 }
 
 export default function LiveNavMap(props: LiveNavMapProps) {
@@ -126,6 +147,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     return forward.length ? forward : lines;
   }, [lines, match]);
   const token = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as string | undefined;
+  const mapStyle = useNavStyle();
 
   useEffect(() => {
     if (!livePoint || !match) return;
@@ -147,7 +169,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     const start = livePoint ?? lines[0]?.points[0] ?? destination ?? { lat: 21.31, lon: -157.86 };
     const map = new mapboxgl.Map({
       container: nodeRef.current,
-      style: "mapbox://styles/mapbox/navigation-night-v1",
+      style: mapStyle,
       center: [start.lon, start.lat],
       zoom: 17,
       pitch: 40,
@@ -175,9 +197,10 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       map.remove();
       mapRef.current = null;
       markerRef.current = null;
+      setReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, mapStyle]);
 
   // Route lines.
   const lineKey = renderedLines
@@ -234,7 +257,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   // Live puck and heading-up camera.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !displayedPoint) return;
+    if (!map || !ready || !displayedPoint) return;
     if (!markerRef.current) {
       const el = document.createElement("div");
       el.className = "nalu-nav-puck";
@@ -262,7 +285,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       easing: (t) => t,
       essential: true,
     });
-  }, [displayedPoint, heading]);
+  }, [displayedPoint, heading, ready]);
 
   const recenter = () => {
     followRef.current = true;
@@ -288,10 +311,10 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     <div className="relative isolate h-full w-full">
       <div ref={nodeRef} className="h-full w-full" aria-label="Heading-up navigation map" />
 
-      <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-start justify-between gap-2">
+      <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-start justify-between gap-2 max-lg:landscape:bottom-2">
         {rerouting ? (
           <div
-            className="nav-hud pointer-events-auto min-w-0 max-w-[62%] rounded-xl px-4 py-3"
+            className="nav-hud pointer-events-auto min-w-0 max-w-[62%] rounded-xl px-4 py-3 max-lg:landscape:max-w-[30%]"
             role="status"
             aria-live="assertive"
           >
@@ -302,7 +325,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
           </div>
         ) : maneuver && Glyph ? (
           <div
-            className="nav-hud pointer-events-auto flex min-w-0 max-w-[62%] items-center gap-3 rounded-xl px-3 py-2.5"
+            className="nav-hud pointer-events-auto flex min-w-0 max-w-[62%] items-center gap-3 rounded-xl px-3 py-2.5 max-lg:landscape:max-w-[30%] max-lg:landscape:flex-col max-lg:landscape:items-start"
             aria-live="polite"
           >
             <Glyph className="size-9 shrink-0 text-primary" strokeWidth={2.6} aria-hidden="true" />
@@ -318,7 +341,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
         ) : (
           <span />
         )}
-        <div className="flex shrink-0 flex-col items-end gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-2 max-lg:landscape:flex-row max-lg:landscape:items-start">
           {eta && (
             <div
               className="nav-hud pointer-events-auto rounded-xl px-3 py-2 text-right"
