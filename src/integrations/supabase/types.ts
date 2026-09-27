@@ -71,6 +71,33 @@ export type Database = {
         }
         Relationships: []
       }
+      debug_logs: {
+        Row: {
+          created_at: string
+          device_id: string
+          events: Json
+          id: string
+          reason: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          events?: Json
+          id?: string
+          reason?: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          events?: Json
+          id?: string
+          reason?: string
+          session_id?: string
+        }
+        Relationships: []
+      }
       import_log: {
         Row: {
           created_at: string
@@ -679,6 +706,7 @@ export type Database = {
           stop_sequence: number
         }[]
       }
+      nalu_maintenance: { Args: never; Returns: Json }
       nearby_stops: {
         Args: { p_lat: number; p_lon: number; p_radius_m: number }
         Returns: {
