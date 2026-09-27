@@ -36,6 +36,8 @@ type CommuteRouteMapProps = {
   segments?: JourneySegment[];
   /** Congested stretches drawn in amber/red over the route (Drive mode). */
   trafficSections?: TrafficSection[];
+  /** Index of a traffic section to spotlight (from a tap in the cards). */
+  focusSection?: number | null;
 };
 
 type Basemap = "standard" | "satellite";
@@ -95,6 +97,7 @@ export default function CommuteRouteMap({
   path,
   segments,
   trafficSections,
+  focusSection = null,
 }: CommuteRouteMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
@@ -242,7 +245,7 @@ export default function CommuteRouteMap({
     }
 
     // Congestion drawn over the corridor: amber for moderate, red for heavy backups.
-    for (const section of trafficRef.current ?? []) {
+    for (const [index, section] of (trafficRef.current ?? []).entries()) {
       if (section.points.length < 2) continue;
       const latLngs = section.points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
       const heavy = section.severity === "heavy";
@@ -254,6 +257,10 @@ export default function CommuteRouteMap({
         lineJoin: "round",
         className: "nalu-traffic-line",
       })
+        .on("click", () => {
+          map.flyToBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 16, duration: 0.6 });
+          setSpotlight(index);
+        })
         .bindTooltip(
           `${heavy ? "Heavy traffic" : "Slow traffic"}${section.delayMinutes > 0 ? ` · +${section.delayMinutes} min` : ""}`,
           { direction: "top", sticky: true },
@@ -291,19 +298,38 @@ export default function CommuteRouteMap({
       ...current.map((point) => [point.lat, point.lon] as L.LatLngTuple),
     ];
     if (fittedGeometryRef.current !== geometrySignatureRef.current) {
+      const firstFit = fittedGeometryRef.current === null;
       fittedGeometryRef.current = geometrySignatureRef.current;
       map.invalidateSize({ animate: false });
-      // Snap, never animate, and only when route geometry actually changes.
-      map.fitBounds(L.latLngBounds(boundsLatLngs), {
-        padding: [34, 34],
-        maxZoom: 15,
-        animate: false,
-      });
+      // Snap on first paint; glide when switching between Drive and Transit.
+      if (firstFit || followLive)
+        map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, animate: false });
+      else
+        map.flyToBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, duration: 0.7 });
     }
   }, [routeSignature]);
 
   // The live dot moves in place; recreating it (or touching the viewport) on every
   // watchPosition tick is what made the map twitch.
+  const [spotlight, setSpotlight] = useState<number | null>(null);
+  useEffect(() => setSpotlight(focusSection), [focusSection]);
+  const spotlightLayerRef = useRef<L.Polyline | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    spotlightLayerRef.current?.remove();
+    spotlightLayerRef.current = null;
+    const section = spotlight === null ? null : trafficRef.current?.[spotlight];
+    if (!map || !section || section.points.length < 2) return;
+    const latLngs = section.points.map((p) => [p.lat, p.lon] as L.LatLngTuple);
+    spotlightLayerRef.current = L.polyline(latLngs, {
+      color: section.severity === "heavy" ? "var(--color-traffic-heavy)" : "var(--color-traffic-moderate)",
+      weight: 12,
+      opacity: 1,
+      lineCap: "round",
+      className: "nalu-traffic-spotlight",
+    }).addTo(map);
+    map.flyToBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 16, duration: 0.6 });
+  }, [spotlight]);
   const liveMarkerRef = useRef<L.CircleMarker | null>(null);
   const headingMarkerRef = useRef<L.Marker | null>(null);
   useEffect(() => {
