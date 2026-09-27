@@ -1181,16 +1181,32 @@ function Index() {
     setSettingsOpen(false);
   }, [signedInAt]);
 
-  const timeText = useMemo(
+  const timeParts = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
         timeZone: "Pacific/Honolulu",
         weekday: "long",
+        month: "short",
+        day: "numeric",
         hour: "numeric",
         minute: "2-digit",
-      }).format(now),
+      })
+        .formatToParts(now)
+        .reduce(
+          (acc, part) => {
+            if (part.type === "weekday") acc.w = part.value;
+            else if (part.type === "month") acc.m = part.value;
+            else if (part.type === "day") acc.d = part.value;
+            else if (part.type === "hour") acc.h = part.value;
+            else if (part.type === "minute") acc.min = part.value;
+            else if (part.type === "dayPeriod") acc.p = part.value;
+            return acc;
+          },
+          { w: "", m: "", d: "", h: "", min: "", p: "" },
+        ),
     [now],
   );
+  const timeText = `${timeParts.w}, ${timeParts.m} ${timeParts.d} · ${timeParts.h}:${timeParts.min} ${timeParts.p}`;
 
   const configured =
     hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon }) &&
@@ -4038,7 +4054,7 @@ function Index() {
                       </p>
                       {drive && driveAvailable && (
                         <p className="text-xs font-semibold text-muted-foreground">
-                          {drive.trafficMinutes} min driving + ~{driveAccess.typicalMin} min parking
+                          {drive.trafficMinutes} min on the road
                         </p>
                       )}
                     </div>
@@ -4197,13 +4213,13 @@ function Index() {
                 <p className="mt-1 text-xl font-bold text-recommended">Now</p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">At the door</p>
+                <p className="text-xs text-muted-foreground">Arrive</p>
                 <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
                   {clockFromSeconds(driveArrival.expectedSeconds)}
                 </p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">Door to door</p>
+                <p className="text-xs text-muted-foreground">Drive time</p>
                 <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
                   {driveRange.high}
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
@@ -4211,6 +4227,9 @@ function Index() {
               </div>
               <p className="col-span-3 text-sm font-semibold tabular-nums text-muted-foreground">
                 Arrive {driveWindow}
+                {driveBufferNote && (
+                  <span className="mt-1 block text-xs font-medium">{driveBufferNote}.</span>
+                )}
               </p>
             </div>
           )}
