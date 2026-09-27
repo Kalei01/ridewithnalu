@@ -2202,7 +2202,13 @@ function Index() {
       if (!basis) return null;
       const elapsedMin = Math.max(0, (liveTick - basis.fetchedAt) / 60_000);
       const remainingMin = Math.max(1, Math.round(basis.trafficMinutes - elapsedMin));
-      const access = destinationAccess(driveTo, inbound ? "home" : null);
+      // Road arrival only, matching the hero clock; parking stays a side note.
+      const access = {
+        ...destinationAccess(driveTo, inbound ? "home" : null),
+        lowMin: 0,
+        typicalMin: 0,
+        highMin: 0,
+      };
       const win = arrivalRange(
         tickSeconds,
         {
