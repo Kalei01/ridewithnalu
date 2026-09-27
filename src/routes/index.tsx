@@ -4,6 +4,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { debugLog, endDebugSession, flushDebugLogs, startDebugSession } from "@/lib/debug-log";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -98,7 +99,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrivalRange, destinationAccess } from "@/lib/destination-access";
 import {
-  announcementFor,
+  VoiceGuide,
   isUsableNavigationFix,
   metersBetween,
   nextManeuver,
@@ -1180,16 +1181,32 @@ function Index() {
     setSettingsOpen(false);
   }, [signedInAt]);
 
-  const timeText = useMemo(
+  const timeParts = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
         timeZone: "Pacific/Honolulu",
         weekday: "long",
+        month: "short",
+        day: "numeric",
         hour: "numeric",
         minute: "2-digit",
-      }).format(now),
+      })
+        .formatToParts(now)
+        .reduce(
+          (acc, part) => {
+            if (part.type === "weekday") acc.w = part.value;
+            else if (part.type === "month") acc.m = part.value;
+            else if (part.type === "day") acc.d = part.value;
+            else if (part.type === "hour") acc.h = part.value;
+            else if (part.type === "minute") acc.min = part.value;
+            else if (part.type === "dayPeriod") acc.p = part.value;
+            return acc;
+          },
+          { w: "", m: "", d: "", h: "", min: "", p: "" },
+        ),
     [now],
   );
+  const timeText = `${timeParts.w}, ${timeParts.m} ${timeParts.d} · ${timeParts.h}:${timeParts.min} ${timeParts.p}`;
 
   const configured =
     hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon }) &&
@@ -1838,7 +1855,27 @@ function Index() {
       },
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
     );
+    // Waking from the lock screen: grab a fresh fix right away (the last one
+    // may be minutes old, so skip the jump filter) and let the camera ease back.
+    const onResume = () => {
+      if (document.visibilityState !== "visible") return;
+      debugLog("resume");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const point = { lat: position.coords.latitude, lon: position.coords.longitude };
+          if (!Number.isFinite(position.coords.accuracy) || position.coords.accuracy > 80) return;
+          acceptedNavFix.current = { point, timestamp: position.timestamp };
+          setRiderPoint(point);
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
+      );
+    };
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("pageshow", onResume);
     return () => {
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("pageshow", onResume);
       navigator.geolocation.clearWatch(watch);
       setRiderPoint(null);
       setRiderHeading(null);
@@ -1983,6 +2020,22 @@ function Index() {
     nonce: number;
   } | null>(null);
   const [rerouting, setRerouting] = useState(false);
+  const diagnosticsActive = (drivingCommitted || Boolean(activeTransitLeg)) && configured;
+  useEffect(() => {
+    if (!diagnosticsActive) return;
+    startDebugSession();
+    debugLog("trip_start", { mode: drivingCommitted ? "drive" : "transit" });
+    const onError = (e: ErrorEvent) => {
+      debugLog("error", { message: String(e.message).slice(0, 120) });
+      void flushDebugLogs("failure");
+    };
+    window.addEventListener("error", onError);
+    return () => {
+      window.removeEventListener("error", onError);
+      void endDebugSession("trip_end");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagnosticsActive]);
   const rerouteTimerRef = useRef<number | null>(null);
   const lastRerouteAtRef = useRef(0);
   const liveOriginRef = useRef<Coords | null>(null);
@@ -2149,7 +2202,13 @@ function Index() {
       if (!basis) return null;
       const elapsedMin = Math.max(0, (liveTick - basis.fetchedAt) / 60_000);
       const remainingMin = Math.max(1, Math.round(basis.trafficMinutes - elapsedMin));
-      const access = destinationAccess(driveTo, inbound ? "home" : null);
+      // Road arrival only, matching the hero clock; parking stays a side note.
+      const access = {
+        ...destinationAccess(driveTo, inbound ? "home" : null),
+        lowMin: 0,
+        typicalMin: 0,
+        highMin: 0,
+      };
       const win = arrivalRange(
         tickSeconds,
         {
@@ -2234,6 +2293,7 @@ function Index() {
       if (Date.now() - lastRerouteAtRef.current < 5_000) return;
       if (rerouteTimerRef.current !== null) return;
       setRerouting(true);
+      debugLog("off_route", { crossTrackM: state.crossTrackM, headingDivergence: state.headingDivergence });
       rerouteTimerRef.current = window.setTimeout(() => {
         rerouteTimerRef.current = null;
         const latest = liveOriginRef.current;
@@ -2254,12 +2314,29 @@ function Index() {
     },
     [],
   );
+  // Corridor pins: Skyline stations (from the feed) that the drive passes
+  // within ~150 m, spaced apart so the map never gets cluttered.
+  const corridorLandmarks = useMemo(() => {
+    const route = (liveDrive ?? drive)?.path ?? [];
+    if (route.length < 2 || railLine.length === 0) return [];
+    const picked: Array<{ id: string; lat: number; lon: number; label: string }> = [];
+    for (const station of railLine) {
+      const pt = { lat: Number(station.stop_lat), lon: Number(station.stop_lon) };
+      const near = route.some((p, i) => i % 3 === 0 && metersBetween(p, pt) < 150);
+      if (!near) continue;
+      if (picked.some((p) => metersBetween(p, pt) < 3000)) continue;
+      picked.push({ id: station.stop_id, ...pt, label: station.stop_name ?? "" });
+      if (picked.length === 4) break;
+    }
+    return picked;
+  }, [liveDrive, drive, railLine]);
+
   const passedTurns = useRef(new Set<string>());
-  const spokenTurns = useRef(new Set<string>());
+  const voiceGuide = useRef(new VoiceGuide());
   useEffect(() => {
     if (drivingCommitted) return;
     passedTurns.current = new Set();
-    spokenTurns.current = new Set();
+    voiceGuide.current = new VoiceGuide();
     lastNavPoint.current = null;
     setNavBearing(null);
   }, [drivingCommitted]);
@@ -2271,9 +2348,14 @@ function Index() {
     [navBasis, riderPoint],
   );
   useEffect(() => {
+    // A reroute brings a new maneuver list: reset turn state so no new turn is skipped.
+    if (voiceGuide.current.sync(navBasis?.maneuvers ?? [])) passedTurns.current = new Set();
+  }, [navBasis]);
+  useEffect(() => {
     if (!drivingCommitted || !nextTurn) return;
     // Record thresholds even while muted so unmuting never replays old turns.
-    const phrase = announcementFor(nextTurn, spokenTurns.current);
+    const phrase = voiceGuide.current.next(nextTurn);
+    if (phrase) debugLog("voice", { distanceM: nextTurn.distanceM, muted: navMuted });
     if (phrase && !navMuted) speakCommuteAlert(phrase);
   }, [nextTurn, drivingCommitted, navMuted]);
 
@@ -2487,21 +2569,28 @@ function Index() {
   const railRange =
     railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
   // Door to door: road time plus the parking/walk buffer at the destination.
+  // The hero arrival is the verified TomTom road arrival only; the parking /
+  // walk buffer is shown as a secondary note and never biases the verdict.
   const driveAccess = destinationAccess(driveTo, inbound ? "home" : null);
+  const roadOnlyAccess = { ...driveAccess, lowMin: 0, typicalMin: 0, highMin: 0 };
   const driveArrival = drive
     ? arrivalRange(
         nowSeconds,
         { low: drive.lowMinutes, expected: drive.trafficMinutes, high: drive.highMinutes },
-        driveAccess,
+        roadOnlyAccess,
       )
     : null;
+  const driveBufferNote =
+    driveAccess.highMin > 0
+      ? `Allow ${driveAccess.lowMin}–${driveAccess.highMin} min more to park and walk in`
+      : null;
   const driveWindow = driveArrival
     ? `${clockFromSeconds(driveArrival.earliestSeconds)} – ${clockFromSeconds(driveArrival.latestSeconds)}`
     : null;
   const driveRange = drive
     ? {
-        low: drive.lowMinutes + driveAccess.lowMin,
-        high: drive.highMinutes + driveAccess.highMin,
+        low: drive.lowMinutes,
+        high: drive.highMinutes,
       }
     : null;
   const railWindow = best
@@ -3988,7 +4077,7 @@ function Index() {
                       </p>
                       {drive && driveAvailable && (
                         <p className="text-xs font-semibold text-muted-foreground">
-                          {drive.trafficMinutes} min driving + ~{driveAccess.typicalMin} min parking
+                          {drive.trafficMinutes} min on the road
                         </p>
                       )}
                     </div>
@@ -3999,15 +4088,10 @@ function Index() {
                         </summary>
                         <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                           <li>
-                            Road time {drive.lowMinutes}–{drive.highMinutes} min (expected{" "}
-                            {drive.trafficMinutes})
+                            On the road {drive.lowMinutes}–{drive.highMinutes} min, most likely{" "}
+                            {drive.trafficMinutes}
                           </li>
-                          <li>
-                            {driveAccess.label} {driveAccess.lowMin}–{driveAccess.highMin} min
-                          </li>
-                          <li>
-                            Expected at the door {clockFromSeconds(driveArrival.expectedSeconds)}
-                          </li>
+                          {driveBufferNote && <li>{driveBufferNote}</li>}
                         </ul>
                       </details>
                     )}
@@ -4152,13 +4236,13 @@ function Index() {
                 <p className="mt-1 text-xl font-bold text-recommended">Now</p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">At the door</p>
+                <p className="text-xs text-muted-foreground">Arrive</p>
                 <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
                   {clockFromSeconds(driveArrival.expectedSeconds)}
                 </p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">Door to door</p>
+                <p className="text-xs text-muted-foreground">Drive time</p>
                 <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
                   {driveRange.high}
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
@@ -4166,6 +4250,9 @@ function Index() {
               </div>
               <p className="col-span-3 text-sm font-semibold tabular-nums text-muted-foreground">
                 Arrive {driveWindow}
+                {driveBufferNote && (
+                  <span className="mt-1 block text-xs font-medium">{driveBufferNote}.</span>
+                )}
               </p>
             </div>
           )}
@@ -4397,6 +4484,17 @@ function Index() {
                       onToggleMute={() => setNavMuted((value) => !value)}
                       rerouting={rerouting}
                       onRouteStateChange={handleRouteStateChange}
+                      traffic={lockedMode === "drive" ? (liveDrive ?? drive)?.trafficSections ?? [] : []}
+                      turn={
+                        nextTurn
+                          ? {
+                              lat: nextTurn.maneuver.lat,
+                              lon: nextTurn.maneuver.lon,
+                              distanceM: nextTurn.distanceM,
+                            }
+                          : null
+                      }
+                      landmarks={corridorLandmarks}
                     />
                   ) : (
                     <CommuteRouteMap

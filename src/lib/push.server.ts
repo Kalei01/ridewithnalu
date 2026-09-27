@@ -3,6 +3,7 @@ export const PUSH_CATEGORIES = [
   "major_traffic",
   "transit_disruption",
   "stop_transfer",
+  "urgent_fare_alerts",
 ] as const;
 export type PushCategory = (typeof PUSH_CATEGORIES)[number];
 

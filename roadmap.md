@@ -39,3 +39,15 @@
 - [x] Hide the Lovable badge globally
 - [x] Keep the homepage clean after sign-in without disrupting saved-place sync
 - [x] Add navigation matching/reroute tests and verify the work-to-home flow
+
+## Diagnostics, voice & polish batch (Sep 27)
+- [x] Cloud debug_logs: buffered batches (3-4 min / trip end, 50KB), anon device ID, 48h TTL, one-tap purge
+- [x] Voice: route-versioned maneuver state machine, 8s cooldown (<150 ft bypass), Hawaiʻi pronunciation map
+- [x] ETA: hero arrival = TomTom road arrival; parking/walk buffers as secondary note
+- [x] Browse: header date, map glide between modes, tap-to-spotlight traffic
+- [ ] Browse: segmented time bars, clutter/copy cleanup (not started)
+- [x] Commute map: traffic-speed line colors, road turn arrows near maneuvers, corridor landmark pins (GTFS-derived)
+- [x] Scheduled cleanup: debug logs >48h, dead push tokens, stale deliveries
+- [x] Push category: urgent_fare_alerts
+- [x] Lock-screen resume resync
+- [ ] Where To bottom sheet (not started)

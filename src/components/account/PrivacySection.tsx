@@ -48,8 +48,37 @@ export function PrivacySection() {
         <li>
           Traffic and route lookups send only the start and end points needed to plan the trip.
         </li>
+        <li>
+          Trip diagnostics (reroutes, spoken turns, errors — no addresses or GPS) are kept for 48
+          hours to fix navigation bugs.
+        </li>
       </ul>
+      <PurgeDiagnostics />
     </section>
+  );
+}
+
+function PurgeDiagnostics() {
+  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="justify-self-start"
+      disabled={state === "busy"}
+      onClick={async () => {
+        setState("busy");
+        const { purgeMyDebugLogs } = await import("@/lib/debug-log");
+        setState((await purgeMyDebugLogs().catch(() => false)) ? "done" : "error");
+      }}
+    >
+      {state === "done"
+        ? "Diagnostics deleted"
+        : state === "error"
+          ? "Couldn't delete — try again"
+          : "Delete my trip diagnostics now"}
+    </Button>
   );
 }
 

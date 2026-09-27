@@ -3,13 +3,15 @@ export type PushCategory =
   | "morning_commute"
   | "major_traffic"
   | "transit_disruption"
-  | "stop_transfer";
+  | "stop_transfer"
+  | "urgent_fare_alerts";
 
 export const PUSH_CATEGORY_LABELS: Record<PushCategory, { label: string; hint: string }> = {
   morning_commute: { label: "Morning commute", hint: "A heads-up before your usual departure" },
   major_traffic: { label: "Major traffic", hint: "Big delays or crashes on your route" },
   transit_disruption: { label: "Rail & transit disruptions", hint: "Service changes on Skyline and TheBus" },
   stop_transfer: { label: "Stop & transfer alerts", hint: "When your stop or transfer is coming up" },
+  urgent_fare_alerts: { label: "Urgent fare alerts", hint: "Low HOLO balance or fare changes that affect your trip" },
 };
 
 export type PushPrefs = {

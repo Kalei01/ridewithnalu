@@ -596,3 +596,27 @@ a[href*="lovable.dev"][class*="badge"],
   border-bottom: 12px solid var(--color-foreground);
   transform: translateY(-2px);
 }
+
+/* On-road turn arrow (lies flat on the road surface under pitch). */
+.nalu-turn-arrow {
+  width: 44px;
+  height: 64px;
+  background: #ffffff;
+  clip-path: polygon(50% 0, 100% 42%, 66% 42%, 66% 100%, 34% 100%, 34% 42%, 0 42%);
+  filter: drop-shadow(0 0 1px #07111f);
+  animation: nalu-fade-in 250ms ease-out;
+}
+.nalu-landmark-pin {
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+@keyframes nalu-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

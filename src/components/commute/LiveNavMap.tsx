@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  bearingBetween,
   matchRoutePoint,
   routeDeviation,
   trimRoutePath,
@@ -39,6 +40,12 @@ export type LiveNavMapProps = {
     crossTrackM: number;
     headingDivergence: number | null;
   }) => void;
+  /** TomTom traffic stretches on the active route, drawn over the line. */
+  traffic?: Array<{ severity: "moderate" | "heavy"; points: Pt[] }>;
+  /** Next maneuver point and distance, for the on-road turn arrow. */
+  turn?: { lat: number; lon: number; distanceM: number } | null;
+  /** Feed-derived corridor waypoints (e.g. Skyline stations the route passes). */
+  landmarks?: Array<{ id: string; lat: number; lon: number; label: string }>;
   /** Lift Recenter above a bottom overlay (px). */
   recenterBottom?: number;
 };
@@ -93,7 +100,12 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     onToggleMute,
     rerouting = false,
     onRouteStateChange,
+    traffic = [],
+    turn = null,
+    landmarks = [],
   } = props;
+  const turnMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const landmarkMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
@@ -202,6 +214,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, mapStyle]);
 
+  const trafficKey = traffic.map((t) => `${t.severity}:${t.points.length}:${t.points[0]?.lat}`).join("|");
   // Route lines.
   const lineKey = renderedLines
     .map((l) => `${l.id}:${l.points.length}:${l.points[0]?.lat}:${l.points[0]?.lon}`)
@@ -221,9 +234,22 @@ export default function LiveNavMap(props: LiveNavMapProps) {
           geometry: { type: "LineString", coordinates: l.points.map((p) => [p.lon, p.lat]) },
         })),
     };
+    // Traffic speed: amber for slow merges, deep coral for bottlenecks. Flat
+    // colours (no blur/glow) stay legible in bright sun and cheap to render.
+    const trafficData: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: traffic
+        .filter((t) => t.points.length > 1)
+        .map((t) => ({
+          type: "Feature",
+          properties: { color: t.severity === "heavy" ? "#ff4d5e" : "#ffb020" },
+          geometry: { type: "LineString", coordinates: t.points.map((p) => [p.lon, p.lat]) },
+        })),
+    };
     const source = map.getSource("nalu-route") as mapboxgl.GeoJSONSource | undefined;
     if (source) {
       source.setData(data);
+      (map.getSource("nalu-traffic") as mapboxgl.GeoJSONSource | undefined)?.setData(trafficData);
       return;
     }
     map.addSource("nalu-route", { type: "geojson", data });
@@ -245,6 +271,14 @@ export default function LiveNavMap(props: LiveNavMapProps) {
         "line-dasharray": ["case", ["get", "walk"], ["literal", [1, 1.5]], ["literal", [1, 0]]],
       },
     });
+    map.addSource("nalu-traffic", { type: "geojson", data: trafficData });
+    map.addLayer({
+      id: "nalu-traffic-line",
+      type: "line",
+      source: "nalu-traffic",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": ["get", "color"], "line-width": 11 },
+    });
     if (destination) {
       const el = document.createElement("span");
       el.className = "nalu-journey-marker nalu-journey-marker-end";
@@ -252,7 +286,59 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       new mapboxgl.Marker({ element: el }).setLngLat([destination.lon, destination.lat]).addTo(map);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineKey, ready]);
+  }, [lineKey, ready, trafficKey]);
+
+  // 3D on-road turn arrow: fades in inside 200 m, clears once passed.
+  const turnBearing = useMemo(() => {
+    if (!turn || path.length < 2) return null;
+    let bestI = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < path.length; i += 1) {
+      const p = path[i]!;
+      const d = Math.hypot(p.lat - turn.lat, (p.lon - turn.lon) * 0.93);
+      if (d < bestD) {
+        bestD = d;
+        bestI = i;
+      }
+    }
+    const ahead = path[Math.min(path.length - 1, bestI + 3)]!;
+    return bearingBetween(turn, ahead);
+  }, [turn?.lat, turn?.lon, path]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const show = turn && turn.distanceM <= 200 && turn.distanceM > 12 && turnBearing !== null;
+    if (!show) {
+      turnMarkerRef.current?.remove();
+      turnMarkerRef.current = null;
+      return;
+    }
+    if (!turnMarkerRef.current) {
+      const el = document.createElement("div");
+      el.className = "nalu-turn-arrow";
+      turnMarkerRef.current = new mapboxgl.Marker({
+        element: el,
+        rotationAlignment: "map",
+        pitchAlignment: "map",
+      });
+    }
+    turnMarkerRef.current.setLngLat([turn.lon, turn.lat]).setRotation(turnBearing).addTo(map);
+  }, [turn, turnBearing, ready]);
+
+  // Curated corridor pins — at most four, only along this trip.
+  const landmarkKey = landmarks.map((l) => l.id).join("|");
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    for (const m of landmarkMarkersRef.current) m.remove();
+    landmarkMarkersRef.current = landmarks.slice(0, 4).map((l) => {
+      const el = document.createElement("span");
+      el.className = "nalu-landmark-pin";
+      el.textContent = l.label;
+      return new mapboxgl.Marker({ element: el }).setLngLat([l.lon, l.lat]).addTo(map);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [landmarkKey, ready]);
 
   // Live puck and heading-up camera.
   useEffect(() => {
