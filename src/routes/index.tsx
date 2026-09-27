@@ -2530,21 +2530,28 @@ function Index() {
   const railRange =
     railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
   // Door to door: road time plus the parking/walk buffer at the destination.
+  // The hero arrival is the verified TomTom road arrival only; the parking /
+  // walk buffer is shown as a secondary note and never biases the verdict.
   const driveAccess = destinationAccess(driveTo, inbound ? "home" : null);
+  const roadOnlyAccess = { ...driveAccess, lowMin: 0, typicalMin: 0, highMin: 0 };
   const driveArrival = drive
     ? arrivalRange(
         nowSeconds,
         { low: drive.lowMinutes, expected: drive.trafficMinutes, high: drive.highMinutes },
-        driveAccess,
+        roadOnlyAccess,
       )
     : null;
+  const driveBufferNote =
+    driveAccess.highMin > 0
+      ? `Allow ${driveAccess.lowMin}–${driveAccess.highMin} min more to park and walk in`
+      : null;
   const driveWindow = driveArrival
     ? `${clockFromSeconds(driveArrival.earliestSeconds)} – ${clockFromSeconds(driveArrival.latestSeconds)}`
     : null;
   const driveRange = drive
     ? {
-        low: drive.lowMinutes + driveAccess.lowMin,
-        high: drive.highMinutes + driveAccess.highMin,
+        low: drive.lowMinutes,
+        high: drive.highMinutes,
       }
     : null;
   const railWindow = best
@@ -4042,15 +4049,10 @@ function Index() {
                         </summary>
                         <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                           <li>
-                            Road time {drive.lowMinutes}–{drive.highMinutes} min (expected{" "}
-                            {drive.trafficMinutes})
+                            On the road {drive.lowMinutes}–{drive.highMinutes} min, most likely{" "}
+                            {drive.trafficMinutes}
                           </li>
-                          <li>
-                            {driveAccess.label} {driveAccess.lowMin}–{driveAccess.highMin} min
-                          </li>
-                          <li>
-                            Expected at the door {clockFromSeconds(driveArrival.expectedSeconds)}
-                          </li>
+                          {driveBufferNote && <li>{driveBufferNote}</li>}
                         </ul>
                       </details>
                     )}
