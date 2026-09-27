@@ -1654,6 +1654,23 @@ function Index() {
     },
   });
 
+  // Corridor pins: Skyline stations (from the feed) that the drive passes
+  // within ~150 m, spaced apart so the map never gets cluttered.
+  const corridorLandmarks = useMemo(() => {
+    const route = (liveDrive ?? drive)?.path ?? [];
+    if (route.length < 2 || railLine.length === 0) return [];
+    const picked: Array<{ id: string; lat: number; lon: number; label: string }> = [];
+    for (const station of railLine) {
+      const pt = { lat: Number(station.stop_lat), lon: Number(station.stop_lon) };
+      const near = route.some((p, i) => i % 3 === 0 && metersBetween(p, pt) < 150);
+      if (!near) continue;
+      if (picked.some((p) => metersBetween(p, pt) < 3000)) continue;
+      picked.push({ id: station.stop_id, ...pt, label: station.stop_name });
+      if (picked.length === 4) break;
+    }
+    return picked;
+  }, [liveDrive, drive, railLine]);
+
   const { data: itineraryLegSequences = [] } = useQuery({
     queryKey: [
       "itinerary-leg-sequences",
@@ -4467,6 +4484,17 @@ function Index() {
                       onToggleMute={() => setNavMuted((value) => !value)}
                       rerouting={rerouting}
                       onRouteStateChange={handleRouteStateChange}
+                      traffic={lockedMode === "drive" ? (liveDrive ?? drive)?.trafficSections ?? [] : []}
+                      turn={
+                        nextTurn
+                          ? {
+                              lat: nextTurn.maneuver.lat,
+                              lon: nextTurn.maneuver.lon,
+                              distanceM: nextTurn.distanceM,
+                            }
+                          : null
+                      }
+                      landmarks={corridorLandmarks}
                     />
                   ) : (
                     <CommuteRouteMap
