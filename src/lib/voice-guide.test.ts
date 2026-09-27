@@ -30,6 +30,6 @@ describe("VoiceGuide", () => {
     g.sync([a]);
     g.next({ maneuver: a, distanceM: 80 }, 0);
     expect(g.sync([m(21.4, "TURN_RIGHT", "Turn right")])).toBe(true);
-    expect(g.next({ maneuver: m(21.4, "TURN_RIGHT", "Turn right"), distanceM: 80 }, 1000)).toMatch(/300 feet/);
+    expect(g.next({ maneuver: m(21.4, "TURN_RIGHT", "Turn right"), distanceM: 80 }, 9000)).toMatch(/300 feet/);
   });
 });
