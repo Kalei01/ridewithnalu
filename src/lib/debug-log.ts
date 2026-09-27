@@ -6,7 +6,7 @@
 import { purgeDebugLogs, submitDebugLogs } from "./debug-logs.functions";
 
 type Value = number | boolean | string | null;
-type Event = { t: number; type: string; data?: Record<string, Value> };
+type Event = { t: number; type: string; data?: Record<string, Value> | undefined };
 type Reason = "interval" | "trip_end" | "failure" | "pagehide";
 
 const DEVICE_KEY = "nalu.debug-device";
