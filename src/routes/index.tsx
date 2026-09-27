@@ -4,6 +4,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { debugLog, endDebugSession, flushDebugLogs, startDebugSession } from "@/lib/debug-log";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -1838,7 +1839,27 @@ function Index() {
       },
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 20_000 },
     );
+    // Waking from the lock screen: grab a fresh fix right away (the last one
+    // may be minutes old, so skip the jump filter) and let the camera ease back.
+    const onResume = () => {
+      if (document.visibilityState !== "visible") return;
+      debugLog("resume");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const point = { lat: position.coords.latitude, lon: position.coords.longitude };
+          if (!Number.isFinite(position.coords.accuracy) || position.coords.accuracy > 80) return;
+          acceptedNavFix.current = { point, timestamp: position.timestamp };
+          setRiderPoint(point);
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
+      );
+    };
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("pageshow", onResume);
     return () => {
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("pageshow", onResume);
       navigator.geolocation.clearWatch(watch);
       setRiderPoint(null);
       setRiderHeading(null);
@@ -1983,6 +2004,22 @@ function Index() {
     nonce: number;
   } | null>(null);
   const [rerouting, setRerouting] = useState(false);
+  const diagnosticsActive = (drivingCommitted || Boolean(activeTransitLeg)) && configured;
+  useEffect(() => {
+    if (!diagnosticsActive) return;
+    startDebugSession();
+    debugLog("trip_start", { mode: drivingCommitted ? "drive" : "transit" });
+    const onError = (e: ErrorEvent) => {
+      debugLog("error", { message: String(e.message).slice(0, 120) });
+      void flushDebugLogs("failure");
+    };
+    window.addEventListener("error", onError);
+    return () => {
+      window.removeEventListener("error", onError);
+      void endDebugSession("trip_end");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagnosticsActive]);
   const rerouteTimerRef = useRef<number | null>(null);
   const lastRerouteAtRef = useRef(0);
   const liveOriginRef = useRef<Coords | null>(null);
@@ -2234,6 +2271,7 @@ function Index() {
       if (Date.now() - lastRerouteAtRef.current < 5_000) return;
       if (rerouteTimerRef.current !== null) return;
       setRerouting(true);
+      debugLog("off_route", { crossTrackM: state.crossTrackM, headingDivergence: state.headingDivergence });
       rerouteTimerRef.current = window.setTimeout(() => {
         rerouteTimerRef.current = null;
         const latest = liveOriginRef.current;
@@ -2278,6 +2316,7 @@ function Index() {
     if (!drivingCommitted || !nextTurn) return;
     // Record thresholds even while muted so unmuting never replays old turns.
     const phrase = voiceGuide.current.next(nextTurn);
+    if (phrase) debugLog("voice", { distanceM: nextTurn.distanceM, muted: navMuted });
     if (phrase && !navMuted) speakCommuteAlert(phrase);
   }, [nextTurn, drivingCommitted, navMuted]);
 
