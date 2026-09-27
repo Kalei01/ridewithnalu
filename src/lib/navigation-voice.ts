@@ -248,3 +248,97 @@ export function smoothBearing(
   const delta = ((raw - previous + 540) % 360) - 180;
   return (previous + delta * 0.4 + 360) % 360;
 }
+
+// ---------- Route-versioned voice guidance ----------
+
+export type ManeuverVoiceState = "unannounced" | "far_spoken" | "near_spoken" | "passed";
+export const VOICE_COOLDOWN_MS = 8000;
+export const SAFETY_BYPASS_M = 46; // ~150 ft
+
+const PHONETIC: Array<[RegExp, string]> = [
+  [/\bH-?201\b/gi, "Moanalua Freeway"],
+  [/\bH-?1\b/gi, "H 1"],
+  [/\bH-?2\b/gi, "H 2"],
+  [/\bH-?3\b/gi, "H 3"],
+  [/\bHI-?(\d+)\b/gi, "Hawaii $1"],
+  [/\bFt\.?\s/gi, "Fort "],
+  [/\bRd\b\.?/gi, "Road"],
+  [/\bSt\b\.?/gi, "Street"],
+  [/\bAve\b\.?/gi, "Avenue"],
+  [/\bBlvd\b\.?/gi, "Boulevard"],
+  [/\bHwy\b\.?/gi, "Highway"],
+  [/\bFwy\b\.?/gi, "Freeway"],
+  [/\bPkwy\b\.?/gi, "Parkway"],
+  [/\bDr\b\.?/gi, "Drive"],
+  [/\bPl\b\.?/gi, "Place"],
+  [/\bLn\b\.?/gi, "Lane"],
+  [/\b([NSEW])\b(?=\s*$|\s*[,.])/g, "$1"],
+  [/\bW\b(?!-)/g, "West"],
+  [/\bE\b(?!-)/g, "East"],
+  [/\bN\b(?!-)/g, "North"],
+  [/\bS\b(?!-)/g, "South"],
+];
+
+/** Make Oʻahu road abbreviations sound right through speech synthesis. */
+export function speakableRoad(text: string) {
+  let out = text;
+  for (const [pattern, replacement] of PHONETIC) out = out.replace(pattern, replacement);
+  return out.replace(/\s{2,}/g, " ").trim();
+}
+
+/** A route's version changes whenever the maneuver list changes (reroute). */
+export function routeVersion(maneuvers: Maneuver[]) {
+  return maneuvers.map(maneuverKey).join("|");
+}
+
+export class VoiceGuide {
+  version = "";
+  states = new Map<string, ManeuverVoiceState>();
+  lastSpokenAt = -Infinity;
+
+  sync(maneuvers: Maneuver[]) {
+    const v = routeVersion(maneuvers);
+    if (v === this.version) return false;
+    this.version = v;
+    this.states = new Map(maneuvers.map((m) => [maneuverKey(m), "unannounced"]));
+    return true;
+  }
+
+  state(m: Maneuver): ManeuverVoiceState {
+    return this.states.get(maneuverKey(m)) ?? "unannounced";
+  }
+
+  markPassed(m: Maneuver) {
+    this.states.set(maneuverKey(m), "passed");
+  }
+
+  /** Returns a phrase to speak or null. State advances only when speaking. */
+  next(next: { maneuver: Maneuver; distanceM: number }, now = Date.now()): string | null {
+    const key = maneuverKey(next.maneuver);
+    const current = this.state(next.maneuver);
+    if (current === "passed" || current === "near_spoken") return null;
+    const instruction = speakableRoad(next.maneuver.instruction.replace(/\.$/, ""));
+    let phrase: string | null = null;
+    let target: ManeuverVoiceState | null = null;
+    if (next.distanceM <= NEAR_ANNOUNCE_M) {
+      target = "near_spoken";
+      phrase =
+        next.maneuver.maneuver === "ARRIVE"
+          ? "You have arrived at your destination."
+          : `In 300 feet, ${lowerFirst(instruction)}.`;
+    } else if (
+      current === "unannounced" &&
+      next.distanceM <= FAR_ANNOUNCE_M &&
+      next.distanceM > NEAR_ANNOUNCE_M * 2
+    ) {
+      target = "far_spoken";
+      phrase = `In half a mile, ${lowerFirst(instruction)}.`;
+    }
+    if (!phrase || !target) return null;
+    const safety = target === "near_spoken" && next.distanceM < SAFETY_BYPASS_M;
+    if (!safety && now - this.lastSpokenAt < VOICE_COOLDOWN_MS) return null;
+    this.states.set(key, target);
+    this.lastSpokenAt = now;
+    return phrase;
+  }
+}

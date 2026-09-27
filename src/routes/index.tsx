@@ -98,7 +98,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrivalRange, destinationAccess } from "@/lib/destination-access";
 import {
-  announcementFor,
+  VoiceGuide,
   isUsableNavigationFix,
   metersBetween,
   nextManeuver,
@@ -2255,11 +2255,11 @@ function Index() {
     [],
   );
   const passedTurns = useRef(new Set<string>());
-  const spokenTurns = useRef(new Set<string>());
+  const voiceGuide = useRef(new VoiceGuide());
   useEffect(() => {
     if (drivingCommitted) return;
     passedTurns.current = new Set();
-    spokenTurns.current = new Set();
+    voiceGuide.current = new VoiceGuide();
     lastNavPoint.current = null;
     setNavBearing(null);
   }, [drivingCommitted]);
@@ -2271,9 +2271,13 @@ function Index() {
     [navBasis, riderPoint],
   );
   useEffect(() => {
+    // A reroute brings a new maneuver list: reset turn state so no new turn is skipped.
+    if (voiceGuide.current.sync(navBasis?.maneuvers ?? [])) passedTurns.current = new Set();
+  }, [navBasis]);
+  useEffect(() => {
     if (!drivingCommitted || !nextTurn) return;
     // Record thresholds even while muted so unmuting never replays old turns.
-    const phrase = announcementFor(nextTurn, spokenTurns.current);
+    const phrase = voiceGuide.current.next(nextTurn);
     if (phrase && !navMuted) speakCommuteAlert(phrase);
   }, [nextTurn, drivingCommitted, navMuted]);
 

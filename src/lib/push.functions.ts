@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const categories = z.array(
-  z.enum(["morning_commute", "major_traffic", "transit_disruption", "stop_transfer"]),
+  z.enum(["morning_commute", "major_traffic", "transit_disruption", "stop_transfer", "urgent_fare_alerts"]),
 );
 const token = z.string().min(20).max(4096);
 
