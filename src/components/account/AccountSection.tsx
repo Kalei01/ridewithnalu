@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut, Trash2 } from "lucide-react";
+import { deleteMyAccount } from "@/lib/account.functions";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,6 +15,7 @@ export function AccountSection() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const name = user?.user_metadata?.["full_name"] as string | undefined;
   const avatar = user?.user_metadata?.["avatar_url"] as string | undefined;
 
@@ -77,6 +80,28 @@ export function AccountSection() {
           >
             <LogOut /> Sign out
           </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild><Button variant="ghost" className="mt-3 w-full text-destructive"><Trash2 className="size-4" /> Delete account</Button></AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete your Nalu account?</AlertDialogTitle>
+                <AlertDialogDescription>This permanently deletes your account, synced saved places and preferences, and linked notification subscriptions. Places stored only on this device will remain until you clear this app's data.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Keep account</AlertDialogCancel>
+                <Button variant="destructive" disabled={deleting} onClick={async () => {
+                  setDeleting(true);
+                  try {
+                    await deleteMyAccount();
+                    await supabase.auth.signOut();
+                    setMessage("Your account has been deleted.");
+                  } catch {
+                    setMessage("We couldn't delete your account. Please try again.");
+                  } finally { setDeleting(false); }
+                }}>{deleting ? "Deleting…" : "Delete permanently"}</Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ) : (
         <div className="grid gap-3 rounded-lg bg-surface-raised p-4">
