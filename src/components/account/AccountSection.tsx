@@ -85,7 +85,7 @@ export function AccountSection() {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete your Nalu account?</AlertDialogTitle>
-                <AlertDialogDescription>This permanently deletes your account, synced saved places and preferences, and linked notification subscriptions. Places stored only on this device will remain until you clear this app's data.</AlertDialogDescription>
+                <AlertDialogDescription>This permanently deletes your account, synced saved places and preferences. Places stored only on this device will remain until you clear this app's data.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={deleting}>Keep account</AlertDialogCancel>
