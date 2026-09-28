@@ -267,6 +267,13 @@
       "when": 1790470949490,
       "tag": "0037_debug_logs_and_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790555253963,
+      "tag": "0038_cascade_account_owned_data",
+      "breakpoints": true
     }
   ]
 }
