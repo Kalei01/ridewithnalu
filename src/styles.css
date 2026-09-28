@@ -87,15 +87,15 @@ a[href*="lovable.dev"][class*="badge"],
 
 :root {
   color-scheme: dark;
-  --radius: 0.5rem;
-  --background: oklch(0.145 0.012 255);
+  --radius: 1rem;
+  --background: oklch(0.13 0.012 225);
   --foreground: oklch(0.97 0.006 250);
-  --card: oklch(0.19 0.014 255);
+  --card: oklch(0.19 0.013 225);
   --card-foreground: oklch(0.97 0.006 250);
   --popover: oklch(0.2 0.014 255);
   --popover-foreground: oklch(0.97 0.006 250);
-  --primary: oklch(0.82 0.17 148);
-  --primary-foreground: oklch(0.16 0.025 150);
+  --primary: oklch(0.83 0.11 178);
+  --primary-foreground: oklch(0.14 0.023 178);
   --secondary: oklch(0.235 0.012 255);
   --secondary-foreground: oklch(0.91 0.008 250);
   --muted: oklch(0.22 0.01 255);
@@ -106,16 +106,16 @@ a[href*="lovable.dev"][class*="badge"],
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(0.31 0.012 255);
   --input: oklch(0.31 0.012 255);
-  --ring: oklch(0.82 0.17 148);
-  --recommended: oklch(0.82 0.17 148);
-  --recommended-foreground: oklch(0.16 0.025 150);
+  --ring: oklch(0.83 0.11 178);
+  --recommended: oklch(0.83 0.11 178);
+  --recommended-foreground: oklch(0.14 0.023 178);
   --surface-raised: oklch(0.19 0.014 255);
   --warning: oklch(0.79 0.16 75);
   /* Muted amber, orange and red for inline outdoor-condition notes. */
   --alert-rain: oklch(0.76 0.1 78);
   --alert-heat: oklch(0.74 0.12 55);
   --alert-air: oklch(0.7 0.12 25);
-  --location: oklch(0.68 0.18 250);
+  --location: oklch(0.77 0.12 215);
   --destination: oklch(0.68 0.2 28);
   --radiance-rail: oklch(0.72 0.16 158 / 20%);
   --radiance-drive: oklch(0.78 0.14 76 / 18%);
@@ -423,10 +423,7 @@ a[href*="lovable.dev"][class*="badge"],
 
 .metric-glass {
   min-width: 0;
-  border: 1px solid color-mix(in oklch, var(--color-foreground) 9%, transparent);
-  border-radius: var(--radius);
-  background: color-mix(in oklch, var(--color-background) 58%, transparent);
-  padding: 0.75rem 0.65rem;
+  padding: 0.75rem 0.35rem;
 }
 
 .mode-winner-badge {

@@ -93,6 +93,7 @@ import { honoluluSecondsToIso } from "@/lib/drive/planner";
 import { compareCommute } from "@/lib/decision/commute-decision";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
+import { DecisionBars } from "@/components/commute/DecisionBars";
 import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
 import { AccountSection } from "@/components/account/AccountSection";
 import { useAuth } from "@/hooks/use-auth";
@@ -4159,48 +4160,31 @@ function Index() {
           )}
         </section>
 
-        {configured && (verdict === "rail" || verdict === "drive") && gap !== null && (
-          <div
-            role="status"
-            className={`-mx-2 mt-5 flex items-center gap-3 rounded-2xl border px-4 py-3 text-lg font-black ${
-              verdict === "drive"
-                ? "border-recommended/50 bg-recommended/15 text-foreground"
-                : "border-primary/50 bg-primary/15 text-foreground"
-            }`}
-          >
-            <span
-              aria-hidden="true"
-              className={`size-3 shrink-0 rounded-full ${verdict === "drive" ? "bg-recommended" : "bg-primary"}`}
-            />
-            {verdict === "drive"
-              ? `Drive is ${Math.abs(gap)} min faster right now`
-              : `Take Skyline · Saves ${Math.abs(gap)} min over driving`}
-          </div>
-        )}
         <section
-          className="verdict-lift glass-panel -mx-2 mt-5 rounded-lg px-5 py-7 animate-in fade-in duration-300"
+          className="verdict-lift glass-panel -mx-2 mt-5 rounded-2xl px-5 py-7 animate-in fade-in duration-300"
           aria-labelledby="verdict-title"
         >
           <div className="mb-5 flex items-center gap-2 text-recommended">
             <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
               <Check className="size-4 stroke-[3]" />
             </span>
-            <span className="text-xs font-bold uppercase">Best option</span>
+            <span className="text-xs font-semibold">Best option</span>
           </div>
           <h1
             id="verdict-title"
             className="max-w-[390px] text-4xl font-bold leading-none text-foreground"
           >
             {!configured
-              ? "WHERE TO?"
+              ? "Where to?"
               : verdict === "none"
-                ? "RAIL UNAVAILABLE"
+                ? "Rail unavailable"
                 : verdict === "same"
-                  ? "ABOUT THE SAME"
+                  ? "Drive and transit are about the same time"
                   : verdict === "rail"
-                    ? `TAKE RAIL${gap !== null ? ` · ${Math.abs(gap)} MIN FASTER THAN DRIVING` : ""}`
-                    : `DRIVE TODAY${gap !== null ? ` · ${Math.abs(gap)} MIN FASTER THAN RAIL & BUS` : ""}`}
+                    ? `Take Skyline${gap !== null ? ` · ${Math.abs(gap)} min faster` : ""}`
+                    : `Drive${gap !== null ? ` · ${Math.abs(gap)} min faster` : ""}`}
           </h1>
+          {configured && <DecisionBars drive={{ label: "Drive", minutes: driveAvailable ? driveRange?.high ?? null : null }} transit={{ label: "Transit", minutes: railRange?.high ?? null }} />}
           {verdict === "rail" && best && railRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
               <div className="metric-glass">
@@ -4284,7 +4268,7 @@ function Index() {
         {/* Keep the trip commitment action directly beneath the verdict so it
             remains visible before route and comparison details. */}
         <section
-          className={`commitment-panel -mx-2 mt-3 rounded-lg p-3 ${commitment ? "is-live" : ""}`}
+            className={`commitment-panel -mx-2 mt-3 rounded-2xl p-3 ${commitment ? "is-live" : ""}`}
           aria-label={commitment ? "Active trip controls" : "Start trip"}
         >
           {commitment ? (
