@@ -98,6 +98,7 @@ import { createClientRateWindow } from "@/lib/client-rate-limit";
 import { decideArrival, decideTrip, type DecisionState } from "@/lib/decision/commute-decision";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
+import { findInboundOptions } from "@/lib/rail/inbound-fallback";
 import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
@@ -1316,6 +1317,7 @@ function Index() {
     hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon }) &&
     hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon });
   syncStateRef.current = { savedPlaces, alertPrefs, planMode, arriveByInput, setup, configured };
+  const { data: browseStations = [] } = useRailStations(hydrated);
   // plan_inbound's station is the *arrival* station. The setup station is
   // nearest the selected origin, so resolve a new one for westbound trips.
   const { data: inboundStation, isLoading: inboundStationLoading,
@@ -1339,7 +1341,7 @@ function Index() {
   const arrivalStationName = inbound && !reverseTrip
     ? inboundStation?.stop_name ?? "" : setup.homeStopName;
   const railConfigured = configured && (inbound
-    ? Boolean(arrivalStationId)
+    ? Boolean(arrivalStationId || browseStations.length)
     : Boolean(setup.homeStopId && setup.destStopId));
   const browseActive = hydrated && !configured;
   // A committed drive is what turns on live GPS on the map and the rolling
@@ -1483,8 +1485,6 @@ function Index() {
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   }, [browseActive, onboardingOpen, browseStation, browseLocationDenied]);
-
-  const { data: browseStations = [] } = useRailStations(hydrated);
 
   // If location is unavailable, derive the west-side default from live station
   // coordinates rather than pinning a station name or id into the app.
@@ -1696,20 +1696,63 @@ function Index() {
     enabled: hydrated && railConfigured,
     staleTime: 60_000,
     queryFn: async () => {
+      let selectedInboundStation = arrivalStationId;
+      let fallbackChecked = false;
       const fetchPage = async (cursor: number): Promise<Option[]> => {
       if (inbound) {
-        const { data, error } = await supabase.rpc("plan_inbound", {
-          ...inboundPlannerCoordinates(tripDirection),
-          p_station: arrivalStationId as string,
-          p_allow_drive: carAtStation,
-          p_after_seconds: cursor,
-          p_limit: planMode === "arrive-by" ? 8 : 4,
+        const fetchAtStation = async (stationId: string) => {
+          const params = {
+            ...inboundPlannerCoordinates(tripDirection),
+            p_station: stationId,
+            // Only use a parked car at the station where it was recorded.
+            p_allow_drive: stationId === arrivalStationId ? carAtStation : Boolean(
+              setup.allowDrive && parkedToday?.place === "station" && parkedToday.station === stationId,
+            ),
+            p_after_seconds: cursor,
+            p_limit: planMode === "arrive-by" ? 8 : 4,
+          };
+          if (import.meta.env.DEV) console.info("[transit] plan_inbound", {
+            p_dest_lat: params.p_dest_lat, p_dest_lon: params.p_dest_lon,
+            p_station: params.p_station, p_home_lat: params.p_home_lat,
+            p_home_lon: params.p_home_lon,
+          });
+          const { data, error } = await supabase.rpc("plan_inbound", params);
+          if (error) throw error;
+          return (data ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[];
+        };
+        if (fallbackChecked)
+          return selectedInboundStation ? fetchAtStation(selectedInboundStation) : [];
+        // The primary RPC can return no rows even when another nearby station
+        // has an active rail ride and a bus/walk/parked-car egress to the door.
+        let stations = browseStations;
+        let primaryAlreadyChecked = false;
+        if (!stations.length) {
+          if (selectedInboundStation) {
+            const primary = await fetchAtStation(selectedInboundStation);
+            if (primary.length) {
+              fallbackChecked = true;
+              return primary;
+            }
+            primaryAlreadyChecked = true;
+          }
+          const stationResult = await supabase.rpc("rail_stations");
+          if (stationResult.error) throw stationResult.error;
+          stations = (stationResult.data ?? []) as RailStation[];
+        }
+        const result = await findInboundOptions({
+          primaryStationId: primaryAlreadyChecked ? null : selectedInboundStation,
+          stations: primaryAlreadyChecked
+            ? stations.filter((station) => station.stop_id !== selectedInboundStation)
+            : stations,
+          destination: tripDirection.to as Coords,
+          fetchAtStation,
         });
-        if (error) throw error;
-        return (data ?? []).map((row) => ({
-          ...row,
-          legs: row.legs as unknown as Leg[],
-        })) as Option[];
+        selectedInboundStation = result.stationId ?? selectedInboundStation;
+        fallbackChecked = true;
+        return result.options;
       }
       const { data, error } = await supabase.rpc("plan_outbound", {
         p_origin_lat: setup.homeLat as number,
@@ -1739,7 +1782,8 @@ function Index() {
     },
   });
   const optionsLoading = planLoading || inboundStationLoading;
-  const optionsFailed = planFailed || inboundStationFailed;
+  const optionsFailed = planFailed ||
+    (inboundStationFailed && browseStations.length === 0 && options.length === 0);
 
   // Options arrive in earliest-door-arrival order. A slightly later trip is
   // available by choice, but is never silently preferred.
@@ -2148,7 +2192,12 @@ function Index() {
   // Real driving time between the two points that matter for this direction.
   const driveFrom = tripDirection.from;
   const driveTo = tripDirection.to;
-  const fetchDriveTime = useServerFn(driveTime);
+  const rawFetchDriveTime = useServerFn(driveTime);
+  const fetchDriveTime = async (input: Parameters<typeof rawFetchDriveTime>[0]): Promise<DriveTime> => {
+    const result = await rawFetchDriveTime(input);
+    if (!result) throw new Error("Drive routing temporarily unavailable");
+    return result;
+  };
   const lookupOriginAddress = useServerFn(reverseGeocode);
   const {
     data: drive,

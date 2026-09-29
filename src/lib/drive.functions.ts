@@ -77,12 +77,14 @@ function round(value: number) {
 }
 
 /** Live driving time with traffic plus any incident on the route, via TomTom. */
-export const driveTime = createServerFn({ method: "POST" })
-  .inputValidator((input) => schema.parse(input))
-  .handler(async ({ data }): Promise<DriveTime> => {
-    const key = process.env["TOMTOM_API_KEY"];
-    if (!key) throw new Error("Drive times are not configured yet.");
+export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<DriveTime | null> {
+  const key = process.env["TOMTOM_API_KEY"];
+  if (!key) {
+    console.warn("[drive] routing unavailable: TomTom is not configured");
+    return null;
+  }
 
+  try {
     const from = `${round(data.fromLat)},${round(data.fromLon)}`;
     const to = `${round(data.toLat)},${round(data.toLon)}`;
     const departureBucket = data.departureTime
@@ -110,9 +112,8 @@ export const driveTime = createServerFn({ method: "POST" })
 
     const response = await fetch(routeUrl);
     if (!response.ok) {
-      const body = await response.text();
-      console.error(`TomTom routing failed [${response.status}]: ${body}`);
-      throw new Error(`Drive time lookup failed (${response.status}).`);
+      console.error(`[drive] routing unavailable: TomTom returned ${response.status}`);
+      return null;
     }
 
     const payload = (await response.json()) as {
@@ -147,7 +148,10 @@ export const driveTime = createServerFn({ method: "POST" })
     };
     const route = payload.routes?.[0];
     const summary = route?.summary;
-    if (!summary?.travelTimeInSeconds) throw new Error("No driving route was found.");
+    if (!summary?.travelTimeInSeconds) {
+      console.warn("[drive] routing unavailable: no route was returned");
+      return null;
+    }
 
     const trafficSeconds = routeTravelSeconds(
       { travelTimeInSeconds: summary.travelTimeInSeconds,
@@ -216,7 +220,17 @@ export const driveTime = createServerFn({ method: "POST" })
 
     cacheDrive(cacheKey, result);
     return result;
-  });
+  } catch {
+    // An unavailable route is not a zero-minute drive. The caller can keep
+    // rendering rail and cached schedules without a failed server action.
+    console.error("[drive] routing unavailable: TomTom request failed");
+    return null;
+  }
+}
+
+export const driveTime = createServerFn({ method: "POST" })
+  .inputValidator((input) => schema.parse(input))
+  .handler(async ({ data }) => lookupDriveTime(data));
 
 /** Active incidents inside a slightly padded box around the two points. */
 async function fetchIncidents(
