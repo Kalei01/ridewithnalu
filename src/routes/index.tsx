@@ -93,6 +93,7 @@ import {
 import { latestRailArrival } from "@/lib/leave-by";
 import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } from "@/lib/drive/planner";
 import { carAvailableForDrive } from "@/lib/car-state";
+import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-direction";
 import { decideArrival, decideTrip, type DecisionState } from "@/lib/decision/commute-decision";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
@@ -1125,10 +1126,18 @@ function Index() {
     window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
   }
 
-  // Direction is explicit. Time of day can inform the first suggestion, but it
-  // must never silently reverse a saved commute for shift or weekend riders.
+  // A manual choice wins; otherwise infer the planner direction from the
+  // selected destination without reversing the user's actual trip endpoints.
   const overrideActive = Boolean(override && now.getTime() - override.at < OVERRIDE_MS);
-  const inbound = overrideActive ? Boolean(override?.inbound) : false;
+  const savedHome = findByKind(savedPlaces, "home");
+  const tripDirection = resolveTripDirection({
+    origin: { lat: setup.homeLat, lon: setup.homeLon },
+    destination: { lat: setup.destLat, lon: setup.destLon },
+    savedHome,
+    manualInbound: overrideActive ? Boolean(override?.inbound) : null,
+  });
+  const { inbound, reverseTrip, departingFromSavedHome, arrivingAtSavedHome } = tripDirection;
+  const arrivingHome = reverseTrip || arrivingAtSavedHome;
 
   function chooseDirection(next: boolean) {
     const entry: DirectionOverride = { inbound: next, at: Date.now() };
@@ -1277,7 +1286,31 @@ function Index() {
     hasValidCoordinates({ lat: setup.homeLat, lon: setup.homeLon }) &&
     hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon });
   syncStateRef.current = { savedPlaces, alertPrefs, planMode, arriveByInput, setup, configured };
-  const railConfigured = configured && Boolean(setup.homeStopId && setup.destStopId);
+  // plan_inbound's station is the *arrival* station. The setup station is
+  // nearest the selected origin, so resolve a new one for westbound trips.
+  const { data: inboundStation, isLoading: inboundStationLoading,
+    isError: inboundStationFailed } = useQuery({
+    queryKey: ["inbound-arrival-station", tripDirection.to.lat, tripDirection.to.lon],
+    enabled: hydrated && configured && inbound && !reverseTrip,
+    staleTime: 12 * 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("nearest_stop", {
+        p_lat: tripDirection.to.lat as number,
+        p_lon: tripDirection.to.lon as number,
+        p_rail_only: true,
+      });
+      if (error) throw error;
+      if (!data?.[0]) throw new Error("No arrival rail station is available");
+      return data[0];
+    },
+  });
+  const arrivalStationId = inbound && !reverseTrip
+    ? inboundStation?.stop_id ?? null : setup.homeStopId;
+  const arrivalStationName = inbound && !reverseTrip
+    ? inboundStation?.stop_name ?? "" : setup.homeStopName;
+  const railConfigured = configured && (inbound
+    ? Boolean(arrivalStationId)
+    : Boolean(setup.homeStopId && setup.destStopId));
   const browseActive = hydrated && !configured;
   // A committed drive is what turns on live GPS on the map and the rolling
   // 2-minute traffic refresh; both stop the moment the lock is released.
@@ -1289,11 +1322,11 @@ function Index() {
   // starts with the car at the home station; an explicit same-day location wins.
   const parkedToday = parked && parked.date === honoluluDateKey(now) ? parked : null;
   const carPlace: CarPlace =
-    parkedToday?.place ?? (inbound && setup.allowDrive ? "station" : "home");
+    parkedToday?.place ?? (reverseTrip && setup.allowDrive ? "station" : "home");
   const carAtStation = Boolean(
     setup.allowDrive &&
     carPlace === "station" &&
-    (!parkedToday || parkedToday.station === setup.homeStopId),
+    (parkedToday ? parkedToday.station === arrivalStationId : reverseTrip),
   );
   // Door-to-door driving is always compared. "I can drive to the station" only
   // governs the park-and-ride first leg; it never removes the drive option.
@@ -1304,9 +1337,9 @@ function Index() {
     ? null
     : inbound && carPlace === "station"
       ? `Your car is parked at ${
-          parkedToday && parkedToday.station !== setup.homeStopId
+          parkedToday && parkedToday.station !== arrivalStationId
             ? "your station"
-            : `${stationLabel(setup.homeStopName)} Station`
+            : `${stationLabel(arrivalStationName)} Station`
         }.`
       : inbound && carPlace === "home"
         ? "Your car is at home."
@@ -1328,7 +1361,7 @@ function Index() {
   function setCarPlace(place: CarPlace) {
     const entry: ParkedCar = {
       date: honoluluDateKey(new Date()),
-      station: setup.homeStopId,
+      station: inbound ? arrivalStationId ?? setup.homeStopId : setup.homeStopId,
       place,
     };
     setParked(entry);
@@ -1587,11 +1620,16 @@ function Index() {
     nearbyStops.find((stop) => stop.stopId === selectedNearbyStopId) ?? nearbyStops[0] ?? null;
 
   const arriveByTarget = parseClockInput(arriveByInput);
-  const { data: options = [], isLoading: optionsLoading, isError: optionsFailed,
+  const { data: options = [], isLoading: planLoading, isError: planFailed,
     dataUpdatedAt: optionsFetchedAt } = useQuery({
     queryKey: [
       "trip",
       inbound ? "inbound" : "outbound",
+      tripDirection.from.lat,
+      tripDirection.from.lon,
+      tripDirection.to.lat,
+      tripDirection.to.lon,
+      arrivalStationId,
       setup.homeStopId,
       setup.destStopId,
       setup.allowDrive,
@@ -1607,11 +1645,8 @@ function Index() {
       const fetchPage = async (cursor: number): Promise<Option[]> => {
       if (inbound) {
         const { data, error } = await supabase.rpc("plan_inbound", {
-          p_dest_lat: setup.destLat as number,
-          p_dest_lon: setup.destLon as number,
-          p_station: setup.homeStopId,
-          p_home_lat: setup.homeLat as number,
-          p_home_lon: setup.homeLon as number,
+          ...inboundPlannerCoordinates(tripDirection),
+          p_station: arrivalStationId as string,
           p_allow_drive: carAtStation,
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
@@ -1649,6 +1684,8 @@ function Index() {
       return result.options;
     },
   });
+  const optionsLoading = planLoading || inboundStationLoading;
+  const optionsFailed = planFailed || inboundStationFailed;
 
   // Options arrive in earliest-door-arrival order. A slightly later trip is
   // available by choice, but is never silently preferred.
@@ -2055,12 +2092,8 @@ function Index() {
     Boolean(approach) && approachDismissed !== `${approach?.key}-${approach?.state}`;
 
   // Real driving time between the two points that matter for this direction.
-  const driveFrom = inbound
-    ? { lat: setup.destLat, lon: setup.destLon }
-    : { lat: setup.homeLat, lon: setup.homeLon };
-  const driveTo = inbound
-    ? { lat: setup.homeLat, lon: setup.homeLon }
-    : { lat: setup.destLat, lon: setup.destLon };
+  const driveFrom = tripDirection.from;
+  const driveTo = tripDirection.to;
   const fetchDriveTime = useServerFn(driveTime);
   const lookupOriginAddress = useServerFn(reverseGeocode);
   const {
@@ -2282,7 +2315,7 @@ function Index() {
       const remainingMin = Math.max(1, Math.round(basis.trafficMinutes - elapsedMin));
       // Road arrival only, matching the hero clock; parking stays a side note.
       const access = {
-        ...destinationAccess(driveTo, inbound ? "home" : null),
+        ...destinationAccess(driveTo, arrivingHome ? "home" : null),
         lowMin: 0,
         typicalMin: 0,
         highMin: 0,
@@ -2314,7 +2347,7 @@ function Index() {
       range: null as string | null,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commitment, liveDrive, drive, best, liveTick, inbound, driveTo.lat, driveTo.lon]);
+  }, [commitment, liveDrive, drive, best, liveTick, arrivingHome, driveTo.lat, driveTo.lon]);
 
   // ---- Heading-up navigation & turn-by-turn voice -----------------------------
   const [navMuted, setNavMuted] = useState(false);
@@ -2511,7 +2544,7 @@ function Index() {
     [options, arriveByTarget],
   );
   const gtfsExpiry = useDataExpiry();
-  const driveAccess = destinationAccess(driveTo, inbound ? "home" : null);
+  const driveAccess = destinationAccess(driveTo, arrivingHome ? "home" : null);
   const futureCandidateSeconds = arriveByActive && drive
     ? arriveByTarget - (drive.highMinutes + driveAccess.highMin) * 60 : null;
   const futureDepartureIso = futureCandidateSeconds !== null && !arriveByPassed && futureCandidateSeconds > nowSeconds
@@ -2606,7 +2639,7 @@ function Index() {
       ) ?? null
     );
   }, [savedPlaces, setup.destLat, setup.destLon]);
-  const typicalArrival = inbound ? null : (activeSavedPlace?.typicalArrivalSeconds ?? null);
+  const typicalArrival = arrivingHome ? null : (activeSavedPlace?.typicalArrivalSeconds ?? null);
   useEffect(() => {
     if (!hydrated || arriveByInput || typicalArrival === null) return;
     chooseArriveBy(clockInputValue(typicalArrival));
@@ -2660,12 +2693,12 @@ function Index() {
 
   // Real service hours for the rail station, used when nothing is reachable.
   const { data: railHours = [] } = useQuery({
-    queryKey: ["service-hours", setup.homeStopId],
-    enabled: hydrated && Boolean(setup.homeStopId) && !optionsLoading && options.length === 0,
+    queryKey: ["service-hours", inbound ? arrivalStationId : setup.homeStopId],
+    enabled: hydrated && Boolean(inbound ? arrivalStationId : setup.homeStopId) && !optionsLoading && options.length === 0,
     staleTime: 12 * 60 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("service_hours", {
-        p_stop_id: setup.homeStopId,
+        p_stop_id: (inbound ? arrivalStationId : setup.homeStopId) as string,
         p_route_type: 1,
       });
       if (error) throw error;
@@ -2740,6 +2773,10 @@ function Index() {
   const reasoning = commitment ? "Your selected trip stays locked while conditions update." : activeDecision.primary.text;
 
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
+  const tripOriginLabel = reverseTrip ? destinationLabel
+    : departingFromSavedHome || (!savedHome && !inbound)
+      ? "Home" : "Current location";
+  const tripArrivalLabel = arrivingHome ? "Home" : destinationLabel;
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
   const plannedInboundAccess = inbound && best?.legs[0]?.kind === "access" ? best.legs[0] : null;
   // The return banner must describe the chosen itinerary, not the stop saved during setup.
@@ -2772,7 +2809,7 @@ function Index() {
           leg.mode === "walk" || leg.mode === "drive"
             ? followsTransit
               ? `${vehicleName(leg)} · ${leg.minutes} min to ${
-                  titleCase(leg.to) || (inbound ? "home" : "your destination")
+                  titleCase(leg.to) || (arrivingHome ? "home" : "your destination")
                 }${leg.mode === "walk" && leg.minutes !== null ? ` · ${formatDistance(leg.minutes * 80.47)}` : ""}${
                   leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""
                 }`
@@ -2781,7 +2818,7 @@ function Index() {
                     leg.minutes !== null ? ` · ${formatDistance(leg.minutes * 80.47)}` : ""
                   } · arrive platform ${clockFromSeconds(leg.arrive_seconds)}`
                 : `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
-                    titleCase(leg.to) || (inbound ? "home" : "your destination")
+                    titleCase(leg.to) || (arrivingHome ? "home" : "your destination")
                   }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
             : "",
         boardAt: isTransit ? transitStopName(leg, "from") : null,
@@ -2794,7 +2831,7 @@ function Index() {
     rows.push({
       seconds: last?.arrive_seconds ?? null,
       legIndex: -1,
-      title: inbound ? "Arrive home" : "Arrive destination",
+      title: arrivingHome ? "Arrive home" : "Arrive destination",
       detail: titleCase(last?.to) || setup.destinationName || setup.destinationAddress,
       boardAt: null,
       getOffAt: null,
@@ -2802,7 +2839,7 @@ function Index() {
       mode: "walk" as Leg["mode"],
     });
     return rows;
-  }, [best, inbound, setup.destinationName, setup.destinationAddress]);
+  }, [best, arrivingHome, setup.destinationName, setup.destinationAddress]);
 
   // ---- Outdoor conditions --------------------------------------------------
   // Every moment of this trip spent outside: where it happens, when, how long.
@@ -2817,10 +2854,10 @@ function Index() {
 
   const commuteMapPoints = useMemo(() => {
     if (!best || !homePoint || !destPoint) return [];
-    const origin = inbound ? destPoint : homePoint;
-    const destination = inbound ? homePoint : destPoint;
-    const originName = inbound ? destinationLabel : "Home";
-    const destinationName = inbound ? "Home" : destinationLabel;
+    const origin = reverseTrip ? destPoint : homePoint;
+    const destination = reverseTrip ? homePoint : destPoint;
+    const originName = tripOriginLabel;
+    const destinationName = tripArrivalLabel;
     const points: Array<{
       id: string;
       name: string;
@@ -2870,12 +2907,12 @@ function Index() {
 
     points.push({ id: "end", name: destinationName, ...destination, kind: "end" });
     return points;
-  }, [best, homePoint, destPoint, inbound, destinationLabel, itineraryStopCoords, stationCoords]);
+  }, [best, homePoint, destPoint, reverseTrip, tripOriginLabel, tripArrivalLabel, itineraryStopCoords, stationCoords]);
 
   const transitMapSegments = useMemo(() => {
     if (!best || !homePoint || !destPoint) return [];
-    const origin = inbound ? destPoint : homePoint;
-    const destination = inbound ? homePoint : destPoint;
+    const origin = reverseTrip ? destPoint : homePoint;
+    const destination = reverseTrip ? homePoint : destPoint;
     const sequenceByLeg = new Map(
       itineraryLegSequences.map((sequence) => [sequence.legIndex, sequence]),
     );
@@ -2928,23 +2965,23 @@ function Index() {
       if (!from || !to) return [];
       return [{ id: `leg-${legIndex}`, mode: leg.mode, points: [from, to] }];
     });
-  }, [best, homePoint, destPoint, inbound, itineraryLegSequences, itineraryStopCoords, railLine]);
+  }, [best, homePoint, destPoint, reverseTrip, itineraryLegSequences, itineraryStopCoords, railLine]);
 
   // Drive view: straight door-to-door, no rail station or transit stops.
   const driveMapPoints = useMemo(() => {
     if (!homePoint || !destPoint) return [];
-    const origin = inbound ? destPoint : homePoint;
-    const destination = inbound ? homePoint : destPoint;
+    const origin = reverseTrip ? destPoint : homePoint;
+    const destination = reverseTrip ? homePoint : destPoint;
     return [
-      { id: "start", name: inbound ? destinationLabel : "Home", ...origin, kind: "start" as const },
+      { id: "start", name: tripOriginLabel, ...origin, kind: "start" as const },
       {
         id: "end",
-        name: inbound ? "Home" : destinationLabel,
+        name: tripArrivalLabel,
         ...destination,
         kind: "end" as const,
       },
     ];
-  }, [homePoint, destPoint, inbound, destinationLabel]);
+  }, [homePoint, destPoint, reverseTrip, tripOriginLabel, tripArrivalLabel]);
 
   const mapPoints = selectedMode === "drive" ? driveMapPoints : commuteMapPoints;
   // Drive mode traces the real road geometry TomTom used for the ETA.
@@ -2953,8 +2990,8 @@ function Index() {
 
   const moments = useMemo<OutdoorMoment[]>(() => {
     if (!best) return [];
-    const originPoint = inbound ? destPoint : homePoint;
-    const arrivalPoint = inbound ? homePoint : destPoint;
+    const originPoint = reverseTrip ? destPoint : homePoint;
+    const arrivalPoint = reverseTrip ? homePoint : destPoint;
     const railLegHere = best.legs.find((leg) => leg.kind === "rail") ?? null;
     const boardStation = stationPoint(railLegHere?.from);
     const transferStation = stationPoint(railLegHere?.to);
@@ -3052,7 +3089,7 @@ function Index() {
       });
     }
     return list;
-  }, [best, inbound, homePoint, destPoint, nowSeconds, stationPoint, setup.homeStopName]);
+  }, [best, reverseTrip, homePoint, destPoint, nowSeconds, stationPoint, setup.homeStopName]);
 
   const fetchWeather = useServerFn(outdoorConditions);
   // Runs alongside the plan, never in front of it: the trip renders regardless.
@@ -3192,7 +3229,10 @@ function Index() {
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
     void refreshTrafficNow();
-    if (!configured) chooseDirection(false);
+    // A direction chosen for a previous destination cannot override the new
+    // trip's actual coordinates or saved Home shortcut.
+    setOverride(null);
+    window.localStorage.removeItem(DIRECTION_KEY);
     persist(next);
     window.localStorage.removeItem(SETUP_DISMISSED_KEY);
     setOnboardingOpen(false);
@@ -3318,7 +3358,6 @@ function Index() {
             destReturnStopName: back?.stop_name ?? "",
             destReturnWalkM: Number(back?.distance_m ?? 0),
           });
-          chooseDirection(false);
           const accuracy = position.coords.accuracy;
           const precision = Number.isFinite(accuracy)
             ? `Accurate to about ${formatDistance(accuracy)}`
@@ -4034,7 +4073,7 @@ function Index() {
             </div>
             <div className="mt-1.5 h-px bg-border/70" />
             <p className="mt-1 text-xs font-semibold uppercase text-muted-foreground">
-              {inbound ? "Heading home" : "Heading out"}
+              {arrivingHome ? "Heading home" : inbound ? "Heading west" : "Heading out"}
             </p>
             <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
           </div>
@@ -4096,7 +4135,7 @@ function Index() {
                 htmlFor="arrive-by-time"
                 className="text-xs font-semibold uppercase text-muted-foreground"
               >
-                Be at {inbound ? "home" : destinationLabel} by
+                Be at {tripArrivalLabel} by
               </Label>
               <Input
                 id="arrive-by-time"
@@ -4120,7 +4159,7 @@ function Index() {
               )}
               {activeSavedPlace?.typicalArrivalSeconds !== null &&
                 activeSavedPlace?.typicalArrivalSeconds !== undefined &&
-                !inbound && (
+                !arrivingHome && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     Typical arrival saved for {activeSavedPlace.label}:{" "}
                     {clockFromSeconds(activeSavedPlace.typicalArrivalSeconds)}
@@ -4463,7 +4502,7 @@ function Index() {
                   Your route
                 </h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}
+                  {tripOriginLabel} to {tripArrivalLabel}
                 </p>
               </div>
               <span className="text-xs font-semibold text-muted-foreground">
@@ -4670,7 +4709,7 @@ function Index() {
               {best ? (
                 <RailTripBreakdown
                   option={best}
-                  inbound={inbound}
+                  inbound={arrivingHome}
                   liveBus={liveBus}
                   liveBusRefreshing={liveBusRefreshing}
                   weatherLines={weatherLines}
@@ -4690,7 +4729,7 @@ function Index() {
                 <div>
                   <h3 className="text-xl font-bold text-foreground">Drive details</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {inbound ? `${destinationLabel} to home` : `Home to ${destinationLabel}`}
+                    {tripOriginLabel} to {tripArrivalLabel}
                   </p>
                 </div>
                 <p className="text-4xl font-bold tabular-nums text-foreground">
@@ -4702,10 +4741,7 @@ function Index() {
                 <RouteCorridor label={drive.corridorLabel} size="compact" />
               ) : (
                 <p className="mt-4 text-sm font-medium text-foreground">
-                  Drive straight{" "}
-                  {inbound
-                    ? `from ${destinationLabel} to your home address`
-                    : `from home to ${destinationLabel}`}{" "}
+                  Drive straight from {tripOriginLabel} to {tripArrivalLabel}{" "}
                   — no stop at a rail station.
                 </p>
               )}
