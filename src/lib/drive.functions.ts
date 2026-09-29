@@ -79,10 +79,24 @@ function round(value: number) {
 /** Live driving time with traffic plus any incident on the route, via TomTom. */
 export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<DriveTime | null> {
   const key = process.env["TOMTOM_API_KEY"];
+  const diagnosticId = typeof crypto?.randomUUID === "function" ? crypto.randomUUID().slice(0, 8) : String(Date.now());
+  const startedAt = Date.now();
+
   if (!key) {
-    console.warn("[drive] routing unavailable: TomTom is not configured");
+    console.warn("[drive] diagnostic", {
+      id: diagnosticId,
+      stage: "config",
+      status: "missing-key",
+      elapsedMs: Date.now() - startedAt,
+    });
     return null;
   }
+
+  console.info("[drive] diagnostic", {
+    id: diagnosticId,
+    stage: "config",
+    status: "key-present",
+  });
 
   try {
     const from = `${round(data.fromLat)},${round(data.fromLon)}`;
@@ -112,9 +126,23 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
 
     const response = await fetch(routeUrl);
     if (!response.ok) {
-      console.error(`[drive] routing unavailable: TomTom returned ${response.status}`);
+      console.error("[drive] diagnostic", {
+        id: diagnosticId,
+        stage: "tomtom-http",
+        status: "http-error",
+        httpStatus: response.status,
+        elapsedMs: Date.now() - startedAt,
+      });
       return null;
     }
+
+    console.info("[drive] diagnostic", {
+      id: diagnosticId,
+      stage: "tomtom-http",
+      status: "ok",
+      httpStatus: response.status,
+      elapsedMs: Date.now() - startedAt,
+    });
 
     const payload = (await response.json()) as {
       routes?: Array<{
@@ -149,7 +177,12 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     const route = payload.routes?.[0];
     const summary = route?.summary;
     if (!summary?.travelTimeInSeconds) {
-      console.warn("[drive] routing unavailable: no route was returned");
+      console.warn("[drive] diagnostic", {
+        id: diagnosticId,
+        stage: "tomtom-payload",
+        status: "no-route",
+        elapsedMs: Date.now() - startedAt,
+      });
       return null;
     }
 
@@ -219,11 +252,24 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     };
 
     cacheDrive(cacheKey, result);
+    console.info("[drive] diagnostic", {
+      id: diagnosticId,
+      stage: "complete",
+      status: "success",
+      trafficBasis: result.trafficBasis,
+      elapsedMs: Date.now() - startedAt,
+    });
     return result;
-  } catch {
+  } catch (error) {
     // An unavailable route is not a zero-minute drive. The caller can keep
     // rendering rail and cached schedules without a failed server action.
-    console.error("[drive] routing unavailable: TomTom request failed");
+    console.error("[drive] diagnostic", {
+      id: diagnosticId,
+      stage: "request",
+      status: "request-error",
+      errorName: error instanceof Error ? error.name : "unknown",
+      elapsedMs: Date.now() - startedAt,
+    });
     return null;
   }
 }
