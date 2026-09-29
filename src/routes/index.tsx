@@ -2343,7 +2343,13 @@ function Index() {
       if (Date.now() - lastRerouteAtRef.current < 5_000) return;
       if (rerouteTimerRef.current !== null) return;
       setRerouting(true);
-      debugLog("off_route", { crossTrackM: state.crossTrackM, headingDivergence: state.headingDivergence });
+      debugLog("off_route", {
+        crossTrackM: state.crossTrackM,
+        headingDivergence: state.headingDivergence,
+        speedMps: riderSpeed,
+        road: nextTurn?.maneuver.road ?? null,
+        maneuver: nextTurn?.maneuver.maneuver ?? null,
+      });
       rerouteTimerRef.current = window.setTimeout(() => {
         rerouteTimerRef.current = null;
         const latest = liveOriginRef.current;
@@ -2404,10 +2410,21 @@ function Index() {
   useEffect(() => {
     if (!drivingCommitted || !nextTurn) return;
     // Record thresholds even while muted so unmuting never replays old turns.
-    const phrase = voiceGuide.current.next(nextTurn);
-    if (phrase) debugLog("voice", { distanceM: nextTurn.distanceM, muted: navMuted });
+    const phrase = voiceGuide.current.next(nextTurn, Date.now(), {
+      speedMps: riderSpeed,
+      rerouting,
+    });
+    if (phrase)
+      debugLog("voice", {
+        distanceM: nextTurn.distanceM,
+        muted: navMuted,
+        maneuver: nextTurn.maneuver.maneuver,
+        road: nextTurn.maneuver.road,
+        tier: voiceGuide.current.lastTier,
+        speedMps: riderSpeed,
+      });
     if (phrase && !navMuted) speakCommuteAlert(phrase);
-  }, [nextTurn, drivingCommitted, navMuted]);
+  }, [nextTurn, drivingCommitted, navMuted, riderSpeed, rerouting]);
 
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
   const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
@@ -4843,11 +4860,15 @@ function RailTripBreakdown({
     (leg.depart_seconds !== null && leg.arrive_seconds !== null
       ? Math.max(0, Math.round((leg.arrive_seconds - leg.depart_seconds) / 60))
       : null);
-  const access = option.legs.find((leg) => leg.kind === "access") ?? null;
-  const rail = option.legs.find((leg) => leg.kind === "rail") ?? null;
-  const connection = option.legs.find((leg) => leg.kind === "connect") ?? null;
-  const egress = option.legs.find((leg) => leg.kind === "egress") ?? null;
-  const rows = [access, rail, connection, egress].filter((leg): leg is Leg => Boolean(leg));
+  // Every leg, in the order the planner produced (chronological), so
+  // transfer walks and multiple bus connections are never dropped.
+  const rows = option.legs
+    .map((leg, i) => ({ leg, i }))
+    .sort((a, b) => {
+      const ta = a.leg.depart_seconds, tb = b.leg.depart_seconds;
+      return ta !== null && tb !== null && ta !== tb ? ta - tb : a.i - b.i;
+    })
+    .map(({ leg }) => leg);
 
   return (
     <>

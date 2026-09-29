@@ -29,6 +29,8 @@ export type LiveNavMapProps = {
   lines: Array<{ id: string; mode: "walk" | "drive" | "bus" | "rail"; points: Pt[] }>;
   destination: Pt | null;
   livePoint: Pt | null;
+  /** GPS speed; selects freeway vs local off-route thresholds. */
+  speedMps?: number | null;
   bearing: number | null;
   maneuver: { glyph: TurnGlyph; distanceText: string; road: string } | null;
   eta: { arrive: string; range: string | null; minutes: number; distance: string | null } | null;
@@ -166,14 +168,14 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     const fixKey = `${livePoint.lat}:${livePoint.lon}:${bearing ?? "none"}`;
     if (evaluatedFixRef.current === fixKey) return;
     evaluatedFixRef.current = fixKey;
-    const deviation = routeDeviation(match, bearing, divergentFixesRef.current);
+    const deviation = routeDeviation(match, bearing, divergentFixesRef.current, speedMps ?? null);
     divergentFixesRef.current = deviation.divergentFixes;
     onRouteStateChange?.({
       offRoute: deviation.offRoute,
       crossTrackM: deviation.crossTrackM,
       headingDivergence: deviation.headingDivergence,
     });
-  }, [livePoint, match, bearing, onRouteStateChange]);
+  }, [livePoint, match, bearing, onRouteStateChange, speedMps]);
 
   useEffect(() => {
     if (!nodeRef.current || mapRef.current || !token) return;
