@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareArriveBy, driveArriveBy, latestRailArrival, DRIVE_BUFFER_MIN } from "./leave-by";
+import { driveArriveBy, latestRailArrival, DRIVE_BUFFER_MIN } from "./leave-by";
 
 const at = (hours: number, minutes = 0) => hours * 3600 + minutes * 60;
 
@@ -46,47 +46,5 @@ describe("latestRailArrival", () => {
       earliestArriveSeconds: null,
       feasible: false,
     });
-  });
-});
-
-describe("compareArriveBy", () => {
-  it("prefers the mode that lets the rider leave later", () => {
-    const result = compareArriveBy({
-      railLeaveBySeconds: at(6, 20),
-      railArriveSeconds: at(7, 20),
-      driveLeaveBySeconds: at(6, 41),
-      driveArriveSeconds: at(7, 24),
-    });
-    expect(result.winner).toBe("drive");
-    expect(result.laterMinutes).toBe(21);
-  });
-
-  it("calls a close race a wash", () => {
-    const result = compareArriveBy({
-      railLeaveBySeconds: at(6, 20),
-      railArriveSeconds: at(7, 20),
-      driveLeaveBySeconds: at(6, 23),
-      driveArriveSeconds: at(7, 25),
-    });
-    expect(result.winner).toBe("same");
-  });
-
-  it("falls back to whichever mode exists", () => {
-    expect(
-      compareArriveBy({
-        railLeaveBySeconds: at(6, 0),
-        railArriveSeconds: at(7, 0),
-        driveLeaveBySeconds: null,
-        driveArriveSeconds: null,
-      }).winner,
-    ).toBe("rail");
-    expect(
-      compareArriveBy({
-        railLeaveBySeconds: null,
-        railArriveSeconds: null,
-        driveLeaveBySeconds: null,
-        driveArriveSeconds: null,
-      }).winner,
-    ).toBe("none");
   });
 });

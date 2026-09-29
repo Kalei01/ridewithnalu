@@ -91,6 +91,7 @@ import {
 } from "@/lib/saved-places";
 import { latestRailArrival } from "@/lib/leave-by";
 import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } from "@/lib/drive/planner";
+import { carAvailableForDrive } from "@/lib/car-state";
 import { decideArrival, decideTrip, type DecisionState } from "@/lib/decision/commute-decision";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
@@ -1266,11 +1267,7 @@ function Index() {
   // Door-to-door driving is always compared. "I can drive to the station" only
   // governs the park-and-ride first leg; it never removes the drive option.
   // The only genuine blocker is a car recorded today somewhere else.
-  const driveAvailable = parkedToday
-    ? inbound
-      ? parkedToday.place === "destination"
-      : parkedToday.place === "home"
-    : true;
+  const driveAvailable = carAvailableForDrive(parkedToday, inbound);
   // Only an explicitly recorded car location explains a missing drive option.
   const carAwayReason = driveAvailable
     ? null
@@ -4232,7 +4229,9 @@ function Index() {
               : verdict === "none"
                 ? "No valid option"
                 : verdict === "uncertain"
-                  ? "Data uncertain"
+                  ? optionsLoading || driveLoading
+                    ? "Checking…"
+                    : "Data uncertain"
                 : verdict === "same"
                   ? "Toss-up"
                   : verdict === "rail"
