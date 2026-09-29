@@ -90,8 +90,17 @@ export function decideTrip(
       supporting: null,
     };
 
-  const driveMinutes = drive.expectedDurationMinutes as number;
-  const railMinutes = rail.expectedDurationMinutes as number;
+  const driveMinutes = drive.expectedDurationMinutes;
+  const railMinutes = rail.expectedDurationMinutes;
+  if (driveMinutes === null || railMinutes === null) {
+    return {
+      state: "uncertain",
+      confidence: "low",
+      differenceMinutes: null,
+      primary: evidence("data_quality", "An arrival estimate is incomplete"),
+      supporting: null,
+    };
+  }
   const difference = Math.round(Math.abs(driveMinutes - railMinutes));
   const faster: "drive" | "rail" = driveMinutes < railMinutes ? "drive" : "rail";
   const intervalsOverlap =
