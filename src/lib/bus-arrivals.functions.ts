@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { scheduledBusMatch } from "./bus-match";
 
 const scheduledSchema = z.object({
   routeShortName: z.string().nullable(),
@@ -96,13 +97,6 @@ function clock(seconds: number) {
   }).format(new Date(Date.UTC(2020, 0, 1, hour, minute)));
 }
 
-function normalize(value: string | null) {
-  return (value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
 export const busArrivals = createServerFn({ method: "POST" })
   .inputValidator((input) => inputSchema.parse(input))
   .handler(async ({ data }): Promise<BusArrivalsResult> => {
@@ -140,22 +134,9 @@ export const busArrivals = createServerFn({ method: "POST" })
           const predictedClock = text(block, "stopTime");
           const predictedSeconds = parseClock(predictedClock, nowSeconds);
           if (predictedSeconds === null) return [];
-          const routeMatches = data.scheduled.filter(
-            (item) => normalize(item.routeShortName) === normalize(routeShortName),
-          );
-          const headsignMatches = routeMatches.filter((item) => {
-            const a = normalize(item.headsign);
-            const b = normalize(headsign);
-            return !a || !b || a.includes(b) || b.includes(a);
-          });
-          const candidates = headsignMatches.length > 0 ? headsignMatches : routeMatches;
-          const scheduled = candidates.sort(
-            (a, b) =>
-              Math.abs(a.scheduledSeconds - predictedSeconds) -
-              Math.abs(b.scheduledSeconds - predictedSeconds),
-          )[0];
+          const scheduled = scheduledBusMatch(data.scheduled, { routeShortName, headsign }, predictedSeconds);
           const scheduledSeconds = scheduled?.scheduledSeconds ?? predictedSeconds;
-          const isLive = text(block, "estimated") === "1";
+          const isLive = Boolean(scheduled) && text(block, "estimated") === "1";
           const delayMinutes = isLive ? Math.round((predictedSeconds - scheduledSeconds) / 60) : 0;
           return [
             {
