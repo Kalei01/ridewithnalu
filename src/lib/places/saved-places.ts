@@ -40,8 +40,12 @@ export function hasValidCoordinates<T extends { lat?: unknown; lon?: unknown }>(
   return (
     typeof point.lat === "number" &&
     Number.isFinite(point.lat) &&
+    point.lat >= -90 &&
+    point.lat <= 90 &&
     typeof point.lon === "number" &&
-    Number.isFinite(point.lon)
+    Number.isFinite(point.lon) &&
+    point.lon >= -180 &&
+    point.lon <= 180
   );
 }
 
@@ -66,10 +70,10 @@ function normalizePlace(value: unknown, index: number, now: string): SavedPlace 
         ? row["id"]
         : `${kind}-${index}-${row.lat},${row.lon}`,
     kind,
-    label: typeof row["label"] === "string" && row["label"].trim() ? row["label"] : kindLabel(kind),
-    name: row["name"],
+    label: typeof row["label"] === "string" && row["label"].trim() ? row["label"].trim() : kindLabel(kind),
+    name: row["name"].trim(),
     address:
-      typeof row["address"] === "string" && row["address"].trim() ? row["address"] : row["name"],
+      typeof row["address"] === "string" && row["address"].trim() ? row["address"].trim() : row["name"].trim(),
     lat: row.lat,
     lon: row.lon,
     typicalArrivalSeconds: arrival !== null && Number.isFinite(arrival) ? arrival : null,
@@ -166,8 +170,8 @@ export function makeSavedPlace(
     id: input.id ?? `${input.kind}-${Date.now()}`,
     kind: input.kind,
     label: input.label?.trim() || kindLabel(input.kind),
-    name: input.name,
-    address: input.address || input.name,
+    name: input.name.trim(),
+    address: input.address.trim() || input.name.trim(),
     lat: input.lat,
     lon: input.lon,
     typicalArrivalSeconds: input.typicalArrivalSeconds ?? null,

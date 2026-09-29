@@ -80,6 +80,27 @@ describe("normalized trip estimates", () => {
     expect(item.expectedDurationMinutes).toBe(55);
   });
 
+  it("normalizes impossible drive ranges so ETA confidence cannot invert", () => {
+    const item = driveEstimate({
+      drive: {
+        trafficMinutes: 45,
+        lowMinutes: 70,
+        highMinutes: 20,
+        delayMinutes: -5,
+        fetchedAt: nowMs,
+        trafficBasis: "live",
+      },
+      access: downtown,
+      nowSeconds: at(6),
+      nowMs,
+      carAvailable: true,
+    });
+    expect(item.expectedDurationMinutes).toBe(55);
+    expect(item.earliestArrival).toBe(at(6) + 55 * 60);
+    expect(item.latestArrival).toBe(at(6) + 55 * 60);
+    expect(item.trafficDelayMinutes).toBe(0);
+  });
+
   it("marks stale traffic and stale timetable separately", () => {
     const oldDrive = driveEstimate({
       drive: {
