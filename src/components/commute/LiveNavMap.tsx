@@ -95,6 +95,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     lines,
     destination,
     livePoint,
+    speedMps,
     bearing,
     maneuver,
     eta,

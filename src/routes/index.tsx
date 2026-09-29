@@ -2347,8 +2347,6 @@ function Index() {
         crossTrackM: state.crossTrackM,
         headingDivergence: state.headingDivergence,
         speedMps: riderSpeed,
-        road: nextTurn?.maneuver.road ?? null,
-        maneuver: nextTurn?.maneuver.maneuver ?? null,
       });
       rerouteTimerRef.current = window.setTimeout(() => {
         rerouteTimerRef.current = null;
@@ -2362,7 +2360,7 @@ function Index() {
         setRerouteRequest({ point: latest, bearing: navBearing, nonce: Date.now() });
       }, 1_200);
     },
-    [drivingCommitted, riderPoint, rerouting, navBearing],
+    [drivingCommitted, riderPoint, rerouting, navBearing, riderSpeed],
   );
   useEffect(
     () => () => {
@@ -4484,6 +4482,7 @@ function Index() {
                 >
                   {headingUpNav ? (
                     <LiveNavMap
+                      speedMps={riderSpeed}
                       recenterBottom={176}
                       lines={
                         lockedMode === "drive"
