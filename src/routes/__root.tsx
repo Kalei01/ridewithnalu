@@ -82,13 +82,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Nalu" },
       {
         name: "description",
-        content: "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
+        content: "Compare Skyline, TheBus, and driving for your Oʻahu commute with Nalu.",
       },
       { name: "author", content: "Nalu" },
       { name: "theme-color", content: "#181b20" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {

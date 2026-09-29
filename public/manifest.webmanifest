@@ -1,7 +1,7 @@
 {
   "name": "Nalu",
   "short_name": "Nalu",
-  "description": "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
+  "description": "Rail or drive? Nalu compares Skyline, TheBus, and driving for Oʻahu commuters.",
   "start_url": "/",
   "id": "/",
   "scope": "/",

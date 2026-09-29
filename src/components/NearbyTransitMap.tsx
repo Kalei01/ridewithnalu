@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { LocateFixed, Map, Maximize, Satellite } from "lucide-react";
+import { LocateFixed, Map, Maximize, Satellite, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export type NearbyMapStop = {
@@ -9,6 +9,7 @@ export type NearbyMapStop = {
   lat: number;
   lon: number;
   kind: "rail" | "bus";
+  arrivals: Array<{ label: string; time: string; minutesAway: number }>;
 };
 
 type NearbyTransitMapProps = {
@@ -16,6 +17,9 @@ type NearbyTransitMapProps = {
   stops: NearbyMapStop[];
   selectedStopId: string | null;
   onSelectStop: (stopId: string) => void;
+  onSetStart: (stop: NearbyMapStop) => void;
+  onSetDestination: (stop: NearbyMapStop) => void;
+  actionBusy?: boolean;
 };
 
 type Basemap = "standard" | "satellite";
@@ -49,13 +53,26 @@ export default function NearbyTransitMap({
   stops,
   selectedStopId,
   onSelectStop,
+  onSetStart,
+  onSetDestination,
+  actionBusy = false,
 }: NearbyTransitMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
+  const [previewStopId, setPreviewStopId] = useState<string | null>(null);
+  const previewStop = stops.find((stop) => stop.stopId === previewStopId) ?? null;
+  const previewMissing = Boolean(previewStopId && !previewStop);
+  const previewLat = previewStop?.lat;
+  const previewLon = previewStop?.lon;
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
   const fittedStopsRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (previewMissing) setPreviewStopId(null);
+  }, [previewMissing]);
 
   useEffect(() => {
     const node = nodeRef.current;
@@ -106,6 +123,12 @@ export default function NearbyTransitMap({
   const userDotRef = useRef<L.CircleMarker | null>(null);
   const onSelectStopRef = useRef(onSelectStop);
   onSelectStopRef.current = onSelectStop;
+  const openPreview = (stopId: string) => {
+    setPreviewStopId(stopId);
+    onSelectStopRef.current(stopId);
+  };
+  const openPreviewRef = useRef(openPreview);
+  openPreviewRef.current = openPreview;
   const userRef = useRef(userPoint);
   userRef.current = userPoint;
 
@@ -129,17 +152,29 @@ export default function NearbyTransitMap({
 
     for (const stop of stops) {
       const marker = L.marker([stop.lat, stop.lon], {
-        icon: markerIcon(stop.kind, stop.stopId === selectedStopId),
+        icon: markerIcon(stop.kind, stop.stopId === (previewStopId ?? selectedStopId)),
         title: stop.stopName,
         keyboard: true,
       });
-      marker.on("click", () => onSelectStopRef.current(stop.stopId));
+      marker.on("click", () => openPreviewRef.current(stop.stopId));
       const tooltip = document.createElement("span");
       tooltip.textContent = stop.stopName;
       marker.bindTooltip(tooltip, { direction: "top", offset: [0, -18] });
       marker.addTo(markers);
     }
-  }, [stopsSignature, selectedStopId]);
+  }, [stopsSignature, selectedStopId, previewStopId]);
+
+  // Move the selected pin into the open space above the bottom preview card.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || previewLat === undefined || previewLon === undefined) return;
+    const zoom = Math.max(map.getZoom(), 14);
+    const cardHeight = cardRef.current?.offsetHeight ?? 180;
+    const offset = Math.min(map.getSize().y * 0.32, cardHeight / 2 + 24);
+    const pin = L.latLng(previewLat, previewLon);
+    const center = map.unproject(map.project(pin, zoom).add([0, offset]), zoom);
+    map.flyTo(center, zoom, { duration: 0.45 });
+  }, [previewStopId, previewLat, previewLon]);
 
   // Fit the viewport once per set of stops, never on each GPS tick.
   useEffect(() => {
@@ -237,6 +272,46 @@ export default function NearbyTransitMap({
           </Button>
         </div>
       </div>
+      {previewStop && (
+        <div
+          ref={cardRef}
+          role="region"
+          aria-label={`Departures at ${previewStop.stopName}`}
+          className="absolute inset-x-3 bottom-3 z-[600] rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur-md"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-foreground">{previewStop.stopName}</p>
+              <p className="text-xs text-muted-foreground">
+                {previewStop.kind === "rail" ? "Skyline station" : "TheBus stop"} · scheduled departures
+              </p>
+            </div>
+            <Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label="Close stop preview"
+              onClick={() => setPreviewStopId(null)}>
+              <X className="size-4" />
+            </Button>
+          </div>
+          <div className="mt-2 flex gap-2 overflow-x-auto" aria-live="polite">
+            {previewStop.arrivals.length ? previewStop.arrivals.slice(0, 3).map((arrival, index) => (
+              <div key={`${arrival.time}-${index}`} className="min-w-20 rounded-lg bg-surface-raised px-2 py-1.5">
+                <p className="truncate text-xs font-semibold text-foreground">{arrival.label}</p>
+                <p className="text-sm font-bold tabular-nums text-primary">{arrival.minutesAway} min</p>
+                <p className="text-[10px] tabular-nums text-muted-foreground">{arrival.time}</p>
+              </div>
+            )) : (
+              <p className="text-xs text-muted-foreground">No upcoming scheduled departures.</p>
+            )}
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button size="sm" variant="outline" disabled={actionBusy} onClick={() => onSetStart(previewStop)}>
+              Set as Start
+            </Button>
+            <Button size="sm" disabled={actionBusy} onClick={() => onSetDestination(previewStop)}>
+              Set as Destination
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

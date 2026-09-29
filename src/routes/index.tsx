@@ -94,6 +94,7 @@ import { latestRailArrival } from "@/lib/leave-by";
 import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } from "@/lib/drive/planner";
 import { carAvailableForDrive } from "@/lib/car-state";
 import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-direction";
+import { createClientRateWindow } from "@/lib/client-rate-limit";
 import { decideArrival, decideTrip, type DecisionState } from "@/lib/decision/commute-decision";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
@@ -143,6 +144,7 @@ import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
+import type { NearbyMapStop } from "@/components/NearbyTransitMap";
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
@@ -163,19 +165,44 @@ function WaveMark({ className }: { className?: string }) {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Nalu" },
+      { title: "Nalu | Rail or drive on Oʻahu?" },
       {
         name: "description",
-        content: "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
+        content: "Rail or drive? Compare Skyline, TheBus, and traffic for a door-to-door Oʻahu commute. Nalu helps you choose and arrive on time.",
       },
-      { property: "og:title", content: "Nalu" },
+      { property: "og:title", content: "Nalu | Rail or drive on Oʻahu?" },
       {
         property: "og:description",
-        content: "Rail or drive? Nalu gives Oahu commuters a real-time answer every morning.",
+        content: "Compare Skyline, TheBus, and driving for your Oʻahu commute. Know what to take and when to leave.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Nalu" },
+      { property: "og:url", content: "https://ridewithnalu.lovable.app/" },
+      { property: "og:locale", content: "en_US" },
+      { property: "og:image", content: "https://ridewithnalu.lovable.app/social-card.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Nalu | Rail or drive on Oʻahu?" },
+      { name: "twitter:description", content: "A clear commute choice for Skyline, TheBus, and driving on Oʻahu." },
+      { name: "twitter:image", content: "https://ridewithnalu.lovable.app/social-card.png" },
     ],
+    links: [{ rel: "canonical", href: "https://ridewithnalu.lovable.app/" }],
+    scripts: [{
+      type: "application/ld+json",
+      children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: "Nalu",
+        url: "https://ridewithnalu.lovable.app/",
+        image: "https://ridewithnalu.lovable.app/social-card.png",
+        description: "Nalu compares rail, bus, and driving for door-to-door commutes on Oʻahu.",
+        applicationCategory: "TravelApplication",
+        operatingSystem: "Web",
+        areaServed: { "@type": "Place", name: "Oʻahu, Hawaiʻi" },
+        featureList: ["Skyline and TheBus trip planning", "Drive and transit comparison", "Arrive By planning"],
+      }),
+    }],
   }),
   component: Index,
 });
@@ -873,6 +900,9 @@ function Index() {
   const [hydrated, setHydrated] = useState(false);
   const [setup, setSetup] = useState<Setup>(emptySetup);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [mapSetupDraft, setMapSetupDraft] = useState<Setup | null>(null);
+  const [mapStopActionBusy, setMapStopActionBusy] = useState(false);
+  const mapStopActionBusyRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [restoreSlot, setRestoreSlot] = useState<string | null>(null);
@@ -1318,6 +1348,11 @@ function Index() {
   const drivingCommitted = lockedMode === "drive" && configured && !browseActive;
   const nowSeconds = honoluluSeconds(now);
   const afterSeconds = Math.floor(nowSeconds / 60) * 60;
+  const lastOnlineScheduleSeconds = useRef<number | null>(null);
+  if (online) lastOnlineScheduleSeconds.current = afterSeconds;
+  // Keep schedule query keys on their last successful minute while offline,
+  // so React Query continues showing the cached itinerary and nearby arrivals.
+  const scheduleAfterSeconds = online ? afterSeconds : lastOnlineScheduleSeconds.current ?? afterSeconds;
   // Where today's car is. With station driving enabled, an unrecorded return
   // starts with the car at the home station; an explicit same-day location wins.
   const parkedToday = parked && parked.date === honoluluDateKey(now) ? parked : null;
@@ -1481,13 +1516,13 @@ function Index() {
     isError: browseDeparturesFailed,
     refetch: refetchBrowseDepartures,
   } = useQuery({
-    queryKey: ["browse-departures", browseStation?.stopId, Math.floor(afterSeconds / 60)],
+    queryKey: ["browse-departures", browseStation?.stopId, Math.floor(scheduleAfterSeconds / 60)],
     enabled: browseActive && Boolean(browseStation?.stopId),
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rail_departures", {
         p_home_stop: browseStation?.stopId as string,
-        p_after_seconds: afterSeconds,
+        p_after_seconds: scheduleAfterSeconds,
         p_limit: 3,
       });
       if (error) throw error;
@@ -1537,7 +1572,7 @@ function Index() {
       browseStation?.stopId,
       browseUserPoint?.lat.toFixed(3),
       browseUserPoint?.lon.toFixed(3),
-      Math.floor(afterSeconds / 300),
+      Math.floor(scheduleAfterSeconds / 300),
     ],
     enabled: browseActive && Boolean(browseStation && browseUserPoint) && (browseWalkMinutes ?? 0) > 18,
     staleTime: 5 * 60_000,
@@ -1546,7 +1581,7 @@ function Index() {
         p_lat: browseUserPoint!.lat,
         p_lon: browseUserPoint!.lon,
         p_station: browseStation!.stopId,
-        p_after_seconds: afterSeconds,
+        p_after_seconds: scheduleAfterSeconds,
       });
       if (error) throw error;
       return data ?? [];
@@ -1579,7 +1614,7 @@ function Index() {
       "nearby-transit-stops",
       browseUserPoint?.lat.toFixed(5),
       browseUserPoint?.lon.toFixed(5),
-      Math.floor(afterSeconds / 60),
+      Math.floor(scheduleAfterSeconds / 60),
     ],
     enabled: browseActive && Boolean(browseUserPoint),
     staleTime: 30_000,
@@ -1589,7 +1624,7 @@ function Index() {
       const { data, error } = await supabase.rpc("nearby_transit_stops", {
         p_lat: point.lat,
         p_lon: point.lon,
-        p_after_seconds: afterSeconds,
+        p_after_seconds: scheduleAfterSeconds,
         p_rail_limit: 2,
         p_bus_limit: 5,
       });
@@ -1620,6 +1655,25 @@ function Index() {
     nearbyStops.find((stop) => stop.stopId === selectedNearbyStopId) ?? nearbyStops[0] ?? null;
 
   const arriveByTarget = parseClockInput(arriveByInput);
+  const futureTrafficWindow = useRef(createClientRateWindow(8_000));
+  const [settledTrafficTarget, setSettledTrafficTarget] = useState<number | null>(null);
+  // Rail planning updates immediately; the more expensive future TomTom request
+  // waits for typing to settle and for the previous traffic lookup's cooldown.
+  useEffect(() => {
+    setSettledTrafficTarget(null);
+    if (planMode !== "arrive-by" || arriveByTarget === null) return;
+    let rateTimer: number | undefined;
+    const debounceTimer = window.setTimeout(() => {
+      rateTimer = window.setTimeout(
+        () => setSettledTrafficTarget(arriveByTarget),
+        futureTrafficWindow.current.remainingMs(Date.now()),
+      );
+    }, 500);
+    return () => {
+      window.clearTimeout(debounceTimer);
+      if (rateTimer !== undefined) window.clearTimeout(rateTimer);
+    };
+  }, [planMode, arriveByTarget]);
   const { data: options = [], isLoading: planLoading, isError: planFailed,
     dataUpdatedAt: optionsFetchedAt } = useQuery({
     queryKey: [
@@ -1635,7 +1689,7 @@ function Index() {
       setup.allowDrive,
       carAtStation,
       driveAvailable,
-      Math.floor(afterSeconds / 60),
+      Math.floor(scheduleAfterSeconds / 60),
       planMode,
       planMode === "arrive-by" ? arriveByTarget : null,
     ],
@@ -1676,9 +1730,9 @@ function Index() {
       })) as Option[];
       };
       if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
-        return fetchPage(afterSeconds);
+        return fetchPage(scheduleAfterSeconds);
       const result = await collectArriveByOptions({
-        nowSeconds: afterSeconds, targetSeconds: arriveByTarget, fetchPage,
+        nowSeconds: scheduleAfterSeconds, targetSeconds: arriveByTarget, fetchPage,
       });
       if (!result.complete) throw new Error("Arrival timetable search reached its safe page limit.");
       return result.options;
@@ -2545,7 +2599,7 @@ function Index() {
   );
   const gtfsExpiry = useDataExpiry();
   const driveAccess = destinationAccess(driveTo, arrivingHome ? "home" : null);
-  const futureCandidateSeconds = arriveByActive && drive
+  const futureCandidateSeconds = arriveByActive && settledTrafficTarget === arriveByTarget && drive
     ? arriveByTarget - (drive.highMinutes + driveAccess.highMin) * 60 : null;
   const futureDepartureIso = futureCandidateSeconds !== null && !arriveByPassed && futureCandidateSeconds > nowSeconds
     ? honoluluSecondsToIso(futureCandidateSeconds, now) : null;
@@ -2561,22 +2615,46 @@ function Index() {
     ],
     enabled: Boolean(futureDepartureIso && driveAvailable && configured),
     staleTime: 5 * 60_000,
-    retry: 1,
-    queryFn: () => solveFutureDrive({
-      targetSeconds: arriveByTarget as number,
-      nowSeconds,
-      initial: drive as DriveTime,
-      access: driveAccess,
-      fetchAt: (departureSeconds) => fetchDriveTime({
-        data: {
-          fromLat: driveFrom.lat as number,
-          fromLon: driveFrom.lon as number,
-          toLat: driveTo.lat as number,
-          toLon: driveTo.lon as number,
-          departureTime: honoluluSecondsToIso(departureSeconds, now),
+    retry: false,
+    queryFn: async ({ signal }) => {
+      // Query keys can change again during a refresh. Serialize even those
+      // requests and cancel a waiting lookup when its old target is discarded.
+      while (true) {
+        if (signal.aborted) throw new Error("Future traffic lookup canceled");
+        const currentTime = Date.now();
+        if (futureTrafficWindow.current.tryAcquire(currentTime)) break;
+        await new Promise<void>((resolve, reject) => {
+          const cancel = () => {
+            window.clearTimeout(timer);
+            reject(new Error("Future traffic lookup canceled"));
+          };
+          const timer = window.setTimeout(() => {
+            signal.removeEventListener("abort", cancel);
+            resolve();
+          }, futureTrafficWindow.current.remainingMs(currentTime));
+          signal.addEventListener("abort", cancel, { once: true });
+        });
+      }
+      if (signal.aborted) throw new Error("Future traffic lookup canceled");
+      return solveFutureDrive({
+        targetSeconds: arriveByTarget as number,
+        nowSeconds,
+        initial: drive as DriveTime,
+        access: driveAccess,
+        fetchAt: (departureSeconds) => {
+          if (signal.aborted) throw new Error("Future traffic lookup canceled");
+          return fetchDriveTime({
+            data: {
+              fromLat: driveFrom.lat as number,
+              fromLon: driveFrom.lon as number,
+              toLat: driveTo.lat as number,
+              toLon: driveTo.lon as number,
+              departureTime: honoluluSecondsToIso(departureSeconds, now),
+            },
+          });
         },
-      }),
-    }),
+      });
+    },
   });
   const futureDrive = futureDriveResult?.iterations ? futureDriveResult.sample : null;
   const arriveByDrive = futureDrive ?? drive;
@@ -3220,6 +3298,7 @@ function Index() {
 
   function closeSetup() {
     if (!configured) window.localStorage.setItem(SETUP_DISMISSED_KEY, "1");
+    setMapSetupDraft(null);
     setOnboardingOpen(false);
     setSettingsOpen(false);
   }
@@ -3234,6 +3313,7 @@ function Index() {
     setOverride(null);
     window.localStorage.removeItem(DIRECTION_KEY);
     persist(next);
+    setMapSetupDraft(null);
     window.localStorage.removeItem(SETUP_DISMISSED_KEY);
     setOnboardingOpen(false);
     setSettingsOpen(false);
@@ -3260,6 +3340,64 @@ function Index() {
     for (const result of [station, arriving, boarding])
       if (result.error) console.error("Stop lookup error", result.error);
     return { rail: station.data?.[0], out: arriving.data?.[0], back: boarding.data?.[0] };
+  }
+
+  async function setMapStopAsStart(stop: NearbyMapStop) {
+    if (mapStopActionBusyRef.current) return;
+    mapStopActionBusyRef.current = true;
+    setMapStopActionBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("nearest_stop", {
+        p_lat: stop.lat, p_lon: stop.lon, p_rail_only: true,
+      });
+      if (error || !data?.[0]) throw new Error("Could not find a rail station near this stop.");
+      const next = {
+        ...setup,
+        homeLat: stop.lat, homeLon: stop.lon,
+        homeStopId: data[0].stop_id,
+        homeStopName: data[0].stop_name ?? "",
+      };
+      if (hasValidCoordinates({ lat: next.destLat, lon: next.destLon })) saveSetup(next);
+      else {
+        setMapSetupDraft(next);
+        setOnboardingOpen(true);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not set this starting point.");
+    } finally {
+      mapStopActionBusyRef.current = false;
+      setMapStopActionBusy(false);
+    }
+  }
+
+  async function setMapStopAsDestination(stop: NearbyMapStop) {
+    if (mapStopActionBusyRef.current || !browseUserPoint) return;
+    mapStopActionBusyRef.current = true;
+    setMapStopActionBusy(true);
+    try {
+      const { rail, back } = await findTripStops(browseUserPoint, stop);
+      if (!rail) throw new Error("Could not find a rail station near your start.");
+      saveSetup({
+        ...emptySetup,
+        allowDrive: true,
+        homeLat: browseUserPoint.lat, homeLon: browseUserPoint.lon,
+        homeStopId: rail.stop_id, homeStopName: rail.stop_name ?? "",
+        destinationName: stop.stopName,
+        destinationAddress: stop.stopName,
+        destLat: stop.lat, destLon: stop.lon,
+        // The tapped icon is the rider's exact destination stop, not a
+        // similarly named stop chosen by a nearest-stop lookup.
+        destStopId: stop.stopId, destStopName: stop.stopName,
+        destStopWalkM: 0,
+        destReturnStopId: back?.stop_id ?? "", destReturnStopName: back?.stop_name ?? "",
+        destReturnWalkM: Number(back?.distance_m ?? 0),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not set this destination.");
+    } finally {
+      mapStopActionBusyRef.current = false;
+      setMapStopActionBusy(false);
+    }
   }
 
   async function quickStartRoutine() {
@@ -3411,7 +3549,7 @@ function Index() {
     <SetupDialog
       open={onboardingOpen || settingsOpen}
       firstRun={onboardingOpen}
-      setup={setup}
+      setup={mapSetupDraft ?? setup}
       onClose={closeSetup}
       onSave={saveSetup}
       alertPrefs={alertPrefs}
@@ -3500,7 +3638,7 @@ function Index() {
           <DataExpiryNotice />
           {!online && (
             <p role="status" className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground">
-              You are offline. Live traffic and arrivals cannot refresh until you reconnect.
+              You’re offline. Available schedules stay visible; live arrivals will refresh when you reconnect.
             </p>
           )}
           <MorningPulse
@@ -3587,9 +3725,17 @@ function Index() {
                       lat: stop.lat,
                       lon: stop.lon,
                       kind: stop.routeType === 1 ? "rail" : "bus",
+                      arrivals: stop.arrivals.slice(0, 3).map((arrival) => ({
+                        label: stop.routeType === 1 ? "Skyline" : arrival.route_short_name || "Bus",
+                        time: clockFromSeconds(arrival.departure_seconds),
+                        minutesAway: Math.max(0, Math.ceil((arrival.departure_seconds - nowSeconds) / 60)),
+                      })),
                     }))}
                     selectedStopId={selectedNearbyStop?.stopId ?? null}
                     onSelectStop={setSelectedNearbyStopId}
+                    onSetStart={(stop) => void setMapStopAsStart(stop)}
+                    onSetDestination={(stop) => void setMapStopAsDestination(stop)}
+                    actionBusy={mapStopActionBusy}
                   />
                 </Suspense>
               </ClientOnly>
@@ -4094,7 +4240,7 @@ function Index() {
         <DataExpiryNotice />
         {!online && (
           <p role="status" className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground">
-            You are offline. Live traffic and arrivals cannot refresh until you reconnect.
+            You’re offline. Your trip stays visible; live traffic and arrivals will refresh when you reconnect.
           </p>
         )}
 
