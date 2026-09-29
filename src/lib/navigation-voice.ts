@@ -129,26 +129,33 @@ export type RouteDeviation = {
   offRoute: boolean;
 };
 
+/** ~45 mph: at or above this the rider is on a freeway (H-1, H-2, H-201, H-3). */
+export const FREEWAY_SPEED_MPS = 20;
+
 /**
- * Navigation-grade route deviation state. Distance is decisive immediately;
- * heading needs two fixes so one noisy compass sample cannot force a reroute.
+ * Navigation-grade route deviation state.
+ * Local streets: >45 m drift, or >60° divergence on 2 fixes.
+ * Freeways: lanes, ramps and viaduct multipath drift a lot, so BOTH >80 m
+ * drift AND >35° divergence sustained over 3 fixes are required. A gross
+ * drift (>250 m) is always off-route.
  */
 export function routeDeviation(
   match: RouteMatch | null,
   heading: number | null,
   previousDivergentFixes = 0,
+  speedMps: number | null = null,
 ): RouteDeviation {
   const crossTrackM = match?.distanceM ?? Infinity;
+  const freeway = (speedMps ?? 0) >= FREEWAY_SPEED_MPS;
   const headingDivergence =
     match && heading !== null ? angleDifference(match.bearing, heading) : null;
+  const limit = freeway ? 35 : 60;
   const divergentFixes =
-    headingDivergence !== null && headingDivergence > 60 ? previousDivergentFixes + 1 : 0;
-  return {
-    crossTrackM,
-    headingDivergence,
-    divergentFixes,
-    offRoute: crossTrackM > 45 || divergentFixes >= 2,
-  };
+    headingDivergence !== null && headingDivergence > limit ? previousDivergentFixes + 1 : 0;
+  const offRoute = freeway
+    ? crossTrackM > 250 || (crossTrackM > 80 && divergentFixes >= 3)
+    : crossTrackM > 45 || divergentFixes >= 2;
+  return { crossTrackM, headingDivergence, divergentFixes, offRoute };
 }
 
 /** Keep the snapped vehicle point and only the route still ahead. */
@@ -251,11 +258,33 @@ export function smoothBearing(
 
 // ---------- Route-versioned voice guidance ----------
 
-export type ManeuverVoiceState = "unannounced" | "far_spoken" | "near_spoken" | "passed";
-export const VOICE_COOLDOWN_MS = 8000;
+export type ManeuverVoiceState = "unannounced" | "far_spoken" | "mid_spoken" | "near_spoken" | "passed";
+/** Minimum gap between non-urgent prompts so CarPlay/background audio isn't chopped. */
+export const VOICE_COOLDOWN_MS = 12000;
+export const VOICE_STABILIZE_MS = 3000;
 export const SAFETY_BYPASS_M = 46; // ~150 ft
 
+type Tier = { state: ManeuverVoiceState; atM: number; phrase: string };
+
+/** Announcement tiers scale with speed: freeway exits/splits get earlier notice. */
+export function announcementTiers(speedMps: number | null): Tier[] {
+  if ((speedMps ?? 0) >= FREEWAY_SPEED_MPS)
+    return [
+      { state: "far_spoken", atM: 1200, phrase: "In three quarters of a mile" },
+      { state: "mid_spoken", atM: 600, phrase: "In a third of a mile" },
+      { state: "near_spoken", atM: 250, phrase: "In 800 feet" },
+    ];
+  return [
+    { state: "far_spoken", atM: FAR_ANNOUNCE_M, phrase: "In half a mile" },
+    { state: "near_spoken", atM: NEAR_ANNOUNCE_M, phrase: "In 300 feet" },
+  ];
+}
+const ORDER: ManeuverVoiceState[] = ["unannounced", "far_spoken", "mid_spoken", "near_spoken", "passed"];
+
 const PHONETIC: Array<[RegExp, string]> = [
+  // Strip technical codes TomTom sometimes appends: "(7110)", "[HI-93A]", "#12".
+  [/\s*[([][^)\]]*\d[^)\]]*[)\]]/g, ""],
+  [/\s*#\d+\w*/g, ""],
   [/\bH-?201\b/gi, "Moanalua Freeway"],
   [/\bH-?1\b/gi, "H 1"],
   [/\bH-?2\b/gi, "H 2"],
@@ -272,18 +301,19 @@ const PHONETIC: Array<[RegExp, string]> = [
   [/\bDr\b\.?/gi, "Drive"],
   [/\bPl\b\.?/gi, "Place"],
   [/\bLn\b\.?/gi, "Lane"],
-  [/\b([NSEW])\b(?=\s*$|\s*[,.])/g, "$1"],
   [/\bW\b(?!-)/g, "West"],
   [/\bE\b(?!-)/g, "East"],
   [/\bN\b(?!-)/g, "North"],
   [/\bS\b(?!-)/g, "South"],
+  [/\bWB\b/g, "West"],
+  [/\bEB\b/g, "East"],
 ];
 
 /** Make Oʻahu road abbreviations sound right through speech synthesis. */
 export function speakableRoad(text: string) {
   let out = text;
   for (const [pattern, replacement] of PHONETIC) out = out.replace(pattern, replacement);
-  return out.replace(/\s{2,}/g, " ").trim();
+  return out.replace(/\s+([,.])/g, "$1").replace(/\s{2,}/g, " ").trim();
 }
 
 /** A route's version changes whenever the maneuver list changes (reroute). */
@@ -295,6 +325,9 @@ export class VoiceGuide {
   version = "";
   states = new Map<string, ManeuverVoiceState>();
   lastSpokenAt = -Infinity;
+  firstSeenAt: number | null = null;
+  lastTier: ManeuverVoiceState | null = null;
+  constructor(private opts: { stabilizeMs?: number; cooldownMs?: number } = {}) {}
 
   sync(maneuvers: Maneuver[]) {
     const v = routeVersion(maneuvers);
@@ -312,33 +345,40 @@ export class VoiceGuide {
     this.states.set(maneuverKey(m), "passed");
   }
 
-  /** Returns a phrase to speak or null. State advances only when speaking. */
-  next(next: { maneuver: Maneuver; distanceM: number }, now = Date.now()): string | null {
+  /**
+   * Returns a phrase to speak or null. Each tier is spoken at most once per
+   * maneuver; state only advances forward. Silent while rerouting.
+   */
+  next(
+    next: { maneuver: Maneuver; distanceM: number },
+    now = Date.now(),
+    ctx: { speedMps?: number | null; rerouting?: boolean } = {},
+  ): string | null {
+    if (this.firstSeenAt === null) this.firstSeenAt = now;
+    if (now - this.firstSeenAt < (this.opts.stabilizeMs ?? VOICE_STABILIZE_MS)) return null;
+    if (ctx.rerouting) return null;
     const key = maneuverKey(next.maneuver);
     const current = this.state(next.maneuver);
     if (current === "passed" || current === "near_spoken") return null;
+    const tiers = announcementTiers(ctx.speedMps ?? null);
+    // Deepest tier whose threshold we're inside, but only if it is beyond the current state.
+    let tier: Tier | null = null;
+    for (const t of tiers) if (next.distanceM <= t.atM) tier = t;
+    if (!tier || ORDER.indexOf(tier.state) <= ORDER.indexOf(current)) return null;
+    // Skip a stale earlier tier when we're already much closer (e.g. far tier at 300 m).
+    const idx = tiers.indexOf(tier);
+    const deeper = tiers[idx + 1];
+    if (deeper && next.distanceM <= deeper.atM * 1.5 && tier.state !== "near_spoken") return null;
     const instruction = speakableRoad(next.maneuver.instruction.replace(/\.$/, ""));
-    let phrase: string | null = null;
-    let target: ManeuverVoiceState | null = null;
-    if (next.distanceM <= NEAR_ANNOUNCE_M) {
-      target = "near_spoken";
-      phrase =
-        next.maneuver.maneuver === "ARRIVE"
-          ? "You have arrived at your destination."
-          : `In 300 feet, ${lowerFirst(instruction)}.`;
-    } else if (
-      current === "unannounced" &&
-      next.distanceM <= FAR_ANNOUNCE_M &&
-      next.distanceM > NEAR_ANNOUNCE_M * 2
-    ) {
-      target = "far_spoken";
-      phrase = `In half a mile, ${lowerFirst(instruction)}.`;
-    }
-    if (!phrase || !target) return null;
-    const safety = target === "near_spoken" && next.distanceM < SAFETY_BYPASS_M;
-    if (!safety && now - this.lastSpokenAt < VOICE_COOLDOWN_MS) return null;
-    this.states.set(key, target);
+    const phrase =
+      tier.state === "near_spoken" && next.maneuver.maneuver === "ARRIVE"
+        ? "You have arrived at your destination."
+        : `${tier.phrase}, ${lowerFirst(instruction)}.`;
+    const safety = tier.state === "near_spoken" && next.distanceM < SAFETY_BYPASS_M;
+    if (!safety && now - this.lastSpokenAt < (this.opts.cooldownMs ?? VOICE_COOLDOWN_MS)) return null;
+    this.states.set(key, tier.state);
     this.lastSpokenAt = now;
+    this.lastTier = tier.state;
     return phrase;
   }
 }
