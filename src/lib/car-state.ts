@@ -4,7 +4,7 @@
  * stale parked state can never suppress Drive.
  */
 export function carAvailableForDrive(
-  parkedToday: { place: "home" | "station" | "destination" } | null,
+  parkedToday: { place?: "home" | "station" | "destination" | undefined } | null,
   inbound: boolean,
 ) {
   if (!parkedToday) return true;
