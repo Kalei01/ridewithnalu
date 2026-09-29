@@ -3,6 +3,7 @@ import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
 import { incidentAffectsTrip } from "./traffic-incidents";
+import { routeTravelSeconds } from "./drive/traffic-summary";
 
 const schema = z.object({
   fromLat: z.number(),
@@ -148,8 +149,11 @@ export const driveTime = createServerFn({ method: "POST" })
     const summary = route?.summary;
     if (!summary?.travelTimeInSeconds) throw new Error("No driving route was found.");
 
-    const trafficSeconds =
-      summary.liveTrafficIncidentsTravelTimeInSeconds ?? summary.travelTimeInSeconds;
+    const trafficSeconds = routeTravelSeconds(
+      { travelTimeInSeconds: summary.travelTimeInSeconds,
+        liveTrafficIncidentsTravelTimeInSeconds: summary.liveTrafficIncidentsTravelTimeInSeconds },
+      Boolean(data.departureTime),
+    );
     // What this road usually takes at this hour. Free-flow is not achievable at
     // rush hour, so it never becomes the low end of anything shown to a rider.
     const typicalSeconds = summary.historicTrafficTravelTimeInSeconds ?? trafficSeconds;
@@ -157,7 +161,10 @@ export const driveTime = createServerFn({ method: "POST" })
     const fullPath = flattenPath(route?.legs ?? []);
     const path = thinPath(fullPath);
     const trafficSections = readTrafficSections(route?.sections ?? [], fullPath);
-    const { onRoute: incidents, offRoute } = await fetchIncidents(key, data, path);
+    // Current incidents are not evidence about a later departure.
+    const { onRoute: incidents, offRoute } = data.departureTime
+      ? { onRoute: [] as DriveIncident[], offRoute: [] as Array<string | null> }
+      : await fetchIncidents(key, data, path);
 
     const corridor = extractCorridor(
       route?.guidance?.instructions ?? [],

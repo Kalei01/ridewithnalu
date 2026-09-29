@@ -39,6 +39,7 @@ import { reverseGeocode, searchPlaces, type PlaceSuggestion } from "@/lib/geocod
 import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
+import { confirmedLiveBus } from "@/lib/bus-match";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
 import {
   incidentImpactText,
@@ -88,9 +89,12 @@ import {
   type PlaceKind,
   type SavedPlace,
 } from "@/lib/saved-places";
-import { compareArriveBy, driveArriveBy, latestRailArrival } from "@/lib/leave-by";
-import { honoluluSecondsToIso } from "@/lib/drive/planner";
-import { compareCommute } from "@/lib/decision/commute-decision";
+import { latestRailArrival } from "@/lib/leave-by";
+import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } from "@/lib/drive/planner";
+import { decideArrival, decideTrip, type DecisionState } from "@/lib/decision/commute-decision";
+import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
+import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
+import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
 import { DecisionBars } from "@/components/commute/DecisionBars";
@@ -201,8 +205,8 @@ type Leg = {
   /** Display names only; identity comes from the GTFS stop ids below. */
   from: string | null;
   to: string | null;
-  from_stop_id?: string | null;
-  to_stop_id?: string | null;
+  from_stop_id?: string | null | undefined;
+  to_stop_id?: string | null | undefined;
   depart_seconds: number | null;
   arrive_seconds: number | null;
   minutes: number | null;
@@ -293,6 +297,7 @@ const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
 const PLAN_MODE_KEY = "nalu-plan-mode-v1";
 const ARRIVE_BY_KEY = "nalu-arrive-by-v1";
 const COMMIT_KEY = "nalu-committed-mode-v1";
+const LOCKED_OPTION_KEY = "nalu-locked-itinerary-v1";
 const LIVE_ROUTE_CACHE_KEY = "nalu-live-route-v1";
 
 /** The mode a commuter has committed to for the trip underway. */
@@ -706,6 +711,14 @@ function trafficStatus(delayMinutes: number) {
   return { label: `${delay} min slower than usual`, className: "text-foreground" };
 }
 
+function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
+  if (source.quality === "unavailable") return `${source.name}: unavailable`;
+  if (source.fetchedAt === null) return `${source.name}: update time unknown`;
+  const ageSeconds = Math.max(0, Math.round((nowMs - source.fetchedAt) / 1000));
+  const age = ageSeconds < 60 ? `${ageSeconds} sec` : `${Math.round(ageSeconds / 60)} min`;
+  return `${source.name}: ${source.basis} data checked ${age} ago${source.quality === "stale" ? " (stale)" : ""}`;
+}
+
 function H1ConditionsCard({
   eastbound,
   westbound,
@@ -842,6 +855,17 @@ function H1ConditionsCard({
 function Index() {
   const { user, signedInAt } = useAuth();
   const [now, setNow] = useState(() => new Date());
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const updateOnline = () => setOnline(navigator.onLine);
+    updateOnline();
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
   const [hydrated, setHydrated] = useState(false);
   const [setup, setSetup] = useState<Setup>(emptySetup);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -875,6 +899,7 @@ function Index() {
   // The itinerary boarded, held for the duration of a locked transit trip.
   const lockedOptionRef = useRef<Option | null>(null);
   const lockedItineraryCandidate = useRef<Option | null>(null);
+  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail" } | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
@@ -930,6 +955,8 @@ function Index() {
     if (storedCommitment) {
       setCommitment(storedCommitment);
       setSelectedMode(storedCommitment.mode);
+      if (storedCommitment.mode === "rail")
+        lockedOptionRef.current = parseLockedItinerary(window.localStorage.getItem(LOCKED_OPTION_KEY));
     }
     const storedMode = window.localStorage.getItem(PLAN_MODE_KEY);
     if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
@@ -1101,7 +1128,7 @@ function Index() {
   function commitMode(next: "rail" | "drive") {
     requestCommuteNotificationPermission();
     const entry: Commitment = { mode: next, at: Date.now() };
-    const driveEst = drive?.trafficMinutes ?? null;
+    const driveEst = driveTripEstimate.expectedDurationMinutes;
     startTripLog({
       mode: next,
       startedAt: entry.at,
@@ -1114,6 +1141,9 @@ function Index() {
     // Freeze the itinerary in front of the rider, transfers included.
     lockedOptionRef.current = next === "rail" ? lockedItineraryCandidate.current : null;
     window.localStorage.setItem(COMMIT_KEY, JSON.stringify(entry));
+    if (lockedOptionRef.current)
+      window.localStorage.setItem(LOCKED_OPTION_KEY, JSON.stringify(lockedOptionRef.current));
+    else window.localStorage.removeItem(LOCKED_OPTION_KEY);
   }
 
   /** Release the lock so Nalu can recommend again. */
@@ -1122,6 +1152,7 @@ function Index() {
     setCommitment(null);
     lockedOptionRef.current = null;
     window.localStorage.removeItem(COMMIT_KEY);
+    window.localStorage.removeItem(LOCKED_OPTION_KEY);
   }
 
   /** An active trip stays on its committed mode until it is ended. */
@@ -1174,6 +1205,7 @@ function Index() {
     setCommitment(null);
     lockedOptionRef.current = null;
     window.localStorage.removeItem(COMMIT_KEY);
+    window.localStorage.removeItem(LOCKED_OPTION_KEY);
     setOverride(null);
     window.localStorage.removeItem(DIRECTION_KEY);
     setSelectedDeparture(null);
@@ -1385,6 +1417,7 @@ function Index() {
   const {
     data: browseDepartures = [],
     isLoading: browseDeparturesLoading,
+    isError: browseDeparturesFailed,
     refetch: refetchBrowseDepartures,
   } = useQuery({
     queryKey: ["browse-departures", browseStation?.stopId, Math.floor(afterSeconds / 60)],
@@ -1525,7 +1558,9 @@ function Index() {
   const selectedNearbyStop =
     nearbyStops.find((stop) => stop.stopId === selectedNearbyStopId) ?? nearbyStops[0] ?? null;
 
-  const { data: options = [], isLoading: optionsLoading } = useQuery({
+  const arriveByTarget = parseClockInput(arriveByInput);
+  const { data: options = [], isLoading: optionsLoading, isError: optionsFailed,
+    dataUpdatedAt: optionsFetchedAt } = useQuery({
     queryKey: [
       "trip",
       inbound ? "inbound" : "outbound",
@@ -1536,10 +1571,12 @@ function Index() {
       driveAvailable,
       Math.floor(afterSeconds / 60),
       planMode,
+      planMode === "arrive-by" ? arriveByTarget : null,
     ],
     enabled: hydrated && railConfigured,
     staleTime: 60_000,
     queryFn: async () => {
+      const fetchPage = async (cursor: number): Promise<Option[]> => {
       if (inbound) {
         const { data, error } = await supabase.rpc("plan_inbound", {
           p_dest_lat: setup.destLat as number,
@@ -1548,8 +1585,8 @@ function Index() {
           p_home_lat: setup.homeLat as number,
           p_home_lon: setup.homeLon as number,
           p_allow_drive: carAtStation,
-          p_after_seconds: afterSeconds,
-          p_limit: planMode === "arrive-by" ? 12 : 4,
+          p_after_seconds: cursor,
+          p_limit: planMode === "arrive-by" ? 8 : 4,
         });
         if (error) throw error;
         return (data ?? []).map((row) => ({
@@ -1563,8 +1600,8 @@ function Index() {
         p_station: setup.homeStopId,
         p_dest_stop: setup.destStopId,
         p_allow_drive: driveAvailable,
-        p_after_seconds: afterSeconds,
-        p_limit: planMode === "arrive-by" ? 12 : 4,
+        p_after_seconds: cursor,
+        p_limit: planMode === "arrive-by" ? 8 : 4,
         // Any stop within a quarter mile of the door is fair game, walk included.
         p_dest_lat: setup.destLat as number,
         p_dest_lon: setup.destLon as number,
@@ -1574,6 +1611,14 @@ function Index() {
         ...row,
         legs: row.legs as unknown as Leg[],
       })) as Option[];
+      };
+      if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
+        return fetchPage(afterSeconds);
+      const result = await collectArriveByOptions({
+        nowSeconds: afterSeconds, targetSeconds: arriveByTarget, fetchPage,
+      });
+      if (!result.complete) throw new Error("Arrival timetable search reached its safe page limit.");
+      return result.options;
     },
   });
 
@@ -1760,12 +1805,16 @@ function Index() {
     retry: false,
     queryFn: () => fetchBusArrivals({ data: busTarget as BusStopTarget }),
   });
+  const confirmedBusArrival = plannedBusLeg && liveBus
+    ? matchLiveArrival(liveBus, plannedBusLeg.route_short, plannedBusLeg.headsign,
+        plannedBusLeg.depart_seconds)
+    : null;
 
   // --- Automatic "approaching your stop" tracking -------------------------
   // No button: whenever the current plan has a transit leg underway, follow it
   // with GPS when granted and fall back to the timetable when it is not.
   const activeTransitLeg = useMemo(() => {
-    if (!best) return null;
+    if (!best || commitment?.mode !== "rail") return null;
     return (
       best.legs.find(
         (leg) =>
@@ -1776,7 +1825,7 @@ function Index() {
           nowSeconds <= leg.arrive_seconds + 60,
       ) ?? null
     );
-  }, [best, nowSeconds]);
+  }, [best, nowSeconds, commitment?.mode]);
 
   const { data: legStops = [] } = useQuery({
     queryKey: [
@@ -2412,18 +2461,19 @@ function Index() {
   // ---- "Arrive by" planning -------------------------------------------------
   // Work backwards from the target time to the latest honest departure for each
   // mode, using the same TomTom drive time and GTFS itineraries as Leave now.
-  const arriveByTarget = parseClockInput(arriveByInput);
   const arriveByActive = planMode === "arrive-by" && arriveByTarget !== null;
   const arriveByPassed = arriveByActive && arriveByTarget < nowSeconds;
   const railPick = useMemo(
     () => (arriveByTarget === null ? null : latestRailArrival(options, arriveByTarget)),
     [options, arriveByTarget],
   );
-  const futureDepartureIso =
-    arriveByActive && !arriveByPassed && drive
-      ? honoluluSecondsToIso(arriveByTarget - drive.trafficMinutes * 60, now)
-      : null;
-  const { data: futureDrive } = useQuery({
+  const gtfsExpiry = useDataExpiry();
+  const driveAccess = destinationAccess(driveTo, inbound ? "home" : null);
+  const futureCandidateSeconds = arriveByActive && drive
+    ? arriveByTarget - (drive.highMinutes + driveAccess.highMin) * 60 : null;
+  const futureDepartureIso = futureCandidateSeconds !== null && !arriveByPassed && futureCandidateSeconds > nowSeconds
+    ? honoluluSecondsToIso(futureCandidateSeconds, now) : null;
+  const { data: futureDriveResult } = useQuery({
     queryKey: [
       "drive-future",
       driveFrom.lat,
@@ -2431,27 +2481,36 @@ function Index() {
       driveTo.lat,
       driveTo.lon,
       futureDepartureIso,
+      drive?.fetchedAt,
     ],
     enabled: Boolean(futureDepartureIso && driveAvailable && configured),
     staleTime: 5 * 60_000,
     retry: 1,
-    queryFn: () =>
-      fetchDriveTime({
+    queryFn: () => solveFutureDrive({
+      targetSeconds: arriveByTarget as number,
+      nowSeconds,
+      initial: drive as DriveTime,
+      access: driveAccess,
+      fetchAt: (departureSeconds) => fetchDriveTime({
         data: {
           fromLat: driveFrom.lat as number,
           fromLon: driveFrom.lon as number,
           toLat: driveTo.lat as number,
           toLon: driveTo.lon as number,
-          departureTime: futureDepartureIso as string,
+          departureTime: honoluluSecondsToIso(departureSeconds, now),
         },
       }),
+    }),
   });
+  const futureDrive = futureDriveResult?.iterations ? futureDriveResult.sample : null;
   const arriveByDrive = futureDrive ?? drive;
   // Be honest about where a drive time comes from: measured now, or projected
   // for a later departure from TomTom's historic profile.
   const driveBasisLabel =
     futureDrive?.trafficBasis === "future-estimate"
-      ? `Drive time: TomTom estimate for a ${clockFromSeconds(honoluluSeconds(new Date(futureDepartureIso as string)))} departure, not live traffic`
+      ? `Drive time: TomTom future estimate for a ${clockFromSeconds(futureDriveResult?.candidateSeconds ?? nowSeconds)} departure${futureDriveResult?.converged ? "" : " (approximate)"}`
+      : arriveByActive && drive
+        ? "Drive time: current TomTom traffic used as a fallback; future conditions may differ"
       : drive?.trafficBasis === "live"
         ? "Drive time: TomTom live traffic"
         : "Drive time: TomTom";
@@ -2460,25 +2519,32 @@ function Index() {
     () =>
       arriveByTarget === null || !arriveByDrive || !driveAvailable
         ? null
-        : driveArriveBy(
+        : planDriveArrivalWithRange(
             arriveByTarget,
-            arriveByDrive.trafficMinutes,
+            arriveByDrive,
+            driveAccess,
             nowSeconds,
-            undefined,
-            Boolean(futureDrive),
+            { estimated: Boolean(futureDrive), converged: futureDriveResult?.converged,
+              iterations: futureDriveResult?.iterations, futureFailed: futureDriveResult?.futureFailed },
           ),
-    [arriveByTarget, arriveByDrive, driveAvailable, nowSeconds, futureDrive],
+    [arriveByTarget, arriveByDrive, driveAvailable, driveAccess, nowSeconds, futureDrive, futureDriveResult],
   );
-  const arriveByComparison = useMemo(
-    () =>
-      compareArriveBy({
-        railLeaveBySeconds: railPick?.option?.leave_by_seconds ?? null,
-        railArriveSeconds: railPick?.option?.arrive_seconds ?? null,
-        driveLeaveBySeconds: drivePlan?.feasible ? drivePlan.leaveBySeconds : null,
-        driveArriveSeconds: drivePlan?.feasible ? drivePlan.arriveSeconds : null,
-      }),
-    [railPick, drivePlan],
-  );
+  const arrivalDriveEstimate = driveEstimate({
+    drive: arriveByDrive ?? null, access: driveAccess, nowSeconds, nowMs: now.getTime(),
+    leaveAtSeconds: drivePlan?.leaveBySeconds ?? nowSeconds, carAvailable: driveAvailable,
+    failed: driveFailed, targetArrivalSeconds: arriveByTarget,
+    ...(arriveByActive && (!futureDrive || !futureDriveResult?.converged || futureDriveResult.futureFailed)
+      ? { qualityOverride: "limited" as const } : {}),
+  });
+  const arrivalRailEstimate = transitEstimate({
+    option: railPick?.option ?? null, nowSeconds, nowMs: now.getTime(),
+    scheduleFetchedAt: optionsFetchedAt || null, failed: optionsFailed,
+    targetArrivalSeconds: arriveByTarget,
+    feedExpired: gtfsExpiry !== null && gtfsExpiry.daysRemaining < 0,
+    liveBusFetchedAt: confirmedBusArrival ? (liveBus?.fetchedAt ?? null) : null,
+  });
+  const arriveByComparison = arriveByTarget === null ? null
+    : decideArrival(arrivalDriveEstimate, arrivalRailEstimate, arriveByTarget);
 
   // In arrive-by mode the itinerary shown is the latest one that still makes it.
   const arriveByLeaveBy =
@@ -2566,68 +2632,61 @@ function Index() {
 
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
   // Rail total carries a safety buffer, and a range for transfers that slip.
-  const railMinutes = best ? best.total_minutes + RAIL_BUFFER_MIN : null;
-  const railRange =
-    railMinutes === null ? null : { low: railMinutes - 1, high: railMinutes + RAIL_SLIP_MIN };
-  // Door to door: road time plus the parking/walk buffer at the destination.
-  // The hero arrival is the verified TomTom road arrival only; the parking /
-  // walk buffer is shown as a secondary note and never biases the verdict.
-  const driveAccess = destinationAccess(driveTo, inbound ? "home" : null);
-  const roadOnlyAccess = { ...driveAccess, lowMin: 0, typicalMin: 0, highMin: 0 };
+  const driveTripEstimate = driveEstimate({
+    drive: drive ?? null, access: driveAccess, nowSeconds, nowMs: now.getTime(),
+    carAvailable: driveAvailable, failed: driveFailed,
+    majorIncident: Boolean(drive?.incidents[0]),
+  });
+  const railTripEstimate = transitEstimate({
+    option: best ?? null, nowSeconds, nowMs: now.getTime(),
+    scheduleFetchedAt: optionsFetchedAt || null, failed: optionsFailed,
+    feedExpired: gtfsExpiry !== null && gtfsExpiry.daysRemaining < 0,
+    liveBusFetchedAt: confirmedBusArrival ? (liveBus?.fetchedAt ?? null) : null,
+  });
+  const railMinutes = railTripEstimate.expectedDurationMinutes;
+  const railRange = railTripEstimate.availability === "available" ? {
+    low: Math.round(((railTripEstimate.earliestArrival as number) - nowSeconds) / 60),
+    high: Math.round(((railTripEstimate.latestArrival as number) - nowSeconds) / 60),
+  } : null;
+  const itineraryRange = arriveByActive && best ? {
+    low: Math.max(0, best.total_minutes - 1),
+    high: Math.round(best.total_minutes + (railTripEstimate.uncertaintyMinutes ?? 0)),
+  } : railRange;
   const driveArrival = drive
-    ? arrivalRange(
-        nowSeconds,
+    ? arrivalRange(nowSeconds,
         { low: drive.lowMinutes, expected: drive.trafficMinutes, high: drive.highMinutes },
-        roadOnlyAccess,
-      )
+        driveAccess)
     : null;
   const driveBufferNote =
     driveAccess.highMin > 0
-      ? `Allow ${driveAccess.lowMin}–${driveAccess.highMin} min more to park and walk in`
+      ? `Includes ${driveAccess.lowMin}–${driveAccess.highMin} min to park and walk in`
       : null;
   const driveWindow = driveArrival
     ? `${clockFromSeconds(driveArrival.earliestSeconds)} – ${clockFromSeconds(driveArrival.latestSeconds)}`
     : null;
-  const driveRange = drive
-    ? {
-        low: drive.lowMinutes,
-        high: drive.highMinutes,
-      }
+  const driveRange = driveTripEstimate.availability === "available" ? {
+    low: Math.round(((driveTripEstimate.earliestArrival as number) - nowSeconds) / 60),
+    high: Math.round(((driveTripEstimate.latestArrival as number) - nowSeconds) / 60),
+  } : null;
+  const railWindow = best && railTripEstimate.earliestArrival !== null && railTripEstimate.latestArrival !== null
+    ? `${clockFromSeconds(railTripEstimate.earliestArrival)} – ${clockFromSeconds(railTripEstimate.latestArrival)}`
     : null;
-  const railWindow = best
-    ? `${clockFromSeconds(best.arrive_seconds - 60)} – ${clockFromSeconds(best.arrive_seconds + RAIL_SLIP_MIN * 60)}`
-    : null;
-  // The verdict compares exactly the number each column shows: the worst case.
-  const driveMinutes = driveRange ? driveRange.high : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
-  const waitForTrain = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
-  const longWait = waitForTrain !== null && waitForTrain > LONG_WAIT_MIN;
-
-  const usableDrive = driveAvailable && driveMinutes !== null;
-  // Compare worst case against worst case: the exact figures headlining each
-  // column. When driving is not an option there is nothing to compare, so the
-  // gap stays null and the headline never claims a margin.
-  const railWorst = railRange ? railRange.high : null;
-  const gap =
-    railWorst !== null && usableDrive && driveMinutes !== null ? driveMinutes - railWorst : null;
-  // An incident only explains the verdict when it is what actually pushes the
-  // drive past rail; otherwise it is noise and must not colour the headline.
-  const incidentDecides =
-    Boolean(drive?.incidents[0]) &&
-    railWorst !== null &&
-    driveMinutes !== null &&
-    driveMinutes > railWorst &&
-    driveMinutes - (drive?.incidents[0]?.delayMinutes ?? 0) <= railWorst;
-  const decision = compareCommute({
-    railMinutes: railWorst,
-    driveMinutes,
-    driveAvailable,
-    driveDelayMinutes: drive?.delayMinutes ?? null,
-    hasMajorIncident: incidentDecides,
-    railWaitMinutes: waitForTrain,
-    thresholdMinutes: TOSS_UP_MIN,
-  });
-  const verdict = decision.recommendation;
+  const decisionKey = `${planMode}:${inbound}:${setup.homeLat}:${setup.homeLon}:${setup.destLat}:${setup.destLon}`;
+  const previousVerdict = decisionHistoryRef.current?.key === decisionKey
+    ? decisionHistoryRef.current.state : null;
+  const decision = decideTrip(driveTripEstimate, railTripEstimate, previousVerdict,
+    { tossUpMinutes: TOSS_UP_MIN });
+  const activeDecision = arriveByActive && arriveByComparison ? arriveByComparison : decision;
+  const verdict: DecisionState = commitment?.mode ??
+    (optionsLoading || driveLoading ? "uncertain" : activeDecision.state);
+  const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
+    ? decision.differenceMinutes : null;
+  const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
+  useEffect(() => {
+    if (!commitment && (verdict === "drive" || verdict === "rail"))
+      decisionHistoryRef.current = { key: decisionKey, state: verdict };
+  }, [commitment, verdict, decisionKey]);
   // The verdict only steers the view until the commuter commits; after that the
   // locked mode stays on screen for the rest of the trip.
   useEffect(() => {
@@ -2635,36 +2694,7 @@ function Index() {
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "rail") setSelectedMode("rail");
   }, [verdict, inbound, commitment]);
-  // One line naming the single thing that decides it.
-  const reasoning = useMemo(() => {
-    const incident = drive?.incidents[0];
-    if (verdict === "drive" && longWait && waitForTrain !== null) {
-      return `Next reachable train is ${waitForTrain} min out`;
-    }
-    if (verdict === "rail" && incident && incidentDecides) {
-      return trafficDelayText(incident, drive?.delayMinutes ?? 0);
-    }
-    if (verdict === "rail" && best) {
-      // Biggest wait inside the chain is the bottleneck worth naming.
-      let worstLabel: string | null = null;
-      let worstWait = 0;
-      for (let index = 1; index < best.legs.length; index += 1) {
-        const previous = best.legs[index - 1];
-        const leg = best.legs[index];
-        const wait = (leg?.depart_seconds ?? 0) - (previous?.arrive_seconds ?? 0);
-        if (wait > worstWait && leg) {
-          worstWait = wait;
-          worstLabel = vehicleName(leg);
-        }
-      }
-      if (worstLabel && worstWait >= 5 * 60) {
-        return `${worstLabel} connection adds ${Math.round(worstWait / 60)} min of waiting`;
-      }
-    }
-    if (drive && drive.delayMinutes >= 5)
-      return `The drive is running ${drive.delayMinutes} min slower than usual`;
-    return null;
-  }, [best, drive, verdict, longWait, waitForTrain, incidentDecides]);
+  const reasoning = commitment ? "Your selected trip stays locked while conditions update." : activeDecision.primary.text;
 
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
@@ -3376,6 +3406,11 @@ function Index() {
           )}
 
           <DataExpiryNotice />
+          {!online && (
+            <p role="status" className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground">
+              You are offline. Live traffic and arrivals cannot refresh until you reconnect.
+            </p>
+          )}
           <MorningPulse
             home={browseHome}
             work={browseWork}
@@ -3630,7 +3665,10 @@ function Index() {
                 {browseDeparturesLoading && (
                   <p className="text-sm text-muted-foreground">Loading departures…</p>
                 )}
-                {!browseDeparturesLoading && browseDirections.length === 0 && (
+                {browseDeparturesFailed && (
+                  <p className="col-span-2 text-sm text-warning">Rail departure data is unavailable right now.</p>
+                )}
+                {!browseDeparturesLoading && !browseDeparturesFailed && browseDirections.length === 0 && (
                   <p className="col-span-2 text-sm text-muted-foreground">
                     No rail departures are scheduled from this station right now.
                   </p>
@@ -3959,6 +3997,11 @@ function Index() {
         </header>
 
         <DataExpiryNotice />
+        {!online && (
+          <p role="status" className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground">
+            You are offline. Live traffic and arrivals cannot refresh until you reconnect.
+          </p>
+        )}
 
         <section
           className="mt-4 rounded-lg border border-border bg-surface-raised p-4"
@@ -4054,6 +4097,8 @@ function Index() {
                       </p>
                     ) : optionsLoading ? (
                       <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
+                    ) : optionsFailed ? (
+                      <p className="mt-2 text-sm text-warning">Rail data is unavailable right now.</p>
                     ) : railPick?.earliestOption ? (
                       <p className="mt-2 text-sm text-warning">
                         {arriveByPassed
@@ -4097,12 +4142,15 @@ function Index() {
                       </details>
                     )}
                     {drivePlan?.feasible && !arriveByPassed ? (
-                      <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
+                      <div className="mt-2">
+                      <p className="text-lg font-bold tabular-nums text-foreground">
                         Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
                         <span className="ml-2 text-sm font-medium text-muted-foreground">
                           · arrive around {clockFromSeconds(drivePlan.arriveSeconds)}
                         </span>
                       </p>
+                      {!drivePlan.protected && <p className="mt-1 text-xs text-warning">The late end of the drive estimate may miss your target.</p>}
+                      </div>
                     ) : drivePlan ? (
                       <p className="mt-2 text-sm text-warning">
                         {arriveByPassed
@@ -4130,26 +4178,16 @@ function Index() {
                     )}
                   </div>
 
-                  {arriveByComparison.winner === "drive" && arriveByComparison.laterMinutes > 0 && (
-                    <p className="text-base font-semibold text-foreground">
-                      Driving lets you leave {arriveByComparison.laterMinutes} min later than rail
-                      and still arrive by{" "}
-                      {clockFromSeconds(drivePlan?.arriveSeconds ?? arriveByTarget)}.
-                    </p>
-                  )}
-                  {arriveByComparison.winner === "rail" && arriveByComparison.laterMinutes > 0 && (
-                    <p className="text-base font-semibold text-foreground">
-                      Rail lets you leave {arriveByComparison.laterMinutes} min later than driving
-                      {arriveByComparison.earlierMinutes > 0
-                        ? ` and arrive ${arriveByComparison.earlierMinutes} min earlier than driving`
-                        : ""}
-                      .
-                    </p>
-                  )}
-                  {arriveByComparison.winner === "same" && (
-                    <p className="text-base font-semibold text-muted-foreground">
-                      Rail and driving need you out the door at about the same time.
-                    </p>
+                  {arriveByComparison && (
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <p className="font-semibold text-foreground">{arriveByComparison.primary.text}</p>
+                      {arriveByComparison.driveMarginMinutes !== null && arriveByComparison.driveMarginMinutes >= 0 && (
+                        <p>Drive: about {Math.round(arriveByComparison.driveMarginMinutes)} min before your target.</p>
+                      )}
+                      {arriveByComparison.railMarginMinutes !== null && arriveByComparison.railMarginMinutes >= 0 && (
+                        <p>Transit: about {Math.round(arriveByComparison.railMarginMinutes)} min before your target.</p>
+                      )}
+                    </div>
                   )}
                   <p className="text-[10px] text-muted-foreground">
                     All times are Hawaii Standard Time (UTC−10).
@@ -4168,7 +4206,7 @@ function Index() {
             <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
               <Check className="size-4 stroke-[3]" />
             </span>
-            <span className="text-xs font-semibold">Best option</span>
+            <span className="text-xs font-semibold">{commitment ? "On this trip" : "Nalu says"}</span>
           </div>
           <h1
             id="verdict-title"
@@ -4177,14 +4215,18 @@ function Index() {
             {!configured
               ? "Where to?"
               : verdict === "none"
-                ? "Rail unavailable"
+                ? "No valid option"
+                : verdict === "uncertain"
+                  ? "Data uncertain"
                 : verdict === "same"
-                  ? "Drive and transit are about the same time"
+                  ? "Toss-up"
                   : verdict === "rail"
                     ? `Take Skyline${gap !== null ? ` · ${Math.abs(gap)} min faster` : ""}`
                     : `Drive${gap !== null ? ` · ${Math.abs(gap)} min faster` : ""}`}
           </h1>
-          {configured && <DecisionBars drive={{ label: "Drive", minutes: driveAvailable ? driveRange?.high ?? null : null }} transit={{ label: "Transit", minutes: railRange?.high ?? null }} />}
+          {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
+            low: driveRange?.low, high: driveRange?.high }} transit={{ label: "Transit", minutes: railTripEstimate.expectedDurationMinutes,
+            low: railRange?.low, high: railRange?.high }} />}
           {verdict === "rail" && best && railRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
               <div className="metric-glass">
@@ -4200,9 +4242,9 @@ function Index() {
                 </p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-xs text-muted-foreground">{arriveByActive ? "Trip" : "From now"}</p>
                 <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
-                  {railRange.high}
+                  {arriveByActive ? best.total_minutes : Math.round(railTripEstimate.expectedDurationMinutes ?? 0)}
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
                 </p>
               </div>
@@ -4222,13 +4264,13 @@ function Index() {
               <div className="metric-glass">
                 <p className="text-xs text-muted-foreground">Arrive</p>
                 <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
-                  {clockFromSeconds(driveArrival.expectedSeconds)}
+                  {clockFromSeconds(driveTripEstimate.arrivalTime ?? driveArrival.expectedSeconds)}
                 </p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">Drive time</p>
+                <p className="text-xs text-muted-foreground">Door to door</p>
                 <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
-                  {driveRange.high}
+                  {Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)}
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
                 </p>
               </div>
@@ -4241,18 +4283,20 @@ function Index() {
             </div>
           )}
           {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
-          {(verdict === "same" || verdict === "none") && (
+          {configured && (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
             <p className="mt-4 text-lg font-medium text-muted-foreground">
               {verdict === "same"
-                ? `Rail and driving are within ${TOSS_UP_MIN} min of each other.`
-                : optionsLoading
-                  ? "Checking today's connections…"
-                  : todayHours
-                    ? `No reachable rail connection right now. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.`
-                    : "No rail service for this trip today."}
+                ? "Both options are close once arrival ranges are considered."
+                : activeDecision.primary.text}
             </p>
           )}
-          {reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
+          {configured && (verdict === "rail" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
+          {configured && !commitment && <details className="mt-3 text-sm text-muted-foreground">
+            <summary className="cursor-pointer font-semibold text-foreground">Why?</summary>
+            {activeDecision.supporting && <p className="mt-2">{activeDecision.supporting.text}</p>}
+            <p className="mt-2">{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
+            <p className="mt-1">{sourceFreshnessLabel(railTripEstimate.source, now.getTime())}</p>
+          </details>}
           {verdict === "drive" && drive?.incidents[0] && (
             <div className="mt-4 border-l-2 border-warning pl-3">
               <p className="text-base font-bold text-foreground">
@@ -4267,7 +4311,7 @@ function Index() {
 
         {/* Keep the trip commitment action directly beneath the verdict so it
             remains visible before route and comparison details. */}
-        <section
+        {configured && <section
             className={`commitment-panel -mx-2 mt-3 rounded-2xl p-3 ${commitment ? "is-live" : ""}`}
           aria-label={commitment ? "Active trip controls" : "Start trip"}
         >
@@ -4314,6 +4358,7 @@ function Index() {
           ) : (
             <Button
               type="button"
+              disabled={selectedMode === "rail" ? !best : !driveAvailable || !drive}
               onClick={() => {
                 // Starting a trip means "tell me everything": unlock chime and speech
                 // inside this tap (iOS Safari), unmute voice and turn every alert on.
@@ -4347,7 +4392,7 @@ function Index() {
               <Radio className="size-5 shrink-0" />
             </Button>
           )}
-        </section>
+        </section>}
 
         {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
           <section
@@ -4531,7 +4576,7 @@ function Index() {
               onClick={() => chooseMode("rail")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              <TrainFront /> Rail {railRange ? `· ${railRange.high} min` : ""}
+              <TrainFront /> Rail {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${Math.round(railTripEstimate.expectedDurationMinutes)} min` : ""}
               {!commitment && verdict === "rail" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}
@@ -4545,7 +4590,7 @@ function Index() {
               onClick={() => chooseMode("drive")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              <Car /> Drive {driveAvailable && driveRange ? `· ${driveRange.high} min` : ""}
+              <Car /> Drive {driveTripEstimate.expectedDurationMinutes !== null ? `· ${Math.round(driveTripEstimate.expectedDurationMinutes)} min` : ""}
               {!commitment && verdict === "drive" && (
                 <span className="mode-winner-badge">Faster than transit</span>
               )}
@@ -4557,9 +4602,9 @@ function Index() {
             <div className="mt-6">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-xl font-bold text-foreground">Rail itinerary</h3>
-                {railRange && (
+                {itineraryRange && (
                   <p className="text-sm font-semibold text-muted-foreground">
-                    {railRange.low}–{railRange.high} min
+                    {itineraryRange.low}–{itineraryRange.high} min
                   </p>
                 )}
               </div>
@@ -4590,7 +4635,7 @@ function Index() {
                   </p>
                 </div>
                 <p className="text-4xl font-bold tabular-nums text-foreground">
-                  {driveAvailable ? (driveRange ? driveRange.high : driveLoading ? "…" : "—") : "—"}
+                  {driveAvailable ? (driveTripEstimate.expectedDurationMinutes !== null ? Math.round(driveTripEstimate.expectedDurationMinutes) : driveLoading ? "…" : "—") : "—"}
                   <span className="ml-1 text-base">min</span>
                 </p>
               </div>
@@ -5051,26 +5096,7 @@ function matchLiveArrival(
   scheduledSeconds: number | null,
 ) {
   if (!result || result.error) return null;
-  const normalizedRoute = (route ?? "").trim().toLowerCase();
-  const normalizedHeadsign = (headsign ?? "").trim().toLowerCase();
-  const matches = result.arrivals.filter((arrival) => {
-    if (arrival.routeShortName.trim().toLowerCase() !== normalizedRoute) return false;
-    const candidate = arrival.headsign.trim().toLowerCase();
-    return (
-      !candidate ||
-      !normalizedHeadsign ||
-      candidate.includes(normalizedHeadsign) ||
-      normalizedHeadsign.includes(candidate)
-    );
-  });
-  if (scheduledSeconds === null) return matches[0] ?? null;
-  return (
-    matches.sort(
-      (a, b) =>
-        Math.abs(a.scheduledSeconds - scheduledSeconds) -
-        Math.abs(b.scheduledSeconds - scheduledSeconds),
-    )[0] ?? null
-  );
+  return confirmedLiveBus(result.arrivals, route, headsign, scheduledSeconds);
 }
 
 function BusArrivalTime({
