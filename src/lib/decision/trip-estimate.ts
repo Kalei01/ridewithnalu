@@ -43,26 +43,6 @@ export type DriveSample = {
   trafficBasis: "live" | "future-estimate";
 };
 
-function normalizeDriveSample(sample: DriveSample): DriveSample {
-  const traffic = Math.max(0, Number.isFinite(sample.trafficMinutes) ? sample.trafficMinutes : 0);
-  const low = Math.max(
-    0,
-    Number.isFinite(sample.lowMinutes) ? Math.min(sample.lowMinutes, traffic) : traffic,
-  );
-  const high = Math.max(
-    traffic,
-    Number.isFinite(sample.highMinutes) ? sample.highMinutes : traffic,
-  );
-  const delay = Math.max(0, Number.isFinite(sample.delayMinutes) ? sample.delayMinutes : 0);
-  return {
-    ...sample,
-    trafficMinutes: traffic,
-    lowMinutes: low,
-    highMinutes: high,
-    delayMinutes: delay,
-  };
-}
-
 export type TransitLeg = {
   mode: "walk" | "drive" | "bus" | "rail";
   depart_seconds: number | null;
@@ -123,8 +103,7 @@ export function driveEstimate(input: {
   targetArrivalSeconds?: number | null;
   majorIncident?: boolean;
 }): TripEstimate {
-  const { access, nowSeconds, nowMs } = input;
-  const normalizedDrive = input.drive ? normalizeDriveSample(input.drive) : null;
+  const { drive, access, nowSeconds, nowMs } = input;
   if (!input.carAvailable)
     return unavailable("drive", "car-unavailable", {
       name: "TomTom",
@@ -132,7 +111,7 @@ export function driveEstimate(input: {
       fetchedAt: null,
       quality: "unavailable",
     });
-  if (!normalizedDrive)
+  if (!drive)
     return unavailable("drive", "data-error", {
       name: "TomTom",
       basis: "live",
@@ -140,9 +119,9 @@ export function driveEstimate(input: {
       quality: "unavailable",
     });
   const departure = input.leaveAtSeconds ?? nowSeconds;
-  const expected = normalizedDrive.trafficMinutes + access.typicalMin;
-  const earliest = departure + (normalizedDrive.lowMinutes + access.lowMin) * 60;
-  const latest = departure + (normalizedDrive.highMinutes + access.highMin) * 60;
+  const expected = drive.trafficMinutes + access.typicalMin;
+  const earliest = departure + (drive.lowMinutes + access.lowMin) * 60;
+  const latest = departure + (drive.highMinutes + access.highMin) * 60;
   const arrival = departure + expected * 60;
   return {
     mode: "drive",
@@ -160,15 +139,15 @@ export function driveEstimate(input: {
     busWaitMinutes: 0,
     transferMinutes: 0,
     walkingMinutes: access.typicalMin,
-    trafficDelayMinutes: normalizedDrive.delayMinutes,
+    trafficDelayMinutes: drive.delayMinutes,
     majorIncident: Boolean(input.majorIncident),
     source: {
       name: "TomTom",
-      basis: normalizedDrive.trafficBasis,
-      fetchedAt: normalizedDrive.fetchedAt,
+      basis: drive.trafficBasis,
+      fetchedAt: drive.fetchedAt,
       quality:
         input.qualityOverride ??
-        (input.failed ? "limited" : qualityFor(normalizedDrive.fetchedAt, nowMs, DRIVE_FRESH_MS)),
+        (input.failed ? "limited" : qualityFor(drive.fetchedAt, nowMs, DRIVE_FRESH_MS)),
     },
   };
 }
