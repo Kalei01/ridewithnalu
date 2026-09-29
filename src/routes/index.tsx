@@ -79,6 +79,7 @@ import {
   hasValidCoordinates,
   makeSavedPlace,
   migrateSavedPlaces,
+  parseSavedPlaces,
   parseClockInput,
   removePlace,
   swapHomeWork,
@@ -101,6 +102,7 @@ import { VerdictCard } from "@/components/commute/VerdictCard";
 import { DecisionBars } from "@/components/commute/DecisionBars";
 import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
 import { AccountSection } from "@/components/account/AccountSection";
+import { AccountButton, AccountDialog, type PlacesSyncStatus } from "@/components/account/AccountDialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrivalRange, destinationAccess } from "@/lib/destination-access";
@@ -854,7 +856,7 @@ function H1ConditionsCard({
 }
 
 function Index() {
-  const { user, signedInAt } = useAuth();
+  const { user, loading: authLoading, signedInAt } = useAuth();
   const [now, setNow] = useState(() => new Date());
   const [online, setOnline] = useState(true);
   useEffect(() => {
@@ -871,6 +873,12 @@ function Index() {
   const [setup, setSetup] = useState<Setup>(emptySetup);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [restoreSlot, setRestoreSlot] = useState<string | null>(null);
+  const [quickPlaceSlot, setQuickPlaceSlot] = useState<string | null>(null);
+  const [placesSyncStatus, setPlacesSyncStatus] = useState<PlacesSyncStatus>("idle");
+  const [syncRetry, setSyncRetry] = useState(0);
+  const [syncReadyUser, setSyncReadyUser] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
   // Starting a trip or pulling to refresh must show truly live conditions, so
@@ -972,91 +980,114 @@ function Index() {
   useEffect(() => {
     if (!hydrated || !user || syncedUserRef.current === user.id) return;
     let cancelled = false;
+    setPlacesSyncStatus("loading");
     void (async () => {
-      const { data } = await supabase
-        .from("user_preferences")
-        .select("saved_places,preferences,last_setup")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      const remotePlaces = Array.isArray(data?.saved_places)
-        ? (data.saved_places as unknown as SavedPlace[])
-        : [];
-      const merged = new Map<string, SavedPlace>();
-      for (const place of [...remotePlaces, ...savedPlaces]) {
-        const current = merged.get(place.id);
-        if (!current || place.updatedAt >= current.updatedAt) merged.set(place.id, place);
+      try {
+        const { data, error } = await supabase
+          .from("user_preferences")
+          .select("saved_places,preferences,last_setup")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (cancelled) return;
+        // A failed read is not an empty account. Never overwrite the backup after
+        // a failed restore; let the rider retry while their local places remain usable.
+        if (error) throw error;
+        const remotePlaces = parseSavedPlaces(JSON.stringify(data?.saved_places ?? []));
+        const merged = new Map<string, SavedPlace>();
+        for (const place of remotePlaces) {
+          const current = merged.get(place.id);
+          if (!current || place.updatedAt >= current.updatedAt) merged.set(place.id, place);
+        }
+        const latestState = syncStateRef.current;
+        for (const place of latestState.savedPlaces) {
+          const current = merged.get(place.id);
+          if (!current || place.updatedAt >= current.updatedAt) merged.set(place.id, place);
+        }
+        const nextPlaces = Array.from(merged.values());
+        if (nextPlaces.length) persistPlaces(nextPlaces);
+        const preferences =
+          data?.preferences &&
+          typeof data.preferences === "object" &&
+          !Array.isArray(data.preferences)
+            ? (data.preferences as Record<string, unknown>)
+            : {};
+        if (!window.localStorage.getItem(ALERT_PREFS_KEY) && preferences["alertPrefs"]) {
+          const restored = parseAlertPrefs(JSON.stringify(preferences["alertPrefs"]));
+          saveAlertPrefs(restored);
+        }
+        const displayName =
+          typeof user.user_metadata?.["full_name"] === "string"
+            ? user.user_metadata["full_name"]
+            : null;
+        const avatarUrl =
+          typeof user.user_metadata?.["avatar_url"] === "string"
+            ? user.user_metadata["avatar_url"]
+            : null;
+        if (cancelled) return;
+        const currentState = syncStateRef.current;
+        const writes = await Promise.all([
+          supabase.from("profiles").upsert({
+            id: user.id,
+            display_name: displayName,
+            avatar_url: avatarUrl,
+            updated_at: new Date().toISOString(),
+          }),
+          supabase.from("user_preferences").upsert({
+            user_id: user.id,
+            saved_places: nextPlaces,
+            preferences: {
+              alertPrefs: currentState.alertPrefs,
+              planMode: currentState.planMode,
+              arriveByInput: currentState.arriveByInput,
+            },
+            last_setup: currentState.configured ? currentState.setup : (data?.last_setup ?? null),
+            updated_at: new Date().toISOString(),
+          }),
+        ]);
+        if (cancelled) return;
+        if (writes.some((result) => result.error)) throw new Error("Could not save account preferences");
+        syncedUserRef.current = user.id;
+        setSyncReadyUser(user.id);
+        setPlacesSyncStatus("synced");
+      } catch {
+        if (!cancelled) setPlacesSyncStatus("error");
       }
-      const latestState = syncStateRef.current;
-      for (const place of latestState.savedPlaces) {
-        const current = merged.get(place.id);
-        if (!current || place.updatedAt >= current.updatedAt) merged.set(place.id, place);
-      }
-      const nextPlaces = Array.from(merged.values());
-      if (nextPlaces.length) persistPlaces(nextPlaces);
-      const preferences =
-        data?.preferences &&
-        typeof data.preferences === "object" &&
-        !Array.isArray(data.preferences)
-          ? (data.preferences as Record<string, unknown>)
-          : {};
-      if (!window.localStorage.getItem(ALERT_PREFS_KEY) && preferences["alertPrefs"]) {
-        const restored = parseAlertPrefs(JSON.stringify(preferences["alertPrefs"]));
-        saveAlertPrefs(restored);
-      }
-      const displayName =
-        typeof user.user_metadata?.["full_name"] === "string"
-          ? user.user_metadata["full_name"]
-          : null;
-      const avatarUrl =
-        typeof user.user_metadata?.["avatar_url"] === "string"
-          ? user.user_metadata["avatar_url"]
-          : null;
-      if (cancelled) return;
-      const currentState = syncStateRef.current;
-      await Promise.all([
-        supabase.from("profiles").upsert({
-          id: user.id,
-          display_name: displayName,
-          avatar_url: avatarUrl,
-          updated_at: new Date().toISOString(),
-        }),
-        supabase.from("user_preferences").upsert({
-          user_id: user.id,
-          saved_places: nextPlaces,
-          preferences: {
-            alertPrefs: currentState.alertPrefs,
-            planMode: currentState.planMode,
-            arriveByInput: currentState.arriveByInput,
-          },
-          last_setup: currentState.configured ? currentState.setup : (data?.last_setup ?? null),
-          updated_at: new Date().toISOString(),
-        }),
-      ]);
-      if (!cancelled) syncedUserRef.current = user.id;
     })();
     return () => {
       cancelled = true;
     };
-  }, [hydrated, user?.id]);
+  }, [hydrated, user?.id, syncRetry]);
 
   useEffect(() => {
-    if (!user) syncedUserRef.current = null;
+    if (!user) {
+      syncedUserRef.current = null;
+      setSyncReadyUser(null);
+      setPlacesSyncStatus("idle");
+    }
   }, [user]);
 
   useEffect(() => {
-    if (!user || syncedUserRef.current !== user.id) return;
+    if (!user || syncReadyUser !== user.id) return;
+    let cancelled = false;
     const timer = window.setTimeout(() => {
-      void supabase.from("user_preferences").upsert({
-        user_id: user.id,
-        saved_places: savedPlaces,
-        preferences: { alertPrefs, planMode, arriveByInput },
-        last_setup: configured ? setup : null,
-        updated_at: new Date().toISOString(),
-      });
+      setPlacesSyncStatus("saving");
+      void (async () => {
+        try {
+          const { error } = await supabase.from("user_preferences").upsert({
+            user_id: user.id,
+            saved_places: savedPlaces,
+            preferences: { alertPrefs, planMode, arriveByInput },
+            last_setup: syncStateRef.current.configured ? setup : null,
+            updated_at: new Date().toISOString(),
+          });
+          if (!cancelled) setPlacesSyncStatus(error ? "error" : "synced");
+        } catch {
+          if (!cancelled) setPlacesSyncStatus("error");
+        }
+      })();
     }, 500);
-    return () => window.clearTimeout(timer);
-  }, [user?.id, savedPlaces, alertPrefs, planMode, arriveByInput, setup]);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [user?.id, syncReadyUser, savedPlaces, alertPrefs, planMode, arriveByInput, setup]);
 
   // Track whether the browser has blocked location so the app can offer
   // recovery steps instead of silently falling back to a default station.
@@ -3231,17 +3262,19 @@ function Index() {
   }
 
   async function quickStartSavedPlace(slot: string) {
+    const destination = resolveShortcut(savedPlaces, slot);
+    if (!destination) {
+      if (authLoading || !user || syncReadyUser !== user.id) {
+        setRestoreSlot(slot);
+        setAccountOpen(true);
+      } else {
+        setQuickPlaceSlot(slot);
+      }
+      return;
+    }
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
     void refreshTrafficNow();
-    const destination = resolveShortcut(savedPlaces, slot);
-    if (!destination) {
-      toast(`Save your ${shortcutLabel(savedPlaces, slot)} location first.`, {
-        description: "Add it under Saved places in Settings.",
-      });
-      setSettingsOpen(true);
-      return;
-    }
     if (!navigator.geolocation) {
       toast("Your location isn’t available on this device.", {
         description: "Open WHERE TO? to choose a starting point.",
@@ -3321,6 +3354,21 @@ function Index() {
   }
 
   const setupDialog = (
+    <>
+    <AccountDialog
+      open={accountOpen}
+      onClose={() => { setAccountOpen(false); setRestoreSlot(null); }}
+      restoreLabel={restoreSlot ? shortcutLabel(savedPlaces, restoreSlot) : null}
+      restored={Boolean(restoreSlot && resolveShortcut(savedPlaces, restoreSlot))}
+      syncStatus={placesSyncStatus}
+      onRetry={() => { syncedUserRef.current = null; setSyncReadyUser(null); setSyncRetry((value) => value + 1); }}
+      placeLabels={savedPlaces.map((place) => place.label)}
+      onSearch={() => { setAccountOpen(false); setQuickPlaceSlot(restoreSlot); setRestoreSlot(null); }}
+      onStart={() => { const slot = restoreSlot; setAccountOpen(false); setRestoreSlot(null); if (slot) void quickStartSavedPlace(slot); }}
+    />
+    <QuickPlaceDialog slot={quickPlaceSlot} places={savedPlaces}
+      onClose={() => setQuickPlaceSlot(null)}
+      onSave={(next) => { persistPlaces(next); setQuickPlaceSlot(null); }} />
     <SetupDialog
       open={onboardingOpen || settingsOpen}
       firstRun={onboardingOpen}
@@ -3332,6 +3380,7 @@ function Index() {
       savedPlaces={savedPlaces}
       onPlacesChange={persistPlaces}
     />
+    </>
   );
 
   if (browseActive) {
@@ -3369,8 +3418,8 @@ function Index() {
                 Oahu commute conditions
               </p>
             </div>
-            <div className="flex items-center gap-1">
-              <p className="text-right text-sm font-medium text-foreground">{timeText}</p>
+            <div className="flex max-w-[65%] flex-wrap items-center justify-end gap-1">
+              <p className="w-full text-right text-xs font-medium text-foreground">{timeText}</p>
               <Button
                 variant="ghost"
                 size="icon"
@@ -3381,15 +3430,7 @@ function Index() {
               >
                 <RefreshCw />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={user ? "Open profile and settings" : "Sign in or open settings"}
-                onClick={() => setSettingsOpen(true)}
-                className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-              >
-                <UserRound className="size-5" />
-              </Button>
+              <AccountButton onClick={() => { setRestoreSlot(null); setAccountOpen(true); }} />
               <Button
                 variant="ghost"
                 size="icon"
@@ -3997,6 +4038,8 @@ function Index() {
             </p>
             <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
           </div>
+          <div className="flex items-center gap-1">
+          <AccountButton onClick={() => { setRestoreSlot(null); setAccountOpen(true); }} />
           <Button
             variant="ghost"
             size="icon"
@@ -4006,6 +4049,7 @@ function Index() {
           >
             <Settings className="size-5" />
           </Button>
+          </div>
         </header>
 
         <DataExpiryNotice />
@@ -5654,7 +5698,7 @@ function ShortcutGrid({
             <div key={`${slot}-${index}`} className="relative min-w-0">
               <Button
                 variant="outline"
-                onClick={() => (place ? onStart(slot) : setQuickEdit(slot))}
+                onClick={() => onStart(slot)}
                 className="glass-panel h-14 w-full min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 pl-3 pr-9 text-foreground hover:bg-primary/10"
                 aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
               >

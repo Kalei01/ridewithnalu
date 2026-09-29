@@ -1,28 +1,26 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { authStateAfterEvent, initialAuthState } from "@/lib/auth-state";
 
 type AuthContextValue = { user: User | null; loading: boolean; signedInAt: number | null };
 
-const AuthContext = createContext<AuthContextValue>({ user: null, loading: true, signedInAt: null });
+const AuthContext = createContext<AuthContextValue>({
+  user: null,
+  loading: true,
+  signedInAt: null,
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [signedInAt, setSignedInAt] = useState<number | null>(null);
+  const [{ user, loading, signedInAt }, setAuth] = useState(initialAuthState);
 
   useEffect(() => {
     let active = true;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (!active) return;
-      setUser(data.user ?? null);
-      setLoading(false);
-    });
+    // Supabase emits INITIAL_SESSION from its persistent storage, then refreshes
+    // tokens as needed. A second network lookup can race with sign-in/sign-out.
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      setUser(session?.user ?? null);
-      if (event === "SIGNED_IN") setSignedInAt(Date.now());
-      setLoading(false);
+      if (!active) return;
+      setAuth((state) => authStateAfterEvent(state, event, session?.user ?? null, Date.now()));
     });
     return () => {
       active = false;
