@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarCheck, Sparkles, TrendingUp, Volume2 } from "lucide-react";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { askNalu, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
+import { createClientRateWindow } from "@/lib/client-rate-limit";
 
 type Place = { lat: number; lon: number; label: string };
 
@@ -131,16 +132,35 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
 export function AskNalu({ origin }: { origin: { lat: number; lon: number } | null }) {
   const ask = useServerFn(askNalu);
   const [query, setQuery] = useState("");
+  const [settledQuery, setSettledQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const requestGate = useRef(createClientRateWindow(10_000));
+  const [cooldownUntil, setCooldownUntil] = useState(0);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof ask>> | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettledQuery(query.trim()), 350);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const timer = window.setTimeout(() => setCooldownUntil(0), Math.max(0, cooldownUntil - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [cooldownUntil]);
   async function submit() {
+    const text = query.trim();
+    if (busyRef.current || text.length < 4 || text !== settledQuery ||
+      !requestGate.current.tryAcquire(Date.now())) return;
+    busyRef.current = true;
+    setCooldownUntil(Date.now() + 10_000);
     setBusy(true);
     setAnswer(null);
     try {
-      setAnswer(await ask({ data: { query: query.trim(), origin } }));
+      setAnswer(await ask({ data: { query: text, origin } }));
     } catch {
       setAnswer({ ok: false, error: "Nalu AI couldn't answer just now." });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -160,8 +180,9 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           placeholder="Drop off at Campbell High by 7:15, then Ala Moana by 8:00 — drive or park and ride?"
           className="min-h-20 bg-background"
         />
-        <Button onClick={() => void submit()} disabled={busy || query.trim().length < 4}>
-          {busy ? "Planning…" : "Ask Nalu"}
+        <Button onClick={() => void submit()}
+          disabled={busy || cooldownUntil > 0 || query.trim().length < 4 || query.trim() !== settledQuery}>
+          {busy ? "Planning…" : cooldownUntil > 0 ? "Ready again shortly" : "Ask Nalu"}
         </Button>
         {!origin && (
           <p className="text-xs text-muted-foreground">
