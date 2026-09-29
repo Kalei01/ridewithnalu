@@ -368,7 +368,7 @@ export class VoiceGuide {
     // Skip a stale earlier tier when we're already much closer (e.g. far tier at 300 m).
     const idx = tiers.indexOf(tier);
     const deeper = tiers[idx + 1];
-    if (deeper && next.distanceM <= deeper.atM * 2 && tier.state !== "near_spoken") return null;
+    if (deeper && next.distanceM <= deeper.atM * 1.5 && tier.state !== "near_spoken") return null;
     const instruction = speakableRoad(next.maneuver.instruction.replace(/\.$/, ""));
     const phrase =
       tier.state === "near_spoken" && next.maneuver.maneuver === "ARRIVE"
