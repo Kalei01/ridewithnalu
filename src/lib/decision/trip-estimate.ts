@@ -13,7 +13,7 @@ export type EstimateSource = {
   quality: DataQuality;
 };
 
-/** All durations and arrival ranges describe the same door-to-door trip. */
+/** Drive duration is the canonical road ETA; parking/walking access is tracked separately. */
 export type TripEstimate = {
   mode: EstimateMode;
   availability: Availability;
