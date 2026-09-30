@@ -2877,23 +2877,16 @@ function Index() {
   });
 
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
-  // Service hours describe the general operating window. The GTFS planner is
-  // authoritative for whether this specific trip can actually be made.
-  // Never call rail "closed" while the planner is still loading, has failed,
-  // or has returned a valid itinerary (including late partial-route trips).
-  const railPlannerResolved = !optionsLoading && !optionsFailed;
-  const railHasOptions = options.length > 0;
+  const railServiceClosed = Boolean(
+    todayHours &&
+      (nowSeconds >= Number(todayHours.last_seconds) ||
+        nowSeconds < Number(todayHours.first_seconds)),
+  );
   const railClosedForEvening = Boolean(
-    railPlannerResolved &&
-      !railHasOptions &&
-      todayHours &&
-      nowSeconds >= Number(todayHours.last_seconds),
+    todayHours && nowSeconds >= Number(todayHours.last_seconds),
   );
   const railNotRunningYet = Boolean(
-    railPlannerResolved &&
-      !railHasOptions &&
-      todayHours &&
-      nowSeconds < Number(todayHours.first_seconds),
+    todayHours && nowSeconds < Number(todayHours.first_seconds),
   );
   // Rail total carries a safety buffer, and a range for transfers that slip.
   const driveTripEstimate = driveEstimate({
@@ -2943,9 +2936,11 @@ function Index() {
     { tossUpMinutes: TOSS_UP_MIN });
   const activeDecision = arriveByActive && arriveByComparison ? arriveByComparison : decision;
   const verdict: DecisionState = commitment?.mode ??
-    (optionsLoading || driveLoading
-      ? "uncertain"
-      : activeDecision.state);
+    (!arriveByActive && railServiceClosed
+      ? activeDecision.state
+      : optionsLoading || driveLoading
+        ? "uncertain"
+        : activeDecision.state);
   const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
     ? decision.differenceMinutes : null;
   const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
@@ -2963,21 +2958,17 @@ function Index() {
   const reasoning = commitment
     ? "Your selected trip stays locked while conditions update."
     : railClosedForEvening
-      ? "The GTFS timetable has no usable rail itinerary left today, and the station's service window has ended."
+      ? "Skyline service has ended for the evening, so Nalu is comparing the remaining option."
       : railNotRunningYet
-        ? "The GTFS timetable has no usable rail itinerary yet, and today's service has not started."
-        : !railHasOptions && railPlannerResolved
-          ? "Nalu checked the current timetable but could not find a rail itinerary for this trip."
-          : activeDecision.primary.text;
+        ? "Skyline service has not started yet today, so Nalu is comparing the available option."
+        : activeDecision.primary.text;
 
   const whyNaluText =
     railClosedForEvening
-      ? "Nalu checked the current timetable and found no remaining rail itinerary. The station's scheduled service window has also ended, so the live driving estimate is the available comparison."
+      ? "Skyline has finished service for the evening. Nalu is using the live driving estimate because rail is not operating right now."
       : railNotRunningYet
-        ? "Nalu checked the current timetable and found no rail itinerary yet. Today's scheduled service has not started, so the available option is used for the comparison."
-        : !railHasOptions && railPlannerResolved
-          ? "Nalu checked the current timetable for this origin and destination and did not find a usable rail itinerary. That is different from saying Skyline is closed."
-          : verdict === "drive"
+        ? "Skyline has not started service yet. Nalu is using the available option until rail service begins."
+        : verdict === "drive"
         ? "Nalu is comparing the full door-to-door trip, including transit waiting and walking time, not just the time spent on the freeway."
         : verdict === "rail"
           ? "The rail total includes getting to the station, waiting for the train, the ride, transfers, and the final walk to your destination."
@@ -4473,12 +4464,12 @@ function Index() {
                       </p>
                     ) : railClosedForEvening ? (
                       <p className="mt-2 text-sm text-warning">
-                        No remaining rail itinerary was found in the current timetable. Today's scheduled service ended at{" "}
+                        Rail is closed for the evening. Today's service ended at{" "}
                         {todayHours ? clockFromSeconds(todayHours.last_seconds) : "the scheduled end time"}.
                       </p>
                     ) : railNotRunningYet ? (
                       <p className="mt-2 text-sm text-muted-foreground">
-                        No rail itinerary is available yet. Today's scheduled service starts at{" "}
+                        Rail is not running yet. Today's service starts at{" "}
                         {todayHours ? clockFromSeconds(todayHours.first_seconds) : "the scheduled start time"}.
                       </p>
                     ) : optionsLoading ? (
@@ -4489,19 +4480,19 @@ function Index() {
                       <p className="mt-2 text-sm text-warning">
                         {arriveByPassed
                           ? "Earliest option: "
-                          : "Rail can't get you there by " + clockFromSeconds(arriveByTarget) + ". Earliest option: "}
+                          : `Rail can't get you there by ${clockFromSeconds(arriveByTarget)}. Earliest option: `}
                         leave at {clockFromSeconds(railPick.earliestOption.leave_by_seconds)} ·
                         arrive {clockFromSeconds(railPick.earliestOption.arrive_seconds)}.
                       </p>
                     ) : (
                       <p className="mt-2 text-sm text-muted-foreground">
                         {todayHours
-                          ? "No usable rail itinerary was found for this trip in the current timetable. Scheduled station hours today are " +
-                            clockFromSeconds(todayHours.first_seconds) +
-                            "–" +
-                            clockFromSeconds(todayHours.last_seconds) +
-                            "."
-                          : "No usable rail itinerary was found for this trip in the current timetable."}
+                          ? nowSeconds >= Number(todayHours.last_seconds)
+                            ? `Rail is closed for the evening. Today's service ended at ${clockFromSeconds(todayHours.last_seconds)}.`
+                            : nowSeconds < Number(todayHours.first_seconds)
+                              ? `Rail is not running yet. Today's service starts at ${clockFromSeconds(todayHours.first_seconds)}.`
+                              : `No rail service for this trip at that time. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.`
+                          : "No rail service for this trip today."}
                       </p>
                     )}
                   </div>
