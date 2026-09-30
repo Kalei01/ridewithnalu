@@ -528,3 +528,27 @@ textarea:focus,
   button.bg-primary,
   a.bg-primary { transition: none !important; }
 }
+
+
+/* Map incident markers: reserved for reported events, never generic congestion. */
+.nalu-incident-marker {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid rgba(255,255,255,.92);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 6px 18px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.28);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.nalu-incident-marker-crash {
+  background: linear-gradient(180deg, #ff746d, #d92f2f);
+}
+.nalu-incident-marker-alert {
+  background: linear-gradient(180deg, #f6c45f, #d88a1c);
+}
