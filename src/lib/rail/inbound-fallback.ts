@@ -59,7 +59,7 @@ type HubLeg = {
   mode: "walk" | "drive" | "bus" | "rail";
   route_short: string | null; route_long: string | null; headsign: string | null;
   from: string | null; to: string | null;
-  from_stop_id?: string | null; to_stop_id?: string | null;
+  from_stop_id?: string | null | undefined; to_stop_id?: string | null | undefined;
   depart_seconds: number | null; arrive_seconds: number | null; minutes: number | null;
 };
 type HubOption = {
