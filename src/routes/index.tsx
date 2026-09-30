@@ -3010,9 +3010,28 @@ function Index() {
     return changes.slice(0, 3);
   }, [commitment, previousDecisionSnapshot, decisionKey, currentDecisionSnapshot.driveMinutes, currentDecisionSnapshot.railMinutes, currentDecisionSnapshot.driveDelayMinutes, currentDecisionSnapshot.railWaitMinutes, currentDecisionSnapshot.busWaitMinutes, currentDecisionSnapshot.majorIncident, currentDecisionSnapshot.state]);
   useEffect(() => {
-    if (!commitment && (verdict === "drive" || verdict === "rail" || verdict === "same"))
-      decisionHistoryRef.current = { key: decisionKey, state: verdict === "same" ? "drive" : verdict, snapshot: currentDecisionSnapshot };
-  }, [commitment, verdict, decisionKey, currentDecisionSnapshot]);
+    if (commitment || !["drive", "rail", "same"].includes(verdict)) return;
+    const historyState =
+      verdict === "drive" || verdict === "rail"
+        ? verdict
+        : decisionHistoryRef.current?.state ?? "drive";
+    decisionHistoryRef.current = {
+      key: decisionKey,
+      state: historyState,
+      snapshot: currentDecisionSnapshot,
+    };
+  }, [
+    commitment,
+    verdict,
+    decisionKey,
+    currentDecisionSnapshot.driveMinutes,
+    currentDecisionSnapshot.railMinutes,
+    currentDecisionSnapshot.driveDelayMinutes,
+    currentDecisionSnapshot.railWaitMinutes,
+    currentDecisionSnapshot.busWaitMinutes,
+    currentDecisionSnapshot.majorIncident,
+    currentDecisionSnapshot.state,
+  ]);
   // The verdict only steers the view until the commuter commits; after that the
   // locked mode stays on screen for the rest of the trip.
   useEffect(() => {
