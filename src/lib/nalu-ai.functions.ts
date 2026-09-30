@@ -30,9 +30,11 @@ export const morningPulse = createServerFn({ method: "POST" })
       const rail = station
         ? await ai.railBetween(station.stopId, data.from, data.to, ai.honoluluSeconds())
         : null;
-      const railTrip = rail?.trips.find(
-        (trip) => Number.isFinite(trip.total_minutes) && trip.total_minutes > 0,
-      ) ?? null;
+      const railTrip = rail?.trips.find((trip) => {
+        const total = Number(trip.total_minutes);
+        const scheduled = (Number(trip.arrive_seconds) - Number(trip.depart_seconds)) / 60;
+        return (Number.isFinite(total) && total > 0) || (Number.isFinite(scheduled) && scheduled > 0);
+      }) ?? null;
 
       const formatDuration = (minutes: number | null) => {
         if (minutes === null || !Number.isFinite(minutes)) return null;
@@ -43,12 +45,26 @@ export const morningPulse = createServerFn({ method: "POST" })
         return mins === 0 ? `${hours} hr` : `${hours} hr ${mins} min`;
       };
 
-      const driveMinutes = drive?.minutes ?? null;
-      const skylineMinutes = railTrip?.total_minutes ?? null;
+      const driveMinutes =
+        drive && Number.isFinite(Number(drive.minutes)) && Number(drive.minutes) > 0
+          ? Number(drive.minutes)
+          : null;
+      const skylineMinutes = railTrip
+        ? Number.isFinite(Number(railTrip.total_minutes)) && Number(railTrip.total_minutes) > 0
+          ? Number(railTrip.total_minutes)
+          : (Number(railTrip.arrive_seconds) - Number(railTrip.depart_seconds)) / 60
+        : null;
       const driveDuration = formatDuration(driveMinutes);
       const skylineDuration = formatDuration(skylineMinutes);
 
-      if (driveDuration === null || skylineDuration === null || driveMinutes === null || skylineMinutes === null) {
+      if (
+        driveDuration === null ||
+        skylineDuration === null ||
+        driveMinutes === null ||
+        skylineMinutes === null ||
+        !Number.isFinite(skylineMinutes) ||
+        skylineMinutes <= 0
+      ) {
         return {
           ok: true,
           value: {
