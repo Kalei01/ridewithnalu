@@ -985,7 +985,6 @@ function Index() {
   const lockedOptionRef = useRef<Option | null>(null);
   const lockedItineraryCandidate = useRef<Option | null>(null);
   const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail" | "same"; snapshot: DecisionSnapshot | null } | null>(null);
-  const [decisionTimeline, setDecisionTimeline] = useState<Array<{ at: number; state: "drive" | "rail" | "same"; changes: string[] }>>([]);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
@@ -3029,24 +3028,6 @@ function Index() {
     currentDecisionSnapshot.majorIncident,
     currentDecisionSnapshot.state,
   ]);
-  useEffect(() => {
-    if (commitment || !["drive", "rail", "same"].includes(verdict)) return;
-    const prior = decisionHistoryRef.current;
-    const sameKey = prior?.key === decisionKey;
-    if (!sameKey || decisionChanges.length === 0) return;
-    const signature = decisionChanges.join("|");
-    setDecisionTimeline((current) => {
-      const last = current[current.length - 1];
-      if (last && last.state === currentDecisionSnapshot.state && last.changes.join("|") === signature) {
-        return current;
-      }
-      return [
-        ...current,
-        { at: now.getTime(), state: currentDecisionSnapshot.state, changes: decisionChanges },
-      ].slice(-4);
-    });
-  }, [commitment, verdict, decisionKey, decisionChanges, now, currentDecisionSnapshot.state]);
-
   // The verdict only steers the view until the commuter commits; after that the
   // locked mode stays on screen for the rest of the trip.
   useEffect(() => {
@@ -4834,35 +4815,6 @@ function Index() {
             </p>
           )}
           {configured && (verdict === "rail" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
-          {configured && !commitment && decisionTimeline.length > 0 && (
-            <section className="nalu-card-surface mt-3 overflow-hidden rounded-2xl border border-border/60 bg-background/25" aria-label="Decision timeline">
-              <details>
-                <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-foreground marker:hidden">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground">•</span>
-                    Decision timeline
-                  </span>
-                </summary>
-                <div className="border-t border-border/50 px-4 py-4">
-                  <div className="space-y-4">
-                    {decisionTimeline.map((event) => (
-                      <div key={event.at} className="relative pl-5">
-                        <span className="absolute left-0 top-1.5 size-2 rounded-full bg-primary" aria-hidden="true" />
-                        <p className="text-xs font-semibold text-muted-foreground">{clockFromSeconds(Math.round(event.at / 1000) % 86400)}</p>
-                        <p className="mt-1 text-sm font-semibold text-foreground">
-                          {event.state === "drive" ? "Nalu recommended Drive." : event.state === "rail" ? "Nalu recommended Skyline." : "Nalu saw the options as nearly tied."}
-                        </p>
-                        {event.changes.slice(0, 2).map((change) => (
-                          <p key={change} className="mt-1 text-xs leading-5 text-muted-foreground">{change}</p>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </details>
-            </section>
-          )}
-
           {configured && !commitment && decisionSignals.length > 0 && (
             <section className="nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25" aria-label="Live decision signals">
               <div className="px-4 py-3">
