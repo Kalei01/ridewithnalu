@@ -38,13 +38,18 @@ const BASEMAPS = {
 } as const;
 
 function markerIcon(kind: "rail" | "bus", selected: boolean) {
-  const glyph = kind === "rail" ? "▰" : "●";
   const label = kind === "rail" ? "Rail station" : "Bus stop";
+  const size = selected ? (kind === "bus" ? 30 : 34) : kind === "bus" ? 22 : 28;
+  const half = size / 2;
+  const glyph =
+    kind === "rail"
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Zm0 3v4h10V6H7Zm0 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm10 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM8 19h8v2H8v-2Z"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-1l1.5 2h-3L14 18h-4l-1.5 2h-3L7 18H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Zm0 3v5h12V7H6Zm1 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm10 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>';
   return L.divIcon({
     className: "nalu-marker-shell",
     html: `<span class="nalu-marker nalu-marker-${kind}${selected ? " is-selected" : ""}" aria-label="${label}">${glyph}</span>`,
-    iconSize: selected ? [42, 42] : [34, 34],
-    iconAnchor: selected ? [21, 21] : [17, 17],
+    iconSize: [size, size],
+    iconAnchor: [half, half],
   });
 }
 
@@ -83,7 +88,7 @@ export default function NearbyTransitMap({
       attributionControl: true,
       scrollWheelZoom: false,
       dragging: true,
-    }).setView([userPoint.lat, userPoint.lon], 14);
+    }).setView([userPoint.lat, userPoint.lon], 13);
 
     tileLayerRef.current = L.tileLayer(BASEMAPS.standard.url, {
       maxZoom: 19,
@@ -187,7 +192,7 @@ export default function NearbyTransitMap({
     ];
     map.invalidateSize({ animate: false });
     if (points.length > 1)
-      map.fitBounds(L.latLngBounds(points), { padding: [38, 38], maxZoom: 15 });
+      map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 14 });
     else map.setView([userRef.current.lat, userRef.current.lon], 14);
   }, [stopsSignature]);
 
@@ -207,7 +212,7 @@ export default function NearbyTransitMap({
       ...stops.map((stop) => [stop.lat, stop.lon] as L.LatLngTuple),
     ];
     if (points.length > 1)
-      map.flyToBounds(L.latLngBounds(points), { padding: [42, 42], maxZoom: 15, duration: 0.7 });
+      map.flyToBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 14, duration: 0.7 });
   };
 
   return (
