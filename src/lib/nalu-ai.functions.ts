@@ -94,21 +94,36 @@ export const morningPulse = createServerFn({ method: "POST" })
       // but unfamiliar to commuters. Prefer common Oahu road names and only
       // expose route numbers when they are recognizable to local drivers.
       const familiarRoadName = (road: string): string | null => {
-        const normalized = road.trim().toUpperCase().replace(/^(H|HI)[- ]/, "H-");
+        const raw = road.trim();
+        const upper = raw.toUpperCase().replace(/\s+/g, " ");
+
+        // TomTom can return route/reference strings such as "HI-764",
+        // "H1-764", or "H-764". Those are not useful commuter-facing
+        // street names, so never surface an unrecognized route identifier.
+        const routeMatch = upper.match(/^(?:HI|H)[- ]?(\\d+)(?:[- ](\\d+))?$/);
+        const routeNumber = routeMatch?.[1] ?? null;
+        const qualifier = routeMatch?.[2] ?? null;
+
         const common: Record<string, string> = {
-          "H-1": "H-1 Freeway",
-          "H-2": "H-2 Freeway",
-          "H-3": "H-3 Freeway",
-          "H-201": "Moanalua Freeway",
-          "HI-63": "Pali Highway",
-          "HI-83": "Kamehameha Highway",
-          "HI-92": "Nimitz Highway",
-          "HI-93": "Farrington Highway",
-          "HI-99": "Kamehameha Highway",
+          "1": "H-1 Freeway",
+          "2": "H-2 Freeway",
+          "3": "H-3 Freeway",
+          "201": "Moanalua Freeway",
+          "63": "Pali Highway",
+          "83": "Kamehameha Highway",
+          "92": "Nimitz Highway",
+          "93": "Farrington Highway",
+          "99": "Kamehameha Highway",
         };
-        return common[road.trim().toUpperCase()] ?? (
-          /^H-\\d+$/i.test(normalized) ? null : road
-        );
+
+        if (routeNumber) {
+          // A second numeric component is a TomTom/reference-style identifier,
+          // not a commuter-friendly road name. Only expose known primary routes.
+          if (qualifier || !common[routeNumber]) return null;
+          return common[routeNumber];
+        }
+
+        return raw || null;
       };
       const roads = drive.roads
         .map(familiarRoadName)
