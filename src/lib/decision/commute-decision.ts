@@ -151,7 +151,7 @@ export function decideTrip(
   else if (faster === "drive" && rail.transferMinutes >= 8)
     supporting = evidence(
       "transfer_wait",
-      `The connection adds about ${Math.round(rail.transferMinutes)} min`,
+      `Changing rides adds about ${Math.round(rail.transferMinutes)} min`,
     );
   else if (faster === "drive" && rail.busWaitMinutes >= 10)
     supporting = evidence(
