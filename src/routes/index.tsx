@@ -4557,7 +4557,7 @@ function Index() {
                     : `Drive${gap !== null ? ` · ${Math.abs(gap)} min faster` : ""}`}
           </h1>
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
-            low: driveRange?.low, high: driveRange?.high }} transit={{ label: "Transit", minutes: railTripEstimate.expectedDurationMinutes,
+            low: driveRange?.low, high: driveRange?.high }} transit={{ label: "Rail", minutes: railTripEstimate.expectedDurationMinutes,
             low: railRange?.low, high: railRange?.high }} />}
           {verdict === "rail" && best && railRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
