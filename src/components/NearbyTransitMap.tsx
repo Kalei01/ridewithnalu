@@ -277,8 +277,9 @@ export default function NearbyTransitMap({
           ref={cardRef}
           role="region"
           aria-label={`Departures at ${previewStop.stopName}`}
-          className="absolute inset-x-3 bottom-3 z-[600] rounded-xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur-md"
+          className="absolute inset-x-3 bottom-3 z-[600] rounded-3xl bg-card/80 p-4 pt-2 shadow-2xl ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150"
         >
+          <div aria-hidden className="mx-auto mb-2 h-1 w-9 rounded-full bg-foreground/20" />
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-foreground">{previewStop.stopName}</p>
