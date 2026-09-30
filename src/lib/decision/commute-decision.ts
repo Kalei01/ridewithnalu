@@ -62,7 +62,7 @@ export function decideTrip(
         state: "uncertain",
         confidence: "low",
         differenceMinutes: null,
-        primary: evidence("data_quality", "The latest travel info is too old to rely on"),
+        primary: evidence("data_quality", "The latest travel information is too old to rely on"),
         supporting: null,
       };
     return {
@@ -85,7 +85,7 @@ export function decideTrip(
       differenceMinutes: null,
       primary: evidence(
         "data_quality",
-        `${drive.source.quality === "stale" ? "Traffic" : "Transit"} info is too old for a reliable comparison`,
+        `${drive.source.quality === "stale" ? "Traffic" : "Transit"} information is too old for a reliable comparison`,
       ),
       supporting: null,
     };
@@ -111,7 +111,7 @@ export function decideTrip(
       state: "uncertain",
       confidence: "low",
       differenceMinutes: difference,
-      primary: evidence("data_quality", "One side doesn't have enough live info yet"),
+      primary: evidence("data_quality", "One side doesn't have enough current information yet"),
       supporting: null,
     };
 
