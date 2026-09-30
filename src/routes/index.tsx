@@ -2885,6 +2885,9 @@ function Index() {
   const railClosedForEvening = Boolean(
     todayHours && nowSeconds >= Number(todayHours.last_seconds),
   );
+  const railNotRunningYet = Boolean(
+    todayHours && nowSeconds < Number(todayHours.first_seconds),
+  );
   // Rail total carries a safety buffer, and a range for transfers that slip.
   const driveTripEstimate = driveEstimate({
     drive: drive ?? null, access: driveAccess, nowSeconds, nowMs: now.getTime(),
@@ -2956,12 +2959,16 @@ function Index() {
     ? "Your selected trip stays locked while conditions update."
     : railClosedForEvening
       ? "Skyline service has ended for the evening, so Nalu is comparing the remaining option."
-      : activeDecision.primary.text;
+      : railNotRunningYet
+        ? "Skyline service has not started yet today, so Nalu is comparing the available option."
+        : activeDecision.primary.text;
 
   const whyNaluText =
     railClosedForEvening
       ? "Skyline has finished service for the evening. Nalu is using the live driving estimate because rail is not operating right now."
-      : verdict === "drive"
+      : railNotRunningYet
+        ? "Skyline has not started service yet. Nalu is using the available option until rail service begins."
+        : verdict === "drive"
         ? "Nalu is comparing the full door-to-door trip, including transit waiting and walking time, not just the time spent on the freeway."
         : verdict === "rail"
           ? "The rail total includes getting to the station, waiting for the train, the ride, transfers, and the final walk to your destination."
@@ -4455,6 +4462,16 @@ function Index() {
                           · arrive {clockFromSeconds(railPick.option.arrive_seconds)}
                         </span>
                       </p>
+                    ) : railClosedForEvening ? (
+                      <p className="mt-2 text-sm text-warning">
+                        Rail is closed for the evening. Today's service ended at{" "}
+                        {todayHours ? clockFromSeconds(todayHours.last_seconds) : "the scheduled end time"}.
+                      </p>
+                    ) : railNotRunningYet ? (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Rail is not running yet. Today's service starts at{" "}
+                        {todayHours ? clockFromSeconds(todayHours.first_seconds) : "the scheduled start time"}.
+                      </p>
                     ) : optionsLoading ? (
                       <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
                     ) : optionsFailed ? (
@@ -4660,7 +4677,7 @@ function Index() {
           {configured && !commitment && <details className="mt-3 text-sm text-muted-foreground">
             <summary className="cursor-pointer font-semibold text-foreground">Why Nalu says this</summary>
             <div className="mt-3 space-y-2">
-              {(verdict === "rail" || verdict === "drive" || railClosedForEvening) && (
+              {(verdict === "rail" || verdict === "drive" || railServiceClosed) && (
                 <p>{whyNaluText}</p>
               )}
               {verdict === "same" && (
