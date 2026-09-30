@@ -1,9 +1,4 @@
-/**
- * Select TomTom's drive ETA without allowing a materially slower live-speed
- * estimate to be discarded for a current trip. Future departures keep the
- * primary time-dependent estimate because the live-speed value is not relevant
- * to that future departure.
- */
+/** Select TomTom's traffic estimate for the trip being evaluated. */
 export function routeTravelSeconds(
   summary: {
     travelTimeInSeconds: number;
@@ -13,12 +8,13 @@ export function routeTravelSeconds(
 ): number {
   const primary = summary.travelTimeInSeconds;
   const live = summary.liveTrafficIncidentsTravelTimeInSeconds;
-  if (futureDeparture || !Number.isFinite(live) || live <= primary) return primary;
 
-  // Require a meaningful disagreement before letting the live-speed signal
-  // widen the current ETA. This avoids reacting to tiny provider noise.
-  const liveGapSeconds = live - primary;
-  return liveGapSeconds >= 5 * 60 ? live : primary;
+  // Current trips should use TomTom's real-time speed estimate when available.
+  // Future departures must use the time-dependent primary estimate because
+  // today's live-speed signal does not describe a future departure.
+  if (futureDeparture) return primary;
+  if (Number.isFinite(live) && (live as number) > 0) return live as number;
+  return primary;
 }
 
 /** Human-friendly commute duration: 65 -> "1 hr 5 min", 60 -> "1 hr". */
