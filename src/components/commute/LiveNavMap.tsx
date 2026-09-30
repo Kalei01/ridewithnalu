@@ -297,7 +297,6 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       paint: { "line-color": ["get", "color"], "line-width": 5 },
     });
     raiseRouteLayers();
-    map.on("styledata", raiseRouteLayers);
     if (destination) {
       const el = document.createElement("span");
       el.className = "nalu-journey-marker nalu-journey-marker-end";
