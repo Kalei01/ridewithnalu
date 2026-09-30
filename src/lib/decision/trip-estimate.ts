@@ -119,9 +119,14 @@ export function driveEstimate(input: {
       quality: "unavailable",
     });
   const departure = input.leaveAtSeconds ?? nowSeconds;
-  const expected = drive.trafficMinutes + access.typicalMin;
-  const earliest = departure + (drive.lowMinutes + access.lowMin) * 60;
-  const latest = departure + (drive.highMinutes + access.highMin) * 60;
+  // The canonical current Drive ETA is the live road-travel estimate from
+  // TomTom. Do not silently add a parking/walking buffer to the displayed
+  // driving duration: that made the hero, saved Work view, verdict bars, and
+  // Morning Pulse disagree about the same drive. Access time remains available
+  // separately for explicit door-to-door/Arrive By calculations.
+  const expected = drive.trafficMinutes;
+  const earliest = departure + drive.lowMinutes * 60;
+  const latest = departure + drive.highMinutes * 60;
   const arrival = departure + expected * 60;
   return {
     mode: "drive",
