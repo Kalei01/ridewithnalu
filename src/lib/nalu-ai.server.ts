@@ -2,6 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { Output, stepCountIs, streamText, tool } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { routeTravelSeconds } from "./drive/traffic-summary";
 
 export type Pt = { lat: number; lon: number };
 
@@ -142,9 +143,13 @@ export async function routeOptions(
     // diagnostic calculation and must not make Morning Pulse disagree with
     // the main commute engine or appear unavailable when that field is absent.
     const minutes = Math.round(
-      (r.summary?.travelTimeInSeconds ??
-        r.summary?.liveTrafficIncidentsTravelTimeInSeconds ??
-        0) / 60,
+      routeTravelSeconds(
+        {
+          travelTimeInSeconds: r.summary?.travelTimeInSeconds ?? 0,
+          liveTrafficIncidentsTravelTimeInSeconds: r.summary?.liveTrafficIncidentsTravelTimeInSeconds,
+        },
+        Boolean(opts.departAt || opts.arriveAt),
+      ) / 60,
     );
     const typical = Math.round(
       (r.summary?.historicTrafficTravelTimeInSeconds ??
