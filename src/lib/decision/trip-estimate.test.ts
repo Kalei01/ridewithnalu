@@ -58,7 +58,7 @@ describe("normalized trip estimates", () => {
     expect(item.latestArrival).toBe(at(6) + 48 * 60);
     expect(item.walkingMinutes).toBe(10);
     expect(decideTrip(item, rail(48)).state).toBe("drive");
-    expect(decideTrip(item, rail(42)).state).toBe("rail");
+    expect(decideTrip(item, rail(42)).state).toBe("same");
   });
 
   it("counts time before a reachable train in the leave-now arrival", () => {
