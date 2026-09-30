@@ -874,3 +874,124 @@ main.bg-page-gradient {
   background: linear-gradient(90deg, #8acfff, transparent);
   opacity: .75;
 }
+
+
+/* Nalu Pacific Environment — global composition pass
+ * This is intentionally broader than the card treatment:
+ * the page, foreground canvas, radiance surfaces, header and navigation
+ * now share one Pacific-titanium visual system. No commute logic/data changes.
+ */
+:root,
+.dark {
+  --nalu-canvas-0: #050b0f;
+  --nalu-canvas-1: #08141b;
+  --nalu-canvas-2: #0b202a;
+  --nalu-ocean-line: rgba(126, 198, 224, .14);
+  --nalu-ocean-glow: rgba(53, 151, 190, .16);
+  --nalu-ocean-glow-soft: rgba(64, 130, 164, .08);
+}
+
+/* The actual app canvas: not a flat black field anymore. */
+html,
+body {
+  background:
+    radial-gradient(1000px 520px at 50% -190px, rgba(82, 181, 220, .15), transparent 63%),
+    radial-gradient(760px 560px at -8% 38%, rgba(19, 75, 96, .13), transparent 68%),
+    radial-gradient(820px 600px at 108% 64%, rgba(22, 70, 88, .10), transparent 70%),
+    linear-gradient(180deg, var(--nalu-canvas-1) 0%, var(--nalu-canvas-0) 48%, #04080b 100%) !important;
+  background-attachment: fixed !important;
+}
+
+/* Give the page itself the atmosphere, so it remains visible through the
+   full-height main even when Tailwind's background utility is present. */
+main.bg-page-gradient,
+.bg-page-gradient {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(760px 360px at 50% -30px, var(--nalu-ocean-glow), transparent 72%),
+    radial-gradient(620px 460px at 96% 38%, var(--nalu-ocean-glow-soft), transparent 72%),
+    linear-gradient(180deg, rgba(7, 20, 27, .72) 0%, rgba(5, 11, 15, .34) 46%, rgba(4, 8, 11, .74) 100%) !important;
+  background-attachment: fixed !important;
+}
+
+main.bg-page-gradient::before,
+.bg-page-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .72;
+  background:
+    linear-gradient(135deg, transparent 0 48%, rgba(155, 205, 222, .035) 49% 50%, transparent 51% 100%) 0 0 / 72px 72px,
+    linear-gradient(45deg, transparent 0 48%, rgba(87, 167, 195, .028) 49% 50%, transparent 51% 100%) 36px 0 / 72px 72px;
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.72) 62%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.72) 62%, transparent 100%);
+}
+
+/* Top chrome should feel like a continuation of the ocean/graphite canvas,
+   not a separate green application shell. */
+header,
+.nalu-header,
+.app-header,
+[data-slot="header"] {
+  background:
+    linear-gradient(180deg, rgba(11, 28, 36, .78), rgba(7, 14, 19, .44)) !important;
+  border-bottom: 1px solid var(--nalu-ocean-line) !important;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, .22),
+    inset 0 1px 0 rgba(255, 255, 255, .055) !important;
+  backdrop-filter: blur(22px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(125%) !important;
+}
+
+/* The commute radiance backgrounds are part of the same Nalu world. */
+.commute-radiance-rail,
+.commute-radiance-drive,
+.browse-radiance {
+  background:
+    radial-gradient(720px 340px at 50% 0%, rgba(55, 154, 194, .12), transparent 70%),
+    radial-gradient(540px 420px at 100% 42%, rgba(21, 77, 97, .09), transparent 72%),
+    linear-gradient(180deg, #08151c 0%, #050b0f 56%, #04080b 100%) !important;
+  background-attachment: fixed !important;
+}
+
+/* Foreground hierarchy: titanium is the base material; blue is interaction,
+   jade/amber/red remain reserved for meaning. */
+main .text-foreground,
+main .text-primary-foreground {
+  text-shadow: 0 1px 0 rgba(255,255,255,.025);
+}
+
+main .text-muted-foreground {
+  color: rgba(201, 211, 218, .76) !important;
+}
+
+/* Thin Pacific hairline on major foreground sections without adding noise. */
+main > section,
+main > div > section {
+  border-color: rgba(155, 205, 222, .085);
+}
+
+/* A subtle environmental horizon gives long pages visual depth. */
+body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 32vh;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, transparent, rgba(23, 91, 115, .045)),
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 62px,
+      rgba(187, 215, 226, .018) 63px 64px,
+      transparent 65px 126px
+    );
+  mask-image: linear-gradient(180deg, transparent, #000 70%);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 70%);
+}
