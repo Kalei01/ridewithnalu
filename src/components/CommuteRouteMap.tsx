@@ -126,7 +126,7 @@ export default function CommuteRouteMap({
       attributionControl: true,
       scrollWheelZoom: false,
       dragging: true,
-    }).setView([first.lat, first.lon], 11);
+    }).setView([first.lat, first.lon], 10);
 
     tileLayerRef.current = L.tileLayer(BASEMAPS.standard.url, {
       maxZoom: 19,
@@ -349,9 +349,9 @@ export default function CommuteRouteMap({
         if (map.getSize().x < 20 || map.getSize().y < 20) return;
         // Snap on first paint; glide when switching between Drive and Transit.
         if (firstFit || followLive)
-          map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [44, 44], maxZoom: 13, animate: false });
+          map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [52, 52], maxZoom: 12, animate: false });
         else
-          map.flyToBounds(L.latLngBounds(boundsLatLngs), { padding: [44, 44], maxZoom: 13, duration: 0.7 });
+          map.flyToBounds(L.latLngBounds(boundsLatLngs), { padding: [52, 52], maxZoom: 12, duration: 0.7 });
       };
       // Mobile layout can finish sizing the map one frame after route data arrives.
       requestAnimationFrame(() => {
