@@ -33,19 +33,12 @@ type JourneySegment = {
 type CommuteRouteMapProps = {
   points: JourneyPoint[];
   livePoint: { lat: number; lon: number } | null;
-  /** Compass heading in degrees, when the device reports one, to point the live dot. */
   liveHeading?: number | null;
-  /** Keep an active trip centered on the moving live location. */
   followLive?: boolean;
-  /** Real road geometry to draw instead of straight hops (used for Drive mode). */
   path?: Array<{ lat: number; lon: number }>;
-  /** Scheduled stop-by-stop geometry for every leg of a transit itinerary. */
   segments?: JourneySegment[];
-  /** Congested stretches drawn in amber/red over the route (Drive mode). */
   trafficSections?: TrafficSection[];
-  /** Index of a traffic section to spotlight (from a tap in the cards). */
   focusSection?: number | null;
-  /** Reported TomTom incidents that should appear as map markers. */
   incidents?: MapIncident[];
 };
 
@@ -161,8 +154,6 @@ export default function CommuteRouteMap({
     tileLayerRef.current.bringToBack();
   }, [basemap]);
 
-  // A stable signature of the drawn geometry: route layers and the viewport only
-  // rebuild when the actual stops or road corridor change, not on every refetch tick.
   const routeSignature = useMemo(
     () =>
       [
@@ -187,9 +178,6 @@ export default function CommuteRouteMap({
   const incidentsRef = useRef(incidents);
   incidentsRef.current = incidents;
   const fittedGeometryRef = useRef<string | null>(null);
-  // A fresh route fit must win over the live-follow effect for this render cycle.
-  // This prevents an active trip's current GPS point from immediately replacing
-  // the destination overview the commuter just selected.
   const suppressLiveFollowRef = useRef(false);
   const geometrySignature = useMemo(
     () =>
@@ -218,12 +206,6 @@ export default function CommuteRouteMap({
     routeLayer.clearLayers();
 
     const roadPath = pathRef.current;
-    // Drive mode draws TomTom's road geometry. Transit draws each scheduled
-    // stop sequence independently, so rail, bus and walking legs stay visible.
-    const lineLatLngs: L.LatLngTuple[] =
-      roadPath && roadPath.length > 1
-        ? roadPath.map((point) => [point.lat, point.lon] as L.LatLngTuple)
-        : current.map((point) => [point.lat, point.lon] as L.LatLngTuple);
     const transitSegments =
       segmentsRef.current?.filter((segment) => segment.points.length > 1) ?? [];
     const drawableSegments =
@@ -244,8 +226,8 @@ export default function CommuteRouteMap({
             : "var(--color-primary)";
       L.polyline(latLngs, {
         color: "var(--color-background)",
-        weight: walking ? 7 : 11,
-        opacity: 0.94,
+        weight: walking ? 8 : 12,
+        opacity: 0.92,
         lineCap: "round",
         lineJoin: "round",
         className: "nalu-journey-line-casing",
@@ -261,9 +243,6 @@ export default function CommuteRouteMap({
       }).addTo(routeLayer);
     }
 
-    // Congestion drawn over the corridor: amber for moderate, red for heavy backups.
-    // Reported incidents are separate from generic congestion so the map can
-    // tell the commuter what actually happened instead of only showing "slower".
     for (const incident of incidentsRef.current ?? []) {
       const point = incident.points?.[0];
       if (!point) continue;
@@ -282,10 +261,12 @@ export default function CommuteRouteMap({
         keyboard: true,
         zIndexOffset: 1300,
       });
-      marker.bindTooltip(
-        `${isCrash ? "Crash reported" : "Traffic incident"}${road}${delay}`,
-        { direction: "top", sticky: true },
-      ).addTo(routeLayer);
+      marker
+        .bindTooltip(`${isCrash ? "Crash reported" : "Traffic incident"}${road}${delay}`, {
+          direction: "top",
+          sticky: true,
+        })
+        .addTo(routeLayer);
     }
 
     for (const [index, section] of (trafficRef.current ?? []).entries()) {
@@ -347,13 +328,11 @@ export default function CommuteRouteMap({
       map.invalidateSize({ animate: false });
       const fit = () => {
         if (map.getSize().x < 20 || map.getSize().y < 20) return;
-        // Snap on first paint; glide when switching between Drive and Transit.
         if (firstFit || followLive)
           map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [52, 52], maxZoom: 12, animate: false });
         else
           map.flyToBounds(L.latLngBounds(boundsLatLngs), { padding: [52, 52], maxZoom: 12, duration: 0.7 });
       };
-      // Mobile layout can finish sizing the map one frame after route data arrives.
       requestAnimationFrame(() => {
         map.invalidateSize({ animate: false });
         fit();
@@ -361,8 +340,6 @@ export default function CommuteRouteMap({
     }
   }, [routeSignature]);
 
-  // The live dot moves in place; recreating it (or touching the viewport) on every
-  // watchPosition tick is what made the map twitch.
   const [spotlight, setSpotlight] = useState<number | null>(null);
   useEffect(() => setSpotlight(focusSection), [focusSection]);
   const spotlightLayerRef = useRef<L.Polyline | null>(null);
@@ -382,6 +359,7 @@ export default function CommuteRouteMap({
     }).addTo(map);
     map.flyToBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 16, duration: 0.6 });
   }, [spotlight]);
+
   const liveMarkerRef = useRef<L.CircleMarker | null>(null);
   const headingMarkerRef = useRef<L.Marker | null>(null);
   useEffect(() => {
@@ -408,7 +386,6 @@ export default function CommuteRouteMap({
         .addTo(liveLayer);
     }
 
-    // A heading arrow above the dot, so a driver can see which way they face.
     if (typeof liveHeading !== "number" || Number.isNaN(liveHeading)) {
       if (headingMarkerRef.current) {
         liveLayer.removeLayer(headingMarkerRef.current);
@@ -462,23 +439,24 @@ export default function CommuteRouteMap({
     ];
     map.flyToBounds(L.latLngBounds(corridor), {
       padding: [42, 42],
-      maxZoom: 15,
+      maxZoom: 13,
       duration: 0.7,
     });
   };
 
   return (
-    <div className="relative z-0 isolate h-full w-full">
+    <div className="relative z-0 isolate h-full w-full nalu-map-frame">
       <div
         ref={nodeRef}
         className="h-full w-full"
-        aria-label="Interactive map of your door-to-door commute"
+        aria-label="Interactive map of your commute"
       />
+      <div className="nalu-map-vignette pointer-events-none absolute inset-0 z-[400]" aria-hidden="true" />
       <div
-        className="absolute right-3 top-3 z-[500] flex flex-col items-end gap-2"
+        className="nalu-map-controls absolute right-3 top-3 z-[500] flex flex-col items-end gap-2"
         aria-label="Map controls"
       >
-        <div className="flex overflow-hidden rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl">
+        <div className="nalu-map-basemap-control flex overflow-hidden rounded-lg">
           <Button
             type="button"
             variant="ghost"
@@ -486,7 +464,7 @@ export default function CommuteRouteMap({
             aria-label="Show standard map"
             aria-pressed={basemap === "standard"}
             onClick={() => setBasemap("standard")}
-            className="rounded-none px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground"
+            className="nalu-map-control-button rounded-none px-2.5"
             data-pressed={basemap === "standard"}
           >
             <Map /> Standard
@@ -498,13 +476,13 @@ export default function CommuteRouteMap({
             aria-label="Show satellite map"
             aria-pressed={basemap === "satellite"}
             onClick={() => setBasemap("satellite")}
-            className="rounded-none border-l border-border px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground"
+            className="nalu-map-control-button rounded-none border-l border-border px-2.5"
             data-pressed={basemap === "satellite"}
           >
             <Satellite /> Satellite
           </Button>
         </div>
-        <div className="flex gap-2">
+        <div className="nalu-map-action-row flex gap-2">
           <Button
             type="button"
             variant="secondary"
@@ -512,7 +490,7 @@ export default function CommuteRouteMap({
             onClick={fitRoute}
             aria-label="Fit full route"
             title="Fit full route"
-            className="size-11 rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl"
+            className="nalu-map-icon-button size-11 rounded-xl"
           >
             <Maximize className="size-5" />
           </Button>
@@ -524,7 +502,7 @@ export default function CommuteRouteMap({
             disabled={!livePoint}
             aria-label={livePoint ? "Recenter on my location" : "Current location unavailable"}
             title={livePoint ? "Recenter on my location" : "Current location unavailable"}
-            className="size-11 rounded-lg border border-foreground/15 bg-background/80 shadow-xl backdrop-blur-xl"
+            className="nalu-map-icon-button size-11 rounded-xl"
           >
             <LocateFixed className="size-5" />
           </Button>
