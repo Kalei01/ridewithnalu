@@ -984,7 +984,8 @@ function Index() {
   // The itinerary boarded, held for the duration of a locked transit trip.
   const lockedOptionRef = useRef<Option | null>(null);
   const lockedItineraryCandidate = useRef<Option | null>(null);
-  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail" | "same"; snapshot: DecisionSnapshot | null } | null>(null);\n  const [decisionTimeline, setDecisionTimeline] = useState<Array<{ at: number; state: "drive" | "rail" | "same"; changes: string[] }>>([]);
+  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail" | "same"; snapshot: DecisionSnapshot | null } | null>(null);
+  const [decisionTimeline, setDecisionTimeline] = useState<Array<{ at: number; state: "drive" | "rail" | "same"; changes: string[] }>>([]);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
