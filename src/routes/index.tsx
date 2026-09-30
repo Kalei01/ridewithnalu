@@ -984,7 +984,7 @@ function Index() {
   // The itinerary boarded, held for the duration of a locked transit trip.
   const lockedOptionRef = useRef<Option | null>(null);
   const lockedItineraryCandidate = useRef<Option | null>(null);
-  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail" | "same"; snapshot: DecisionSnapshot | null } | null>(null);\n  const decisionTimelineRef = useRef<Array<{ at: number; state: "drive" | "rail" | "same"; changes: string[] }>>([]);
+  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail" | "same"; snapshot: DecisionSnapshot | null } | null>(null);\n  const [decisionTimeline, setDecisionTimeline] = useState<Array<{ at: number; state: "drive" | "rail" | "same"; changes: string[] }>>([]);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
@@ -3032,13 +3032,18 @@ function Index() {
     if (commitment || !["drive", "rail", "same"].includes(verdict)) return;
     const prior = decisionHistoryRef.current;
     const sameKey = prior?.key === decisionKey;
-    const meaningful = sameKey && decisionChanges.length > 0;
-    if (meaningful) {
-      decisionTimelineRef.current = [
-        ...decisionTimelineRef.current,
+    if (!sameKey || decisionChanges.length === 0) return;
+    const signature = decisionChanges.join("|");
+    setDecisionTimeline((current) => {
+      const last = current[current.length - 1];
+      if (last && last.state === currentDecisionSnapshot.state && last.changes.join("|") === signature) {
+        return current;
+      }
+      return [
+        ...current,
         { at: now.getTime(), state: currentDecisionSnapshot.state, changes: decisionChanges },
       ].slice(-4);
-    }
+    });
   }, [commitment, verdict, decisionKey, decisionChanges, now, currentDecisionSnapshot.state]);
 
   // The verdict only steers the view until the commuter commits; after that the
@@ -3110,10 +3115,6 @@ function Index() {
     railTripEstimate.busWaitMinutes,
   ]);
 
-  const decisionTimeline = useMemo(() => {
-    if (!configured || commitment || !["drive", "rail", "same"].includes(verdict)) return [];
-    return decisionTimelineRef.current.slice(-4).reverse();
-  }, [configured, commitment, verdict, decisionKey, currentDecisionSnapshot.state, currentDecisionSnapshot.driveMinutes, currentDecisionSnapshot.railMinutes]);
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   const tripOriginLabel = reverseTrip ? destinationLabel
     : departingFromSavedHome || (!savedHome && !inbound)
