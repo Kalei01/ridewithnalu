@@ -1,34 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { routeTravelSeconds } from "./traffic-summary";
+import { formatDriveMinutes, routeTravelSeconds } from "./traffic-summary";
 
-describe("TomTom route time selection", () => {
-  it("uses TomTom's primary ETA for a live trip", () => {
-    expect(
-      routeTravelSeconds(
-        {
-          travelTimeInSeconds: 31 * 60,
-          liveTrafficIncidentsTravelTimeInSeconds: 42 * 60,
-        },
-        false,
-      ),
-    ).toBe(31 * 60);
+describe("drive traffic summary", () => {
+  it("keeps a normal primary ETA when live data is close", () => {
+    expect(routeTravelSeconds({ travelTimeInSeconds: 60 * 60, liveTrafficIncidentsTravelTimeInSeconds: 63 * 60 }, false)).toBe(60 * 60);
   });
 
-  it("uses the primary ETA for a future departure", () => {
-    expect(
-      routeTravelSeconds(
-        {
-          travelTimeInSeconds: 35 * 60,
-          liveTrafficIncidentsTravelTimeInSeconds: 42 * 60,
-        },
-        true,
-      ),
-    ).toBe(35 * 60);
+  it("uses a materially slower live ETA for a current trip", () => {
+    expect(routeTravelSeconds({ travelTimeInSeconds: 60 * 60, liveTrafficIncidentsTravelTimeInSeconds: 81 * 60 }, false)).toBe(81 * 60);
   });
 
-  it("falls back to the primary ETA when live incident data is absent", () => {
-    expect(
-      routeTravelSeconds({ travelTimeInSeconds: 33 * 60 }, false),
-    ).toBe(33 * 60);
+  it("keeps the primary estimate for future departures", () => {
+    expect(routeTravelSeconds({ travelTimeInSeconds: 60 * 60, liveTrafficIncidentsTravelTimeInSeconds: 81 * 60 }, true)).toBe(60 * 60);
+  });
+
+  it("formats durations naturally after one hour", () => {
+    expect(formatDriveMinutes(59)).toBe("59 min");
+    expect(formatDriveMinutes(60)).toBe("1 hr");
+    expect(formatDriveMinutes(65)).toBe("1 hr 5 min");
+    expect(formatDriveMinutes(125)).toBe("2 hrs 5 min");
   });
 });
