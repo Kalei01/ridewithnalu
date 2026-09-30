@@ -98,7 +98,7 @@ import { createClientRateWindow } from "@/lib/client-rate-limit";
 import { decideArrival, decideTrip, type DecisionState } from "@/lib/decision/commute-decision";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
-import { findInboundOptions } from "@/lib/rail/inbound-fallback";
+import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
 import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
@@ -1752,7 +1752,28 @@ function Index() {
         });
         selectedInboundStation = result.stationId ?? selectedInboundStation;
         fallbackChecked = true;
-        return result.options;
+        if (result.options.length || !selectedInboundStation) return result.options;
+        // No direct walk/bus from the origin reaches Skyline: board at the rail
+        // hub nearest the origin with an estimated road access leg instead.
+        const homeStation = selectedInboundStation;
+        return (await hubAccessFallback({
+          origin: tripDirection.from as Coords,
+          stations: stations.filter((station) => station.stop_id !== homeStation),
+          afterSeconds: cursor,
+          fetchFromHub: async (hub, after) => {
+            const { data, error } = await supabase.rpc("plan_inbound", {
+              ...inboundPlannerCoordinates(tripDirection),
+              p_dest_lat: hub.lat,
+              p_dest_lon: hub.lon,
+              p_station: homeStation,
+              p_allow_drive: homeStation === arrivalStationId ? carAtStation : false,
+              p_after_seconds: after,
+              p_limit: planMode === "arrive-by" ? 8 : 4,
+            });
+            if (error) throw error;
+            return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] }));
+          },
+        })) as Option[];
       }
       const { data, error } = await supabase.rpc("plan_outbound", {
         p_origin_lat: setup.homeLat as number,
