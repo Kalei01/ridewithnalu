@@ -38,6 +38,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { reverseGeocode, searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
+import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
 import { confirmedLiveBus } from "@/lib/bus-match";
 import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
@@ -4504,7 +4505,7 @@ function Index() {
                       </p>
                       {drive && driveAvailable && (
                         <p className="text-xs font-semibold text-muted-foreground">
-                          {drive.trafficMinutes} min driving
+                          {formatDriveMinutes(drive.trafficMinutes)} driving
                         </p>
                       )}
                     </div>
@@ -4682,7 +4683,7 @@ function Index() {
               )}
               {verdict === "same" && (
                 <p>
-                  Both options are close: about ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min driving vs ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min by transit.
+                  Both options are close: about ${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)} driving vs ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes ?? 0)} by transit.
                 </p>
               )}
               {activeDecision.supporting && <p>{activeDecision.supporting.text}.</p>}
@@ -4975,7 +4976,7 @@ function Index() {
               onClick={() => chooseMode("rail")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              <TrainFront /> Rail {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${Math.round(railTripEstimate.expectedDurationMinutes)} min` : ""}
+              <TrainFront /> Rail {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
               {!commitment && verdict === "rail" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}
@@ -4989,7 +4990,7 @@ function Index() {
               onClick={() => chooseMode("drive")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              <Car /> Drive {driveTripEstimate.expectedDurationMinutes !== null ? `· ${Math.round(driveTripEstimate.expectedDurationMinutes)} min` : ""}
+              <Car /> Drive {driveTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes)}` : ""}
               {!commitment && verdict === "drive" && (
                 <span className="mode-winner-badge">Faster than transit</span>
               )}
