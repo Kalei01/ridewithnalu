@@ -1,0 +1,85 @@
+/* Nalu Commute Page — shared secondary-card treatment
+ * Presentation-only. Browse and Live surfaces are intentionally untouched.
+ */
+
+.nalu-card-surface,
+[aria-labelledby="plan-mode-title"],
+.alternative-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.14) !important;
+  border-radius: 24px !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), transparent 30%),
+    linear-gradient(180deg, rgba(28, 33, 40, 0.92), rgba(13, 16, 21, 0.94)) !important;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3) !important;
+  backdrop-filter: blur(26px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(125%) !important;
+}
+
+/* Same strategic lower-edge graphic language as the Nalu Says hero card. */
+.nalu-card-surface::after,
+[aria-labelledby="plan-mode-title"]::after,
+.alternative-panel::after {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 0;
+  height: 28px;
+  pointer-events: none;
+  opacity: 0.42;
+  background:
+    linear-gradient(135deg, transparent 0 42%, rgba(214, 221, 228, 0.16) 43% 48%, transparent 49% 100%) 0 0 / 30px 30px,
+    linear-gradient(45deg, transparent 0 42%, rgba(214, 221, 228, 0.07) 43% 48%, transparent 49% 100%) 15px 0 / 30px 30px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  z-index: 0;
+}
+
+.nalu-card-surface > *,
+[aria-labelledby="plan-mode-title"] > *,
+.alternative-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Keep the commute page hierarchy: hero first, supporting cards second. */
+.nalu-card-surface {
+  box-shadow:
+    0 22px 52px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.32) !important;
+}
+
+[aria-labelledby="plan-mode-title"] [aria-label="Planning mode"] {
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 640px) {
+  .nalu-card-surface,
+  [aria-labelledby="plan-mode-title"],
+  .alternative-panel {
+    border-radius: 20px !important;
+  }
+
+  .nalu-card-surface::after,
+  [aria-labelledby="plan-mode-title"]::after,
+  .alternative-panel::after {
+    height: 22px;
+    opacity: 0.32;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nalu-card-surface,
+  [aria-labelledby="plan-mode-title"],
+  .alternative-panel {
+    scroll-behavior: auto;
+  }
+}
