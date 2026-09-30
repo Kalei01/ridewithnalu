@@ -97,26 +97,24 @@ export function decideTrip(
   const intervalsOverlap =
     (drive.earliestArrival as number) <= (rail.latestArrival as number) &&
     (rail.earliestArrival as number) <= (drive.latestArrival as number);
+
+  // Uncertainty affects confidence, not the directional result. If both current
+  // estimates are available and one is materially faster, keep that verdict.
+  // This prevents overlapping ranges from turning a clear expected-time
+  // difference into "Data uncertain".
   const wideUncertainty =
     Math.max(drive.uncertaintyMinutes ?? 0, rail.uncertaintyMinutes ?? 0) > 15;
-  if (wideUncertainty && intervalsOverlap)
+  const limitedData = drive.source.quality === "limited" || rail.source.quality === "limited";
+
+  if (limitedData && difference < tossUp * 2)
     return {
       state: "uncertain",
       confidence: "low",
       differenceMinutes: difference,
-      primary: evidence("data_quality", "The timing is too close to call"),
+      primary: evidence("data_quality", "One side doesn't have enough live info yet"),
       supporting: null,
     };
-  if (drive.source.quality === "limited" || rail.source.quality === "limited") {
-    if (difference < tossUp * 2)
-      return {
-        state: "uncertain",
-        confidence: "low",
-        differenceMinutes: difference,
-        primary: evidence("data_quality", "One side doesn't have enough live info yet"),
-        supporting: null,
-      };
-  }
+
   if (previous && previous !== faster && difference < tossUp + switchMargin)
     return {
       state: previous,
@@ -128,10 +126,11 @@ export function decideTrip(
       ),
       supporting: null,
     };
-  if (difference < tossUp || (intervalsOverlap && difference < tossUp * 2))
+
+  if (difference < tossUp)
     return {
       state: "same",
-      confidence: "moderate",
+      confidence: wideUncertainty ? "low" : "moderate",
       differenceMinutes: difference,
       primary: evidence("time_advantage", "They're about the same time"),
       supporting: null,
@@ -168,7 +167,7 @@ export function decideTrip(
     [primary, supporting] = [supporting as DecisionEvidence, primary];
   return {
     state: faster,
-    confidence: intervalsOverlap ? "moderate" : "high",
+    confidence: wideUncertainty || intervalsOverlap ? "moderate" : "high",
     differenceMinutes: difference,
     primary,
     supporting,
