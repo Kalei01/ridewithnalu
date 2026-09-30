@@ -89,7 +89,31 @@ export const morningPulse = createServerFn({ method: "POST" })
             : `Skyline is about ${difference} min faster: ${skylineDuration} vs ${driveDuration} driving.`;
 
       const delay = Math.max(0, Math.round(drive.delayMinutes));
-      const roads = drive.roads.filter(Boolean).slice(0, 2);
+
+      // TomTom can return route IDs such as "HI-764" that are useful internally
+      // but unfamiliar to commuters. Prefer common Oahu road names and only
+      // expose route numbers when they are recognizable to local drivers.
+      const familiarRoadName = (road: string): string | null => {
+        const normalized = road.trim().toUpperCase().replace(/^(H|HI)[- ]/, "H-");
+        const common: Record<string, string> = {
+          "H-1": "H-1 Freeway",
+          "H-2": "H-2 Freeway",
+          "H-3": "H-3 Freeway",
+          "H-201": "Moanalua Freeway",
+          "HI-63": "Pali Highway",
+          "HI-83": "Kamehameha Highway",
+          "HI-92": "Nimitz Highway",
+          "HI-93": "Farrington Highway",
+          "HI-99": "Kamehameha Highway",
+        };
+        return common[road.trim().toUpperCase()] ?? (
+          /^H-\\d+$/i.test(normalized) ? null : road
+        );
+      };
+      const roads = drive.roads
+        .map(familiarRoadName)
+        .filter((road): road is string => Boolean(road))
+        .slice(0, 2);
       const trafficSentence =
         delay >= 2
           ? `${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.`
