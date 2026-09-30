@@ -590,15 +590,8 @@ function honoluluSeconds(date: Date) {
   return hour * 3600 + minute * 60 + second;
 }
 
-function alohaGreeting(date: Date, name?: string) {
-  const hour = honoluluParts(date).hour;
-  const greeting =
-    hour >= 4 && hour < 12
-      ? "Aloha kakahiaka"
-      : hour >= 12 && hour < 17
-        ? "Aloha ʻauinalā"
-        : "Aloha ahiahi";
-  return name ? `${greeting}, ${name}` : greeting;
+function alohaGreeting(_date: Date, name?: string) {
+  return name ? `Aloha, ${name}` : "Aloha";
 }
 
 /** First name from the signed-in profile: full name, then given name, then username. */
@@ -4153,7 +4146,7 @@ function Index() {
                   return (
                     <article
                       key={`${first?.route_id}-${first?.direction_id ?? "x"}`}
-                      className="browse-departure-card min-w-0 rounded-md p-3"
+                      className="browse-departure-card nalu-card-surface min-w-0 rounded-lg p-3"
                     >
                       <h3 className="text-sm font-semibold text-foreground">
                         {towardDowntown ? "Eastbound" : "Westbound"}
@@ -5151,7 +5144,7 @@ function Index() {
           )}
 
           {selectedMode === "drive" && (
-            <div className="mt-6 rounded-lg border border-border p-5">
+            <div className="nalu-card-surface mt-6 rounded-2xl border border-border p-5">
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-bold text-foreground">Drive details</h3>
