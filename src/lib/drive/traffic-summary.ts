@@ -9,11 +9,13 @@ export function routeTravelSeconds(
   const primary = summary.travelTimeInSeconds;
   const live = summary.liveTrafficIncidentsTravelTimeInSeconds;
 
-  // Current trips should use TomTom's real-time speed estimate when available.
-  // Future departures must use the time-dependent primary estimate because
-  // today's live-speed signal does not describe a future departure.
+  // TomTom's primary travelTimeInSeconds already includes available traffic
+  // delay. The live-speed field is a diagnostic real-time-speed signal, not a
+  // replacement for the full traffic-aware route estimate. Using it alone can
+  // understate congestion on a route, so the canonical ETA is the primary
+  // traffic-aware estimate for current trips too.
+  // Future departures also use the primary time-dependent estimate.
   if (futureDeparture) return primary;
-  if (Number.isFinite(live) && (live as number) > 0) return live as number;
   return primary;
 }
 
