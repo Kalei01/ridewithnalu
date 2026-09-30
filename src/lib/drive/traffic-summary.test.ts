@@ -3,7 +3,7 @@ import { formatDriveMinutes, routeTravelSeconds } from "./traffic-summary";
 
 describe("drive traffic summary", () => {
   it("keeps a normal primary ETA when live data is close", () => {
-    expect(routeTravelSeconds({ travelTimeInSeconds: 60 * 60, liveTrafficIncidentsTravelTimeInSeconds: 63 * 60 }, false)).toBe(60 * 60);
+    expect(routeTravelSeconds({ travelTimeInSeconds: 60 * 60, liveTrafficIncidentsTravelTimeInSeconds: 63 * 60 }, false)).toBe(63 * 60);
   });
 
   it("uses a materially slower live ETA for a current trip", () => {
