@@ -100,7 +100,7 @@ export const morningPulse = createServerFn({ method: "POST" })
         // TomTom can return route/reference strings such as "HI-764",
         // "H1-764", or "H-764". Those are not useful commuter-facing
         // street names, so never surface an unrecognized route identifier.
-        const routeMatch = upper.match(/^(?:HI|H)[- ]?(\\d+)(?:[- ](\\d+))?$/);
+        const routeMatch = upper.match(/^(?:HI|H)[- ]?(\d+)(?:[- ](\d+))?$/);
         const routeNumber = routeMatch?.[1] ?? null;
         const qualifier = routeMatch?.[2] ?? null;
 
@@ -114,6 +114,7 @@ export const morningPulse = createServerFn({ method: "POST" })
           "92": "Nimitz Highway",
           "93": "Farrington Highway",
           "99": "Kamehameha Highway",
+          "764": "Geiger Road",
         };
 
         if (routeNumber) {
