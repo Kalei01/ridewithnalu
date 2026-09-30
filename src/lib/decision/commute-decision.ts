@@ -241,7 +241,7 @@ export function decideArrival(
       differenceMinutes: null,
       primary: evidence(
         "arrival_margin",
-        `${winner === "drive" ? "Driving" : "Transit"} is the option expected to make your target`,
+        `${winner === "drive" ? "Drive" : "Rail"} is the option that can get you there on time`,
       ),
       supporting: null,
     });
@@ -256,7 +256,7 @@ export function decideArrival(
       differenceMinutes: null,
       primary: evidence(
         "arrival_margin",
-        `${winner === "drive" ? "Driving" : "Transit"} has enough margin even at the late end of its range`,
+        `${winner === "drive" ? "Drive" : "Rail"} still gets you there on time if things run a little late`,
       ),
       supporting: null,
     });
