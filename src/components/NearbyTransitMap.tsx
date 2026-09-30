@@ -39,7 +39,7 @@ const BASEMAPS = {
 
 function markerIcon(kind: "rail" | "bus", selected: boolean) {
   const label = kind === "rail" ? "Rail station" : "Bus stop";
-  const size = selected ? (kind === "bus" ? 30 : 34) : kind === "bus" ? 22 : 28;
+  const size = selected ? (kind === "bus" ? 26 : 30) : kind === "bus" ? 18 : 24;
   const half = size / 2;
   const glyph =
     kind === "rail"
@@ -96,6 +96,12 @@ export default function NearbyTransitMap({
       attribution: BASEMAPS.standard.attribution,
     }).addTo(map);
     L.control.zoom({ position: "bottomright" }).addTo(map);
+    map.createPane("nalu-stop-pane");
+    const stopPane = map.getPane("nalu-stop-pane");
+    if (stopPane) stopPane.style.zIndex = "650";
+    map.createPane("nalu-location-pane");
+    const locationPane = map.getPane("nalu-location-pane");
+    if (locationPane) locationPane.style.zIndex = "700";
     markersRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
@@ -145,7 +151,8 @@ export default function NearbyTransitMap({
     userDotRef.current = null;
 
     userDotRef.current = L.circleMarker([userRef.current.lat, userRef.current.lon], {
-      radius: 8,
+      pane: "nalu-location-pane",
+      radius: 7,
       color: "var(--color-foreground)",
       weight: 3,
       fillColor: "var(--color-location)",
@@ -157,6 +164,7 @@ export default function NearbyTransitMap({
 
     for (const stop of stops) {
       const marker = L.marker([stop.lat, stop.lon], {
+        pane: "nalu-stop-pane",
         icon: markerIcon(stop.kind, stop.stopId === (previewStopId ?? selectedStopId)),
         title: stop.stopName,
         keyboard: true,
