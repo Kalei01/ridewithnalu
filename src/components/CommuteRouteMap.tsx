@@ -1,3 +1,4 @@
+import "./map-2.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { LocateFixed, Map, Maximize, Satellite } from "lucide-react";
