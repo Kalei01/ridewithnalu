@@ -29,13 +29,7 @@
 .nalu-map-control-cluster {
   display: inline-flex;
   align-items: center;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.16);
-  border-radius: 13px;
-  background: rgba(12,15,19,.76);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 8px 24px rgba(0,0,0,.32);
-  backdrop-filter: blur(20px) saturate(135%);
-  -webkit-backdrop-filter: blur(20px) saturate(135%);
+  gap: 6px;
 }
 
 .nalu-map-control-button,
@@ -48,28 +42,20 @@
   flex: 0 0 40px !important;
   aspect-ratio: 1 / 1 !important;
   padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  color: #edf2f7 !important;
-  background: transparent !important;
-}
-
-/* Map action buttons must remain true squares. Do not let shared button rules stretch them. */
-.nalu-map-icon-button {
-  width: 44px !important;
-  height: 44px !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
-  aspect-ratio: 1 / 1 !important;
-  flex: 0 0 44px !important;
-  padding: 0 !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
   border-radius: 12px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  color: #edf2f7 !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.035)),
+    rgba(12,15,19,.78) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 7px 20px rgba(0,0,0,.30) !important;
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
 }
 
 .nalu-map-icon-button svg {
@@ -86,14 +72,15 @@
   display: block !important;
 }
 
-.nalu-map-control-button + .nalu-map-control-button {
-  border-left: 1px solid rgba(255,255,255,.10) !important;
-}
-
 .nalu-map-control-button[data-pressed="true"] {
-  background: rgba(105,183,245,.18) !important;
+  background:
+    linear-gradient(180deg, rgba(105,183,245,.28), rgba(105,183,245,.12)),
+    rgba(12,15,19,.82) !important;
+  border-color: rgba(170,220,255,.34) !important;
   color: #fff !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    0 7px 20px rgba(0,0,0,.32) !important;
 }
 
 .nalu-map-control-button:hover,
@@ -204,6 +191,10 @@
     min-width: 40px !important;
     min-height: 40px !important;
     flex-basis: 40px !important;
+  }
+
+  .nalu-map-control-cluster {
+    gap: 6px;
   }
 
   .nalu-map-vignette {
