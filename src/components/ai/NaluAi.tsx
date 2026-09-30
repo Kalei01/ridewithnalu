@@ -51,9 +51,9 @@ export function MorningPulse({
     clock && weekdays.includes(clock.weekday) && clock.hour >= 6 && clock.hour < 8,
   );
   const { data, isLoading } = useQuery({
-    queryKey: ["morning-pulse", home?.lat, home?.lon, work?.lat, work?.lon],
+    queryKey: ["morning-pulse-v2", home?.lat, home?.lon, work?.lat, work?.lon],
     enabled: inWindow && Boolean(home && work),
-    staleTime: 15 * 60_000,
+    staleTime: 2 * 60_000,
     retry: false,
     queryFn: () =>
       fetchPulse({
