@@ -4628,7 +4628,7 @@ function Index() {
               <div className="metric-glass">
                 <p className="text-xs text-muted-foreground">{arriveByActive ? "Trip" : "From now"}</p>
                 <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
-                  {arriveByActive ? best.total_minutes : Math.round(railTripEstimate.expectedDurationMinutes ?? 0)}
+                  {arriveByActive ? formatDriveMinutes(best.total_minutes) : railTripEstimate.expectedDurationMinutes !== null ? formatDriveMinutes(railTripEstimate.expectedDurationMinutes) : "—"}
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
                 </p>
               </div>
