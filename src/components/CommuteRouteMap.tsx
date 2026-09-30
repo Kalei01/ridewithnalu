@@ -454,58 +454,60 @@ export default function CommuteRouteMap({
       />
       <div className="nalu-map-vignette pointer-events-none absolute inset-0 z-[400]" aria-hidden="true" />
       <div
-        className="nalu-map-controls absolute right-3 top-3 z-[500] flex flex-col items-end gap-2"
+        className="nalu-map-controls"
         aria-label="Map controls"
       >
-        <div className="nalu-map-basemap-control flex overflow-hidden rounded-lg">
+        <div className="nalu-map-control-cluster" role="group" aria-label="Map style">
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            size="icon"
             aria-label="Show standard map"
             aria-pressed={basemap === "standard"}
             onClick={() => setBasemap("standard")}
-            className="nalu-map-control-button rounded-none px-2.5"
+            className="nalu-map-control-button"
             data-pressed={basemap === "standard"}
+            title="Standard map"
           >
-            <Map /> Standard
+            <Map aria-hidden="true" />
           </Button>
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            size="icon"
             aria-label="Show satellite map"
             aria-pressed={basemap === "satellite"}
             onClick={() => setBasemap("satellite")}
-            className="nalu-map-control-button rounded-none border-l border-border px-2.5"
+            className="nalu-map-control-button"
             data-pressed={basemap === "satellite"}
+            title="Satellite map"
           >
-            <Satellite /> Satellite
+            <Satellite aria-hidden="true" />
           </Button>
         </div>
-        <div className="nalu-map-action-row flex gap-2">
+        <div className="nalu-map-control-cluster" role="group" aria-label="Map actions">
           <Button
             type="button"
-            variant="secondary"
+            variant="ghost"
             size="icon"
             onClick={fitRoute}
             aria-label="Fit full route"
             title="Fit full route"
-            className="nalu-map-icon-button size-11 rounded-xl"
+            className="nalu-map-icon-button"
           >
-            <Maximize className="size-5" />
+            <Maximize aria-hidden="true" />
           </Button>
           <Button
             type="button"
-            variant="secondary"
+            variant="ghost"
             size="icon"
             onClick={recenter}
             disabled={!livePoint}
             aria-label={livePoint ? "Recenter on my location" : "Current location unavailable"}
             title={livePoint ? "Recenter on my location" : "Current location unavailable"}
-            className="nalu-map-icon-button size-11 rounded-xl"
+            className="nalu-map-icon-button"
           >
-            <LocateFixed className="size-5" />
+            <LocateFixed aria-hidden="true" />
           </Button>
         </div>
       </div>
