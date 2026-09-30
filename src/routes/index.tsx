@@ -736,12 +736,20 @@ function modeIcon(mode: Leg["mode"]) {
   return Footprints;
 }
 
-function trafficStatus(delayMinutes: number) {
+function trafficStatus(delayMinutes: number, incident?: DriveTime["incidents"][number]) {
   const delay = Math.max(0, Math.round(delayMinutes));
+  if (incident) {
+    const description = incident.description.trim().toLowerCase();
+    const crash = /accident|crash|collision/.test(description);
+    const label = crash
+      ? `Crash reported${incident.road ? ` · ${incident.road}` : ""}`
+      : `Traffic incident reported${incident.road ? ` · ${incident.road}` : ""}`;
+    return { label, className: "text-destructive" };
+  }
   if (delay === 0) return { label: "Clear", className: "text-primary" };
-  if (delay > 20) return { label: `${delay} min slower than usual`, className: "text-destructive" };
-  if (delay >= 10) return { label: `${delay} min slower than usual`, className: "text-chart-4" };
-  return { label: `${delay} min slower than usual`, className: "text-foreground" };
+  if (delay > 20) return { label: `Heavy traffic · +${delay} min`, className: "text-destructive" };
+  if (delay >= 10) return { label: `Slower than usual · +${delay} min`, className: "text-chart-4" };
+  return { label: `Slightly slower · +${delay} min`, className: "text-foreground" };
 }
 
 function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
@@ -806,7 +814,7 @@ function H1ConditionsCard({
               </span>
             ) : (
               rows.map(({ label, data }) => {
-                const status = data ? trafficStatus(data.delayMinutes) : null;
+                const status = data ? trafficStatus(data.delayMinutes, data.incidents[0]) : null;
                 return (
                   <span
                     key={label}
@@ -865,7 +873,7 @@ function H1ConditionsCard({
             { label: "H-1 Eastbound (toward town)", data: eastbound },
             { label: "H-1 Westbound (toward Kapolei)", data: westbound },
           ].map((item) => {
-            const status = trafficStatus(item.data.delayMinutes);
+            const status = trafficStatus(item.data.delayMinutes, item.data.incidents[0]);
             const incident = item.data.incidents[0];
             return (
               <div key={item.label} className="py-3">
@@ -4937,6 +4945,9 @@ function Index() {
                       {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})}
                       {...(driveTrafficSections && driveTrafficSections.length > 0
                         ? { trafficSections: driveTrafficSections }
+                        : {})}
+                      {...(selectedMode === "drive" && drive?.incidents?.length
+                        ? { incidents: drive.incidents }
                         : {})}
                     />
                   )}
