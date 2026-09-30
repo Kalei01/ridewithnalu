@@ -16,7 +16,7 @@ export function DecisionBars({ drive, transit }: { drive: Row; transit: Row }) {
       className="mt-6 space-y-4 border-t border-border/50 pt-5"
       aria-label="Travel time comparison"
     >
-      <p className="text-[11px] text-muted-foreground">Expected time to the door from now</p>
+      <p className="text-[11px] text-muted-foreground">Time from now to your destination</p>
       {([drive, transit] as const).map((row, index) => {
         const Icon = index === 0 ? Car : TrainFront;
         return (
@@ -44,7 +44,7 @@ export function DecisionBars({ drive, transit }: { drive: Row; transit: Row }) {
               className="text-right text-sm font-semibold tabular-nums"
               title={
                 row.low !== undefined && row.high !== undefined
-                  ? `Plausible range ${row.low}–${row.high} min`
+                  ? `Typical range ${row.low}–${row.high} min`
                   : undefined
               }
             >
