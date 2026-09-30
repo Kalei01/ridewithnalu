@@ -1,4 +1,5 @@
 import { Car, TrainFront } from "lucide-react";
+import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 
 type Row = {
   label: string;
@@ -47,10 +48,10 @@ export function DecisionBars({ drive, transit }: { drive: Row; transit: Row }) {
                   : undefined
               }
             >
-              {row.minutes === null ? "—" : `${Math.round(row.minutes)}m`}
+              {row.minutes === null ? "—" : formatDriveMinutes(row.minutes)}
               {row.minutes !== null && row.low !== undefined && row.high !== undefined && (
                 <span className="block text-[10px] font-normal text-muted-foreground">
-                  {row.low}–{row.high}m
+                  {formatDriveMinutes(row.low)}–{formatDriveMinutes(row.high)}
                 </span>
               )}
             </span>
