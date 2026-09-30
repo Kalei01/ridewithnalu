@@ -9,13 +9,19 @@ export function routeTravelSeconds(
   const primary = summary.travelTimeInSeconds;
   const live = summary.liveTrafficIncidentsTravelTimeInSeconds;
 
-  // TomTom's primary travelTimeInSeconds already includes available traffic
-  // delay. The live-speed field is a diagnostic real-time-speed signal, not a
-  // replacement for the full traffic-aware route estimate. Using it alone can
-  // understate congestion on a route, so the canonical ETA is the primary
-  // traffic-aware estimate for current trips too.
-  // Future departures also use the primary time-dependent estimate.
+  // For a future departure, use TomTom's time-dependent primary estimate.
   if (futureDeparture) return primary;
+
+  // For a live trip, TomTom also exposes a second route-time calculation that
+  // incorporates currently reported live traffic incidents. In practice the
+  // primary ETA can lag that incident-aware value on a congested corridor.
+  // Use the higher of the two so Nalu does not present an artificially short
+  // ETA when TomTom itself is reporting a longer incident-aware travel time.
+  // Never replace the primary estimate outright: the incident-aware value is
+  // an additional signal, not a universally better route model.
+  if (typeof live === "number" && Number.isFinite(live) && live > 0) {
+    return Math.max(primary, live);
+  }
   return primary;
 }
 
