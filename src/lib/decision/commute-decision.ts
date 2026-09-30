@@ -51,7 +51,7 @@ export function decideTrip(
       state: "none",
       confidence: "low",
       differenceMinutes: null,
-      primary: evidence("service_availability", "Neither option is available for this trip"),
+      primary: evidence("service_availability", "Neither option is available right now"),
       supporting: null,
     };
   if (unavailable.length === 1) {
@@ -62,7 +62,7 @@ export function decideTrip(
         state: "uncertain",
         confidence: "low",
         differenceMinutes: null,
-        primary: evidence("data_quality", "The available option's estimate is too old to rely on"),
+        primary: evidence("data_quality", "The latest travel info is too old to rely on"),
         supporting: null,
       };
     return {
@@ -72,8 +72,8 @@ export function decideTrip(
       primary: evidence(
         "service_availability",
         winner === "drive"
-          ? "No reachable rail trip is available"
-          : "Your car is unavailable for this trip",
+          ? "There isn't a rail trip you can take right now"
+          : "Your car isn't available for this trip",
       ),
       supporting: null,
     };
@@ -85,7 +85,7 @@ export function decideTrip(
       differenceMinutes: null,
       primary: evidence(
         "data_quality",
-        `${drive.source.quality === "stale" ? "Traffic" : "Transit"} data is too old for a reliable comparison`,
+        `${drive.source.quality === "stale" ? "Traffic" : "Transit"} info is too old for a reliable comparison`,
       ),
       supporting: null,
     };
@@ -104,7 +104,7 @@ export function decideTrip(
       state: "uncertain",
       confidence: "low",
       differenceMinutes: difference,
-      primary: evidence("data_quality", "The arrival ranges overlap too widely to call a winner"),
+      primary: evidence("data_quality", "The timing is too close to call"),
       supporting: null,
     };
   if (drive.source.quality === "limited" || rail.source.quality === "limited") {
@@ -113,7 +113,7 @@ export function decideTrip(
         state: "uncertain",
         confidence: "low",
         differenceMinutes: difference,
-        primary: evidence("data_quality", "One estimate has limited supporting data"),
+        primary: evidence("data_quality", "One side doesn't have enough live info yet"),
         supporting: null,
       };
   }
@@ -124,7 +124,7 @@ export function decideTrip(
       differenceMinutes: null,
       primary: evidence(
         "time_advantage",
-        "Expected times are close; keeping the previous recommendation while estimates settle",
+        "The times are close, so Nalu is keeping the previous call for now",
       ),
       supporting: null,
     };
@@ -133,36 +133,36 @@ export function decideTrip(
       state: "same",
       confidence: "moderate",
       differenceMinutes: difference,
-      primary: evidence("time_advantage", "Expected arrivals are close and their ranges overlap"),
+      primary: evidence("time_advantage", "They're about the same time"),
       supporting: null,
     };
 
   let primary = evidence(
     "time_advantage",
-    `${faster === "drive" ? "Driving" : "Transit"} is expected to arrive about ${difference} min sooner`,
+    `${faster === "drive" ? "Drive" : "Rail"} gets you there about ${difference} min sooner`,
   );
   let supporting: DecisionEvidence | null = null;
   if (faster === "rail" && drive.majorIncident)
-    supporting = evidence("major_incident", "A reported incident affects the drive");
+    supporting = evidence("major_incident", "There's a reported crash or slowdown on the drive");
   else if (faster === "rail" && (drive.trafficDelayMinutes ?? 0) >= 5)
     supporting = evidence(
       "traffic_delay",
-      `The drive is running ${Math.round(drive.trafficDelayMinutes as number)} min slower than usual`,
+      `Traffic is adding about ${Math.round(drive.trafficDelayMinutes as number)} min to the drive`,
     );
   else if (faster === "drive" && rail.transferMinutes >= 8)
     supporting = evidence(
       "transfer_wait",
-      `A transit connection adds about ${Math.round(rail.transferMinutes)} min`,
+      `The connection adds about ${Math.round(rail.transferMinutes)} min`,
     );
   else if (faster === "drive" && rail.busWaitMinutes >= 10)
     supporting = evidence(
       "bus_wait",
-      `The bus connection adds about ${Math.round(rail.busWaitMinutes)} min`,
+      `The bus is adding about ${Math.round(rail.busWaitMinutes)} min of waiting`,
     );
   else if (faster === "drive" && rail.railWaitMinutes >= 10)
     supporting = evidence(
       "rail_wait",
-      `The rail connection adds about ${Math.round(rail.railWaitMinutes)} min`,
+      `The next train is adding about ${Math.round(rail.railWaitMinutes)} min of waiting`,
     );
   if (faster === "rail" && drive.majorIncident && (drive.trafficDelayMinutes ?? 0) >= difference)
     [primary, supporting] = [supporting as DecisionEvidence, primary];
@@ -198,7 +198,7 @@ export function decideArrival(
       state: "uncertain",
       confidence: "low",
       differenceMinutes: null,
-      primary: evidence("data_quality", "An arrival estimate is unavailable right now"),
+      primary: evidence("data_quality", "One arrival time isn't available right now"),
       supporting: null,
     });
   if (drive.source.quality === "stale" || rail.source.quality === "stale")
@@ -206,7 +206,7 @@ export function decideArrival(
       state: "uncertain",
       confidence: "low",
       differenceMinutes: null,
-      primary: evidence("data_quality", "An arrival estimate is too old to rely on"),
+      primary: evidence("data_quality", "One arrival time is too old to rely on"),
       supporting: null,
     });
   const driveFeasible = driveMargin !== null && driveMargin >= 0;
@@ -221,7 +221,7 @@ export function decideArrival(
       differenceMinutes: null,
       primary: evidence(
         "data_quality",
-        "Future conditions are too uncertain for a reliable arrival comparison",
+        "Future traffic and transit times are too uncertain to compare reliably",
       ),
       supporting: null,
     });
@@ -230,7 +230,7 @@ export function decideArrival(
       state: "none",
       confidence: "low",
       differenceMinutes: null,
-      primary: evidence("arrival_margin", "Neither option is expected to arrive by your target"),
+      primary: evidence("arrival_margin", "Neither option is expected to get you there on time"),
       supporting: null,
     });
   if (driveFeasible !== railFeasible) {
@@ -270,7 +270,7 @@ export function decideArrival(
       state: "drive",
       confidence: "moderate",
       differenceMinutes: Math.round(earlier / 60),
-      primary: evidence("arrival_margin", "Driving arrives no later and lets you leave later"),
+      primary: evidence("arrival_margin", "You can leave later and still get there no later by car"),
       supporting: null,
     });
   if (later <= 0 && earlier <= 0 && (-later >= 5 * 60 || -earlier >= 5 * 60))
@@ -278,7 +278,7 @@ export function decideArrival(
       state: "rail",
       confidence: "moderate",
       differenceMinutes: Math.round(-earlier / 60),
-      primary: evidence("arrival_margin", "Transit arrives no later and lets you leave later"),
+      primary: evidence("arrival_margin", "You can leave later and still get there no later by rail"),
       supporting: null,
     });
   return result({
@@ -287,7 +287,7 @@ export function decideArrival(
     differenceMinutes: Math.round(Math.abs(earlier) / 60),
     primary: evidence(
       "arrival_margin",
-      "Both can make your target; one leaves later while the other arrives earlier",
+      "Both can get you there on time; one lets you leave later while the other gets you there sooner",
     ),
     supporting: null,
   });
