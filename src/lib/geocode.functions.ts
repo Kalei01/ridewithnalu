@@ -4,6 +4,8 @@ import { z } from "zod";
 const schema = z.object({ address: z.string().min(3).max(200) });
 const searchSchema = z.object({ query: z.string().min(2).max(200) });
 
+const TOMTOM_KEY = process.env["TOMTOM_API_KEY"] || "348D00C6-8412-485B-967C-616C09755105";
+
 // Oahu bias: a bounding box only. An island-centre radius bias ranks
 // identically named listings in Waipahu/'Aiea above the real town venue.
 const OAHU_BOX = { topLeft: "21.75,-158.35", btmRight: "21.20,-157.60" };
@@ -60,8 +62,7 @@ async function tomtomSearch(
 export const geocodeAddress = createServerFn({ method: "POST" })
   .inputValidator((input) => schema.parse(input))
   .handler(async ({ data }) => {
-    const key = process.env["TOMTOM_API_KEY"];
-    if (!key) throw new Error("Address lookup is not configured yet.");
+    const key = TOMTOM_KEY;
     const addressQuery = looksLikeStreetAddress(data.address);
     const hits = addressQuery
       ? await addressSearch(data.address, { key, limit: "10" })
@@ -160,10 +161,10 @@ function insideOahu(lat: number, lon: number) {
 export const searchPlaces = createServerFn({ method: "POST" })
   .inputValidator((input) => searchSchema.parse(input))
   .handler(async ({ data }): Promise<{ results: PlaceSuggestion[] }> => {
-    const key = process.env["TOMTOM_API_KEY"];
-    if (!key) throw new Error("Place search is not configured yet.");
+    const key = TOMTOM_KEY;
 
-    const addressQuery = looksLikeStreetAddress(data.query);
+    try {
+      const addressQuery = looksLikeStreetAddress(data.query);
     // A numbered query is a street address: keep shop listings out of it.
     const hits = addressQuery
       ? await addressSearch(data.query, {
@@ -208,7 +209,11 @@ export const searchPlaces = createServerFn({ method: "POST" })
         return { results: [venue, ...rest].slice(0, 6) };
       }
     }
-    return { results: results.slice(0, 6) };
+      return { results: results.slice(0, 6) };
+    } catch (error) {
+      console.error("[places] TomTom search unavailable", error);
+      return { results: [] };
+    }
   });
 
 const GENERIC_VENUE_WORDS = /\b(shopping\s+cent(er|re)|cent(er|re)|mall|plaza|marketplace)\b/gi;
@@ -282,8 +287,7 @@ const reverseSchema = z.object({ lat: z.number(), lon: z.number() });
 export const reverseGeocode = createServerFn({ method: "POST" })
   .inputValidator((input) => reverseSchema.parse(input))
   .handler(async ({ data }): Promise<{ found: boolean; label: string | null }> => {
-    const key = process.env["TOMTOM_API_KEY"];
-    if (!key) return { found: false, label: null };
+    const key = TOMTOM_KEY;
     const url =
       `https://api.tomtom.com/search/2/reverseGeocode/${data.lat},${data.lon}.json` +
       `?key=${key}&radius=100&language=en-US`;
