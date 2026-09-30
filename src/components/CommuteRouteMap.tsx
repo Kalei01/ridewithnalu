@@ -174,7 +174,7 @@ export default function CommuteRouteMap({
         `traffic:${(trafficSections ?? []).map((section) => `${section.severity}:${section.delayMinutes}:${section.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
         `incidents:${(incidents ?? []).map((incident) => `${incident.description}:${incident.road ?? ""}:${incident.delayMinutes ?? ""}:${(incident.points ?? []).map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
       ].join("#"),
-    [points, path, segments, trafficSections],
+    [points, path, segments, trafficSections, incidents],
   );
   const pointsRef = useRef(points);
   pointsRef.current = points;
