@@ -832,3 +832,45 @@ header,
   .nalu-pacific-band::after,
   body::before { animation: none !important; }
 }
+
+
+/* Final brand calibration: selected commute controls use Nalu ice-blue,
+   while green remains a semantic "recommended/good" signal elsewhere. */
+[aria-label="Trip direction"] [aria-pressed="true"],
+[aria-label="Planning mode"] [aria-pressed="true"],
+[aria-label="Travel mode"] [aria-pressed="true"] {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0)),
+    linear-gradient(180deg, #8ad0ff, #3188c4) !important;
+  color: #061018 !important;
+  box-shadow:
+    0 6px 18px rgba(49,136,196,.22),
+    inset 0 1px 0 rgba(255,255,255,.44) !important;
+}
+
+/* Make the new Pacific identity read on the main commute surface without
+   obscuring live route information. */
+main.bg-page-gradient {
+  background:
+    radial-gradient(520px 260px at 50% 0%, rgba(50, 139, 177, .08), transparent 72%),
+    transparent !important;
+}
+
+.nalu-brand .nalu-honu {
+  color: #edf2f5;
+}
+
+.nalu-brand-title {
+  position: relative;
+}
+
+.nalu-brand-title::after {
+  content: "";
+  display: block;
+  width: 24px;
+  height: 2px;
+  margin-top: 3px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #8acfff, transparent);
+  opacity: .75;
+}
