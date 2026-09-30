@@ -211,13 +211,13 @@ export async function nearestStation(point: Pt) {
   };
 }
 
-export async function railBetween(fromStop: string, toPoint: Pt, afterSeconds: number) {
+export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, afterSeconds: number) {
   const db = publicDb();
   const dest = await nearestStation(toPoint);
   if (!dest) return null;
   const { data } = await db.rpc("plan_outbound", {
-    p_origin_lat: toPoint.lat,
-    p_origin_lon: toPoint.lon,
+    p_origin_lat: fromPoint.lat,
+    p_origin_lon: fromPoint.lon,
     p_station: fromStop,
     p_dest_stop: dest.stopId,
     p_after_seconds: afterSeconds,
