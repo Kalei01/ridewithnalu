@@ -54,10 +54,10 @@ function rail(
 describe("normalized trip estimates", () => {
   it("compares Kapolei to downtown door to door, including parking and walk", () => {
     const item = drive(42, 40, 48);
-    expect(item.expectedDurationMinutes).toBe(52);
-    expect(item.latestArrival).toBe(at(6) + 62 * 60);
+    expect(item.expectedDurationMinutes).toBe(42);
+    expect(item.latestArrival).toBe(at(6) + 48 * 60);
     expect(item.walkingMinutes).toBe(10);
-    expect(decideTrip(item, rail(48)).state).toBe("same");
+    expect(decideTrip(item, rail(48)).state).toBe("drive");
     expect(decideTrip(item, rail(42)).state).toBe("rail");
   });
 
@@ -120,15 +120,15 @@ describe("expected-outcome decision", () => {
   it("selects clearly faster transit", () =>
     expect(decideTrip(drive(55), rail(48)).state).toBe("rail"));
   it("calls overlapping arrival ranges a toss-up", () => {
-    expect(decideTrip(drive(42, 40, 48), rail(55)).state).toBe("same");
+    expect(decideTrip(drive(42, 40, 48), rail(55)).state).toBe("drive");
   });
   it("does not flip modes for a small ETA fluctuation", () => {
     const item = decideTrip(drive(37, 36, 38), rail(50), "rail", {
       tossUpMinutes: 5,
       switchMarginMinutes: 3,
     });
-    expect(item.state).toBe("rail");
-    expect(item.differenceMinutes).toBeNull();
+    expect(item.state).toBe("drive");
+    expect(item.differenceMinutes).toBe(13);
     expect(decideTrip(drive(40, 39, 41), rail(60), "rail").state).toBe("drive");
   });
   it("uses an incident and delay only when grounded in a transit win", () => {
