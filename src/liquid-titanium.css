@@ -552,3 +552,100 @@ textarea:focus,
 .nalu-incident-marker-alert {
   background: linear-gradient(180deg, #f6c45f, #d88a1c);
 }
+
+
+/* Platinum + Nalu geometric motif
+ * Decorative only: an abstract, non-authenticating geometric pattern inspired by
+ * Pacific tattoo geometry. It is intentionally subtle and never competes with
+ * route information or controls.
+ */
+:root {
+  --nalu-platinum-bright: #eef2f5;
+  --nalu-platinum-mid: #aeb8c2;
+  --nalu-platinum-dark: #59636d;
+  --nalu-motif: rgba(214, 221, 228, .16);
+  --nalu-motif-soft: rgba(214, 221, 228, .07);
+}
+
+.nalu-platinum-motif {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.nalu-platinum-motif::after {
+  content: "";
+  position: absolute;
+  inset: auto -8% 0;
+  height: 26px;
+  opacity: .8;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, transparent 0 42%, var(--nalu-motif) 43% 48%, transparent 49% 100%) 0 0 / 28px 28px,
+    linear-gradient(45deg, transparent 0 42%, var(--nalu-motif-soft) 43% 48%, transparent 49% 100%) 14px 0 / 28px 28px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.nalu-platinum-edge {
+  position: relative;
+}
+.nalu-platinum-edge::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 4px;
+  opacity: .7;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, transparent 0 37%, var(--nalu-platinum-mid) 38% 44%, transparent 45% 55%, var(--nalu-platinum-mid) 56% 62%, transparent 63% 100%) 0 0 / 22px 4px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.55));
+}
+.liquid-titanium-slab.nalu-platinum-motif::after,
+.verdict-lift[aria-labelledby="verdict-title"].nalu-platinum-motif::after {
+  height: 32px;
+  opacity: .58;
+}
+.liquid-titanium-slab.nalu-platinum-edge::before,
+.verdict-lift[aria-labelledby="verdict-title"].nalu-platinum-edge::before {
+  left: 20px;
+  right: 20px;
+}
+
+/* Platinum hierarchy: bright metal for primary information, softer metal for
+   supporting information, and a dark graphite base so the interface breathes. */
+.nalu-platinum-title {
+  color: var(--nalu-platinum-bright) !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.12);
+}
+.nalu-platinum-secondary {
+  color: var(--nalu-platinum-mid) !important;
+}
+.nalu-platinum-muted {
+  color: #7f8993 !important;
+}
+.nalu-platinum-divider {
+  border-color: rgba(214,221,228,.12) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+/* A restrained metal bloom: only the primary verdict gets the premium sheen. */
+.liquid-titanium-slab.nalu-platinum-sheen {
+  background:
+    radial-gradient(120% 90% at 8% 0%, rgba(238,242,245,.11), transparent 36%),
+    linear-gradient(145deg, rgba(255,255,255,.075), transparent 32%),
+    linear-gradient(180deg, #222930, #0d1014) !important;
+  border-color: rgba(238,242,245,.20) !important;
+  box-shadow:
+    0 28px 70px rgba(0,0,0,.48),
+    inset 0 1px 0 rgba(255,255,255,.16),
+    inset 0 -1px 0 rgba(0,0,0,.4) !important;
+}
+
+/* Keep semantic contrast unmistakable against platinum. */
+.liquid-signal-sapphire { color: #7ec7ff !important; }
+.liquid-signal-jade { color: #74e0ad !important; }
+.liquid-signal-amber { color: #ffd071 !important; }
+.text-destructive,
+.text-red-500,
+.text-red-600 { color: #ff7b74 !important; }
