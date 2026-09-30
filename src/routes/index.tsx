@@ -4433,7 +4433,7 @@ function Index() {
                       <p className="mt-2 text-sm text-warning">
                         {arriveByPassed
                           ? "Earliest option: "
-                          : `No train and bus combination gets you there by ${clockFromSeconds(arriveByTarget)}. Earliest option: `}
+                          : `Rail can't get you there by ${clockFromSeconds(arriveByTarget)}. Earliest option: `}
                         leave at {clockFromSeconds(railPick.earliestOption.leave_by_seconds)} ·
                         arrive {clockFromSeconds(railPick.earliestOption.arrive_seconds)}.
                       </p>
@@ -4464,7 +4464,7 @@ function Index() {
                         </summary>
                         <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                           <li>
-                            On the road {drive.lowMinutes}–{drive.highMinutes} min, most likely{" "}
+                            Driving {drive.lowMinutes}–{drive.highMinutes} min, usually{" "}
                             {drive.trafficMinutes}
                           </li>
                           {driveBufferNote && <li>{driveBufferNote}</li>}
