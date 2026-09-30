@@ -46,11 +46,13 @@ function markerIcon(kind: "rail" | "bus", selected: boolean) {
     kind === "rail"
       ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Zm0 3v4h10V6H7Zm0 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm10 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM8 19h8v2H8v-2Z"/></svg>'
       : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-1l1.5 2h-3L14 18h-4l-1.5 2h-3L7 18H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Zm0 3v5h12V7H6Zm1 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm10 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>';
+  const hitSize = 40;
+  const hitHalf = hitSize / 2;
   return L.divIcon({
     className: "nalu-marker-shell",
     html: `<span class="nalu-marker nalu-marker-${kind}${selected ? " is-selected" : ""}" aria-label="${label}">${glyph}</span>`,
-    iconSize: [size, size],
-    iconAnchor: [half, half],
+    iconSize: [hitSize, hitSize],
+    iconAnchor: [hitHalf, hitHalf],
   });
 }
 
@@ -201,7 +203,7 @@ export default function NearbyTransitMap({
     ];
     map.invalidateSize({ animate: false });
     if (points.length > 1)
-      map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 14 });
+      map.fitBounds(L.latLngBounds(points), { padding: [56, 56], maxZoom: 13 });
     else map.setView([userRef.current.lat, userRef.current.lon], 14);
   }, [stopsSignature]);
 
@@ -221,7 +223,7 @@ export default function NearbyTransitMap({
       ...stops.map((stop) => [stop.lat, stop.lon] as L.LatLngTuple),
     ];
     if (points.length > 1)
-      map.flyToBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 14, duration: 0.7 });
+      map.flyToBounds(L.latLngBounds(points), { padding: [56, 56], maxZoom: 13, duration: 0.7 });
   };
 
   return (
