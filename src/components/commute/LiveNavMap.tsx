@@ -249,19 +249,33 @@ export default function LiveNavMap(props: LiveNavMapProps) {
           geometry: { type: "LineString", coordinates: t.points.map((p) => [p.lon, p.lat]) },
         })),
     };
+    // Keep the journey above every road, label and 3D layer, Apple Maps style:
+    // white outer casing, dark inner edge, bright line, thin traffic stripe.
+    const raiseRouteLayers = () => {
+      for (const id of ["nalu-route-halo", "nalu-route-casing", "nalu-route-line", "nalu-traffic-line"])
+        if (map.getLayer(id)) map.moveLayer(id);
+    };
     const source = map.getSource("nalu-route") as mapboxgl.GeoJSONSource | undefined;
     if (source) {
       source.setData(data);
       (map.getSource("nalu-traffic") as mapboxgl.GeoJSONSource | undefined)?.setData(trafficData);
+      raiseRouteLayers();
       return;
     }
     map.addSource("nalu-route", { type: "geojson", data });
+    map.addLayer({
+      id: "nalu-route-halo",
+      type: "line",
+      source: "nalu-route",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#ffffff", "line-width": 20, "line-opacity": 0.95 },
+    });
     map.addLayer({
       id: "nalu-route-casing",
       type: "line",
       source: "nalu-route",
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#07111f", "line-width": 18, "line-opacity": 0.96 },
+      paint: { "line-color": "#003a80", "line-width": 15 },
     });
     map.addLayer({
       id: "nalu-route-line",
@@ -280,8 +294,9 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       type: "line",
       source: "nalu-traffic",
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": ["get", "color"], "line-width": 11 },
+      paint: { "line-color": ["get", "color"], "line-width": 5 },
     });
+    raiseRouteLayers();
     if (destination) {
       const el = document.createElement("span");
       el.className = "nalu-journey-marker nalu-journey-marker-end";

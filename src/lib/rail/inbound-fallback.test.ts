@@ -30,13 +30,21 @@ describe("inbound arrival station fallback", () => {
     expect(result).toEqual({ options: [{ legs: ["rail", "bus to Home"] }], stationId: "halawa" });
   });
 
-  it("does not invent a trip when every nearby station has no active connection", async () => {
+  it("does not invent a trip when no station on the line has an active connection", async () => {
     const fetchAtStation = vi.fn(async (_stationId: string) => []);
     const result = await findInboundOptions({
       primaryStationId: "kapolei", stations, destination, fetchAtStation, maxAlternates: 1,
     });
     expect(result.options).toEqual([]);
-    expect(fetchAtStation.mock.calls.map(([id]) => id)).toEqual(["kapolei", "halawa"]);
+    expect(fetchAtStation.mock.calls.map(([id]) => id)).toEqual(["kapolei", "halawa", "airport"]);
+  });
+
+  it("extends along the line when the nearest stations have no egress legs", async () => {
+    const fetchAtStation = vi.fn(async (id: string) => (id === "airport" ? ["bus home"] : []));
+    const result = await findInboundOptions({
+      primaryStationId: "kapolei", stations, destination, fetchAtStation, maxAlternates: 1,
+    });
+    expect(result).toEqual({ options: ["bus home"], stationId: "airport" });
   });
 
   it("can recover when the nearest-stop lookup itself found no station", async () => {

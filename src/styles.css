@@ -87,30 +87,31 @@ a[href*="lovable.dev"][class*="badge"],
 
 :root {
   color-scheme: dark;
-  --radius: 1rem;
-  --background: oklch(0.13 0.012 225);
-  --foreground: oklch(0.97 0.006 250);
-  --card: oklch(0.19 0.013 225);
-  --card-foreground: oklch(0.97 0.006 250);
-  --popover: oklch(0.2 0.014 255);
-  --popover-foreground: oklch(0.97 0.006 250);
-  --primary: oklch(0.83 0.11 178);
-  --primary-foreground: oklch(0.14 0.023 178);
-  --secondary: oklch(0.235 0.012 255);
-  --secondary-foreground: oklch(0.91 0.008 250);
-  --muted: oklch(0.22 0.01 255);
-  --muted-foreground: oklch(0.65 0.018 250);
-  --accent: oklch(0.26 0.014 255);
-  --accent-foreground: oklch(0.97 0.006 250);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.31 0.012 255);
-  --input: oklch(0.31 0.012 255);
-  --ring: oklch(0.83 0.11 178);
-  --recommended: oklch(0.83 0.11 178);
-  --recommended-foreground: oklch(0.14 0.023 178);
-  --surface-raised: oklch(0.19 0.014 255);
-  --warning: oklch(0.79 0.16 75);
+  /* Apple HIG dark: true black base, elevated system grays, system colors. */
+  --radius: 0.875rem;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #1c1c1e;
+  --card-foreground: #ffffff;
+  --popover: #2c2c2e;
+  --popover-foreground: #ffffff;
+  --primary: #0a84ff; /* System Blue (dark variant of #007AFF) */
+  --primary-foreground: #ffffff;
+  --secondary: #2c2c2e;
+  --secondary-foreground: #ebebf5;
+  --muted: #1c1c1e;
+  --muted-foreground: rgb(235 235 245 / 60%);
+  --accent: #2c2c2e;
+  --accent-foreground: #ffffff;
+  --destructive: #ff453a;
+  --destructive-foreground: #ffffff;
+  --border: rgb(84 84 88 / 55%);
+  --input: rgb(118 118 128 / 24%);
+  --ring: #0a84ff;
+  --recommended: #30d158; /* Transit Green */
+  --recommended-foreground: #00210b;
+  --surface-raised: #2c2c2e;
+  --warning: #ff9f0a;
   /* Muted amber, orange and red for inline outdoor-condition notes. */
   --alert-rain: oklch(0.76 0.1 78);
   --alert-heat: oklch(0.74 0.12 55);
