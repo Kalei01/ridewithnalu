@@ -39,7 +39,8 @@ const BASEMAPS = {
 
 function markerIcon(kind: "rail" | "bus", selected: boolean) {
   const label = kind === "rail" ? "Rail station" : "Bus stop";
-  const size = selected ? (kind === "bus" ? 26 : 30) : kind === "bus" ? 18 : 24;
+  // Keep the map footprint stable; selection is communicated with a ring, not a stretched marker.
+  const size = kind === "bus" ? 20 : 24;
   const half = size / 2;
   const glyph =
     kind === "rail"
