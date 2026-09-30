@@ -1,12 +1,10 @@
-/** The departAt route time is time-dependent; a live-speed field is for a trip now. */
+/** Use TomTom's primary traffic-aware route ETA for both live and future trips. */
 export function routeTravelSeconds(
   summary: {
     travelTimeInSeconds: number;
     liveTrafficIncidentsTravelTimeInSeconds?: number | undefined;
   },
-  futureDeparture: boolean,
+  _futureDeparture: boolean,
 ): number {
-  return futureDeparture
-    ? summary.travelTimeInSeconds
-    : (summary.liveTrafficIncidentsTravelTimeInSeconds ?? summary.travelTimeInSeconds);
+  return summary.travelTimeInSeconds;
 }
