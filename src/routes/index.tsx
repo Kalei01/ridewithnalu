@@ -342,6 +342,22 @@ const LIVE_ROUTE_CACHE_KEY = "nalu-live-route-v1";
 
 /** The mode a commuter has committed to for the trip underway. */
 type Commitment = { mode: "rail" | "drive"; at: number };
+type DecisionSnapshot = {
+  key: string;
+  state: "drive" | "rail" | "same";
+  driveMinutes: number | null;
+  railMinutes: number | null;
+  driveDelayMinutes: number | null;
+  railWaitMinutes: number | null;
+  busWaitMinutes: number | null;
+  majorIncident: boolean;
+};
+
+function changedMinutes(now: number | null, previous: number | null) {
+  if (now === null || previous === null) return null;
+  const delta = Math.round(now - previous);
+  return Math.abs(delta) >= 2 ? delta : null;
+}
 
 function parseCommitment(raw: string | null): Commitment | null {
   if (!raw) return null;
@@ -975,7 +991,7 @@ function Index() {
   // The itinerary boarded, held for the duration of a locked transit trip.
   const lockedOptionRef = useRef<Option | null>(null);
   const lockedItineraryCandidate = useRef<Option | null>(null);
-  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail" } | null>(null);
+  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail"; snapshot: DecisionSnapshot | null } | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
@@ -2948,6 +2964,8 @@ function Index() {
   const decisionKey = `${planMode}:${inbound}:${setup.homeLat}:${setup.homeLon}:${setup.destLat}:${setup.destLon}`;
   const previousVerdict = decisionHistoryRef.current?.key === decisionKey
     ? decisionHistoryRef.current.state : null;
+  const previousDecisionSnapshot = decisionHistoryRef.current?.key === decisionKey
+    ? decisionHistoryRef.current.snapshot : null;
   const decision = decideTrip(driveTripEstimate, railTripEstimate, previousVerdict,
     { tossUpMinutes: TOSS_UP_MIN });
   const activeDecision = arriveByActive && arriveByComparison ? arriveByComparison : decision;
@@ -2960,10 +2978,41 @@ function Index() {
   const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
     ? decision.differenceMinutes : null;
   const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
+  const currentDecisionSnapshot: DecisionSnapshot = {
+    key: decisionKey,
+    state: verdict === "same" ? "same" : verdict === "drive" || verdict === "rail" ? verdict : "same",
+    driveMinutes: driveTripEstimate.expectedDurationMinutes,
+    railMinutes: railTripEstimate.expectedDurationMinutes,
+    driveDelayMinutes: driveTripEstimate.trafficDelayMinutes,
+    railWaitMinutes: railTripEstimate.railWaitMinutes,
+    busWaitMinutes: railTripEstimate.busWaitMinutes,
+    majorIncident: Boolean(driveTripEstimate.majorIncident),
+  };
+  const decisionChanges = useMemo(() => {
+    if (commitment || !previousDecisionSnapshot || previousDecisionSnapshot.key !== decisionKey) return [] as string[];
+    const changes: string[] = [];
+    if (previousDecisionSnapshot.state !== currentDecisionSnapshot.state) {
+      const labels = { drive: "driving", rail: "Skyline", same: "neither option" } as const;
+      changes.push(`Nalu changed the recommendation from ${labels[previousDecisionSnapshot.state]} to ${labels[currentDecisionSnapshot.state]}.`);
+    }
+    const driveDelta = changedMinutes(currentDecisionSnapshot.driveMinutes, previousDecisionSnapshot.driveMinutes);
+    if (driveDelta !== null) changes.push(`Driving is now about ${Math.abs(driveDelta)} min ${driveDelta > 0 ? "slower" : "faster"} than your last check.`);
+    const railDelta = changedMinutes(currentDecisionSnapshot.railMinutes, previousDecisionSnapshot.railMinutes);
+    if (railDelta !== null) changes.push(`Skyline is now about ${Math.abs(railDelta)} min ${railDelta > 0 ? "slower" : "faster"} than your last check.`);
+    const trafficDelta = changedMinutes(currentDecisionSnapshot.driveDelayMinutes, previousDecisionSnapshot.driveDelayMinutes);
+    if (trafficDelta !== null) changes.push(`Traffic is adding about ${Math.abs(trafficDelta)} min ${trafficDelta > 0 ? "more" : "less"} time than at your last check.`);
+    const railWaitDelta = changedMinutes(currentDecisionSnapshot.railWaitMinutes, previousDecisionSnapshot.railWaitMinutes);
+    if (railWaitDelta !== null) changes.push(`The next train wait is about ${Math.abs(railWaitDelta)} min ${railWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`);
+    const busWaitDelta = changedMinutes(currentDecisionSnapshot.busWaitMinutes, previousDecisionSnapshot.busWaitMinutes);
+    if (busWaitDelta !== null) changes.push(`Your bus wait is about ${Math.abs(busWaitDelta)} min ${busWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`);
+    if (currentDecisionSnapshot.majorIncident && !previousDecisionSnapshot.majorIncident) changes.push("A crash or major slowdown is now affecting the drive.");
+    if (!currentDecisionSnapshot.majorIncident && previousDecisionSnapshot.majorIncident) changes.push("The reported crash or major slowdown is no longer affecting the comparison.");
+    return changes.slice(0, 3);
+  }, [commitment, previousDecisionSnapshot, decisionKey, currentDecisionSnapshot.driveMinutes, currentDecisionSnapshot.railMinutes, currentDecisionSnapshot.driveDelayMinutes, currentDecisionSnapshot.railWaitMinutes, currentDecisionSnapshot.busWaitMinutes, currentDecisionSnapshot.majorIncident, currentDecisionSnapshot.state]);
   useEffect(() => {
-    if (!commitment && (verdict === "drive" || verdict === "rail"))
-      decisionHistoryRef.current = { key: decisionKey, state: verdict };
-  }, [commitment, verdict, decisionKey]);
+    if (!commitment && (verdict === "drive" || verdict === "rail" || verdict === "same"))
+      decisionHistoryRef.current = { key: decisionKey, state: verdict === "same" ? "drive" : verdict, snapshot: currentDecisionSnapshot };
+  }, [commitment, verdict, decisionKey, currentDecisionSnapshot]);
   // The verdict only steers the view until the commuter commits; after that the
   // locked mode stays on screen for the rest of the trip.
   useEffect(() => {
@@ -2985,11 +3034,11 @@ function Index() {
       : railNotRunningYet
         ? "Skyline has not started service yet. Nalu is using the available option until rail service begins."
         : verdict === "drive"
-        ? "Nalu is comparing the full door-to-door trip, including transit waiting and walking time, not just the time spent on the freeway."
+        ? "Nalu compares the full trip from where you start to where you’re going, including getting to transit, waiting for your ride, and walking at the end—not just the freeway drive."
         : verdict === "rail"
-          ? "The rail total includes getting to the station, waiting for the train, the ride, transfers, and the final walk to your destination."
+          ? "The Skyline option includes getting to the station, waiting, the train ride, any bus connection, and the walk to your destination."
           : verdict === "same"
-            ? "The arrival ranges overlap enough that the current data does not show a meaningful time advantage."
+            ? "The estimated arrival times are close enough that neither option has a clear time advantage right now."
             : activeDecision.primary.text;
 
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
@@ -4669,7 +4718,7 @@ function Index() {
               </div>
               {railWindow && (
                 <p className="col-span-3 text-sm font-semibold tabular-nums text-muted-foreground">
-                  At the door {railWindow}
+                  Arrive {railWindow}
                 </p>
               )}
             </div>
@@ -4687,7 +4736,7 @@ function Index() {
                 </p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">Door to door</p>
+                <p className="text-xs text-muted-foreground">Total trip</p>
                 <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
                   {Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)}
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
@@ -4710,20 +4759,25 @@ function Index() {
             </p>
           )}
           {configured && (verdict === "rail" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
-          {configured && !commitment && <details className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25 text-sm">
+          {configured && !commitment && decisionChanges.length > 0 && <details className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25 text-sm">
             <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-foreground marker:hidden">
               <span className="inline-flex items-center gap-2">
                 <span className="text-[11px] text-muted-foreground">▶</span>
-                Why Nalu says this
+                What changed?
               </span>
             </summary>
             <div className="border-t border-border/50 px-4 py-4">
               <p className="text-sm font-semibold leading-6 text-foreground">
-                {whyNaluText}
+                {decisionChanges[0]}
               </p>
-              {activeDecision.supporting && (
+              {decisionChanges.slice(1).map((change) => (
+                <p key={change} className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {change}
+                </p>
+              ))}
+              {whyNaluText && (
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {activeDecision.supporting.text}.
+                  {whyNaluText}
                 </p>
               )}
               {verdict === "same" && (
@@ -4780,7 +4834,7 @@ function Index() {
                       {liveEta.meters ? ` · ${formatDistance(liveEta.meters)}` : ""}
                       {liveEta.range ? (
                         <span className="block text-xs font-semibold text-muted-foreground">
-                          Door to door {liveEta.range}
+                          Total trip {liveEta.range}
                         </span>
                       ) : null}
                     </p>
@@ -5220,7 +5274,7 @@ function Index() {
                             </span>
                             <span className="shrink-0">
                               <span className="block text-[10px] font-semibold uppercase text-muted-foreground">
-                                Door to door
+                                Total trip
                               </span>
                               <span className="mt-1 block text-lg font-bold tabular-nums text-foreground">
                                 {option.total_minutes} min
