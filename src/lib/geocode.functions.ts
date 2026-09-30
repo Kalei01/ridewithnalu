@@ -4,7 +4,7 @@ import { z } from "zod";
 const schema = z.object({ address: z.string().min(3).max(200) });
 const searchSchema = z.object({ query: z.string().min(2).max(200) });
 
-const TOMTOM_KEY = process.env["TOMTOM_API_KEY"] || "348D00C6-8412-485B-967C-616C09755105";
+const TOMTOM_KEY = process.env["TOMTOM_API_KEY"];
 
 // Oahu bias: a bounding box only. An island-centre radius bias ranks
 // identically named listings in Waipahu/'Aiea above the real town venue.
