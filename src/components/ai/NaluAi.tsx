@@ -158,7 +158,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     try {
       setAnswer(await ask({ data: { query: text, origin } }));
     } catch {
-      setAnswer({ ok: false, error: "Nalu AI couldn't answer just now." });
+      setAnswer({ ok: false, error: "Nalu couldn't answer that right now." });
     } finally {
       busyRef.current = false;
       setBusy(false);
