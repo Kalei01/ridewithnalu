@@ -17,6 +17,13 @@ type TrafficSection = {
   points: Array<{ lat: number; lon: number }>;
 };
 
+type MapIncident = {
+  description: string;
+  road: string | null;
+  delayMinutes: number | null;
+  points?: Array<{ lat: number; lon: number }>;
+};
+
 type JourneySegment = {
   id: string;
   mode: "walk" | "drive" | "bus" | "rail";
@@ -38,6 +45,8 @@ type CommuteRouteMapProps = {
   trafficSections?: TrafficSection[];
   /** Index of a traffic section to spotlight (from a tap in the cards). */
   focusSection?: number | null;
+  /** Reported TomTom incidents that should appear as map markers. */
+  incidents?: MapIncident[];
 };
 
 type Basemap = "standard" | "satellite";
@@ -98,6 +107,7 @@ export default function CommuteRouteMap({
   segments,
   trafficSections,
   focusSection = null,
+  incidents,
 }: CommuteRouteMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
@@ -116,7 +126,7 @@ export default function CommuteRouteMap({
       attributionControl: true,
       scrollWheelZoom: false,
       dragging: true,
-    }).setView([first.lat, first.lon], 12);
+    }).setView([first.lat, first.lon], 11);
 
     tileLayerRef.current = L.tileLayer(BASEMAPS.standard.url, {
       maxZoom: 19,
@@ -162,6 +172,7 @@ export default function CommuteRouteMap({
         `path:${(path ?? []).map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`,
         `segments:${(segments ?? []).map((segment) => `${segment.id}:${segment.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
         `traffic:${(trafficSections ?? []).map((section) => `${section.severity}:${section.delayMinutes}:${section.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
+        `incidents:${(incidents ?? []).map((incident) => `${incident.description}:${incident.road ?? ""}:${incident.delayMinutes ?? ""}:${(incident.points ?? []).map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`).join("|")}`,
       ].join("#"),
     [points, path, segments, trafficSections],
   );
@@ -173,6 +184,8 @@ export default function CommuteRouteMap({
   segmentsRef.current = segments;
   const trafficRef = useRef(trafficSections);
   trafficRef.current = trafficSections;
+  const incidentsRef = useRef(incidents);
+  incidentsRef.current = incidents;
   const fittedGeometryRef = useRef<string | null>(null);
   const geometrySignature = useMemo(
     () =>
@@ -245,6 +258,32 @@ export default function CommuteRouteMap({
     }
 
     // Congestion drawn over the corridor: amber for moderate, red for heavy backups.
+    // Reported incidents are separate from generic congestion so the map can
+    // tell the commuter what actually happened instead of only showing "slower".
+    for (const incident of incidentsRef.current ?? []) {
+      const point = incident.points?.[0];
+      if (!point) continue;
+      const description = incident.description.trim().toLowerCase();
+      const isCrash = /accident|crash|collision/.test(description);
+      const road = incident.road ? ` on ${incident.road}` : "";
+      const delay = incident.delayMinutes && incident.delayMinutes > 0 ? ` · +${incident.delayMinutes} min` : "";
+      const marker = L.marker([point.lat, point.lon], {
+        icon: L.divIcon({
+          className: "nalu-marker-shell",
+          html: `<span class="nalu-incident-marker nalu-incident-marker-${isCrash ? "crash" : "alert"}"><span aria-hidden="true">!</span></span>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
+        }),
+        title: `${isCrash ? "Crash reported" : "Traffic incident"}${road}`,
+        keyboard: true,
+        zIndexOffset: 1300,
+      });
+      marker.bindTooltip(
+        `${isCrash ? "Crash reported" : "Traffic incident"}${road}${delay}`,
+        { direction: "top", sticky: true },
+      ).addTo(routeLayer);
+    }
+
     for (const [index, section] of (trafficRef.current ?? []).entries()) {
       if (section.points.length < 2) continue;
       const latLngs = section.points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
@@ -301,11 +340,19 @@ export default function CommuteRouteMap({
       const firstFit = fittedGeometryRef.current === null;
       fittedGeometryRef.current = geometrySignatureRef.current;
       map.invalidateSize({ animate: false });
-      // Snap on first paint; glide when switching between Drive and Transit.
-      if (firstFit || followLive)
-        map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, animate: false });
-      else
-        map.flyToBounds(L.latLngBounds(boundsLatLngs), { padding: [34, 34], maxZoom: 15, duration: 0.7 });
+      const fit = () => {
+        if (map.getSize().x < 20 || map.getSize().y < 20) return;
+        // Snap on first paint; glide when switching between Drive and Transit.
+        if (firstFit || followLive)
+          map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [44, 44], maxZoom: 13, animate: false });
+        else
+          map.flyToBounds(L.latLngBounds(boundsLatLngs), { padding: [44, 44], maxZoom: 13, duration: 0.7 });
+      };
+      // Mobile layout can finish sizing the map one frame after route data arrives.
+      requestAnimationFrame(() => {
+        map.invalidateSize({ animate: false });
+        fit();
+      });
     }
   }, [routeSignature]);
 
