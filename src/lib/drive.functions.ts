@@ -23,6 +23,8 @@ export type DriveIncident = {
   description: string;
   road: string | null;
   delayMinutes: number | null;
+  /** TomTom incident geometry, used to place the reported incident on the route map. */
+  points?: Array<{ lat: number; lon: number }>;
 };
 
 export type DriveTime = {
@@ -290,6 +292,7 @@ async function fetchIncidents(
         description,
         road,
         delayMinutes: typeof delay === "number" ? Math.round(delay / 60) : null,
+        points: incidentPoints,
       };
       // Don't alarm the driver about something their own route is not paying for.
       if (!incidentAffectsTrip(candidate)) continue;
