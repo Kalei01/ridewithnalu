@@ -322,7 +322,9 @@ export async function runAskNalu(query: string, origin: Pt | null) {
           afterSeconds: z.number(),
         }),
         execute: async (i) =>
-          (await railBetween(i.fromStopId, { lat: i.toLat, lon: i.toLon }, i.afterSeconds)) ?? {
+          (origin
+            ? await railBetween(i.fromStopId, origin, { lat: i.toLat, lon: i.toLon }, i.afterSeconds)
+            : null) ?? {
             error: "no rail",
           },
       }),
