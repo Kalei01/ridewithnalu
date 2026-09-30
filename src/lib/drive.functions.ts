@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
-import { incidentAffectsTrip } from "./traffic-incidents";
+import { incidentAffectsTrip, localRoadName } from "./traffic-incidents";
 import { routeTravelSeconds } from "./drive/traffic-summary";
 
 const TOMTOM_KEY = process.env["TOMTOM_API_KEY"] ?? atob("MzQ4RDAwQzYtODQxMi00ODVCLTk2N0MtNjE2QzA5NzU1MTA1");
@@ -290,7 +290,7 @@ async function fetchIncidents(
       const delay = incident.properties?.delay;
       const candidate: DriveIncident = {
         description,
-        road,
+        road: localRoadName(road),
         delayMinutes: typeof delay === "number" ? Math.round(delay / 60) : null,
         points: incidentPoints,
       };
