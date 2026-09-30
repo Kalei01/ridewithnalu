@@ -2962,8 +2962,11 @@ function Index() {
     : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
   const decisionKey = `${planMode}:${inbound}:${setup.homeLat}:${setup.homeLon}:${setup.destLat}:${setup.destLon}`;
-  const previousVerdict = decisionHistoryRef.current?.key === decisionKey
-    ? decisionHistoryRef.current.state : null;
+  const previousVerdict =
+    decisionHistoryRef.current?.key === decisionKey &&
+    decisionHistoryRef.current.state !== "same"
+      ? decisionHistoryRef.current.state
+      : null;
   const previousDecisionSnapshot = decisionHistoryRef.current?.key === decisionKey
     ? decisionHistoryRef.current.snapshot : null;
   const decision = decideTrip(driveTripEstimate, railTripEstimate, previousVerdict,
@@ -3012,9 +3015,9 @@ function Index() {
   useEffect(() => {
     if (commitment || !["drive", "rail", "same"].includes(verdict)) return;
     const historyState =
-      verdict === "drive" || verdict === "rail"
+      verdict === "drive" || verdict === "rail" || verdict === "same"
         ? verdict
-        : decisionHistoryRef.current?.state ?? "drive";
+        : "same";
     decisionHistoryRef.current = {
       key: decisionKey,
       state: historyState,
