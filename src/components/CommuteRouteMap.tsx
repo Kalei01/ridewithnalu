@@ -187,6 +187,10 @@ export default function CommuteRouteMap({
   const incidentsRef = useRef(incidents);
   incidentsRef.current = incidents;
   const fittedGeometryRef = useRef<string | null>(null);
+  // A fresh route fit must win over the live-follow effect for this render cycle.
+  // This prevents an active trip's current GPS point from immediately replacing
+  // the destination overview the commuter just selected.
+  const suppressLiveFollowRef = useRef(false);
   const geometrySignature = useMemo(
     () =>
       [
@@ -339,6 +343,7 @@ export default function CommuteRouteMap({
     if (fittedGeometryRef.current !== geometrySignatureRef.current) {
       const firstFit = fittedGeometryRef.current === null;
       fittedGeometryRef.current = geometrySignatureRef.current;
+      if (followLive) suppressLiveFollowRef.current = true;
       map.invalidateSize({ animate: false });
       const fit = () => {
         if (map.getSize().x < 20 || map.getSize().y < 20) return;
@@ -432,6 +437,10 @@ export default function CommuteRouteMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !followLive || !livePoint) return;
+    if (suppressLiveFollowRef.current) {
+      suppressLiveFollowRef.current = false;
+      return;
+    }
     map.setView([livePoint.lat, livePoint.lon], Math.max(map.getZoom(), 15), { animate: false });
   }, [followLive, livePoint]);
 
