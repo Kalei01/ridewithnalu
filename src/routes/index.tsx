@@ -4710,23 +4710,34 @@ function Index() {
             </p>
           )}
           {configured && (verdict === "rail" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
-          {configured && !commitment && <details className="mt-3 text-sm text-muted-foreground">
-            <summary className="cursor-pointer font-semibold text-foreground">Why Nalu says this</summary>
-            <div className="mt-3 space-y-2">
-              {(verdict === "rail" || verdict === "drive" || railServiceClosed) && (
-                <p>{whyNaluText}</p>
-              )}
-              {verdict === "same" && (
-                <p>
-                  Both options are close: about ${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)} driving vs ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes ?? 0)} by transit.
+          {configured && !commitment && <details className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25 text-sm">
+            <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-foreground marker:hidden">
+              <span className="inline-flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground">▶</span>
+                Why Nalu says this
+              </span>
+            </summary>
+            <div className="border-t border-border/50 px-4 py-4">
+              <p className="text-sm font-semibold leading-6 text-foreground">
+                {whyNaluText}
+              </p>
+              {activeDecision.supporting && (
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {activeDecision.supporting.text}.
                 </p>
               )}
-              {activeDecision.supporting && <p>{activeDecision.supporting.text}.</p>}
+              {verdict === "same" && (
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Driving is about {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit is about {formatDriveMinutes(railTripEstimate.expectedDurationMinutes ?? 0)}.
+                </p>
+              )}
               {verdict === "uncertain" && (
-                <p>{activeDecision.primary.text}.</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {activeDecision.primary.text}.
+                </p>
               )}
             </div>
-            <div className="mt-3 border-t border-border/60 pt-2 text-xs text-muted-foreground">
+            <div className="border-t border-border/50 px-4 py-3 text-xs text-muted-foreground">
               <p>{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
               <p className="mt-1">{sourceFreshnessLabel(railTripEstimate.source, now.getTime())}</p>
             </div>
