@@ -2861,7 +2861,10 @@ function Index() {
   // Real service hours for the rail station, used when nothing is reachable.
   const { data: railHours = [] } = useQuery({
     queryKey: ["service-hours", inbound ? arrivalStationId : setup.homeStopId],
-    enabled: hydrated && Boolean(inbound ? arrivalStationId : setup.homeStopId) && !optionsLoading && options.length === 0,
+    // Service hours are independent of trip-planning results. Fetch them immediately
+    // so Nalu can explain a closed rail service window instead of waiting on a
+    // timetable query that can never return an option after service has ended.
+    enabled: hydrated && Boolean(inbound ? arrivalStationId : setup.homeStopId),
     staleTime: 12 * 60 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("service_hours", {
@@ -2874,6 +2877,14 @@ function Index() {
   });
 
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
+  const railServiceClosed = Boolean(
+    todayHours &&
+      (nowSeconds >= Number(todayHours.last_seconds) ||
+        nowSeconds < Number(todayHours.first_seconds)),
+  );
+  const railClosedForEvening = Boolean(
+    todayHours && nowSeconds >= Number(todayHours.last_seconds),
+  );
   // Rail total carries a safety buffer, and a range for transfers that slip.
   const driveTripEstimate = driveEstimate({
     drive: drive ?? null, access: driveAccess, nowSeconds, nowMs: now.getTime(),
@@ -2922,7 +2933,11 @@ function Index() {
     { tossUpMinutes: TOSS_UP_MIN });
   const activeDecision = arriveByActive && arriveByComparison ? arriveByComparison : decision;
   const verdict: DecisionState = commitment?.mode ??
-    (optionsLoading || driveLoading ? "uncertain" : activeDecision.state);
+    (!arriveByActive && railServiceClosed
+      ? activeDecision.state
+      : optionsLoading || driveLoading
+        ? "uncertain"
+        : activeDecision.state);
   const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
     ? decision.differenceMinutes : null;
   const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
@@ -2937,7 +2952,22 @@ function Index() {
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "rail") setSelectedMode("rail");
   }, [verdict, inbound, commitment]);
-  const reasoning = commitment ? "Your selected trip stays locked while conditions update." : activeDecision.primary.text;
+  const reasoning = commitment
+    ? "Your selected trip stays locked while conditions update."
+    : railClosedForEvening
+      ? "Skyline service has ended for the evening, so Nalu is comparing the remaining option."
+      : activeDecision.primary.text;
+
+  const whyNaluText =
+    railClosedForEvening
+      ? "Skyline has finished service for the evening. Nalu is using the live driving estimate because rail is not operating right now."
+      : verdict === "drive"
+        ? "Nalu is comparing the full door-to-door trip, including transit waiting and walking time, not just the time spent on the freeway."
+        : verdict === "rail"
+          ? "The rail total includes getting to the station, waiting for the train, the ride, transfers, and the final walk to your destination."
+          : verdict === "same"
+            ? "The arrival ranges overlap enough that the current data does not show a meaningful time advantage."
+            : activeDecision.primary.text;
 
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   const tripOriginLabel = reverseTrip ? destinationLabel
@@ -4440,7 +4470,11 @@ function Index() {
                     ) : (
                       <p className="mt-2 text-sm text-muted-foreground">
                         {todayHours
-                          ? `No rail service for this trip at that time. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.`
+                          ? nowSeconds >= Number(todayHours.last_seconds)
+                            ? `Rail is closed for the evening. Today's service ended at ${clockFromSeconds(todayHours.last_seconds)}.`
+                            : nowSeconds < Number(todayHours.first_seconds)
+                              ? `Rail is not running yet. Today's service starts at ${clockFromSeconds(todayHours.first_seconds)}.`
+                              : `No rail service for this trip at that time. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.`
                           : "No rail service for this trip today."}
                       </p>
                     )}
@@ -4626,12 +4660,8 @@ function Index() {
           {configured && !commitment && <details className="mt-3 text-sm text-muted-foreground">
             <summary className="cursor-pointer font-semibold text-foreground">Why Nalu says this</summary>
             <div className="mt-3 space-y-2">
-              {(verdict === "rail" || verdict === "drive") && (
-                <p>
-                  {verdict === "rail"
-                    ? `Rail takes about ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min vs ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min driving.`
-                    : `Driving takes about ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min vs ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min by rail.`}
-                </p>
+              {(verdict === "rail" || verdict === "drive" || railClosedForEvening) && (
+                <p>{whyNaluText}</p>
               )}
               {verdict === "same" && (
                 <p>
