@@ -5,7 +5,7 @@ import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./
 import { incidentAffectsTrip } from "./traffic-incidents";
 import { routeTravelSeconds } from "./drive/traffic-summary";
 
-const TOMTOM_KEY = process.env["TOMTOM_API_KEY"] || "348D00C6-8412-485B-967C-616C09755105";
+const TOMTOM_KEY = process.env["TOMTOM_API_KEY"];
 
 const schema = z.object({
   fromLat: z.number(),
