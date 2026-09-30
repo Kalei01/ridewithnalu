@@ -2992,7 +2992,7 @@ function Index() {
     majorIncident: Boolean(driveTripEstimate.majorIncident),
   };
   const decisionChanges = useMemo(() => {
-    if (commitment || !previousDecisionSnapshot || previousDecisionSnapshot.key !== decisionKey) return [] as string[];
+    if (commitment || !previousDecisionSnapshot || previousDecisionSnapshot.key !== decisionKey || !["drive", "rail", "same"].includes(verdict)) return [] as string[];
     const changes: string[] = [];
     if (previousDecisionSnapshot.state !== currentDecisionSnapshot.state) {
       const labels = { drive: "driving", rail: "Skyline", same: "neither option" } as const;
