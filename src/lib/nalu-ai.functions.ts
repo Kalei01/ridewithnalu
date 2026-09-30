@@ -65,10 +65,15 @@ export const morningPulse = createServerFn({ method: "POST" })
         !Number.isFinite(skylineMinutes) ||
         skylineMinutes <= 0
       ) {
+        const missing: string[] = [];
+        if (driveDuration === null || driveMinutes === null) missing.push("Drive");
+        if (skylineDuration === null || skylineMinutes === null || skylineMinutes <= 0) {
+          missing.push("Skyline");
+        }
         return {
           ok: true,
           value: {
-            text: "Nalu couldn't compare both options right now because one ETA is unavailable.",
+            text: `Morning Pulse couldn't compare both options: ${missing.join(" and ")} ETA unavailable.`,
             faster: "unknown",
           },
         };
