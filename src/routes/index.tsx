@@ -744,11 +744,30 @@ function trafficStatus(delayMinutes: number) {
 }
 
 function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
-  if (source.quality === "unavailable") return `${source.name}: unavailable`;
-  if (source.fetchedAt === null) return `${source.name}: update time unknown`;
+  if (source.quality === "unavailable") {
+    return source.basis === "live" ? "Live traffic · Unavailable" : "Transit schedule · Unavailable";
+  }
+  if (source.fetchedAt === null) {
+    return source.basis === "live" ? "Live traffic · Update time unknown" : "Transit schedule · Update time unknown";
+  }
+
   const ageSeconds = Math.max(0, Math.round((nowMs - source.fetchedAt) / 1000));
-  const age = ageSeconds < 60 ? `${ageSeconds} sec` : `${Math.round(ageSeconds / 60)} min`;
-  return `${source.name}: ${source.basis} data checked ${age} ago${source.quality === "stale" ? " (stale)" : ""}`;
+  const age =
+    ageSeconds < 10
+      ? "just now"
+      : ageSeconds < 60
+        ? `${ageSeconds} sec ago`
+        : `${Math.round(ageSeconds / 60)} min ago`;
+
+  let label = source.basis === "live"
+    ? "Live traffic"
+    : source.name.includes("TheBus")
+      ? "Bus schedule"
+      : "Train schedule";
+
+  if (source.basis === "future-estimate") label = "Future traffic estimate";
+
+  return `${label} · Updated ${age}${source.quality === "stale" ? " · Stale" : ""}`;
 }
 
 function H1ConditionsCard({
@@ -4605,10 +4624,29 @@ function Index() {
           )}
           {configured && (verdict === "rail" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
           {configured && !commitment && <details className="mt-3 text-sm text-muted-foreground">
-            <summary className="cursor-pointer font-semibold text-foreground">Why?</summary>
-            {activeDecision.supporting && <p className="mt-2">{activeDecision.supporting.text}</p>}
-            <p className="mt-2">{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
-            <p className="mt-1">{sourceFreshnessLabel(railTripEstimate.source, now.getTime())}</p>
+            <summary className="cursor-pointer font-semibold text-foreground">Why Nalu says this</summary>
+            <div className="mt-3 space-y-2">
+              {(verdict === "rail" || verdict === "drive") && (
+                <p>
+                  {verdict === "rail"
+                    ? `Transit is about ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min door to door vs ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min driving.`
+                    : `Driving is about ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min door to door vs ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min by transit.`}
+                </p>
+              )}
+              {verdict === "same" && (
+                <p>
+                  Both options are close: about ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min driving vs ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min by transit.
+                </p>
+              )}
+              {activeDecision.supporting && <p>{activeDecision.supporting.text}.</p>}
+              {verdict === "uncertain" && (
+                <p>{activeDecision.primary.text}.</p>
+              )}
+            </div>
+            <div className="mt-3 border-t border-border/60 pt-2 text-xs text-muted-foreground">
+              <p>{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
+              <p className="mt-1">{sourceFreshnessLabel(railTripEstimate.source, now.getTime())}</p>
+            </div>
           </details>}
           {verdict === "drive" && drive?.incidents[0] && (
             <div className="mt-4 border-l-2 border-warning pl-3">
