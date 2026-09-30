@@ -66,8 +66,6 @@ const GLYPHS: Record<TurnGlyph, typeof ArrowUp> = {
 /** Push the puck into the lower third so the road ahead fills the screen. */
 function navPadding(map: mapboxgl.Map) {
   const { clientHeight: h, clientWidth: w } = map.getContainer();
-  // Landscape car mount: the maneuver card sits on the left, so shift the
-  // puck right of it and keep less vertical headroom.
   if (w > h && h < 600)
     return { top: Math.round(h * 0.35), bottom: Math.round(h * 0.05), left: Math.round(w * 0.3), right: 0 };
   return { top: Math.round(h * 0.5), bottom: Math.round(h * 0.06), left: 0, right: 0 };
@@ -138,8 +136,6 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   );
   if (match && match.distanceM <= 80) routeIndexRef.current = match.segmentIndex;
   const displayedPoint = match && match.distanceM <= 80 ? match.point : livePoint;
-  // GPS heading when moving; otherwise the route's own forward direction, so
-  // the road ahead points straight up even at 0 mph.
   const heading = bearing ?? match?.bearing ?? null;
   const renderedLines = useMemo(() => {
     if (!match) return lines;
@@ -218,15 +214,15 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   }, [token, mapStyle]);
 
   const trafficKey = traffic.map((t) => `${t.severity}:${t.points.length}:${t.points[0]?.lat}`).join("|");
-  // Route lines.
   const lineKey = renderedLines
     .map((l) => `${l.id}:${l.points.length}:${l.points[0]?.lat}:${l.points[0]?.lon}`)
     .join("|");
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    // Mapbox only parses plain colours (not oklch theme tokens), so use hex.
-    const colors = { drive: "#35d7ff", rail: "#35d7ff", bus: "#38e0c0", walk: "#f2f6fb" };
+    // Mapbox layer colours are deliberately explicit so the navigation route stays stable
+    // across map styles and does not depend on CSS/OKLCH support inside the canvas.
+    const colors = { drive: "#0A84FF", rail: "#0A84FF", bus: "#0A84FF", walk: "#F9FAFB" };
     const data: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: renderedLines
@@ -237,20 +233,20 @@ export default function LiveNavMap(props: LiveNavMapProps) {
           geometry: { type: "LineString", coordinates: l.points.map((p) => [p.lon, p.lat]) },
         })),
     };
-    // Traffic speed: amber for slow merges, deep coral for bottlenecks. Flat
-    // colours (no blur/glow) stay legible in bright sun and cheap to render.
+    // Traffic signal colours remain restrained and functional: amber for moderate,
+    // red for heavy. They sit above the sapphire route only where TomTom reports a stretch.
     const trafficData: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: traffic
         .filter((t) => t.points.length > 1)
         .map((t) => ({
           type: "Feature",
-          properties: { color: t.severity === "heavy" ? "#ff4d5e" : "#ffb020" },
+          properties: { color: t.severity === "heavy" ? "#FF453A" : "#FF9F0A" },
           geometry: { type: "LineString", coordinates: t.points.map((p) => [p.lon, p.lat]) },
         })),
     };
-    // Keep the journey above every road, label and 3D layer, Apple Maps style:
-    // white outer casing, dark inner edge, bright line, thin traffic stripe.
+    // Keep the journey above every road, label and 3D layer: platinum-white casing,
+    // subtle titanium shadow, then an icy sapphire core.
     const raiseRouteLayers = () => {
       for (const id of ["nalu-route-halo", "nalu-route-casing", "nalu-route-line", "nalu-traffic-line"])
         if (map.getLayer(id)) map.moveLayer(id);
@@ -268,14 +264,14 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       type: "line",
       source: "nalu-route",
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#ffffff", "line-width": 20, "line-opacity": 0.95 },
+      paint: { "line-color": "#F9FAFB", "line-width": 20, "line-opacity": 0.96 },
     });
     map.addLayer({
       id: "nalu-route-casing",
       type: "line",
       source: "nalu-route",
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#003a80", "line-width": 15 },
+      paint: { "line-color": "#DDE3EA", "line-width": 15, "line-opacity": 0.98 },
     });
     map.addLayer({
       id: "nalu-route-line",
@@ -284,7 +280,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       layout: { "line-cap": "round", "line-join": "round" },
       paint: {
         "line-color": ["get", "color"],
-        "line-width": 11,
+        "line-width": 10,
         "line-dasharray": ["case", ["get", "walk"], ["literal", [1, 1.5]], ["literal", [1, 0]]],
       },
     });
@@ -306,7 +302,6 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineKey, ready, trafficKey]);
 
-  // 3D on-road turn arrow: fades in inside 200 m, clears once passed.
   const turnBearing = useMemo(() => {
     if (!turn || path.length < 2) return null;
     let bestI = 0;
@@ -321,7 +316,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     }
     const ahead = path[Math.min(path.length - 1, bestI + 3)]!;
     return bearingBetween(turn, ahead);
-  }, [turn?.lat, turn?.lon, path]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [turn?.lat, turn?.lon, path]);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -343,7 +338,6 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     turnMarkerRef.current.setLngLat([turn.lon, turn.lat]).setRotation(turnBearing).addTo(map);
   }, [turn, turnBearing, ready]);
 
-  // Curated corridor pins — at most four, only along this trip.
   const landmarkKey = landmarks.map((l) => l.id).join("|");
   useEffect(() => {
     const map = mapRef.current;
@@ -355,10 +349,8 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       el.textContent = l.label;
       return new mapboxgl.Marker({ element: el }).setLngLat([l.lon, l.lat]).addTo(map);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [landmarkKey, ready]);
 
-  // Live puck and heading-up camera.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready || !displayedPoint) return;
@@ -395,8 +387,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     followRef.current = true;
     setFollowing(true);
     const map = mapRef.current;
-    if (map && displayedPoint)
-      map.stop();
+    if (map && displayedPoint) map.stop();
     if (map && displayedPoint)
       map.easeTo({
         center: [displayedPoint.lon, displayedPoint.lat],
@@ -423,9 +414,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
             aria-live="assertive"
           >
             <p className="text-base font-black text-foreground">Rerouting…</p>
-            <p className="mt-1 text-xs font-semibold text-muted-foreground">
-              Proceeding to route…
-            </p>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">Proceeding to route…</p>
           </div>
         ) : maneuver && Glyph ? (
           <div
@@ -434,12 +423,8 @@ export default function LiveNavMap(props: LiveNavMapProps) {
           >
             <Glyph className="size-9 shrink-0 text-primary" strokeWidth={2.6} aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-2xl font-black leading-none tabular-nums text-foreground">
-                {maneuver.distanceText}
-              </p>
-              <p className="mt-1 truncate text-sm font-semibold text-foreground/85">
-                {maneuver.road}
-              </p>
+              <p className="text-2xl font-black leading-none tabular-nums text-foreground">{maneuver.distanceText}</p>
+              <p className="mt-1 truncate text-sm font-semibold text-foreground/85">{maneuver.road}</p>
             </div>
           </div>
         ) : (
@@ -447,21 +432,12 @@ export default function LiveNavMap(props: LiveNavMapProps) {
         )}
         <div className="flex shrink-0 flex-col items-end gap-2 max-lg:landscape:flex-row max-lg:landscape:items-start">
           {eta && (
-            <div
-              className="nav-hud pointer-events-auto rounded-xl px-3 py-2 text-right"
-              aria-live="polite"
-            >
-              <p className="text-lg font-black leading-none tabular-nums text-foreground">
-                {eta.arrive}
-              </p>
+            <div className="nav-hud pointer-events-auto rounded-xl px-3 py-2 text-right" aria-live="polite">
+              <p className="text-lg font-black leading-none tabular-nums text-foreground">{eta.arrive}</p>
               <p className="mt-1 text-[11px] font-bold tabular-nums text-muted-foreground">
                 {eta.minutes} min{eta.distance ? ` · ${eta.distance}` : ""}
               </p>
-              {eta.range && (
-                <p className="text-[10px] font-semibold tabular-nums text-muted-foreground">
-                  {eta.range}
-                </p>
-              )}
+              {eta.range && <p className="text-[10px] font-semibold tabular-nums text-muted-foreground">{eta.range}</p>}
             </div>
           )}
           <Button
@@ -483,9 +459,9 @@ export default function LiveNavMap(props: LiveNavMapProps) {
           type="button"
           onClick={recenter}
           style={props.recenterBottom ? { bottom: props.recenterBottom } : undefined}
-          className="absolute bottom-4 left-1/2 z-10 h-11 -translate-x-1/2 gap-2 rounded-full px-5 font-bold shadow-xl"
+          className="liquid-titanium-pill absolute bottom-4 left-1/2 z-10 h-11 -translate-x-1/2 gap-2 rounded-full px-5 font-bold shadow-xl"
         >
-          <LocateFixed className="size-4" /> Recenter
+          <LocateFixed className="size-4 text-primary" /> Recenter
         </Button>
       )}
     </div>
