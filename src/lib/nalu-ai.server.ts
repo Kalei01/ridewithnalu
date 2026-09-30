@@ -15,6 +15,13 @@ export class AiGatewayError extends Error {
 }
 
 function model() {
+  // Portable: a standard OPENAI_API_KEY (e.g. on Vercel) wins; otherwise the
+  // hosted gateway is used. OPENAI_MODEL optionally overrides the model name.
+  const openaiKey = process.env["OPENAI_API_KEY"];
+  if (openaiKey) {
+    const openai = createOpenAI({ apiKey: openaiKey, baseURL: process.env["OPENAI_BASE_URL"] });
+    return openai.responses(process.env["OPENAI_MODEL"] ?? "gpt-5-mini");
+  }
   const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new AiGatewayError("AI is not configured yet.", 401);
   const lovable = createOpenAI({
