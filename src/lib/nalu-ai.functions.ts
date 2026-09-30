@@ -25,10 +25,14 @@ export const morningPulse = createServerFn({ method: "POST" })
     try {
       const [drive] = await ai.routeOptions(data.from, data.to);
       const station = await ai.nearestStation(data.from);
+      // Use the actual current time. Adding a 10-minute artificial cutoff can
+      // hide the next scheduled train and make Morning Pulse report an unavailable ETA.
       const rail = station
-        ? await ai.railBetween(station.stopId, data.from, data.to, ai.honoluluSeconds() + 10 * 60)
+        ? await ai.railBetween(station.stopId, data.from, data.to, ai.honoluluSeconds())
         : null;
-      const railTrip = rail?.trips[0];
+      const railTrip = rail?.trips.find(
+        (trip) => Number.isFinite(trip.total_minutes) && trip.total_minutes > 0,
+      ) ?? null;
 
       const formatDuration = (minutes: number | null) => {
         if (minutes === null || !Number.isFinite(minutes)) return null;
