@@ -137,16 +137,15 @@ export async function routeOptions(
     }>;
   };
   return (body.routes ?? []).map((r) => {
-    // Morning Pulse and other current-time AI features must use the same
-    // real-time speed signal as the main commute engine. Future callers that
-    // pass departAt still use TomTom's primary time-dependent estimate.
-    const minutes = opts.departAt
-      ? Math.round((r.summary?.travelTimeInSeconds ?? 0) / 60)
-      : Math.round(
-          (r.summary?.liveTrafficIncidentsTravelTimeInSeconds ??
-            r.summary?.travelTimeInSeconds ??
-            0) / 60,
-        );
+    // Use TomTom's canonical traffic-aware travelTimeInSeconds for both
+    // current and future trips. The liveTrafficIncidents field is a separate
+    // diagnostic calculation and must not make Morning Pulse disagree with
+    // the main commute engine or appear unavailable when that field is absent.
+    const minutes = Math.round(
+      (r.summary?.travelTimeInSeconds ??
+        r.summary?.liveTrafficIncidentsTravelTimeInSeconds ??
+        0) / 60,
+    );
     const typical = Math.round(
       (r.summary?.historicTrafficTravelTimeInSeconds ??
         r.summary?.noTrafficTravelTimeInSeconds ??
