@@ -29,23 +29,37 @@ export const morningPulse = createServerFn({ method: "POST" })
         ? await ai.railBetween(station.stopId, data.to, ai.honoluluSeconds() + 10 * 60)
         : null;
       const railTrip = rail?.trips[0];
-      const now = ai.honoluluSeconds();
-      const parkRideMinutes = railTrip ? Math.round((railTrip.arrive_seconds - now) / 60) : null;
+      const formatDuration = (minutes: number | null) => {
+        if (minutes === null || !Number.isFinite(minutes)) return null;
+        const total = Math.max(0, Math.round(minutes));
+        if (total < 60) return `${total} min`;
+        const hours = Math.floor(total / 60);
+        const mins = total % 60;
+        return mins === 0 ? `${hours} hr` : `${hours} hr ${mins} min`;
+      };
+      // Use the modeled door-to-door duration from the transit planner.
+      // Computing arrivalSeconds - now can inflate the Skyline comparison.
+      const parkRideMinutes = railTrip?.total_minutes ?? null;
+      const driveDisplay = formatDuration(drive?.minutes ?? null);
+      const skylineDisplay = formatDuration(parkRideMinutes);
       const facts = {
         destination: data.destinationLabel,
         driveMinutes: drive?.minutes ?? null,
+        driveDuration: driveDisplay,
         driveTypicalMinutes: drive?.typicalMinutes ?? null,
         driveDelayMinutes: drive?.delayMinutes ?? null,
         driveRoads: drive?.roads ?? [],
         nearestStation: station?.name ?? null,
         stationMiles: station?.distanceMiles ?? null,
         skylineDoorToDoorMinutesIncludingWaitAndDriveToStation: parkRideMinutes,
+        skylineDuration: skylineDisplay,
         trainsEveryMinutes: data.trainsEveryMinutes,
       };
       const out = await ai.aiObject(
         "You write Nalu Morning Pulse: exactly two short, calm sentences (under 40 words total) for an Oʻahu commuter. " +
           "Sentence 1: the worst current slowdown on their drive (use the road names and delay), or say roads look normal. " +
-          "Sentence 2: whether driving or Skyline (park-and-ride when a station drive is involved) is faster right now and by how much. " +
+          "Sentence 2: compare the current driveDuration with the current Skyline park-and-ride skylineDuration and say which is faster and by how much. " +
+          "Use the supplied duration strings exactly when mentioning trip lengths; never turn 60 into 60 min (say 1 hr), and never turn 70 into 70 min (say 1 hr 10 min). " +
           "Only use the numbers given; if a number is null, don't invent it.",
         JSON.stringify(facts),
         z.object({ text: z.string(), faster: z.enum(["drive", "skyline", "similar", "unknown"]) }),
