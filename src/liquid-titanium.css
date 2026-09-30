@@ -1,12 +1,18 @@
 /*
  * Nalu — Liquid Titanium & Frosted Glass
  * Presentation-only layer. Commute logic, data contracts and API behavior remain untouched.
+ *
+ * This stylesheet is loaded after src/styles.css. The token bridge below therefore
+ * intentionally overrides the existing Tailwind/shadcn semantic variables without
+ * requiring a risky rewrite of the large core stylesheet.
  */
 
-:root {
+:root,
+.dark {
+  color-scheme: dark;
   --nalu-obsidian: #08090b;
   --nalu-obsidian-2: #0d0f12;
-  --nalu-glass: rgba(18, 21, 26, 0.78);
+  --nalu-glass: rgba(18, 22, 29, 0.76);
   --nalu-glass-raised: rgba(24, 27, 34, 0.82);
   --nalu-platinum: #f9fafb;
   --nalu-platinum-2: #a1a7b3;
@@ -15,9 +21,31 @@
   --nalu-sapphire-deep: #0071e3;
   --nalu-jade: #30d158;
   --nalu-amber: #ff9f0a;
-  --nalu-hairline: rgba(255, 255, 255, 0.1);
+  --nalu-hairline: rgba(255, 255, 255, 0.12);
   --nalu-specular: rgba(255, 255, 255, 0.14);
-  --nalu-shadow: rgba(0, 0, 0, 0.42);
+  --nalu-shadow: rgba(0, 0, 0, 0.45);
+
+  /* Liquid Titanium semantic token bridge for Tailwind/shadcn utilities. */
+  --background: #08090b;
+  --foreground: #f9fafb;
+  --card: rgba(18, 22, 29, 0.76);
+  --card-foreground: #f9fafb;
+  --popover: rgba(22, 27, 36, 0.88);
+  --popover-foreground: #f9fafb;
+  --secondary: rgba(30, 36, 48, 0.72);
+  --secondary-foreground: #e2e5eb;
+  --muted: rgba(25, 30, 40, 0.65);
+  --muted-foreground: #a1a7b3;
+  --accent: rgba(30, 36, 48, 0.72);
+  --accent-foreground: #f9fafb;
+  --border: rgba(255, 255, 255, 0.12);
+  --input: rgba(255, 255, 255, 0.08);
+  --primary: #0a84ff;
+  --primary-foreground: #ffffff;
+  --recommended: #30d158;
+  --recommended-foreground: #00210b;
+  --surface-raised: rgba(24, 27, 34, 0.82);
+  --ring: #0a84ff;
 }
 
 html,
@@ -29,33 +57,53 @@ body {
   color: var(--nalu-platinum);
 }
 
-/* Shared frosted titanium surface. */
-.liquid-glass,
+/* Global frosted treatment for standard Tailwind/shadcn semantic surfaces. */
+.bg-card,
+.bg-popover,
+.bg-surface-raised,
 .glass-panel,
 .alternative-panel,
 .map-shell,
 .commitment-panel,
 .nav-hud {
-  background: linear-gradient(
+  background-image: linear-gradient(
     145deg,
     rgba(255, 255, 255, 0.045),
-    transparent 32%,
+    transparent 34%,
     rgba(255, 255, 255, 0.018) 100%
-  ), var(--nalu-glass) !important;
-  border: 1px solid var(--nalu-hairline) !important;
+  ) !important;
+  background-color: var(--card) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
   box-shadow:
-    0 22px 60px var(--nalu-shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.11),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.18) !important;
-  backdrop-filter: blur(32px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(135%) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 16px 40px rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(28px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(140%) !important;
+}
+
+.bg-popover {
+  background-color: var(--popover) !important;
+}
+
+.bg-secondary {
+  background-color: var(--secondary) !important;
+}
+
+.bg-muted {
+  background-color: var(--muted) !important;
+}
+
+.border-border,
+.border-input {
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 /* Precision-milled slab for the main commute verdict. */
-.liquid-titanium-slab {
+.liquid-titanium-slab,
+.verdict-lift[aria-labelledby="verdict-title"] {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 26px !important;
   background:
     linear-gradient(155deg, rgba(255, 255, 255, 0.055), transparent 28%),
@@ -68,27 +116,37 @@ body {
   -webkit-backdrop-filter: blur(32px) saturate(140%) !important;
 }
 
-.liquid-titanium-slab::before {
+.liquid-titanium-slab::before,
+.verdict-lift[aria-labelledby="verdict-title"]::before {
   position: absolute;
   inset: 0;
   pointer-events: none;
   content: "";
-  background: linear-gradient(105deg, rgba(255, 255, 255, 0.07), transparent 18%, transparent 78%, rgba(255, 255, 255, 0.025));
+  background: linear-gradient(
+    105deg,
+    rgba(255, 255, 255, 0.07),
+    transparent 18%,
+    transparent 78%,
+    rgba(255, 255, 255, 0.025)
+  );
 }
 
-.liquid-titanium-slab > * {
+.liquid-titanium-slab > *,
+.verdict-lift[aria-labelledby="verdict-title"] > * {
   position: relative;
   z-index: 1;
 }
 
 /* Platinum type hierarchy. */
 .liquid-titanium-slab .text-foreground,
+.verdict-lift[aria-labelledby="verdict-title"] .text-foreground,
 .liquid-metric,
 .liquid-metric-value {
   color: var(--nalu-platinum) !important;
 }
 
 .liquid-titanium-slab .text-muted-foreground,
+.verdict-lift[aria-labelledby="verdict-title"] .text-muted-foreground,
 .liquid-secondary {
   color: var(--nalu-platinum-2) !important;
 }
@@ -115,51 +173,66 @@ body {
 }
 
 /* Fine metallic dividers. */
-.liquid-divider {
+.liquid-divider,
+.verdict-lift[aria-labelledby="verdict-title"] .border-t {
   border-color: rgba(255, 255, 255, 0.08) !important;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.11), transparent);
 }
 
-/* Native-feeling segmented controls. */
-.liquid-segmented {
-  border: 1px solid rgba(255, 255, 255, 0.075);
-  background: rgba(5, 7, 10, 0.72);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  backdrop-filter: blur(28px) saturate(130%);
-  -webkit-backdrop-filter: blur(28px) saturate(130%);
+/* Native-feeling segmented controls. Existing homepage groups are targeted by
+ * aria-label so the visual pass requires no commute-state or routing changes. */
+.liquid-segmented,
+[aria-label="Trip direction"],
+[aria-label="Planning mode"],
+[aria-label="Travel mode"] {
+  border: 1px solid rgba(255, 255, 255, 0.075) !important;
+  background: rgba(5, 7, 10, 0.72) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+  backdrop-filter: blur(28px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(130%) !important;
 }
 
+[aria-label="Trip direction"] [aria-pressed="true"],
+[aria-label="Planning mode"] [aria-pressed="true"],
+[aria-label="Travel mode"] [aria-pressed="true"],
 .liquid-segmented [aria-selected="true"],
 .liquid-segmented .is-active {
   background: var(--nalu-sapphire) !important;
   color: #fff !important;
-  box-shadow: 0 7px 22px rgba(10, 132, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 7px 22px rgba(10, 132, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
 }
 
 /* Brushed titanium quick actions / pills. */
-.liquid-titanium-pill {
+.liquid-titanium-pill,
+[aria-label="Quick destinations"] > button {
   border: 1px solid rgba(255, 255, 255, 0.09) !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012)),
     rgba(20, 23, 29, 0.78) !important;
   color: var(--nalu-platinum) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.24) !important;
   backdrop-filter: blur(24px) saturate(125%);
   -webkit-backdrop-filter: blur(24px) saturate(125%);
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.liquid-titanium-pill:hover {
+.liquid-titanium-pill:hover,
+[aria-label="Quick destinations"] > button:hover {
   border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
-.liquid-titanium-pill:active {
+.liquid-titanium-pill:active,
+[aria-label="Quick destinations"] > button:active {
   transform: scale(0.985);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 14px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 14px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Primary navigation action: sapphire rather than a glowing mint slab. */
-.liquid-primary-action {
+/* Primary navigation action: sapphire, restrained and tactile. */
+.liquid-primary-action,
+.commitment-start {
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   background: linear-gradient(180deg, #168cff, #0071e3) !important;
   color: #fff !important;
@@ -168,7 +241,8 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
 }
 
-.liquid-primary-action:active {
+.liquid-primary-action:active,
+.commitment-start:active {
   transform: scale(0.992);
 }
 
@@ -177,7 +251,9 @@ body {
 .liquid-dialog {
   background: rgba(18, 21, 26, 0.84) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 -18px 70px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.11) !important;
+  box-shadow:
+    0 -18px 70px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11) !important;
   backdrop-filter: blur(34px) saturate(140%) !important;
   -webkit-backdrop-filter: blur(34px) saturate(140%) !important;
   padding-bottom: env(safe-area-inset-bottom);
@@ -211,6 +287,12 @@ body {
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.72));
 }
 
+/* Existing Mapbox route layers already use the platinum casing + sapphire core.
+ * Keep this CSS-only shadow refinement separate from map geometry/data logic. */
+.nalu-route-casing {
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.72));
+}
+
 /* Reduce decorative glow; reserve light for actual signals. */
 .commitment-panel,
 .commitment-panel.is-live {
@@ -220,12 +302,15 @@ body {
 }
 
 .end-trip-action {
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .liquid-titanium-pill,
-  .liquid-primary-action {
+  .liquid-primary-action,
+  .commitment-start {
     transition: none;
   }
 }
