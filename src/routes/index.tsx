@@ -169,7 +169,7 @@ export const Route = createFileRoute("/")({
       { title: "Nalu | Rail or drive on Oʻahu?" },
       {
         name: "description",
-        content: "Rail or drive? Compare Skyline, TheBus, and traffic for a door-to-door Oʻahu commute. Nalu helps you choose and arrive on time.",
+        content: "Rail or drive? Compare Skyline, TheBus, and traffic for your Oʻahu commute. Nalu helps you choose and arrive on time.",
       },
       { property: "og:title", content: "Nalu | Rail or drive on Oʻahu?" },
       {
@@ -197,7 +197,7 @@ export const Route = createFileRoute("/")({
         name: "Nalu",
         url: "https://ridewithnalu.lovable.app/",
         image: "https://ridewithnalu.lovable.app/social-card.png",
-        description: "Nalu compares rail, bus, and driving for door-to-door commutes on Oʻahu.",
+        description: "Nalu compares rail, bus, and driving for Oʻahu commutes.",
         applicationCategory: "TravelApplication",
         operatingSystem: "Web",
         areaServed: { "@type": "Place", name: "Oʻahu, Hawaiʻi" },
@@ -4396,7 +4396,7 @@ function Index() {
                 activeSavedPlace?.typicalArrivalSeconds !== undefined &&
                 !arrivingHome && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Typical arrival saved for {activeSavedPlace.label}:{" "}
+                    Your usual time at {activeSavedPlace.label}:{" "}
                     {clockFromSeconds(activeSavedPlace.typicalArrivalSeconds)}
                   </p>
                 )}
@@ -4414,7 +4414,7 @@ function Index() {
                       </p>
                       {railPick?.option && (
                         <p className="text-xs font-semibold text-muted-foreground">
-                          {railPick.option.total_minutes} min door to door
+                          {railPick.option.total_minutes} min total
                         </p>
                       )}
                     </div>
@@ -4432,8 +4432,8 @@ function Index() {
                     ) : railPick?.earliestOption ? (
                       <p className="mt-2 text-sm text-warning">
                         {arriveByPassed
-                          ? "Earliest feasible trip: "
-                          : `No train and bus combination gets you there by ${clockFromSeconds(arriveByTarget)}. Earliest feasible trip: `}
+                          ? "Earliest option: "
+                          : `No train and bus combination gets you there by ${clockFromSeconds(arriveByTarget)}. Earliest option: `}
                         leave at {clockFromSeconds(railPick.earliestOption.leave_by_seconds)} ·
                         arrive {clockFromSeconds(railPick.earliestOption.arrive_seconds)}.
                       </p>
@@ -4453,7 +4453,7 @@ function Index() {
                       </p>
                       {drive && driveAvailable && (
                         <p className="text-xs font-semibold text-muted-foreground">
-                          {drive.trafficMinutes} min on the road
+                          {drive.trafficMinutes} min driving
                         </p>
                       )}
                     </div>
@@ -4479,12 +4479,12 @@ function Index() {
                           · arrive around {clockFromSeconds(drivePlan.arriveSeconds)}
                         </span>
                       </p>
-                      {!drivePlan.protected && <p className="mt-1 text-xs text-warning">The late end of the drive estimate may miss your target.</p>}
+                      {!drivePlan.protected && <p className="mt-1 text-xs text-warning">Traffic could make you late.</p>}
                       </div>
                     ) : drivePlan ? (
                       <p className="mt-2 text-sm text-warning">
                         {arriveByPassed
-                          ? "Earliest feasible drive"
+                          ? "Earliest drive option"
                           : `Too late to arrive by ${clockFromSeconds(arriveByTarget)}`}{" "}
                         · leave {clockFromSeconds(drivePlan.leaveBySeconds)} · arrive around{" "}
                         {clockFromSeconds(drivePlan.earliestArriveSeconds)}.
@@ -4512,10 +4512,10 @@ function Index() {
                     <div className="space-y-1 text-sm text-muted-foreground">
                       <p className="font-semibold text-foreground">{arriveByComparison.primary.text}</p>
                       {arriveByComparison.driveMarginMinutes !== null && arriveByComparison.driveMarginMinutes >= 0 && (
-                        <p>Drive: about {Math.round(arriveByComparison.driveMarginMinutes)} min before your target.</p>
+                        <p>Drive: about {Math.round(arriveByComparison.driveMarginMinutes)} min to spare.</p>
                       )}
                       {arriveByComparison.railMarginMinutes !== null && arriveByComparison.railMarginMinutes >= 0 && (
-                        <p>Transit: about {Math.round(arriveByComparison.railMarginMinutes)} min before your target.</p>
+                        <p>Rail: about {Math.round(arriveByComparison.railMarginMinutes)} min to spare.</p>
                       )}
                     </div>
                   )}
@@ -4629,8 +4629,8 @@ function Index() {
               {(verdict === "rail" || verdict === "drive") && (
                 <p>
                   {verdict === "rail"
-                    ? `Transit is about ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min door to door vs ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min driving.`
-                    : `Driving is about ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min door to door vs ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min by transit.`}
+                    ? `Rail takes about ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min vs ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min driving.`
+                    : `Driving takes about ${Math.round(driveTripEstimate.expectedDurationMinutes ?? 0)} min vs ${Math.round(railTripEstimate.expectedDurationMinutes ?? 0)} min by rail.`}
                 </p>
               )}
               {verdict === "same" && (
@@ -4734,7 +4734,7 @@ function Index() {
               )}
               <span className="min-w-0 flex-1 text-center">
                 <span className="block text-base font-black uppercase">
-                  Start {selectedMode === "drive" ? "Drive" : "Transit"}
+                  Start {selectedMode === "drive" ? "Drive" : "Rail"}
                 </span>
                 <span className="mt-0.5 block text-[10px] font-black uppercase text-primary-foreground/75">
                   Lock {selectedMode === "drive" ? "GPS & traffic" : "stops & alerts"}
@@ -5064,7 +5064,7 @@ function Index() {
                   Alternative departures
                 </h2>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  Choose another door-to-door trip.
+                  Choose another trip.
                 </p>
               </div>
             </div>
@@ -5683,8 +5683,8 @@ function DataExpiryNotice() {
     >
       <p>
         {expired
-          ? "Transit data expired · times may be wrong"
-          : "Transit schedules expiring soon · data may become inaccurate"}
+          ? "Transit data is out of date · times may be off"
+          : "Transit schedules are getting old · times may be off"}
       </p>
       {!expired && (
         <button
