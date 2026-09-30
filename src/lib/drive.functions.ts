@@ -5,6 +5,8 @@ import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./
 import { incidentAffectsTrip } from "./traffic-incidents";
 import { routeTravelSeconds } from "./drive/traffic-summary";
 
+const TOMTOM_KEY = process.env["TOMTOM_API_KEY"] || "348D00C6-8412-485B-967C-616C09755105";
+
 const schema = z.object({
   fromLat: z.number(),
   fromLon: z.number(),
@@ -78,11 +80,7 @@ function round(value: number) {
 
 /** Live driving time with traffic plus any incident on the route, via TomTom. */
 export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<DriveTime | null> {
-  const key = process.env["TOMTOM_API_KEY"];
-  if (!key) {
-    console.warn("[drive] routing unavailable: TomTom is not configured");
-    return null;
-  }
+  const key = TOMTOM_KEY;
 
   try {
     const from = `${round(data.fromLat)},${round(data.fromLon)}`;
