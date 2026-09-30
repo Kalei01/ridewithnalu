@@ -221,14 +221,34 @@ export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, 
     p_dest_stop: dest.stopId,
     p_after_seconds: afterSeconds,
     p_limit: 2,
-    // Morning Pulse compares the real door-to-door Skyline option. Allowing drive
-    // access is required for homes outside the station walking radius (the common
-    // Ewa/Kapolei case); the planner still prefers walking/bus access when it is
-    // available, and the resulting itinerary remains rail-based.
-    p_allow_drive: true,
+    p_allow_drive: false,
     p_dest_lat: toPoint.lat,
     p_dest_lon: toPoint.lon,
   });
+
+  // If normal walk/bus access finds no itinerary, retry as a legitimate
+  // Skyline park-and-ride trip. This preserves normal access first while
+  // allowing homes outside the station access radius to use rail.
+  if (!(data ?? []).length) {
+    const fallback = await db.rpc("plan_outbound", {
+      p_origin_lat: fromPoint.lat,
+      p_origin_lon: fromPoint.lon,
+      p_station: fromStop,
+      p_dest_stop: dest.stopId,
+      p_after_seconds: afterSeconds,
+      p_limit: 2,
+      p_allow_drive: true,
+      p_dest_lat: toPoint.lat,
+      p_dest_lon: toPoint.lon,
+    });
+    const fallbackRows = (fallback.data ?? []) as Array<{
+      depart_seconds: number;
+      arrive_seconds: number;
+      total_minutes: number;
+    }>;
+    if (fallbackRows.length) return { destStation: dest.name, trips: fallbackRows.slice(0, 2) };
+  }
+
   const rows = (data ?? []) as Array<{
     depart_seconds: number;
     arrive_seconds: number;
