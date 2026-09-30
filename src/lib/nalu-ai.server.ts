@@ -19,7 +19,7 @@ function model() {
   // hosted gateway is used. OPENAI_MODEL optionally overrides the model name.
   const openaiKey = process.env["OPENAI_API_KEY"];
   if (openaiKey) {
-    const openai = createOpenAI({ apiKey: openaiKey, baseURL: process.env["OPENAI_BASE_URL"] });
+    const openai = createOpenAI({ apiKey: openaiKey, baseURL: process.env["OPENAI_BASE_URL"] ?? "https://api.openai.com/v1" });
     return openai.responses(process.env["OPENAI_MODEL"] ?? "gpt-5-mini");
   }
   const key = process.env["LOVABLE_API_KEY"];
