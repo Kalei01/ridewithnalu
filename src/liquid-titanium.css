@@ -17,10 +17,10 @@
   --nalu-platinum: #f5f7fa;
   --nalu-platinum-2: #b8c2cc;
   --nalu-platinum-muted: #7f8b96;
-  --nalu-sapphire: #0a84ff;
-  --nalu-sapphire-deep: #0071e3;
-  --nalu-jade: #30d158;
-  --nalu-amber: #ff9f0a;
+  --nalu-sapphire: #4da3ff;
+  --nalu-sapphire-deep: #1677d2;
+  --nalu-jade: #66d9a1;
+  --nalu-amber: #f6b84b;
   --nalu-hairline: rgba(255, 255, 255, 0.12);
   --nalu-specular: rgba(255, 255, 255, 0.14);
   --nalu-shadow: rgba(0, 0, 0, 0.45);
@@ -40,10 +40,10 @@
   --accent-foreground: #f5f7fa;
   --border: rgba(255, 255, 255, 0.12);
   --input: rgba(255, 255, 255, 0.08);
-  --primary: #0a84ff;
-  --primary-foreground: #ffffff;
-  --recommended: #30d158;
-  --recommended-foreground: #00210b;
+  --primary: #4da3ff;
+  --primary-foreground: #07111c;
+  --recommended: #66d9a1;
+  --recommended-foreground: #071a12;
   --surface-raised: rgba(24, 27, 34, 0.82);
   --ring: #0a84ff;
 }
@@ -313,4 +313,62 @@ body {
   .commitment-start {
     transition: none;
   }
+}
+
+
+/* Deep Liquid Titanium pass: one action color, quiet controls, coherent type. */
+:where(button, [role="button"], a) { -webkit-tap-highlight-color: transparent; }
+:where(button, [role="button"]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--nalu-sapphire) 78%, white);
+  outline-offset: 2px;
+}
+.bg-background { background-color: var(--nalu-obsidian) !important; }
+.bg-primary { background-color: var(--nalu-sapphire) !important; }
+.text-primary { color: var(--nalu-sapphire) !important; }
+.text-secondary-foreground, .text-muted-foreground { color: var(--nalu-platinum-2) !important; }
+.text-foreground { color: var(--nalu-platinum) !important; }
+.border-input, .border-border { border-color: rgba(215,221,229,.12) !important; }
+
+input, textarea, [role="combobox"], button[aria-haspopup="listbox"] {
+  border-color: rgba(215,221,229,.13);
+  background-color: rgba(14,17,21,.76);
+  color: var(--nalu-platinum);
+}
+input::placeholder, textarea::placeholder { color: rgba(184,194,204,.58); }
+input:focus, textarea:focus, [role="combobox"]:focus-visible {
+  border-color: rgba(77,163,255,.72) !important;
+  box-shadow: 0 0 0 3px rgba(77,163,255,.13) !important;
+}
+button.border, button[class*="border-"] { background: rgba(255,255,255,.035); }
+button.border:hover, button[class*="border-"]:hover {
+  background: rgba(255,255,255,.07);
+  border-color: rgba(215,221,229,.2) !important;
+}
+button.border:active, button[class*="border-"]:active { transform: translateY(1px) scale(.992); }
+
+button.bg-primary, a.bg-primary, .liquid-primary-action, .commitment-start {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.16), transparent 48%),
+    linear-gradient(180deg, var(--nalu-sapphire), var(--nalu-sapphire-deep)) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,.18) !important;
+  box-shadow: 0 10px 28px rgba(22,119,210,.24), inset 0 1px 0 rgba(255,255,255,.28) !important;
+}
+button.bg-primary:hover, a.bg-primary:hover, .liquid-primary-action:hover, .commitment-start:hover {
+  filter: brightness(1.055);
+  box-shadow: 0 12px 32px rgba(22,119,210,.3), inset 0 1px 0 rgba(255,255,255,.32) !important;
+}
+
+.text-destructive, .text-red-500, .text-red-600 { color: #ff6961 !important; }
+h1, h2, h3 { letter-spacing: -.025em; }
+small, .text-xs { letter-spacing: .005em; }
+
+.bg-card, .bg-popover, .glass-panel, .alternative-panel, .map-shell, .commitment-panel, .nav-hud {
+  backdrop-filter: blur(24px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(125%) !important;
+}
+
+[aria-selected="true"], [aria-pressed="true"] { color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role="button"]) { transition: none !important; }
 }
