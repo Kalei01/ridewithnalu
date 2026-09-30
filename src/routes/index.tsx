@@ -6553,7 +6553,21 @@ function SetupDialog({
                 <Button
                   variant="ghost"
                   className="shrink-0"
-                  onClick={() => setDraft((current) => ({ ...current, destinationName: "" }))}
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      destinationName: "",
+                      destinationAddress: "",
+                      destLat: null,
+                      destLon: null,
+                      destStopId: "",
+                      destStopName: "",
+                      destStopWalkM: 0,
+                      destReturnStopId: "",
+                      destReturnStopName: "",
+                      destReturnWalkM: 0,
+                    }))
+                  }
                 >
                   Change
                 </Button>
