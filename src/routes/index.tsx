@@ -4618,13 +4618,31 @@ function Index() {
                 : verdict === "uncertain"
                   ? optionsLoading || driveLoading
                     ? "Checking…"
-                    : "Data uncertain"
+                    : "Not enough current information"
                 : verdict === "same"
-                  ? "Toss-up"
+                  ? "Too close to call"
                   : verdict === "rail"
                     ? `Take Skyline${gap !== null ? ` · ${Math.abs(gap)} min faster` : ""}`
                     : `Drive${gap !== null ? ` · ${Math.abs(gap)} min faster` : ""}`}
           </h1>
+          {configured && verdict !== "none" && !optionsLoading && !driveLoading && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-border/70 bg-background/40 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                {activeDecision.confidence === "high"
+                  ? "Strong signal"
+                  : activeDecision.confidence === "moderate"
+                    ? "Moderate signal"
+                    : "Limited confidence"}
+              </span>
+              {activeDecision.differenceMinutes !== null && (
+                <span className="text-xs text-muted-foreground">
+                  {activeDecision.differenceMinutes === 0
+                    ? "Nearly identical times"
+                    : `${activeDecision.differenceMinutes} min separates the options`}
+                </span>
+              )}
+            </div>
+          )}
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
             low: driveRange?.low, high: driveRange?.high }} transit={{ label: "Rail", minutes: railTripEstimate.expectedDurationMinutes,
             low: railRange?.low, high: railRange?.high }} />}
