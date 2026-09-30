@@ -984,7 +984,7 @@ function Index() {
   // The itinerary boarded, held for the duration of a locked transit trip.
   const lockedOptionRef = useRef<Option | null>(null);
   const lockedItineraryCandidate = useRef<Option | null>(null);
-  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail"; snapshot: DecisionSnapshot | null } | null>(null);
+  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail" | "same"; snapshot: DecisionSnapshot | null } | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
@@ -3056,6 +3056,47 @@ function Index() {
             ? "The estimated arrival times are close enough that neither option has a clear time advantage right now."
             : activeDecision.primary.text;
 
+  const decisionSignals = useMemo(() => {
+    const signals: Array<{ label: string; value: string; tone: "neutral" | "alert" | "positive" }> = [];
+    const driveMinutes = driveTripEstimate.expectedDurationMinutes;
+    if (driveMinutes !== null) signals.push({
+      label: "Drive",
+      value: `${Math.round(driveMinutes)} min`,
+      tone: activeDecision.state === "drive" ? "positive" : "neutral",
+    });
+    const railMinutes = railTripEstimate.expectedDurationMinutes;
+    if (railMinutes !== null) signals.push({
+      label: "Skyline",
+      value: `${Math.round(railMinutes)} min`,
+      tone: activeDecision.state === "rail" ? "positive" : "neutral",
+    });
+    if ((driveTripEstimate.trafficDelayMinutes ?? 0) >= 5) signals.push({
+      label: "Traffic",
+      value: `+${Math.round(driveTripEstimate.trafficDelayMinutes ?? 0)} min`,
+      tone: "alert",
+    });
+    if ((railTripEstimate.railWaitMinutes ?? 0) >= 5) signals.push({
+      label: "Train wait",
+      value: `${Math.round(railTripEstimate.railWaitMinutes ?? 0)} min`,
+      tone: "neutral",
+    });
+    if ((railTripEstimate.busWaitMinutes ?? 0) >= 5) signals.push({
+      label: "Bus wait",
+      value: `${Math.round(railTripEstimate.busWaitMinutes ?? 0)} min`,
+      tone: "neutral",
+    });
+    if (driveTripEstimate.majorIncident) signals.push({ label: "Road incident", value: "Reported", tone: "alert" });
+    return signals.slice(0, 5);
+  }, [
+    activeDecision.state,
+    driveTripEstimate.expectedDurationMinutes,
+    driveTripEstimate.trafficDelayMinutes,
+    driveTripEstimate.majorIncident,
+    railTripEstimate.expectedDurationMinutes,
+    railTripEstimate.railWaitMinutes,
+    railTripEstimate.busWaitMinutes,
+  ]);
+
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   const tripOriginLabel = reverseTrip ? destinationLabel
     : departingFromSavedHome || (!savedHome && !inbound)
@@ -4774,43 +4815,50 @@ function Index() {
             </p>
           )}
           {configured && (verdict === "rail" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
-          {configured && !commitment && decisionChanges.length > 0 && <details className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25 text-sm">
-            <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-foreground marker:hidden">
-              <span className="inline-flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground">▶</span>
-                What changed?
-              </span>
-            </summary>
-            <div className="border-t border-border/50 px-4 py-4">
-              <p className="text-sm font-semibold leading-6 text-foreground">
-                {decisionChanges[0]}
-              </p>
-              {decisionChanges.slice(1).map((change) => (
-                <p key={change} className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {change}
-                </p>
-              ))}
-              {whyNaluText && (
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {whyNaluText}
-                </p>
-              )}
-              {verdict === "same" && (
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Driving is about {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit is about {formatDriveMinutes(railTripEstimate.expectedDurationMinutes ?? 0)}.
-                </p>
-              )}
-              {verdict === "uncertain" && (
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {activeDecision.primary.text}.
-                </p>
-              )}
-            </div>
-            <div className="border-t border-border/50 px-4 py-3 text-xs text-muted-foreground">
-              <p>{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
-              <p className="mt-1">{sourceFreshnessLabel(railTripEstimate.source, now.getTime())}</p>
-            </div>
-          </details>}
+          {configured && !commitment && decisionSignals.length > 0 && (
+            <section className="nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25" aria-label="Live decision signals">
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Nalu is watching</p>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                    <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+                    Live
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {decisionSignals.map((signal) => (
+                    <div key={signal.label} className="rounded-xl border border-border/50 bg-background/35 px-3 py-2.5">
+                      <p className="text-[11px] font-semibold text-muted-foreground">{signal.label}</p>
+                      <p className={signal.tone === "alert" ? "mt-0.5 text-sm font-bold tabular-nums text-warning" : signal.tone === "positive" ? "mt-0.5 text-sm font-bold tabular-nums text-primary" : "mt-0.5 text-sm font-bold tabular-nums text-foreground"}>{signal.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="border-t border-border/50 px-4 py-3 text-xs text-muted-foreground">
+                <p>{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
+                <p className="mt-1">{sourceFreshnessLabel(railTripEstimate.source, now.getTime())}</p>
+              </div>
+            </section>
+          )}
+          {configured && !commitment && decisionChanges.length > 0 && (
+            <details className="mt-3 overflow-hidden rounded-2xl border border-border/60 bg-background/25 text-sm">
+              <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-foreground marker:hidden">
+                <span className="inline-flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">↻</span>
+                  What changed?
+                </span>
+              </summary>
+              <div className="border-t border-border/50 px-4 py-4">
+                <p className="text-sm font-semibold leading-6 text-foreground">{decisionChanges[0]}</p>
+                {decisionChanges.slice(1).map((change) => (
+                  <p key={change} className="mt-2 text-sm leading-6 text-muted-foreground">{change}</p>
+                ))}
+                {whyNaluText && <p className="mt-2 text-sm leading-6 text-muted-foreground">{whyNaluText}</p>}
+                {verdict === "same" && <p className="mt-2 text-sm leading-6 text-muted-foreground">Driving is about {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit is about {formatDriveMinutes(railTripEstimate.expectedDurationMinutes ?? 0)}.</p>}
+                {verdict === "uncertain" && <p className="mt-2 text-sm leading-6 text-muted-foreground">{activeDecision.primary.text}.</p>}
+              </div>
+            </details>
+          )}
           {verdict === "drive" && drive?.incidents[0] && (
             <div className="mt-4 border-l-2 border-warning pl-3">
               <p className="text-base font-bold text-foreground">
