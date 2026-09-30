@@ -153,13 +153,20 @@ const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"
 
 function WaveMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 30 20" fill="none" className={className} aria-hidden="true">
+    <svg viewBox="0 0 64 44" fill="none" className={className} aria-hidden="true">
       <path
-        d="M2 12C6 4.2 11 4.2 15 11C19 17.8 24 17.8 28 11"
+        d="M3 32C11 21 18 21 25 31C32 41 39 41 46 31C51 24 56 24 61 29"
         stroke="currentColor"
-        strokeWidth="3.4"
+        strokeWidth="2.7"
         strokeLinecap="round"
+        opacity=".7"
       />
+      <g transform="translate(19 4)">
+        <ellipse className="shell" cx="13" cy="16" rx="11" ry="8.2" />
+        <path className="detail" d="M13 8v16M4 15h18M6.5 11.5 13 16l6.5-4.5M6.5 19.5 13 16l6.5 3.5" />
+        <path className="body" d="M3 13.5 0 10.5 1.5 17 4.5 16.5ZM23 13.5l3-3-1.5 6.5-3-.5ZM8 22l-3 4.5 5-2.5ZM18 22l3 4.5-5-2.5Z" />
+        <path className="body" d="M10.5 23.5h5L13 27Z" />
+      </g>
     </svg>
   );
 }
@@ -4349,8 +4356,10 @@ function Index() {
         <header className="mt-5 flex min-h-11 items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
-              <WaveMark className="h-6 w-auto text-recommended" />
-              <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
+              <div className="nalu-brand flex items-center gap-2.5">
+                <WaveMark className="nalu-honu h-8 w-12" />
+                <p className="nalu-brand-title text-lg font-semibold tracking-wide">Nalu</p>
+              </div>
             </div>
             <div className="mt-1.5 h-px bg-border/70" />
             <p className="mt-1 text-xs font-semibold uppercase text-muted-foreground">
@@ -6792,8 +6801,8 @@ function AboutSection() {
   return (
     <div className="border-t border-border pt-8">
       <div className="flex flex-col items-center pb-7 text-center">
-        <WaveMark className="h-12 w-auto text-recommended" />
-        <p className="mt-3 text-2xl font-bold tracking-wide text-foreground">Nalu</p>
+        <WaveMark className="nalu-honu h-16 w-24" />
+        <p className="nalu-brand-title mt-3 text-2xl font-bold tracking-wide">Nalu</p>
         <p className="mt-1 text-xs text-muted-foreground">version 1.0</p>
         <p className="mt-2 text-sm italic text-muted-foreground">
           Hawaiian for wave, and to think deeply.
