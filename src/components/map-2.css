@@ -33,10 +33,39 @@
   -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
 
+/* Map action buttons must remain true squares. Do not let shared button rules stretch them. */
+.nalu-map-icon-button {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  aspect-ratio: 1 / 1 !important;
+  flex: 0 0 44px !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.nalu-map-icon-button svg {
+  width: 20px !important;
+  height: 20px !important;
+  flex: 0 0 20px !important;
+  display: block !important;
+}
+
 .nalu-map-control-button {
   min-height: 38px;
   color: #dfe6ee !important;
   background: transparent !important;
+}
+
+.nalu-map-control-button svg {
+  width: 16px !important;
+  height: 16px !important;
+  flex: 0 0 16px !important;
+  display: block !important;
 }
 
 .nalu-map-control-button[data-pressed="true"] {
@@ -52,6 +81,32 @@
 
 .nalu-map-icon-button:disabled {
   opacity: .42;
+}
+
+/* Keep route endpoint markers compact instead of stretched/pill-shaped. */
+.nalu-map-frame .nalu-journey-marker {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 30px;
+  min-width: 48px;
+  min-height: 30px;
+  max-width: 48px;
+  max-height: 30px;
+  line-height: 1;
+}
+
+.nalu-map-frame .nalu-journey-marker-start,
+.nalu-map-frame .nalu-journey-marker-end {
+  border-radius: 10px;
+}
+
+.nalu-map-frame .nalu-journey-marker-label {
+  display: block;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .nalu-journey-line-casing {
@@ -129,6 +184,9 @@
   .nalu-map-icon-button {
     width: 42px !important;
     height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    flex-basis: 42px !important;
   }
 
   .nalu-map-vignette {
