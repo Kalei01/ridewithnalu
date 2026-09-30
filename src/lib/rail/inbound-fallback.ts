@@ -53,3 +53,59 @@ export async function findInboundOptions<T>(input: {
   }
   return { options: [], stationId: input.primaryStationId };
 }
+
+type HubLeg = {
+  kind: "access" | "rail" | "connect" | "egress";
+  mode: "walk" | "drive" | "bus" | "rail";
+  route_short: string | null; route_long: string | null; headsign: string | null;
+  from: string | null; to: string | null;
+  from_stop_id?: string | null; to_stop_id?: string | null;
+  depart_seconds: number | null; arrive_seconds: number | null; minutes: number | null;
+};
+type HubOption = {
+  leave_by_seconds: number; depart_seconds: number; arrive_seconds: number;
+  total_minutes: number; legs: HubLeg[];
+};
+
+/** Rough road time to a rail hub: 1.35× straight-line at ~40 km/h, +3 min to park/board. */
+export function estimateHubAccessMinutes(from: Point, hub: Point) {
+  const km = Math.sqrt(distanceSquared(from, hub)) * 111.2;
+  return Math.max(4, Math.round((km * 1.35 / 40) * 60 + 3));
+}
+
+/** Last resort when no station near the origin has a direct egress: board at
+ * the rail station nearest the origin (derived from GTFS, never hardcoded),
+ * plan its rail + home-side legs, and prepend an estimated road access leg. */
+export async function hubAccessFallback(input: {
+  origin: Point;
+  stations: (InboundStation & { stop_name?: string | null })[];
+  afterSeconds: number;
+  fetchFromHub: (hub: Point & { stopId: string }, afterSeconds: number) => Promise<HubOption[]>;
+}): Promise<HubOption[]> {
+  const hubs = input.stations
+    .filter((s) => s.stop_lat !== null && s.stop_lon !== null)
+    .map((s) => ({ stopId: s.stop_id, name: s.stop_name ?? null, lat: Number(s.stop_lat), lon: Number(s.stop_lon) }))
+    .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lon))
+    .sort((a, b) => distanceSquared(input.origin, a) - distanceSquared(input.origin, b))
+    .slice(0, 2);
+  for (const hub of hubs) {
+    const access = estimateHubAccessMinutes(input.origin, hub);
+    const options = await input.fetchFromHub(hub, input.afterSeconds + access * 60);
+    if (!options.length) continue;
+    return options.map((option) => {
+      const legs = option.legs.filter((leg) => !(leg.kind === "access" && leg.mode === "walk" && (leg.minutes ?? 0) <= 1));
+      const leave = option.depart_seconds - access * 60;
+      return {
+        ...option,
+        leave_by_seconds: leave,
+        total_minutes: Math.round((option.arrive_seconds - leave) / 60),
+        legs: [{
+          kind: "access", mode: "drive", route_short: null, route_long: null, headsign: null,
+          from: null, to: hub.name, to_stop_id: hub.stopId,
+          depart_seconds: leave, arrive_seconds: option.depart_seconds, minutes: access,
+        }, ...legs],
+      };
+    });
+  }
+  return [];
+}
