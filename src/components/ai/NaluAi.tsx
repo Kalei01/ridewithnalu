@@ -147,17 +147,29 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   const placeRequestId = useRef(0);
 
   useEffect(() => {
-    const text = query.trim();
+    const text = query.trim().replace(/\\s+/g, " ");
     if (text.length < 2) {
       setPlaceResults([]);
       setPlacesLoading(false);
       return;
     }
+
+    // Search the latest place-like phrase rather than the entire sentence.
+    // This lets a rider naturally type: "Pearl Ridge to Ala Moana" without
+    // the first place continuing to dominate the suggestions.
+    const searchText =
+      text.split(/\\s+(?:then|to|at|near|from|before|after)\\s+/i).pop()?.trim() ?? text;
+    if (searchText.length < 2) {
+      setPlaceResults([]);
+      setPlacesLoading(false);
+      return;
+    }
+
     const timer = window.setTimeout(async () => {
       const requestId = ++placeRequestId.current;
       setPlacesLoading(true);
       try {
-        const result = await findPlaces({ data: { query: text } });
+        const result = await findPlaces({ data: { query: searchText } });
         if (requestId === placeRequestId.current) {
           setPlaceResults(result.results ?? []);
         }
@@ -259,7 +271,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           className="min-h-24 resize-none border-white/10 bg-background/70"
         />
 
-        {selectedPlace ? (
+        {selectedPlace && (
           <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2" aria-label="Recognized place">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{selectedPlace.name}</p>
@@ -278,29 +290,29 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
               Clear
             </button>
           </div>
-        ) : (
-          <div className="relative">
-            {placesLoading && query.trim().length >= 2 && (
-              <p className="px-1 text-xs text-muted-foreground">Finding places…</p>
-            )}
-            {placeResults.length > 0 && (
-              <div className="overflow-hidden rounded-xl border border-white/10 bg-surface-raised shadow-lg" role="listbox" aria-label="Place suggestions">
-                {placeResults.map((place) => (
-                  <button
-                    key={place.id}
-                    type="button"
-                    role="option"
-                    onClick={() => choosePlace(place)}
-                    className="block w-full border-b border-white/5 px-3 py-2.5 text-left last:border-b-0 hover:bg-primary/[0.08]"
-                  >
-                    <p className="truncate text-sm font-semibold text-foreground">{place.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{place.address}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         )}
+
+        <div className="relative">
+          {placesLoading && query.trim().length >= 2 && (
+            <p className="px-1 text-xs text-muted-foreground">Finding places…</p>
+          )}
+          {placeResults.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-white/10 bg-surface-raised shadow-lg" role="listbox" aria-label="Place suggestions">
+              {placeResults.map((place) => (
+                <button
+                  key={place.id}
+                  type="button"
+                  role="option"
+                  onClick={() => choosePlace(place)}
+                  className="block w-full border-b border-white/5 px-3 py-2.5 text-left last:border-b-0 hover:bg-primary/[0.08]"
+                >
+                  <p className="truncate text-sm font-semibold text-foreground">{place.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{place.address}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="flex justify-end">
           <button
