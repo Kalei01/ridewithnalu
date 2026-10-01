@@ -930,7 +930,7 @@ function H1ConditionsCard({
   );
 }
 
-function NaluPageNav({ current, onBrowse, onTrip }: { current: "browse" | "commute"; onBrowse: () => void; onTrip: () => void }) {
+function NaluPageNav({ current, onBrowse }: { current: "browse" | "commute"; onBrowse: () => void }) {
   const itemClass = "flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors";
   const activeClass = "bg-recommended text-recommended-foreground shadow-sm";
   const inactiveClass = "text-muted-foreground hover:bg-background/60 hover:text-foreground";
@@ -938,8 +938,7 @@ function NaluPageNav({ current, onBrowse, onTrip }: { current: "browse" | "commu
     <nav className="mt-4 flex items-center gap-1 rounded-full border border-border/70 bg-surface-raised/70 p-1 backdrop-blur-md" aria-label="Nalu pages">
       <Link to="/welcome" className={itemClass + " " + inactiveClass} aria-label="Nalu landing page"><House className="size-3.5" />Nalu</Link>
       <button type="button" onClick={onBrowse} className={itemClass + " " + (current === "browse" ? activeClass : inactiveClass)} aria-current={current === "browse" ? "page" : undefined}><MapPin className="size-3.5" />Browse</button>
-      <button type="button" onClick={onTrip} className={itemClass + " " + (current === "commute" ? activeClass : inactiveClass)} aria-current={current === "commute" ? "page" : undefined}><Navigation className="size-3.5" />Trip</button>
-    </nav>
+          </nav>
   );
 }
 
@@ -3932,13 +3931,6 @@ function Index() {
           <NaluPageNav
             current="browse"
             onBrowse={() => setPageView("browse")}
-            onTrip={() => {
-              if (configured) {
-                setPageView("commute");
-                return;
-              }
-              setOnboardingOpen(true);
-            }}
           />
 
           {findByKind(savedPlaces, "home") && routineDestination && (
@@ -4494,7 +4486,7 @@ function Index() {
       className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "rail" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
     >
       <div className="mx-auto flex w-full max-w-[680px] flex-col">
-        <NaluPageNav current="commute" onBrowse={() => setPageView("browse")} onTrip={() => setPageView("commute")} />
+        <NaluPageNav current="commute" onBrowse={() => setPageView("browse")} />
 
         {showApproach && approach && (
           <ApproachBanner
