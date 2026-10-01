@@ -164,7 +164,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
       }
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [findPlaces, query, selectedPlace]);
+  }, [findPlaces, query]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSettledQuery(query.trim()), 350);
@@ -193,8 +193,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     setCooldownUntil(Date.now() + 10_000);
     setBusy(true);
     setAnswer(null);
-    const effectiveSelectedPlace =
-      selectedPlace && text === selectedPlace.name ? selectedPlace : null;
+    const effectiveSelectedPlace = selectedPlace;
     try {
       setAnswer(await ask({ data: { query: text, origin, selectedPlace: effectiveSelectedPlace } }));
     } catch {
@@ -246,7 +245,10 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           aria-label="Tell Nalu what you're trying to do"
           value={query}
           maxLength={400}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setSelectedPlace(null);
+            setQuery(e.target.value);
+          }}
           placeholder="I need to drop my son off first, then be downtown by 8."
           className="min-h-24 resize-none border-white/10 bg-background/70"
         />
@@ -261,8 +263,8 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
               type="button"
               onClick={() => {
                 setSelectedPlace(null);
-                setQuery("");
-                setSettledQuery("");
+                setPlaceResults([]);
+                setSettledQuery(query.trim());
               }}
               className="shrink-0 text-xs font-semibold text-muted-foreground hover:text-foreground"
               aria-label="Clear selected place"
