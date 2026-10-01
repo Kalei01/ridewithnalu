@@ -256,6 +256,49 @@ function WelcomePage() {
           </div>
         </section>
 
+        <section className="border-t border-white/10 py-12" aria-labelledby="ask-nalu-welcome">
+          <div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Meet Nalu</p>
+              <h2 id="ask-nalu-welcome" className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+                You don’t have to figure out the commute yourself.
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+                Your trip isn’t always just Home to Work. Tell Nalu what you need to do, when you need to be there, or where you need to stop. Nalu helps turn the whole thing into a plan.
+              </p>
+            </div>
+
+            <div className="liquid-titanium-slab rounded-[24px] p-4 sm:p-5" aria-label="Ask Nalu product preview">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <Sparkles className="size-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Ask Nalu</p>
+                  <p className="text-sm font-semibold">Tell Nalu what you’re trying to do.</p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                <p className="text-xs text-muted-foreground">You</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  “Drop my son off first, then I need to be downtown by 8.”
+                </p>
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/[0.07] p-4">
+                <p className="text-xs font-semibold text-primary">Nalu</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">I’ll work out the route and timing.</p>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] text-muted-foreground">
+                  <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Stops</span>
+                  <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Timing</span>
+                  <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Rail or drive</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="border-t border-white/10 py-10" aria-labelledby="see-nalu-live">
           <div className="grid gap-6 lg:grid-cols-[.85fr_1.15fr] lg:items-center">
             <div>
