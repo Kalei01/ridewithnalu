@@ -154,16 +154,12 @@ export const askNalu = createServerFn({ method: "POST" })
     z.object({
       query: z.string().min(4).max(400),
       origin: point.nullable(),
-      selectedPlace: z
-        .object({ name: z.string().max(200), address: z.string().max(200), lat: point.shape.lat, lon: point.shape.lon })
-        .nullable()
-        .optional(),
     }).parse(input),
   )
   .handler(async ({ data }) => {
     const ai = await import("./nalu-ai.server");
     try {
-      const value = await ai.runAskNalu(data.query, data.origin, data.selectedPlace ?? null);
+      const value = await ai.runAskNalu(data.query, data.origin);
       return { ok: true as const, value };
     } catch (error) {
       console.error("[ai] askNalu", error);
