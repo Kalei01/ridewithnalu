@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -16,6 +17,8 @@ import commuteCardPolishCss from "../commute-card-polish.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../hooks/use-auth";
 import { Toaster } from "../components/ui/sonner";
+import { initGoogleAnalytics, trackGooglePageView } from "../lib/google-analytics";
+import { onAnalyticsConsentChange } from "../lib/analytics";
 
 function NotFoundComponent() {
   return (
@@ -61,6 +64,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Nalu" },
       { name: "description", content: "Compare Skyline, TheBus, and driving for your Oʻahu commute with Nalu." },
       { name: "author", content: "Nalu" },
+      { name: "robots", content: "index,follow,max-image-preview:large" },
       { name: "theme-color", content: "#08090B" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -91,6 +95,16 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  useEffect(() => {
+    initGoogleAnalytics();
+    trackGooglePageView(pathname);
+    return onAnalyticsConsentChange(() => {
+      initGoogleAnalytics();
+      trackGooglePageView(pathname);
+    });
+  }, [pathname]);
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
