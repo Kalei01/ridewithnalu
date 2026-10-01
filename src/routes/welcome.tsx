@@ -33,6 +33,12 @@ export const Route = createFileRoute("/welcome")({
         content: "Compare driving, Skyline rail, and TheBus for your Oʻahu commute.",
       },
       { property: "og:url", content: SITE_URL + "/welcome" },
+      { property: "og:site_name", content: "Nalu" },
+      { name: "twitter:title", content: "Nalu | Your Oʻahu commute, simplified" },
+      {
+        name: "twitter:description",
+        content: "Compare driving, Skyline rail, and TheBus for your Oʻahu commute and plan when to leave.",
+      },
     ],
     links: [{ rel: "canonical", href: SITE_URL + "/welcome" }],
     scripts: [
@@ -40,11 +46,42 @@ export const Route = createFileRoute("/welcome")({
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
-          "@type": "WebPage",
-          name: "Nalu welcome page",
-          url: SITE_URL + "/welcome",
-          description: "The entry experience for Nalu, an Oʻahu commute decision app.",
-          isPartOf: { "@type": "WebSite", name: "Nalu", url: SITE_URL },
+          "@graph": [
+            {
+              "@type": "WebSite",
+              "@id": SITE_URL + "/#website",
+              name: "Nalu",
+              url: SITE_URL,
+              description: "An Oʻahu commute app that helps commuters compare driving, Skyline rail, and TheBus.",
+            },
+            {
+              "@type": "Organization",
+              "@id": SITE_URL + "/#organization",
+              name: "Nalu",
+              url: SITE_URL,
+              description: "Nalu is an Oʻahu-focused commute decision tool.",
+            },
+            {
+              "@type": "SoftwareApplication",
+              "@id": SITE_URL + "/#app",
+              name: "Nalu",
+              url: SITE_URL,
+              description: "Nalu helps Oʻahu commuters compare driving, Skyline rail, and TheBus and plan when to leave.",
+              applicationCategory: "TravelApplication",
+              operatingSystem: "Web",
+              publisher: { "@id": SITE_URL + "/#organization" },
+              isAccessibleForFree: true,
+            },
+            {
+              "@type": "WebPage",
+              "@id": SITE_URL + "/welcome#webpage",
+              name: "Nalu | Your Oʻahu commute, simplified",
+              url: SITE_URL + "/welcome",
+              description: "The public introduction to Nalu, an Oʻahu commute decision app.",
+              isPartOf: { "@id": SITE_URL + "/#website" },
+              about: { "@id": SITE_URL + "/#app" },
+            },
+          ],
         }),
       },
     ],
@@ -146,6 +183,68 @@ function WelcomePage() {
           </div>
         </section>
 
+        <section className="grid gap-6 border-t border-white/10 py-10 lg:grid-cols-2" aria-labelledby="how-nalu-works">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">How Nalu works</p>
+            <h2 id="how-nalu-works" className="mt-2 text-2xl font-black tracking-tight">One commute decision, built from the pieces that matter.</h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+              Nalu is focused on Oʻahu commuting rather than trying to replace every map app. It brings driving, Skyline, and TheBus information into one trip view so you can compare the practical trip instead of checking several apps yourself.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+              <p className="text-sm font-semibold">Drive</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Current traffic, incidents, and road conditions can affect the drive.</p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+              <p className="text-sm font-semibold">Transit</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Skyline and TheBus options can be considered alongside the rest of the trip.</p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+              <p className="text-sm font-semibold">Arrive By</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Start with when you need to arrive and work backward to a departure plan.</p>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+              <p className="text-sm font-semibold">Saved places</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Save frequent destinations such as Home and Work for faster planning.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-white/10 py-10" aria-labelledby="faq">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Common questions</p>
+          <h2 id="faq" className="mt-2 text-2xl font-black tracking-tight">What is Nalu?</h2>
+          <div className="mt-6 grid gap-3">
+            <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+              <summary className="cursor-pointer text-sm font-semibold">Does Nalu replace Google Maps or Apple Maps?</summary>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">No. Nalu is built around the specific Oʻahu commute decision: whether driving or transit makes sense for your trip and when you should leave.</p>
+            </details>
+            <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+              <summary className="cursor-pointer text-sm font-semibold">Does Nalu use live information?</summary>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Nalu combines available current information for traffic, incidents, transit, weather, and other commute conditions. Availability and freshness can vary by source and location.</p>
+            </details>
+            <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+              <summary className="cursor-pointer text-sm font-semibold">Can Nalu tell me when to leave for work?</summary>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Yes. Arrive By planning is designed to work backward from the time you need to arrive, using the trip information available at planning time.</p>
+            </details>
+            <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+              <summary className="cursor-pointer text-sm font-semibold">How accurate are Nalu's commute estimates?</summary>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Estimates depend on the underlying traffic, transit, weather, and incident information available at the time. Real-world conditions can change, so Nalu does not guarantee an arrival time.</p>
+            </details>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 sm:p-6" aria-labelledby="trust">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Trust & data</p>
+          <h2 id="trust" className="mt-2 text-xl font-black tracking-tight">Useful information, not a promise of the future.</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+            Commute information can change because of traffic, incidents, transit operations, weather, road conditions, and other real-world events. Nalu is a decision-support tool and does not guarantee route availability or arrival times. Always use your judgment and follow applicable traffic and transit rules.
+          </p>
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            Nalu may use information from third-party traffic, transit, weather, and air-quality services. Their availability, timing, and accuracy can vary.
+          </p>
+        </section>
+
         <section id="account" className="grid gap-6 border-t border-white/10 pt-8 lg:grid-cols-[1fr_1.1fr] lg:items-start">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Free account</p>
@@ -167,7 +266,7 @@ function WelcomePage() {
 
         <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-5 text-xs text-muted-foreground">
           <span>Built for Oʻahu commuters.</span>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
             <Link to="/oahu-commute" className="hover:text-foreground">Oʻahu commute guide</Link>
             <Link to="/" className="hover:text-foreground">Open Nalu</Link>
           </div>
