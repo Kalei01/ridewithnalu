@@ -88,7 +88,7 @@ export const morningPulse = createServerFn({ method: "POST" })
             ? `Driving is about ${difference} min faster: ${driveDuration} vs ${skylineDuration} by Skyline.`
             : `Skyline is about ${difference} min faster: ${skylineDuration} vs ${driveDuration} driving.`;
 
-      const delay = Math.max(0, Math.round(drive.delayMinutes));
+      const delay = Math.max(0, Math.round(drive!.delayMinutes));
 
       // TomTom can return route IDs such as "HI-764" that are useful internally
       // but unfamiliar to commuters. Prefer common Oahu road names and only
@@ -126,7 +126,7 @@ export const morningPulse = createServerFn({ method: "POST" })
 
         return raw || null;
       };
-      const roads = drive.roads
+      const roads = drive!.roads
         .map(familiarRoadName)
         .filter((road): road is string => Boolean(road))
         .slice(0, 2);
