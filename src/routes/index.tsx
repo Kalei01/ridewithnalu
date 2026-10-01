@@ -7007,6 +7007,12 @@ function AboutSection() {
           traffic and live bus schedules.
         </p>
         <p>Built for Oahu. Transit data covers TheBus and Skyline rail.</p>
+        <Link
+          to="/oahu-commute"
+          className="mt-2 inline-block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+        >
+          Oʻahu commute guide
+        </Link>
       </div>
       <div className="mt-6 h-px bg-border/60" />
 
