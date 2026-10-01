@@ -147,7 +147,6 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
 
   useEffect(() => {
     const text = query.trim();
-    if (selectedPlace && text !== selectedPlace.name) setSelectedPlace(null);
     if (text.length < 2) {
       setPlaceResults([]);
       setPlacesLoading(false);
@@ -194,8 +193,10 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     setCooldownUntil(Date.now() + 10_000);
     setBusy(true);
     setAnswer(null);
+    const effectiveSelectedPlace =
+      selectedPlace && text === selectedPlace.name ? selectedPlace : null;
     try {
-      setAnswer(await ask({ data: { query: text, origin, selectedPlace } }));
+      setAnswer(await ask({ data: { query: text, origin, selectedPlace: effectiveSelectedPlace } }));
     } catch {
       setAnswer({ ok: false, error: "Nalu couldn't answer that right now." });
     } finally {
