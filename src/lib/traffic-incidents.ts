@@ -233,6 +233,19 @@ export function standaloneIncidentImpact(
   return "No slowdown is showing on the H-1 mainline yet. Possible backups on the connecting road.";
 }
 
+/** Expected clearance when TomTom supplies an end time. */
+export function standaloneIncidentClearance(incident: DriveIncident): string | null {
+  if (!incident.endTime) return null;
+  const end = new Date(incident.endTime);
+  if (Number.isNaN(end.getTime())) return null;
+  const time = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Pacific/Honolulu",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(end);
+  return `Expected to clear around ${time}`;
+}
+
 /** Freshness for a live traffic snapshot. */
 export function incidentFreshness(fetchedAt: number, nowMs = Date.now()): string {
   const ageSeconds = Math.max(0, Math.round((nowMs - fetchedAt) / 1000));
