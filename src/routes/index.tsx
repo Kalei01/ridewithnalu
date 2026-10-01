@@ -456,7 +456,7 @@ function rainLine(moment: OutdoorMoment, reading: MomentConditions): string | nu
     case "platform":
       return "Showers likely on the platform";
     case "transfer-walk":
-      return `Rain during your ${moment.minutes ?? 0} min transfer walk`;
+      return `Rain during your ${moment.minutes ?? 0} min walk between rides`;
     case "wait-connect":
       return moment.label
         ? `Showers possible while waiting for Route ${moment.label}`
@@ -770,7 +770,7 @@ function trafficStatus(delayMinutes: number, incident?: DriveTime["incidents"][n
 
 function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
   if (source.quality === "unavailable") {
-    return source.basis === "live" ? "Live traffic · Unavailable" : "Transit schedule · Unavailable";
+    return source.basis === "live" ? "Live traffic · Not available" : "Transit schedule · Not available";
   }
   if (source.fetchedAt === null) {
     return source.basis === "live" ? "Live traffic · Update time unknown" : "Transit schedule · Update time unknown";
@@ -826,7 +826,7 @@ function H1ConditionsCard({
               </span>
             ) : unavailable ? (
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-                Unavailable
+                Not available
               </span>
             ) : (
               rows.map(({ label, data }) => {
@@ -881,7 +881,7 @@ function H1ConditionsCard({
       </div>
       {loading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
       {unavailable && (
-        <p className="mt-4 text-sm text-muted-foreground">Traffic data unavailable</p>
+        <p className="mt-4 text-sm text-muted-foreground">Live traffic is not available right now.</p>
       )}
       {!loading && !unavailable && eastbound && westbound && (
         <div className="mt-3 divide-y divide-border">
@@ -4151,7 +4151,7 @@ function Index() {
                   <p className="text-sm text-muted-foreground">Loading departures…</p>
                 )}
                 {browseDeparturesFailed && (
-                  <p className="col-span-2 text-sm text-warning">Rail departure data is unavailable right now.</p>
+                  <p className="col-span-2 text-sm text-warning">Rail departure times are not available right now.</p>
                 )}
                 {!browseDeparturesLoading && !browseDeparturesFailed && browseDirections.length === 0 && (
                   <p className="col-span-2 text-sm text-muted-foreground">
@@ -4598,7 +4598,7 @@ function Index() {
                     ) : optionsLoading ? (
                       <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
                     ) : optionsFailed ? (
-                      <p className="mt-2 text-sm text-warning">Rail data is unavailable right now.</p>
+                      <p className="mt-2 text-sm text-warning">Rail information is not available right now.</p>
                     ) : railPick?.earliestOption ? (
                       <p className="mt-2 text-sm text-warning">
                         {arriveByPassed
@@ -4671,7 +4671,7 @@ function Index() {
                       <p className="mt-2 text-sm text-muted-foreground">
                         {driveLoading
                           ? "Checking live traffic…"
-                          : "Live traffic is unavailable right now."}
+                          : "Live traffic is not available right now."}
                       </p>
                     )}
                     {drivePlan && drivePlan.bufferMinutes > 0 && (
@@ -5222,7 +5222,7 @@ function Index() {
               )}
               {driveAvailable && driveFailed && (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Live traffic is unavailable right now.
+                  Live traffic is not available right now.
                 </p>
               )}
               {driveAvailable && drive?.incidents[0] && verdict !== "drive" && !incidentDecides && (
@@ -5527,7 +5527,7 @@ function RailTripBreakdown({
                   <div className="mt-2">
                     {waitMinutes > 0 && (
                       <p className="text-xs font-semibold text-foreground">
-                        Transfer walk/wait · {waitMinutes} min
+                        Walk/wait between rides · {waitMinutes} min
                       </p>
                     )}
                     <p className="text-sm font-semibold text-foreground">
@@ -6004,7 +6004,7 @@ function AlertPrefsSection({
     { id: "haptics", label: "Haptic vibration", hint: "Buzz your phone when your stop is next." },
     {
       id: "keepOnTransfer",
-      label: "Keep alert on transfer",
+      label: "Keep alerts while changing rides",
       hint: "Stay visible when the trip moves to the next leg.",
     },
   ];
