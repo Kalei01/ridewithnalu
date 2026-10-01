@@ -171,7 +171,7 @@ function WelcomePage() {
               </div>
               <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
                 <p className="text-sm font-semibold">Arrive By planning</p>
-                <p className="mt-1 text-xs text-muted-foreground">Tell Nalu when you need to arrive, and it helps plan when to leave.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Tell Nalu what time you need to arrive, and it tells you when to leave.</p>
               </div>
             </div>
 
@@ -202,7 +202,7 @@ function WelcomePage() {
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <p className="text-sm font-semibold">Arrive By</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">Start with when you need to arrive and work backward to a departure plan.</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Tell Nalu what time you need to arrive. Nalu figures out when you should leave.</p>
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <p className="text-sm font-semibold">Saved places</p>
@@ -225,7 +225,7 @@ function WelcomePage() {
             </details>
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <summary className="cursor-pointer text-sm font-semibold">Can Nalu tell me when to leave for work?</summary>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Yes. Arrive By planning is designed to work backward from the time you need to arrive, using the trip information available at planning time.</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Yes. Arrive By planning uses the time you need to arrive to tell you when you should leave.</p>
             </details>
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <summary className="cursor-pointer text-sm font-semibold">How accurate are Nalu's commute estimates?</summary>
