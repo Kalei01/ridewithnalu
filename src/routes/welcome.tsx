@@ -1,4 +1,5 @@
 import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
+import { Sparkles } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
