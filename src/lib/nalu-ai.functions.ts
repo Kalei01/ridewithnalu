@@ -151,12 +151,12 @@ export const morningPulse = createServerFn({ method: "POST" })
 /** Ask Nalu: natural-language, multi-stop trip planning. */
 export const askNalu = createServerFn({ method: "POST" })
   .inputValidator((input) =>
-    z.object({ query: z.string().min(4).max(400), origin: point.nullable() }).parse(input),
+    z.object({\n      query: z.string().min(4).max(400),\n      origin: point.nullable(),\n      selectedPlace: z.object({ name: z.string().max(120), address: z.string().max(200), lat: point.shape.lat, lon: point.shape.lon }).nullable().optional(),\n    }).parse(input),
   )
   .handler(async ({ data }) => {
     const ai = await import("./nalu-ai.server");
     try {
-      const value = await ai.runAskNalu(data.query, data.origin);
+      const value = await ai.runAskNalu(data.query, data.origin, data.selectedPlace ?? null);
       return { ok: true as const, value };
     } catch (error) {
       console.error("[ai] askNalu", error);
