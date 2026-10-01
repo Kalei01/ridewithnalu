@@ -136,6 +136,22 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   const busyRef = useRef(false);
   const requestGate = useRef(createClientRateWindow(10_000));
   const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  useEffect(() => {
+    if (!cooldownUntil) {
+      setCooldownRemaining(0);
+      return;
+    }
+    const tick = () => {
+      const remaining = Math.max(0, cooldownUntil - Date.now());
+      setCooldownRemaining(Math.ceil(remaining / 1000));
+      if (remaining === 0) setCooldownUntil(0);
+    };
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [cooldownUntil]);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof ask>> | null>(null);
   const [showExamples, setShowExamples] = useState(false);
 
@@ -241,7 +257,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           }
           className="w-full sm:w-auto sm:justify-self-start"
         >
-          {busy ? "Planning…" : cooldownUntil > 0 ? "Ready again shortly" : "Ask Nalu"}
+          {busy ? "Planning…" : cooldownRemaining > 0 ? "Try again in " + cooldownRemaining + "s" : "Ask Nalu"}
         </Button>
 
         {!origin && (
