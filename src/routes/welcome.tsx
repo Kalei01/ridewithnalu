@@ -1,9 +1,73 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense, useEffect } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
 
+const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
+
 const SITE_URL = "https://ridewithnalu.lovable.app";
+
+const WELCOME_NAV_ROUTE = [
+  { lat: 21.3335, lon: -158.055 },
+  { lat: 21.348, lon: -158.030 },
+  { lat: 21.367, lon: -158.010 },
+  { lat: 21.386, lon: -157.995 },
+  { lat: 21.395, lon: -157.970 },
+  { lat: 21.390, lon: -157.940 },
+  { lat: 21.375, lon: -157.910 },
+  { lat: 21.350, lon: -157.885 },
+  { lat: 21.325, lon: -157.865 },
+];
+
+function WelcomeNavigationPreview() {
+  const route = WELCOME_NAV_ROUTE;
+  return (
+    <div className="overflow-hidden rounded-[22px] border border-white/10 bg-black/30">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Turn-by-turn</p>
+          <p className="mt-1 text-lg font-black tracking-tight">Driving to Work</p>
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
+          Navigation
+        </span>
+      </div>
+      <div className="relative h-[330px] overflow-hidden">
+        <ClientOnly
+          fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading navigation preview" />}
+        >
+          <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading navigation preview" />}>
+            <LiveNavMap
+              lines={[{ id: "welcome-preview", mode: "drive", points: route }]}
+              destination={route[route.length - 1]}
+              livePoint={route[1]}
+              speedMps={24}
+              bearing={86}
+              maneuver={{ glyph: "straight", distanceText: "1.8 mi", road: "H-1 East toward Honolulu" }}
+              eta={{ arrive: "7:45 AM", range: "7:42–7:49 AM", minutes: 42, distance: "14.2 mi" }}
+              muted
+              onToggleMute={() => {}}
+              turn={route[5] ? { ...route[5], distanceM: 2897 } : null}
+              traffic={[
+                { severity: "moderate", points: route.slice(2, 5) },
+                { severity: "heavy", points: route.slice(5, 7) },
+              ]}
+            />
+          </Suspense>
+        </ClientOnly>
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 rounded-2xl border border-white/10 bg-black/70 px-4 py-3 shadow-2xl backdrop-blur-md">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Nalu preview</p>
+              <p className="mt-1 text-sm font-bold text-foreground">Live traffic · rerouting · turn-by-turn</p>
+            </div>
+            <span className="rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-bold text-primary">Simulated</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function HonuMark() {
   return (
@@ -247,29 +311,8 @@ function WelcomePage() {
               </p>
               <p className="mt-3 text-xs text-muted-foreground">Navigation is available when you choose to drive.</p>
             </div>
-            <div className="liquid-titanium-slab rounded-[24px] p-4 sm:p-5" aria-label="Nalu turn-by-turn navigation preview">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Turn-by-turn</p>
-                  <p className="mt-1 text-lg font-black tracking-tight">Driving to Work</p>
-                </div>
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-bold text-muted-foreground">Navigation</span>
-              </div>
-              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs text-muted-foreground">Next turn</p>
-                <p className="mt-1 text-xl font-black tracking-tight">→ Take H-1 West toward Honolulu</p>
-                <p className="mt-2 text-xs text-muted-foreground">1.8 mi · 4 min</p>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
-                  <p className="text-[11px] text-muted-foreground">Traffic</p>
-                  <p className="mt-1 text-sm font-bold">Live updates</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
-                  <p className="text-[11px] text-muted-foreground">Route</p>
-                  <p className="mt-1 text-sm font-bold">Reroute if needed</p>
-                </div>
-              </div>
+            <div className="liquid-titanium-slab rounded-[24px] p-2 sm:p-3" aria-label="Nalu turn-by-turn navigation preview">
+              <WelcomeNavigationPreview />
             </div>
           </div>
         </section>
