@@ -3929,7 +3929,17 @@ function Index() {
             </div>
           </header>
 
-          <NaluPageNav current="browse" onBrowse={() => setPageView("browse")} onTrip={() => setOnboardingOpen(true)} />
+          <NaluPageNav
+            current="browse"
+            onBrowse={() => setPageView("browse")}
+            onTrip={() => {
+              if (configured) {
+                setPageView("commute");
+                return;
+              }
+              setOnboardingOpen(true);
+            }}
+          />
 
           {findByKind(savedPlaces, "home") && routineDestination && (
             <button
