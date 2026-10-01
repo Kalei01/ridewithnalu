@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarCheck, Sparkles, TrendingUp, Volume2 } from "lucide-react";
+import { CalendarCheck, HelpCircle, Sparkles, TrendingUp, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askNalu, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
+import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 
 type Place = { lat: number; lon: number; label: string };
 
@@ -138,6 +139,10 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   const requestGate = useRef(createClientRateWindow(10_000));
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof ask>> | null>(null);
+  const [placeResults, setPlaceResults] = useState<PlaceSuggestion[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
+  const [showExamples, setShowExamples] = useState(false);
+  const search = useServerFn(searchPlaces);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSettledQuery(query.trim()), 350);
@@ -167,7 +172,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     setBusy(true);
     setAnswer(null);
     try {
-      setAnswer(await ask({ data: { query: text, origin } }));
+      setAnswer(await ask({ data: { query: text, origin, selectedPlace: selectedPlace ? { name: selectedPlace.name, address: selectedPlace.address, lat: selectedPlace.lat, lon: selectedPlace.lon } : null } }));
     } catch {
       setAnswer({ ok: false, error: "Nalu couldn't answer that right now." });
     } finally {
@@ -213,7 +218,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           className="min-h-24 resize-none border-white/10 bg-background/70"
         />
 
-        <div className="flex flex-wrap gap-2" aria-label="Ask Nalu examples">
+        <div className="flex items-center justify-end">\n          <button\n            type="button"\n            onClick={() => setShowExamples((value) => !value)}\n            aria-expanded={showExamples}\n            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"\n          >\n            <HelpCircle className="size-3.5" />\n            Need an idea?\n          </button>\n        </div>\n\n        {showExamples && <div className="flex flex-wrap gap-2" aria-label="Ask Nalu examples">
           {[
             "I need to be downtown by 8.",
             "Two stops before work.",
