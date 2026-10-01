@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
+import { LegalFooter } from "@/components/LegalFooter";
 
 const SITE_URL = "https://ridewithnalu.lovable.app";
 
@@ -259,13 +260,7 @@ function WelcomePage() {
           </div>
         </section>
 
-        <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-5 text-xs text-muted-foreground">
-          <span>Built for Oʻahu commuters.</span>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <Link to="/oahu-commute" className="hover:text-foreground">Oʻahu commute guide</Link>
-            <Link to="/" className="hover:text-foreground">Open Nalu</Link>
-          </div>
-        </footer>
+        <LegalFooter />
       </div>
     </main>
   );
