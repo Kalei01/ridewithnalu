@@ -91,12 +91,16 @@ export const Route = createFileRoute("/welcome")({
 });
 
 function WelcomePage() {
-  useEffect(() => {
+  const markWelcomeSeen = () => {
     try {
       window.localStorage.setItem("nalu-welcome-seen-v1", "1");
     } catch {
       /* private mode: gate treats unreadable storage as seen */
     }
+  };
+
+  useEffect(() => {
+    markWelcomeSeen();
   }, []);
 
   return (
@@ -107,7 +111,7 @@ function WelcomePage() {
 
       <div className="relative mx-auto flex min-h-[100dvh] w-full max-w-5xl flex-col px-5 pb-8 pt-7 sm:px-8 sm:pt-10">
         <header className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3" aria-label="Open Nalu">
+          <Link to="/" onClick={markWelcomeSeen} className="flex items-center gap-3" aria-label="Open Nalu">
             <HonuMark />
             <div>
               <p className="text-lg font-black tracking-tight">Nalu</p>
