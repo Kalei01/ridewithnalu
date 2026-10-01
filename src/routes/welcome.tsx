@@ -1,9 +1,9 @@
 import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
 
-const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
+const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 
 const SITE_URL = "https://ridewithnalu.lovable.app";
 
@@ -21,6 +21,8 @@ const WELCOME_NAV_ROUTE = [
 
 function WelcomeNavigationPreview() {
   const route = WELCOME_NAV_ROUTE;
+  const [muted, setMuted] = useState(true);
+
   return (
     <div className="overflow-hidden rounded-[22px] border border-white/10 bg-black/30">
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
@@ -37,27 +39,29 @@ function WelcomeNavigationPreview() {
           fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading navigation preview" />}
         >
           <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading navigation preview" />}>
-            <CommuteRouteMap
-              points={[
-                { id: "start", name: "Kapolei", lat: route[0].lat, lon: route[0].lon, kind: "start" },
-                { id: "end", name: "Downtown Honolulu", lat: route[route.length - 1].lat, lon: route[route.length - 1].lon, kind: "end" },
+            <LiveNavMap
+              lines={[{ id: "welcome-drive", mode: "drive", points: route }]}
+              destination={route[route.length - 1]}
+              livePoint={route[2]}
+              speedMps={18}
+              bearing={86}
+              maneuver={{ glyph: "straight", distanceText: "1.8 mi", road: "H-1 East toward Honolulu" }}
+              eta={{ arrive: "7:45 AM", range: "7:42–7:49 AM", minutes: 42, distance: "14.2 mi" }}
+              muted={muted}
+              onToggleMute={() => setMuted((value) => !value)}
+              traffic={[
+                { severity: "moderate", points: route.slice(2, 5) },
+                { severity: "heavy", points: route.slice(5, 7) },
               ]}
-              livePoint={route[1]}
-              liveHeading={86}
-              followLive={false}
-              path={route}
-              trafficSections={[
-                { severity: "moderate", delayMinutes: 4, points: route.slice(2, 5) },
-                { severity: "heavy", delayMinutes: 9, points: route.slice(5, 7) },
-              ]}
+              turn={{ lat: route[5].lat, lon: route[5].lon, distanceM: 2900 }}
             />
           </Suspense>
         </ClientOnly>
         <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 rounded-2xl border border-white/10 bg-black/70 px-4 py-3 shadow-2xl backdrop-blur-md">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Nalu preview</p>
-              <p className="mt-1 text-sm font-bold text-foreground">Live traffic · rerouting · turn-by-turn</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Nalu navigation</p>
+              <p className="mt-1 text-sm font-bold text-foreground">Heading-up map · live traffic · rerouting</p>
             </div>
             <span className="rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-bold text-primary">Simulated</span>
           </div>
