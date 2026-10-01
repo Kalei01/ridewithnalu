@@ -46,3 +46,12 @@ export function trackGooglePageView(path: string) {
     page_title: document.title,
   });
 }
+
+export function trackGoogleEvent(
+  event: string,
+  props?: Record<string, string | number | boolean | null>,
+) {
+  loadGoogleAnalytics();
+  if (!loaded || !measurementId || typeof window === "undefined" || readAnalyticsConsent() !== "granted") return;
+  window.gtag?.("event", event, props);
+}
