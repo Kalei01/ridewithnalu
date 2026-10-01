@@ -102,12 +102,149 @@ export async function geocodeOahu(query: string): Promise<(Pt & { label: string 
   };
 }
 
+
+export type RouteTrafficIncident = {
+  id: string | null;
+  type: string;
+  description: string | null;
+  road: string | null;
+  delayMinutes: number;
+  severity: "unknown" | "minor" | "moderate" | "major" | "undefined";
+  from: string | null;
+  to: string | null;
+  endTime: string | null;
+};
+
+const incidentCategory: Record<number, string> = {
+  0: "Unknown", 1: "Accident", 2: "Fog", 3: "Dangerous conditions",
+  4: "Rain", 5: "Ice", 6: "Traffic jam", 7: "Lane closure",
+  8: "Road closure", 9: "Road works", 10: "Wind", 11: "Flooding",
+  12: "Detour", 13: "Traffic incident", 14: "Stalled vehicle",
+};
+
+const incidentSeverity: Record<number, RouteTrafficIncident["severity"]> = {
+  0: "unknown", 1: "minor", 2: "moderate", 3: "major", 4: "undefined",
+};
+
+function familiarRoadName(road: string | null | undefined): string | null {
+  const raw = road?.trim();
+  if (!raw) return null;
+  const upper = raw.toUpperCase().replace(/\s+/g, " ");
+  const match = upper.match(/^(?:HI|H)[- ]?(\d+)(?:[- ](\d+))?$/);
+  const number = match?.[1] ?? null;
+  const qualifier = match?.[2] ?? null;
+  const common: Record<string, string> = {
+    "1": "H-1 Freeway", "2": "H-2 Freeway", "3": "H-3 Freeway",
+    "201": "Moanalua Freeway", "63": "Pali Highway", "83": "Kamehameha Highway",
+    "92": "Nimitz Highway", "93": "Farrington Highway", "99": "Kamehameha Highway",
+    "764": "Geiger Road",
+  };
+  if (number) return qualifier || !common[number] ? null : common[number];
+  return raw;
+}
+
+function distancePointToSegmentMeters(point: Pt, a: Pt, b: Pt): number {
+  const scaleX = 111320 * Math.max(0.2, Math.cos(point.lat * Math.PI / 180));
+  const scaleY = 110540;
+  const px = point.lon * scaleX, py = point.lat * scaleY;
+  const ax = a.lon * scaleX, ay = a.lat * scaleY;
+  const bx = b.lon * scaleX, by = b.lat * scaleY;
+  const dx = bx - ax, dy = by - ay, lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+function distancePointToPolylineMeters(point: Pt, polyline: Pt[]): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < polyline.length; i += 1) {
+    best = Math.min(best, distancePointToSegmentMeters(point, polyline[i - 1], polyline[i]));
+  }
+  return best;
+}
+
+function incidentCoordinates(value: unknown): Pt[] {
+  if (!Array.isArray(value)) return [];
+  if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") {
+    return [{ lat: Number(value[1]), lon: Number(value[0]) }];
+  }
+  return value.flatMap(incidentCoordinates);
+}
+
+async function trafficIncidentsForRoute(routePoints: Pt[], key: string): Promise<RouteTrafficIncident[]> {
+  if (routePoints.length < 2) return [];
+  const lats = routePoints.map((p) => p.lat), lons = routePoints.map((p) => p.lon);
+  const top = OAHU.topLeft.split(",").map(Number), bottom = OAHU.btmRight.split(",").map(Number);
+  const minLat = Math.max(bottom[0], Math.min(...lats) - 0.004);
+  const maxLat = Math.min(top[0], Math.max(...lats) + 0.004);
+  const minLon = Math.max(top[1], Math.min(...lons) - 0.006);
+  const maxLon = Math.min(bottom[1], Math.max(...lons) + 0.006);
+  if (minLat >= maxLat || minLon >= maxLon) return [];
+
+  const params = new URLSearchParams({
+    key,
+    bbox: [minLon, minLat, maxLon, maxLat].join(","),
+    fields: "{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,events{description,code,iconCategory},startTime,endTime,from,to,delay,roadNumbers,timeValidity}}}",
+    language: "en-GB",
+    timeValidityFilter: "present",
+  });
+
+  try {
+    const response = await fetch("https://api.tomtom.com/traffic/services/5/incidentDetails?" + params.toString());
+    if (!response.ok) {
+      console.warn("[traffic] incident lookup failed", response.status);
+      return [];
+    }
+    const body = await response.json() as {
+      incidents?: Array<{
+        geometry?: { coordinates?: unknown };
+        properties?: {
+          id?: string; iconCategory?: number; magnitudeOfDelay?: number;
+          events?: Array<{ description?: string }>;
+          endTime?: string; from?: string; to?: string; delay?: number; roadNumbers?: string[];
+        };
+      }>;
+    };
+
+    const incidents: RouteTrafficIncident[] = [];
+    for (const incident of body.incidents ?? []) {
+      const points = incidentCoordinates(incident.geometry?.coordinates);
+      if (!points.length || Math.min(...points.map((p) => distancePointToPolylineMeters(p, routePoints))) > 500) continue;
+      const p = incident.properties ?? {}, event = p.events?.[0];
+      const type = typeof p.iconCategory === "number" ? (incidentCategory[p.iconCategory] ?? "Traffic incident") : (event?.description ?? "Traffic incident");
+      incidents.push({
+        id: p.id ?? null,
+        type,
+        description: event?.description ?? null,
+        road: familiarRoadName(p.roadNumbers?.[0]) ?? p.roadNumbers?.[0] ?? p.from ?? null,
+        delayMinutes: typeof p.delay === "number" && p.delay > 0 ? Math.round(p.delay / 60) : 0,
+        severity: typeof p.magnitudeOfDelay === "number" ? (incidentSeverity[p.magnitudeOfDelay] ?? "unknown") : "unknown",
+        from: p.from ?? null,
+        to: p.to ?? null,
+        endTime: p.endTime ?? null,
+      });
+    }
+
+    const seen = new Set<string>();
+    return incidents.sort((a, b) => b.delayMinutes - a.delayMinutes).filter((item) => {
+      const key = [item.id ?? "", item.type, item.road ?? "", item.from ?? ""].join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 5);
+  } catch (error) {
+    console.warn("[traffic] incident lookup error", error);
+    return [];
+  }
+}
+
 export type RouteSummary = {
   minutes: number;
   typicalMinutes: number;
   delayMinutes: number;
   miles: number;
   roads: string[];
+  incidents: RouteTrafficIncident[];
 };
 
 export async function routeOptions(
@@ -120,7 +257,7 @@ export async function routeOptions(
   const url =
     `https://api.tomtom.com/routing/1/calculateRoute/${from.lat},${from.lon}:${to.lat},${to.lon}/json` +
     `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
-    `&instructionsType=text&maxAlternatives=${opts.alternatives ?? 0}` +
+    `&instructionsType=text&routeRepresentation=polyline&maxAlternatives=${opts.alternatives ?? 0}` +
     (opts.arriveAt ? `&arriveAt=${encodeURIComponent(opts.arriveAt)}` : "") +
     (opts.departAt ? `&departAt=${encodeURIComponent(opts.departAt)}` : "");
   const res = await fetch(url);
@@ -135,40 +272,38 @@ export async function routeOptions(
         lengthInMeters?: number;
       };
       guidance?: { instructions?: Array<{ street?: string; roadNumbers?: string[] }> };
+      legs?: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>;
     }>;
   };
-  return (body.routes ?? []).map((r) => {
-    // Use TomTom's canonical traffic-aware travelTimeInSeconds for both
-    // current and future trips. The liveTrafficIncidents field is a separate
-    // diagnostic calculation and must not make Morning Pulse disagree with
-    // the main commute engine or appear unavailable when that field is absent.
-    const minutes = Math.round(
-      routeTravelSeconds(
-        {
-          travelTimeInSeconds: r.summary?.travelTimeInSeconds ?? 0,
-          liveTrafficIncidentsTravelTimeInSeconds: r.summary?.liveTrafficIncidentsTravelTimeInSeconds,
-        },
-        Boolean(opts.departAt || opts.arriveAt),
-      ) / 60,
-    );
-    const typical = Math.round(
-      (r.summary?.historicTrafficTravelTimeInSeconds ??
-        r.summary?.noTrafficTravelTimeInSeconds ??
-        0) / 60,
-    );
+
+  const routes = await Promise.all((body.routes ?? []).map(async (r) => {
+    const minutes = Math.round(routeTravelSeconds({
+      travelTimeInSeconds: r.summary?.travelTimeInSeconds ?? 0,
+      liveTrafficIncidentsTravelTimeInSeconds: r.summary?.liveTrafficIncidentsTravelTimeInSeconds,
+    }, Boolean(opts.departAt || opts.arriveAt)) / 60);
+    const typical = Math.round((r.summary?.historicTrafficTravelTimeInSeconds ?? r.summary?.noTrafficTravelTimeInSeconds ?? 0) / 60);
     const roads: string[] = [];
     for (const i of r.guidance?.instructions ?? []) {
       const name = i.roadNumbers?.[0] ?? i.street;
       if (name && !roads.includes(name)) roads.push(name);
     }
+    const routePoints = (r.legs ?? []).flatMap((leg) =>
+      (leg.points ?? []).map((point) =>
+        typeof point.latitude === "number" && typeof point.longitude === "number"
+          ? { lat: point.latitude, lon: point.longitude } : null,
+      ).filter((point): point is Pt => Boolean(point)),
+    );
+    const incidents = opts.departAt || opts.arriveAt ? [] : await trafficIncidentsForRoute(routePoints, key);
     return {
       minutes,
       typicalMinutes: typical,
       delayMinutes: Math.max(0, minutes - typical),
       miles: Math.round(((r.summary?.lengthInMeters ?? 0) / 1609) * 10) / 10,
       roads: roads.slice(0, 8),
+      incidents,
     };
-  });
+  }));
+  return routes;
 }
 
 function publicDb() {
@@ -377,7 +512,7 @@ export async function runAskNalu(
       "Use local Oʻahu road names. Give leave-by times in Honolulu local time like 6:45 AM. Keep steps short. " +
       "Consumer output must never mention internal tools, database lookups, coordinate selection, debug reasoning, or implementation details. " +
       "For Skyline, distinguish service-ended from no matching trip: if serviceStatus is service-ended, say Skyline service has ended for now; if service is active but no trip is returned, say no matching trip was found for that direction/time. Never claim a route is unavailable solely because a tool returned no trips without explaining which case applies. " +
-      "Do not say 'no reported traffic delay', 'traffic is clear', or similar unless the data explicitly establishes that. No incident reported does not mean no congestion. Use the live drive ETA and delayMinutes when discussing traffic. " +
+      "Do not say 'no reported traffic delay', 'traffic is clear', or similar unless the data explicitly establishes that. No incident reported does not mean no congestion. Use the live drive ETA and delayMinutes when discussing traffic. If driveTime returns relevant traffic incidents, treat them as live route-specific evidence: mention the specific cause when it materially affects the trip, especially a stalled vehicle, crash, closure, lane closure, road works, or major delay. Do not mention incidents that are not relevant to the selected route. Do not invent an incident cause from delayMinutes alone. " +
       "Do not ask follow-up questions just because the request is broad. Make reasonable, transparent assumptions using the rider’s origin, current Honolulu time, and common Oʻahu destinations. " +
       "Treat the rider’s entire message as the source of truth for intent. If multiple places or stops are named, resolve every relevant place with findPlace and preserve the order the rider described; do not reduce the request to one destination. " +
       "Never require autocomplete, a selected place, or exact address syntax—the rider may type naturally. Resolve familiar Oʻahu landmarks, malls, workplaces, neighborhoods, stations, and street addresses with findPlace. " +
@@ -398,7 +533,7 @@ export async function runAskNalu(
       }),
       driveTime: tool({
         description:
-          "Live TomTom drive between two points. Optionally arriveAt (ISO) to plan for a deadline.",
+          "Live TomTom drive between two points. Returns current route ETA, delay, roads, and route-relevant traffic incidents when available. Optionally arriveAt (ISO) to plan for a deadline. Current incident data is intentionally omitted for future arrive-by/depart-at calculations.",
         inputSchema: z.object({
           fromLat: z.number(),
           fromLon: z.number(),
