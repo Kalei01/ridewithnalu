@@ -5,7 +5,6 @@ import { CalendarCheck, HelpCircle, Sparkles, TrendingUp, Volume2 } from "lucide
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askNalu, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
-import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
@@ -132,68 +131,19 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
 
 export function AskNalu({ origin }: { origin: { lat: number; lon: number } | null }) {
   const ask = useServerFn(askNalu);
-  const findPlaces = useServerFn(searchPlaces);
   const [query, setQuery] = useState("");
-  const [placeResults, setPlaceResults] = useState<PlaceSuggestion[]>([]);
-  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
-  const [placesLoading, setPlacesLoading] = useState(false);
-  const [settledQuery, setSettledQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const requestGate = useRef(createClientRateWindow(10_000));
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof ask>> | null>(null);
   const [showExamples, setShowExamples] = useState(false);
-  const placeRequestId = useRef(0);
-
-  useEffect(() => {
-    const text = query.trim();
-    if (text.length < 2) {
-      setPlaceResults([]);
-      setPlacesLoading(false);
-      return;
-    }
-    const timer = window.setTimeout(async () => {
-      const requestId = ++placeRequestId.current;
-      setPlacesLoading(true);
-      try {
-        const result = await findPlaces({ data: { query: text } });
-        if (requestId === placeRequestId.current) {
-          setPlaceResults(result.results ?? []);
-        }
-      } catch {
-        if (requestId === placeRequestId.current) {
-          setPlaceResults([]);
-        }
-      } finally {
-        if (requestId === placeRequestId.current) {
-          setPlacesLoading(false);
-        }
-      }
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [findPlaces, query]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSettledQuery(query.trim()), 350);
-    return () => window.clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    if (!cooldownUntil) return;
-    const timer = window.setTimeout(
-      () => setCooldownUntil(0),
-      Math.max(0, cooldownUntil - Date.now()),
-    );
-    return () => window.clearTimeout(timer);
-  }, [cooldownUntil]);
 
   async function submit() {
     const text = query.trim();
     if (
       busyRef.current ||
       text.length < 4 ||
-      text !== settledQuery ||
       !requestGate.current.tryAcquire(Date.now())
     ) return;
 
@@ -201,9 +151,8 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     setCooldownUntil(Date.now() + 10_000);
     setBusy(true);
     setAnswer(null);
-    const effectiveSelectedPlace = selectedPlace;
     try {
-      setAnswer(await ask({ data: { query: text, origin, selectedPlace: effectiveSelectedPlace } }));
+      setAnswer(await ask({ data: { query: text, origin } }));
     } catch {
       setAnswer({ ok: false, error: "Nalu couldn't answer that right now." });
     } finally {
@@ -212,19 +161,8 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     }
   }
 
-  function useExample(example: string) {
-    setSelectedPlace(null);
-    setPlaceResults([]);
+  function setExample(example: string) {
     setQuery(example);
-    setSettledQuery(example);
-  }
-
-  function choosePlace(place: PlaceSuggestion) {
-    // Suggestions are assistive context, not a replacement for the rider's request.
-    // Keep the natural-language sentence intact so the rider can continue typing normally.
-    setSelectedPlace(place);
-    setPlaceResults([]);
-    setSettledQuery(query.trim());
   }
 
   return (
@@ -243,7 +181,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
               Tell Nalu what you’re trying to do.
             </h2>
             <p className="mt-1 text-sm leading-5 text-muted-foreground">
-              Complicated commute? Just describe it. Nalu can work through stops, timing, rail, bus, and driving.
+              Complicated commute? Just describe it. Nalu works out the stops, timing, rail, bus, and driving for you.
             </p>
           </div>
         </div>
@@ -255,55 +193,13 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           value={query}
           maxLength={400}
           onChange={(e) => {
-            setSelectedPlace(null);
             setQuery(e.target.value);
           }}
           placeholder="I need to drop my son off first, then be downtown by 8."
           className="min-h-24 resize-none border-white/10 bg-background/70"
         />
 
-        {selectedPlace ? (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2" aria-label="Recognized place">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{selectedPlace.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{selectedPlace.address}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPlace(null);
-                setPlaceResults([]);
-                setSettledQuery(query.trim());
-              }}
-              className="shrink-0 text-xs font-semibold text-muted-foreground hover:text-foreground"
-              aria-label="Clear selected place"
-            >
-              Clear
-            </button>
-          </div>
-        ) : (
-          <div className="relative">
-            {placesLoading && query.trim().length >= 2 && (
-              <p className="px-1 text-xs text-muted-foreground">Finding places…</p>
-            )}
-            {placeResults.length > 0 && (
-              <div className="overflow-hidden rounded-xl border border-white/10 bg-surface-raised shadow-lg" role="listbox" aria-label="Place suggestions">
-                {placeResults.map((place) => (
-                  <button
-                    key={place.id}
-                    type="button"
-                    role="option"
-                    onClick={() => choosePlace(place)}
-                    className="block w-full border-b border-white/5 px-3 py-2.5 text-left last:border-b-0 hover:bg-primary/[0.08]"
-                  >
-                    <p className="truncate text-sm font-semibold text-foreground">{place.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{place.address}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <p className="text-xs text-muted-foreground">No need to pick a place — type the whole request naturally and Nalu will resolve the places for you.</p>
 
         <div className="flex justify-end">
           <button
@@ -327,7 +223,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
               <button
                 key={example}
                 type="button"
-                onClick={() => useExample(example)}
+                onClick={() => setExample(example)}
                 className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-left text-xs font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
               >
                 {example}
@@ -341,8 +237,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           disabled={
             busy ||
             cooldownUntil > 0 ||
-            query.trim().length < 4 ||
-            query.trim() !== settledQuery
+            query.trim().length < 4
           }
           className="w-full sm:w-auto sm:justify-self-start"
         >
