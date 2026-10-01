@@ -133,8 +133,6 @@ function AppRouteGate() {
   }, [pathname]);
 
   const routingToWelcome = pathname === "/" && !user;
-  const routingToBrowse = false;
-
   if (loading || routingToWelcome) {
     return (
       <main className="min-h-[100dvh] bg-background text-foreground" aria-label="Loading Nalu">
