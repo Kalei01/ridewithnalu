@@ -1,3 +1,4 @@
+import { LegalFooter } from "@/components/LegalFooter";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 const SITE_URL = "https://ridewithnalu.lovable.app";
@@ -117,17 +118,7 @@ function OahuCommutePage() {
           <p className="mt-3 leading-7 text-muted-foreground">
             Nalu combines commute information from services used for traffic, transit,
             weather, and air quality. Availability and freshness can vary, so the app shows
-            when current information is unavailable or needs caution.
-          </p>
-        </section>
-
-        <footer className="mt-12 border-t border-border pt-6 text-sm text-muted-foreground">
-          <p>Nalu is a commute decision tool for Oʻahu. It is not a replacement for official transit or road-safety information.</p>
-          <Link
-            to="/"
-            className="mt-3 inline-block font-semibold text-foreground underline-offset-4 hover:underline"
-          >
-            Try Nalu
+            when current information is unavailable or ne<LegalFooter />            Try Nalu
           </Link>
         </footer>
       </div>
