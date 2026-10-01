@@ -127,7 +127,7 @@ function AppRouteGate() {
 
   useEffect(() => {
     // Signed-in users always start in Browse. Welcome is for signed-out entry only.
-    if (!loading && user && (pathname === "/" || pathname === "/welcome")) {
+    if (!loading && user && pathname === "/welcome") {
       void router.navigate({ to: "/", replace: true });
       return;
     }
