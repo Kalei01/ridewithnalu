@@ -184,6 +184,53 @@ function WelcomePage() {
           </div>
         </section>
 
+        <section className="border-t border-white/10 py-10" aria-labelledby="see-nalu-live">
+          <div className="grid gap-6 lg:grid-cols-[.85fr_1.15fr] lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">See Nalu in action</p>
+              <h2 id="see-nalu-live" className="mt-2 text-2xl font-black tracking-tight">One live commute view. Less guesswork.</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+                Tap a destination and Nalu opens your commute view with current traffic, transit options, timing, and the rail-or-drive recommendation in one place.
+              </p>
+              <p className="mt-3 text-xs text-muted-foreground">The example below is a product preview, not live trip data.</p>
+            </div>
+            <div className="liquid-titanium-slab rounded-[24px] p-4 sm:p-5" aria-label="Nalu commute page preview">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Commute</p>
+                  <p className="mt-1 text-lg font-black tracking-tight">Work · Downtown</p>
+                </div>
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-bold text-emerald-300">Live</span>
+              </div>
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Nalu says</p>
+                    <p className="mt-1 text-2xl font-black tracking-tight">Drive</p>
+                  </div>
+                  <p className="text-sm font-bold">42–49 min</p>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full w-[72%] rounded-full bg-primary" />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">Traffic is moving slower than usual on your route.</p>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                  <p className="text-[11px] text-muted-foreground">Transit</p>
+                  <p className="mt-1 text-sm font-bold">55 min</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Skyline + TheBus</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                  <p className="text-[11px] text-muted-foreground">Leave by</p>
+                  <p className="mt-1 text-sm font-bold">6:48 AM</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Arrive By 7:45 AM</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="grid gap-6 border-t border-white/10 py-10 lg:grid-cols-2" aria-labelledby="how-nalu-works">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">How Nalu works</p>
