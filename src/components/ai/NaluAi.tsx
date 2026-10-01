@@ -5,7 +5,6 @@ import { CalendarCheck, HelpCircle, Sparkles, TrendingUp, Volume2 } from "lucide
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askNalu, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
-import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
@@ -132,80 +131,19 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
 
 export function AskNalu({ origin }: { origin: { lat: number; lon: number } | null }) {
   const ask = useServerFn(askNalu);
-  const findPlaces = useServerFn(searchPlaces);
   const [query, setQuery] = useState("");
-  const [placeResults, setPlaceResults] = useState<PlaceSuggestion[]>([]);
-  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
-  const [placesLoading, setPlacesLoading] = useState(false);
-  const [settledQuery, setSettledQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const requestGate = useRef(createClientRateWindow(10_000));
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof ask>> | null>(null);
   const [showExamples, setShowExamples] = useState(false);
-  const placeRequestId = useRef(0);
-
-  useEffect(() => {
-    const text = query.trim().replace(/\\s+/g, " ");
-    if (text.length < 2) {
-      setPlaceResults([]);
-      setPlacesLoading(false);
-      return;
-    }
-
-    // Search the latest place-like phrase rather than the entire sentence.
-    // This lets a rider naturally type: "Pearl Ridge to Ala Moana" without
-    // the first place continuing to dominate the suggestions.
-    const searchText =
-      text.split(/\\s+(?:then|to|at|near|from|before|after)\\s+/i).pop()?.trim() ?? text;
-    if (searchText.length < 2) {
-      setPlaceResults([]);
-      setPlacesLoading(false);
-      return;
-    }
-
-    const timer = window.setTimeout(async () => {
-      const requestId = ++placeRequestId.current;
-      setPlacesLoading(true);
-      try {
-        const result = await findPlaces({ data: { query: searchText } });
-        if (requestId === placeRequestId.current) {
-          setPlaceResults(result.results ?? []);
-        }
-      } catch {
-        if (requestId === placeRequestId.current) {
-          setPlaceResults([]);
-        }
-      } finally {
-        if (requestId === placeRequestId.current) {
-          setPlacesLoading(false);
-        }
-      }
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [findPlaces, query]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSettledQuery(query.trim()), 350);
-    return () => window.clearTimeout(timer);
-  }, [query]);
-
-  useEffect(() => {
-    if (!cooldownUntil) return;
-    const timer = window.setTimeout(
-      () => setCooldownUntil(0),
-      Math.max(0, cooldownUntil - Date.now()),
-    );
-    return () => window.clearTimeout(timer);
-  }, [cooldownUntil]);
 
   async function submit() {
     const text = query.trim();
     if (
       busyRef.current ||
       text.length < 4 ||
-      text !== settledQuery ||
       !requestGate.current.tryAcquire(Date.now())
     ) return;
 
@@ -213,9 +151,8 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     setCooldownUntil(Date.now() + 10_000);
     setBusy(true);
     setAnswer(null);
-    const effectiveSelectedPlace = selectedPlace;
     try {
-      setAnswer(await ask({ data: { query: text, origin, selectedPlace: effectiveSelectedPlace } }));
+      setAnswer(await ask({ data: { query: text, origin } }));
     } catch {
       setAnswer({ ok: false, error: "Nalu couldn't answer that right now." });
     } finally {
@@ -225,16 +162,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   }
 
   function setExample(example: string) {
-    setSelectedPlace(null);
-    setPlaceResults([]);
     setQuery(example);
-    setSettledQuery(example);
-  }
-
-  function choosePlace(place: PlaceSuggestion) {
-    setSelectedPlace(place);
-    setPlaceResults([]);
-    setSettledQuery(query.trim());
   }
 
   return (
@@ -253,7 +181,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
               Tell Nalu what you’re trying to do.
             </h2>
             <p className="mt-1 text-sm leading-5 text-muted-foreground">
-              Complicated commute? Just describe it. Nalu can work through stops, timing, rail, bus, and driving.
+              Complicated commute? Just describe it. Nalu works out the stops, timing, rail, bus, and driving for you.
             </p>
           </div>
         </div>
@@ -351,7 +279,6 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
             busy ||
             cooldownUntil > 0 ||
             query.trim().length < 4 ||
-            query.trim() !== settledQuery
           }
           className="w-full sm:w-auto sm:justify-self-start"
         >
