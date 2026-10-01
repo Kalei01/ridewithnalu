@@ -120,6 +120,7 @@ function WelcomePage() {
           </Link>
           <Link
             to="/"
+            onClick={markWelcomeSeen}
             className="rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 text-sm font-semibold text-muted-foreground backdrop-blur-xl transition hover:border-white/20 hover:text-foreground"
           >
             Browse
@@ -139,6 +140,7 @@ function WelcomePage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 to="/"
+                onClick={markWelcomeSeen}
                 className="liquid-primary-action inline-flex min-h-12 items-center justify-center rounded-2xl px-6 text-sm font-bold"
               >
                 Continue free
