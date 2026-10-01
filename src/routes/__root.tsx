@@ -95,7 +95,34 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppRouteGate />
+        <Toaster position="top-center" richColors />
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
+
+function AppRouteGate() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (pathname === "/" && !user) {
+      void router.navigate({ to: "/welcome", replace: true });
+      return;
+    }
+
+    if (pathname === "/welcome" && user) {
+      void router.navigate({ to: "/", replace: true });
+    }
+  }, [loading, pathname, router, user]);
 
   useEffect(() => {
     initGoogleAnalytics();
@@ -105,12 +132,19 @@ function RootComponent() {
       trackGooglePageView(pathname);
     });
   }, [pathname]);
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster position="top-center" richColors />
-      </AuthProvider>
-    </QueryClientProvider>
-  );
+
+  if ((pathname === "/" && !user && loading) || (pathname === "/welcome" && loading)) {
+    return (
+      <main className="min-h-[100dvh] bg-background text-foreground" aria-label="Loading Nalu">
+        <div className="mx-auto flex min-h-[100dvh] max-w-5xl items-center justify-center px-5">
+          <div className="text-center">
+            <p className="text-2xl font-black tracking-tight">Nalu</p>
+            <p className="mt-2 text-sm text-muted-foreground">Getting things ready…</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return <Outlet />;
 }
