@@ -1993,14 +1993,32 @@ function Index() {
             leg.depart_seconds === null
           )
             return null;
-          const { data, error } = await supabase.rpc("leg_stop_sequence", {
+          const sequenceArgs = {
             p_from_name: leg.from,
             p_to_name: leg.to,
             p_depart_seconds: leg.depart_seconds,
             ...(leg.mode === "bus" && leg.route_short ? { p_route_short: leg.route_short } : {}),
             p_rail: leg.mode === "rail",
             p_tolerance_seconds: 300,
-          });
+          };
+          let { data, error } = await supabase.rpc("leg_stop_sequence", sequenceArgs);
+          // The planner and GTFS feed can be a few minutes apart. For buses,
+          // retry with a wider window while keeping the route constrained.
+          // Never fall back to a straight line: missing GTFS geometry must not
+          // become a misleading route across the map.
+          if (
+            (error || !data?.length) &&
+            leg.mode === "bus" &&
+            leg.route_short &&
+            leg.depart_seconds !== null
+          ) {
+            const retry = await supabase.rpc("leg_stop_sequence", {
+              ...sequenceArgs,
+              p_tolerance_seconds: 1800,
+            });
+            data = retry.data;
+            error = retry.error;
+          }
           // One unmatched leg must never wipe out the geometry of the others.
           if (error) return null;
           const points = (data ?? []).flatMap((row) =>
