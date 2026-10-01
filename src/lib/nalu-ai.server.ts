@@ -289,7 +289,11 @@ const PlanAnswer = z.object({
 });
 export type AskNaluAnswer = z.infer<typeof PlanAnswer>;
 
-export async function runAskNalu(query: string, origin: Pt | null) {
+export async function runAskNalu(
+  query: string,
+  origin: Pt | null,
+  selectedPlace: { name: string; address: string; lat: number; lon: number } | null = null,
+) {
   const nowHst = new Intl.DateTimeFormat("en-US", {
     timeZone: "Pacific/Honolulu",
     weekday: "long",
@@ -306,8 +310,14 @@ export async function runAskNalu(query: string, origin: Pt | null) {
       "Use local Oʻahu road names. Give leave-by times in Honolulu local time like 6:45 AM. Keep steps short. " +
       "Do not ask follow-up questions just because the request is broad. Make reasonable, transparent assumptions using the rider’s origin, current Honolulu time, and common Oʻahu destinations. " +
       "If a destination or place name appears, use findPlace to resolve it rather than asking the rider to clarify. " +
+      "When a selected place is supplied below, treat its coordinates as the authoritative destination and do not re-geocode it. " +
       "Only ask a follow-up when a required fact cannot be safely inferred or found with the tools. If the request can be answered now, answer it now rather than ending with a question.",
-    prompt: `Rider request: ${query}\nOrigin available: ${origin ? "yes" : "no"}`,
+    prompt:
+      `Rider request: ${query}\nOrigin available: ${origin ? "yes" : "no"}\nSelected place: ${
+        selectedPlace
+          ? JSON.stringify(selectedPlace)
+          : "none"
+      }`,
     tools: {
       findPlace: tool({
         description: "Find an Oʻahu place or address. Returns door coordinates.",
