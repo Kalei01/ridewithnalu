@@ -5,6 +5,7 @@ import { CalendarCheck, HelpCircle, Sparkles, TrendingUp, Volume2 } from "lucide
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askNalu, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
+import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
@@ -131,7 +132,11 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
 
 export function AskNalu({ origin }: { origin: { lat: number; lon: number } | null }) {
   const ask = useServerFn(askNalu);
+  const findPlaces = useServerFn(searchPlaces);
   const [query, setQuery] = useState("");
+  const [placeResults, setPlaceResults] = useState<PlaceSuggestion[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
+  const [placesLoading, setPlacesLoading] = useState(false);
   const [settledQuery, setSettledQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -139,6 +144,28 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof ask>> | null>(null);
   const [showExamples, setShowExamples] = useState(false);
+
+  useEffect(() => {
+    const text = query.trim();
+    if (selectedPlace && text !== selectedPlace.name) setSelectedPlace(null);
+    if (text.length < 2) {
+      setPlaceResults([]);
+      setPlacesLoading(false);
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      setPlacesLoading(true);
+      try {
+        const result = await findPlaces({ data: { query: text } });
+        setPlaceResults(result.results ?? []);
+      } catch {
+        setPlaceResults([]);
+      } finally {
+        setPlacesLoading(false);
+      }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [findPlaces, query, selectedPlace]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSettledQuery(query.trim()), 350);
@@ -178,8 +205,17 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   }
 
   function useExample(example: string) {
+    setSelectedPlace(null);
+    setPlaceResults([]);
     setQuery(example);
     setSettledQuery(example);
+  }
+
+  function choosePlace(place: PlaceSuggestion) {
+    setSelectedPlace(place);
+    setPlaceResults([]);
+    setQuery(place.name);
+    setSettledQuery(place.name);
   }
 
   return (
@@ -213,6 +249,49 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           placeholder="I need to drop my son off first, then be downtown by 8."
           className="min-h-24 resize-none border-white/10 bg-background/70"
         />
+
+        {selectedPlace ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{selectedPlace.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{selectedPlace.address}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPlace(null);
+                setQuery("");
+                setSettledQuery("");
+              }}
+              className="shrink-0 text-xs font-semibold text-muted-foreground hover:text-foreground"
+              aria-label="Clear selected place"
+            >
+              Clear
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            {placesLoading && query.trim().length >= 2 && (
+              <p className="px-1 text-xs text-muted-foreground">Finding places…</p>
+            )}
+            {placeResults.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-white/10 bg-surface-raised shadow-lg" role="listbox" aria-label="Place suggestions">
+                {placeResults.map((place) => (
+                  <button
+                    key={place.id}
+                    type="button"
+                    role="option"
+                    onClick={() => choosePlace(place)}
+                    className="block w-full border-b border-white/5 px-3 py-2.5 text-left last:border-b-0 hover:bg-primary/[0.08]"
+                  >
+                    <p className="truncate text-sm font-semibold text-foreground">{place.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{place.address}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex justify-end">
           <button
