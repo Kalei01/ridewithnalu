@@ -42,7 +42,7 @@ export function initGoogleAnalytics() {
 
 export function trackGooglePageView(path: string) {
   loadGoogleAnalytics();
-  if (!loaded || !measurementId || typeof window === "undefined" || readAnalyticsConsent() !== "granted") return;
+  if (!loaded || !measurementId || typeof window === "undefined" || readGoogleAnalyticsConsent() !== "granted") return;
   window.gtag?.("event", "page_view", {
     page_location: window.location.origin + path,
     page_path: path,
@@ -55,6 +55,6 @@ export function trackGoogleEvent(
   props?: Record<string, string | number | boolean | null>,
 ) {
   loadGoogleAnalytics();
-  if (!loaded || !measurementId || typeof window === "undefined" || readAnalyticsConsent() !== "granted") return;
+  if (!loaded || !measurementId || typeof window === "undefined" || readGoogleAnalyticsConsent() !== "granted") return;
   window.gtag?.("event", event, props);
 }
