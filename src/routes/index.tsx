@@ -6763,6 +6763,7 @@ function SetupDialog({
             defaultOpen={firstRun}
           >
               <div className="grid gap-5">
+                <div className="grid gap-2">
             <Label>From</Label>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
               <div className="flex min-w-0 items-center gap-2">
