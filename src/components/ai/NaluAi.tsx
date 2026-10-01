@@ -195,7 +195,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     setBusy(true);
     setAnswer(null);
     try {
-      setAnswer(await ask({ data: { query: text, origin } }));
+      setAnswer(await ask({ data: { query: text, origin, selectedPlace } }));
     } catch {
       setAnswer({ ok: false, error: "Nalu couldn't answer that right now." });
     } finally {
