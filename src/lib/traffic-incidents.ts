@@ -148,7 +148,7 @@ export function incidentHeadline(incident: DriveIncident): string {
   const road = localRoadName(incident.road);
   const where = road ? " on " + road : "";
   const delay = Math.max(0, Math.round(incident.delayMinutes ?? 0));
-  const fallback = incidentText(incident).replace(/^Reported |^Heavy traffic /, "");
+  const fallback = incident.description.trim() || "Traffic incident";
   return (category ?? fallback) + where + (delay > 0 ? " · +" + delay + " min" : "");
 }
 
