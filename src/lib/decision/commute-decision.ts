@@ -5,6 +5,7 @@ import {
   type EvidenceKind,
   type DecisionModeEstimate,
 } from "../intelligence/drive-transit-decision";
+import { normalizeEvidence, type NormalizedEvidence } from "../intelligence/evidence-normalizer";
 
 export type DecisionState = "drive" | "rail" | "same" | "none" | "uncertain";
 export type { EvidenceKind };
@@ -20,18 +21,59 @@ export type TripDecision = {
 export const DEFAULT_TOSS_UP_MINUTES = 5;
 export const DEFAULT_SWITCH_MARGIN_MINUTES = 3;
 
+function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
+  const now = Date.now();
+  const source = item.mode === "drive" ? "drive-provider" : "transit-provider";
+  const quality = item.source.quality;
+  const evidence: NormalizedEvidence[] = [
+    normalizeEvidence({
+      id: `${item.mode}-eta`,
+      mode: item.mode,
+      source,
+      value: item.expectedDurationMinutes,
+      unit: "minutes",
+      observedAt: item.source.updatedAt ?? now,
+      expiresAt: null,
+      quality,
+      impact: "neutral",
+      relevance: "route",
+    }),
+  ];
+
+  if (item.trafficDelayMinutes !== null) {
+    evidence.push(normalizeEvidence({
+      id: `${item.mode}-traffic-delay`,
+      mode: item.mode,
+      source,
+      value: item.trafficDelayMinutes,
+      unit: "minutes",
+      observedAt: item.source.updatedAt ?? now,
+      expiresAt: null,
+      quality,
+      impact: "negative",
+      relevance: "route",
+    }));
+  }
+
+  return evidence;
+}
+
 function toDecisionEstimate(item: TripEstimate): DecisionModeEstimate {
+  const evidence = normalizeTripEvidence(item);
+  const eta = evidence.find((entry) => entry.id.endsWith("-eta"));
+  const traffic = evidence.find((entry) => entry.id.endsWith("-traffic-delay"));
+
   return {
     mode: item.mode,
     availability: item.availability,
-    quality: item.source.quality,
+    quality: eta?.quality === "stale" ? "stale" : item.source.quality,
     expectedMinutes: item.expectedDurationMinutes,
     leaveTime: item.leaveTime,
     arrivalTime: item.arrivalTime,
     earliestArrival: item.earliestArrival,
     latestArrival: item.latestArrival,
     uncertaintyMinutes: item.uncertaintyMinutes,
-    trafficDelayMinutes: item.trafficDelayMinutes,
+    trafficDelayMinutes: traffic?.quality === "stale" ? null : item.trafficDelayMinutes,
     majorIncident: item.majorIncident,
     railWaitMinutes: item.railWaitMinutes,
     busWaitMinutes: item.busWaitMinutes,
@@ -58,10 +100,6 @@ export type ArrivalDecision = TripDecision & {
   railMarginMinutes: number | null;
 };
 
-/**
- * Adapter boundary: the production UI keeps its existing TripEstimate API,
- * while the reusable reasoning now lives in the Intelligence Core.
- */
 export function decideArrival(
   drive: TripEstimate,
   rail: TripEstimate,
