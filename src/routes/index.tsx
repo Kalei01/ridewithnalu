@@ -6435,7 +6435,7 @@ function SettingsGroup({
   return (
     <details
       open={defaultOpen}
-      className="overflow-hidden rounded-2xl border border-border bg-background/30"
+      className="group overflow-hidden rounded-2xl border border-border bg-background/30"
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
