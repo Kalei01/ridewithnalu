@@ -763,12 +763,11 @@ function modeIcon(mode: Leg["mode"]) {
 function trafficStatus(delayMinutes: number, incident?: DriveTime["incidents"][number]) {
   const delay = Math.max(0, Math.round(delayMinutes));
   if (incident) {
-    const description = incident.description.trim().toLowerCase();
-    const crash = /accident|crash|collision/.test(description);
-    const label = crash
-      ? `Crash reported${incident.road ? ` · ${incident.road}` : ""}`
-      : `Traffic incident reported${incident.road ? ` · ${incident.road}` : ""}`;
-    return { label, className: "text-destructive" };
+    const condition = standaloneIncidentCondition(incident);
+    return {
+      label: `${condition}${incident.road ? ` · ${incident.road}` : ""}`,
+      className: "text-destructive",
+    };
   }
   if (delay === 0) return { label: "Clear", className: "text-primary" };
   if (delay > 20) return { label: `Heavy traffic · +${delay} min`, className: "text-destructive" };
@@ -838,6 +837,7 @@ function H1ConditionsCard({
     const location = standaloneIncidentLocation(incident);
     const cause = standaloneIncidentCause(incident);
     const clearance = standaloneIncidentClearance(incident);
+    const freshness = incidentFreshness(data.fetchedAt);
     const note = mainlineClearNote(incident, data.delayMinutes);
 
     return (
@@ -864,6 +864,7 @@ function H1ConditionsCard({
         </p>
         {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
         {clearance && <p className="mt-1 text-xs text-muted-foreground">{clearance}</p>}
+        <p className="mt-2 text-[10px] text-muted-foreground">{freshness}</p>
       </div>
     );
   };
