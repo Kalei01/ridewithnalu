@@ -128,6 +128,14 @@ function AppRouteGate() {
   useEffect(() => {
     // First visit (signed in or not) shows Welcome once; afterwards "/" opens Browse.
     if (welcomeSeen === false && pathname === "/") {
+      try {
+        if (window.localStorage.getItem(WELCOME_SEEN_KEY) === "1") {
+          setWelcomeSeen(true);
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
       void router.navigate({ to: "/welcome", replace: true });
     }
   }, [welcomeSeen, pathname, router]);
