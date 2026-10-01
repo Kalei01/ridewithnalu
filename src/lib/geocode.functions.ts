@@ -10,6 +10,11 @@ const TOMTOM_KEY = process.env["TOMTOM_API_KEY"];
 // identically named listings in Waipahu/'Aiea above the real town venue.
 const OAHU_BOX = { topLeft: "21.75,-158.35", btmRight: "21.20,-157.60" };
 
+// Request-level deduplication only: identical concurrent lookups share one
+// TomTom request, while every new lookup still gets fresh provider data.
+const tomtomInflight = new Map<string, Promise<TomTomHit[]>>();
+const reverseInflight = new Map<string, Promise<{ found: boolean; label: string | null }>>();
+
 type TomTomHit = {
   id?: string;
   type?: string;
@@ -40,22 +45,39 @@ async function tomtomSearch(
   query: string,
   params: Record<string, string>,
 ): Promise<TomTomHit[]> {
-  const search = new URLSearchParams({
-    countrySet: "US",
-    topLeft: OAHU_BOX.topLeft,
-    btmRight: OAHU_BOX.btmRight,
-    language: "en-US",
-    ...params,
-  });
-  const url = `https://api.tomtom.com/search/2/${endpoint}/${encodeURIComponent(query)}.json?${search}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    const body = await response.text();
-    console.error(`TomTom ${endpoint} failed [${response.status}]: ${body}`);
-    throw new Error(`Place search failed (${response.status}).`);
-  }
-  const payload = (await response.json()) as { results?: TomTomHit[] };
-  return payload.results ?? [];
+  const requestKey = JSON.stringify([
+    endpoint,
+    query,
+    Object.entries(params).sort(([a], [b]) => a.localeCompare(b)),
+  ]);
+  const existing = tomtomInflight.get(requestKey);
+  if (existing) return existing;
+
+  const request = (async () => {
+    try {
+      const search = new URLSearchParams({
+        countrySet: "US",
+        topLeft: OAHU_BOX.topLeft,
+        btmRight: OAHU_BOX.btmRight,
+        language: "en-US",
+        ...params,
+      });
+      const url = `https://api.tomtom.com/search/2/${endpoint}/${encodeURIComponent(query)}.json?${search}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const body = await response.text();
+        console.error(`TomTom ${endpoint} failed [${response.status}]: ${body}`);
+        throw new Error(`Place search failed (${response.status}).`);
+      }
+      const payload = (await response.json()) as { results?: TomTomHit[] };
+      return payload.results ?? [];
+    } finally {
+      tomtomInflight.delete(requestKey);
+    }
+  })();
+
+  tomtomInflight.set(requestKey, request);
+  return request;
 }
 
 /** Geocodes free text inside Oahu, preferring named places for non-address queries. */
@@ -288,6 +310,12 @@ export const reverseGeocode = createServerFn({ method: "POST" })
   .inputValidator((input) => reverseSchema.parse(input))
   .handler(async ({ data }): Promise<{ found: boolean; label: string | null }> => {
     const key = TOMTOM_KEY ?? "";
+    const requestKey = `${data.lat.toFixed(5)},${data.lon.toFixed(5)}`;
+    const existing = reverseInflight.get(requestKey);
+    if (existing) return existing;
+
+
+    const request = (async () => {
     const url =
       `https://api.tomtom.com/search/2/reverseGeocode/${data.lat},${data.lon}.json` +
       `?key=${key}&radius=100&language=en-US`;
@@ -306,4 +334,8 @@ export const reverseGeocode = createServerFn({ method: "POST" })
       console.error("TomTom reverse geocode error", error);
       return { found: false, label: null };
     }
+
+    })();
+    reverseInflight.set(requestKey, request);
+    return request;
   });
