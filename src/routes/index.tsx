@@ -100,6 +100,7 @@ import {
   type SavedPlace,
 } from "@/lib/saved-places";
 import { latestRailArrival } from "@/lib/leave-by";
+import { skylineFallbackHeadwayMinutes } from "@/lib/rail/skyline-fallback";
 import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } from "@/lib/drive/planner";
 import { carAvailableForDrive } from "@/lib/car-state";
 import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-direction";
@@ -1643,8 +1644,15 @@ function Index() {
         d[0] && d[1] ? Math.round((d[1].departure_seconds - d[0].departure_seconds) / 60) : null,
       )
       .filter((g): g is number => g !== null && g > 0 && g < 60);
-    return gaps.length ? Math.min(...gaps) : null;
-  }, [browseDirections]);
+    // Prefer actual GTFS departure gaps. If the station query is temporarily
+    // empty, use the documented Skyline system headway rather than hiding the
+    // useful cadence entirely. This is a frequency fallback, not live tracking.
+    return gaps.length
+      ? Math.min(...gaps)
+      : browseStation
+        ? skylineFallbackHeadwayMinutes(browseStation.stopName)
+        : null;
+  }, [browseDirections, browseStation?.stopName]);
   const { data: feederBuses = [] } = useQuery({
     queryKey: [
       "feeder-bus",
