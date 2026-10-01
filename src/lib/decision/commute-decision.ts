@@ -23,7 +23,6 @@ export const DEFAULT_TOSS_UP_MINUTES = 5;
 export const DEFAULT_SWITCH_MARGIN_MINUTES = 3;
 
 function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
-  const now = Date.now();
   const source = item.mode === "drive" ? "drive-provider" : "transit-provider";
   const policy = item.mode === "drive" ? FRESHNESS_POLICIES.driveEta : FRESHNESS_POLICIES.transitSchedule;
   const quality = item.source.quality;
