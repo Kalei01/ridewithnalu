@@ -215,6 +215,36 @@ export async function nearestStation(point: Pt) {
   };
 }
 
+const SKYLINE_STATIONS = [
+  "Kualakaʻi East Kapolei Station",
+  "Keoneʻae UH West Oʻahu Station",
+  "Honouliuli Hoʻopili Station",
+  "Hōʻaʻae West Loch Station",
+  "Pouhala Waipahu Transit Center Station",
+  "Hālaulani Leeward Community College Station",
+  "Waiawa Pearl Highlands Station",
+  "Kalauao Pearlridge Station",
+  "Hālawa Aloha Stadium Station",
+  "Makalapa Joint Base Pearl Harbor-Hickam Station",
+  "Lelepaua Daniel K. Inouye International Airport Station",
+  "Āhua Lagoon Drive Station",
+  "Kahauiki Kalihi Transit Center Station",
+] as const;
+
+function skylineStationIndex(name: string): number | null {
+  const normalized = name.toLowerCase().replace(/[ʻ'’]/g, "'").replace(/[^a-z0-9]+/g, " ").trim();
+  const index = SKYLINE_STATIONS.findIndex((station) => {
+    const stationNormalized = station.toLowerCase().replace(/[ʻ'’]/g, "'").replace(/[^a-z0-9]+/g, " ").trim();
+    return normalized.includes(stationNormalized) || stationNormalized.includes(normalized);
+  });
+  return index >= 0 ? index : null;
+}
+
+async function stationByName(name: string) {
+  const point = await geocodeOahu(name);
+  return point ? await nearestStation(point) : null;
+}
+
 export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, afterSeconds: number) {
   const db = publicDb();
   const dest = await nearestStation(toPoint);
@@ -231,9 +261,6 @@ export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, 
     p_dest_lon: toPoint.lon,
   });
 
-  // If normal walk/bus access finds no itinerary, retry as a legitimate
-  // Skyline park-and-ride trip. This preserves normal access first while
-  // allowing homes outside the station access radius to use rail.
   if (!(data ?? []).length) {
     const fallback = await db.rpc("plan_outbound", {
       p_origin_lat: fromPoint.lat,
@@ -251,7 +278,7 @@ export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, 
       arrive_seconds: number;
       total_minutes: number;
     }>;
-    if (fallbackRows.length) return { destStation: dest.name, trips: fallbackRows.slice(0, 2) };
+    if (fallbackRows.length) return { originStation: fromStop, destStation: dest.name, trips: fallbackRows.slice(0, 2) };
   }
 
   const rows = (data ?? []) as Array<{
@@ -259,7 +286,33 @@ export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, 
     arrive_seconds: number;
     total_minutes: number;
   }>;
-  return { destStation: dest.name, trips: rows.slice(0, 2) };
+  return { originStation: fromStop, destStation: dest.name, trips: rows.slice(0, 2) };
+}
+
+export async function bestRailBetween(fromPoint: Pt, toPoint: Pt, afterSeconds: number) {
+  const nearestOrigin = await nearestStation(fromPoint);
+  const dest = await nearestStation(toPoint);
+  if (!nearestOrigin || !dest) return null;
+
+  const originIndex = skylineStationIndex(nearestOrigin.name);
+  const destIndex = skylineStationIndex(dest.name);
+  const candidates: Array<typeof nearestOrigin> = [nearestOrigin];
+
+  if (originIndex !== null && destIndex !== null && originIndex > destIndex) {
+    for (let index = originIndex - 1; index > destIndex; index -= 1) {
+      const candidate = await stationByName(SKYLINE_STATIONS[index]);
+      if (candidate && !candidates.some((existing) => existing.stopId === candidate.stopId)) {
+        candidates.push(candidate);
+      }
+    }
+  }
+
+  for (const candidate of candidates) {
+    const plan = await railBetween(candidate.stopId, fromPoint, toPoint, afterSeconds);
+    if (plan?.trips?.length) return plan;
+  }
+
+  return { originStation: nearestOrigin.name, destStation: dest.name, trips: [] };
 }
 
 export function honoluluSeconds(date = new Date()) {
@@ -305,7 +358,7 @@ export async function runAskNalu(
     system:
       `You are Nalu, a calm Oʻahu commute planner. Current Honolulu time: ${nowHst}. ` +
       "Use the tools for every place, drive time and Skyline lookup; never guess times or coordinates. " +
-      "The rider's origin is 'origin' when provided. Compare driving with park-and-ride (drive to nearest Skyline station, then rail) when relevant. " +
+      "The rider's origin is 'origin' when provided. Compare driving with Skyline access when relevant. Never assume the geographically nearest station is the correct rail access point: the access station must be on the correct direction of travel toward the destination. The skylineTrip tool performs this directional station selection. " +
       "Use local Oʻahu road names. Give leave-by times in Honolulu local time like 6:45 AM. Keep steps short. " +
       "Do not ask follow-up questions just because the request is broad. Make reasonable, transparent assumptions using the rider’s origin, current Honolulu time, and common Oʻahu destinations. " +
       "Treat the rider’s entire message as the source of truth for intent. If multiple places or stops are named, resolve every relevant place with findPlace and preserve the order the rider described; do not reduce the request to one destination. " +
@@ -351,16 +404,15 @@ export async function runAskNalu(
       }),
       skylineTrip: tool({
         description:
-          "Scheduled Skyline trips from a station stop id toward a destination point, after a time (seconds since local midnight).",
+          "Find the best directional Skyline trip from the rider origin to a destination point. Do not choose the access station yourself; this tool checks the rail corridor direction and avoids stations beyond the destination.",
         inputSchema: z.object({
-          fromStopId: z.string(),
           toLat: z.number(),
           toLon: z.number(),
           afterSeconds: z.number(),
         }),
         execute: async (i) =>
           (origin
-            ? await railBetween(i.fromStopId, origin, { lat: i.toLat, lon: i.toLon }, i.afterSeconds)
+            ? await bestRailBetween(origin, { lat: i.toLat, lon: i.toLon }, i.afterSeconds)
             : null) ?? {
             error: "no rail",
           },
