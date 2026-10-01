@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as ApiPublicImportGtfsRouteImport } from './routes/api/public/import-gtfs'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push-dispatch'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicImportGtfsRoute = ApiPublicImportGtfsRouteImport.update({
@@ -38,12 +44,14 @@ const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/welcome': typeof WelcomeRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/welcome': typeof WelcomeRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
 }
@@ -51,6 +59,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/welcome': typeof WelcomeRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
 }
@@ -59,18 +68,21 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/reset-password'
+    | '/welcome'
     | '/api/public/import-gtfs'
     | '/api/public/push-dispatch'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/reset-password'
+    | '/welcome'
     | '/api/public/import-gtfs'
     | '/api/public/push-dispatch'
   id:
     | '__root__'
     | '/'
     | '/reset-password'
+    | '/welcome'
     | '/api/public/import-gtfs'
     | '/api/public/push-dispatch'
   fileRoutesById: FileRoutesById
@@ -78,6 +90,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  WelcomeRoute: typeof WelcomeRoute
   ApiPublicImportGtfsRoute: typeof ApiPublicImportGtfsRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
 }
@@ -96,6 +109,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/import-gtfs': {
@@ -118,6 +138,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  WelcomeRoute: WelcomeRoute,
   ApiPublicImportGtfsRoute: ApiPublicImportGtfsRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
 }
