@@ -3421,6 +3421,11 @@ function Index() {
         if (alignment)
           return [{ id: `rail-line-${legIndex}`, mode: "rail" as const, points: alignment }];
       }
+      // A bus leg without a GTFS stop sequence must never be rendered as a
+      // straight line between stops. That geometry can cross water or buildings
+      // and falsely imply a route that the bus does not take. The sequence query
+      // above is responsible for supplying the actual bus path.
+      if (leg.mode === "bus") return [];
       const from = leg.kind === "access" ? origin : pointForStop(leg.from_stop_id, leg.from);
       const to = leg.kind === "egress" ? destination : pointForStop(leg.to_stop_id, leg.to);
       if (!from || !to) return [];
