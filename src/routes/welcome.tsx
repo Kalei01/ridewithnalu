@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
 
-const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
+const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
 
 const SITE_URL = "https://ridewithnalu.lovable.app";
 
@@ -37,20 +37,18 @@ function WelcomeNavigationPreview() {
           fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading navigation preview" />}
         >
           <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading navigation preview" />}>
-            <LiveNavMap
-              lines={[{ id: "welcome-preview", mode: "drive", points: route }]}
-              destination={route[route.length - 1]}
+            <CommuteRouteMap
+              points={[
+                { id: "start", name: "Kapolei", lat: route[0].lat, lon: route[0].lon, kind: "start" },
+                { id: "end", name: "Downtown Honolulu", lat: route[route.length - 1].lat, lon: route[route.length - 1].lon, kind: "end" },
+              ]}
               livePoint={route[1]}
-              speedMps={24}
-              bearing={86}
-              maneuver={{ glyph: "straight", distanceText: "1.8 mi", road: "H-1 East toward Honolulu" }}
-              eta={{ arrive: "7:45 AM", range: "7:42–7:49 AM", minutes: 42, distance: "14.2 mi" }}
-              muted
-              onToggleMute={() => {}}
-              turn={route[5] ? { ...route[5], distanceM: 2897 } : null}
-              traffic={[
-                { severity: "moderate", points: route.slice(2, 5) },
-                { severity: "heavy", points: route.slice(5, 7) },
+              liveHeading={86}
+              followLive={false}
+              path={route}
+              trafficSections={[
+                { severity: "moderate", delayMinutes: 4, points: route.slice(2, 5) },
+                { severity: "heavy", delayMinutes: 9, points: route.slice(5, 7) },
               ]}
             />
           </Suspense>
