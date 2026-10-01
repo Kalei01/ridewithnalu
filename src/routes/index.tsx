@@ -122,7 +122,7 @@ import {
 } from "@/lib/navigation-voice";
 import { track } from "@/lib/analytics";
 import { NotificationsSection } from "@/components/account/NotificationsSection";
-import { AnalyticsConsentBanner, PrivacySection } from "@/components/account/PrivacySection";
+import { PrivacySection } from "@/components/account/PrivacySection";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -4321,7 +4321,6 @@ function Index() {
           </section>
           )}
 
-          <AnalyticsConsentBanner />
 
           <AskNalu origin={browseUserPoint} />
 
