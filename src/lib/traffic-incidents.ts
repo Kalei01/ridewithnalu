@@ -156,9 +156,18 @@ export function incidentHeadline(incident: DriveIncident): string {
 export function incidentDetailText(incident: DriveIncident): string | null {
   const from = incident.from?.trim();
   const to = incident.to?.trim();
-  if (from && to && from !== to) return "Backup reported from " + from + " to " + to + ".";
-  if (from) return "Reported near " + from + ".";
-  return null;
+  let detail: string | null = null;
+  if (from && to && from !== to) detail = "Backup reported from " + from + " to " + to + ".";
+  else if (from) detail = "Reported near " + from + ".";
+  if (!incident.endTime) return detail;
+  const end = new Date(incident.endTime);
+  if (Number.isNaN(end.getTime())) return detail;
+  const time = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Pacific/Honolulu",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(end);
+  return (detail ? detail + " " : "") + "Expected to clear around " + time + ".";
 }
 
 /** Blocking events matter on your route even before a delay is measured. */
