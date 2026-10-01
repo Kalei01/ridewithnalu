@@ -3,7 +3,6 @@ import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
 import { incidentAffectsTrip, localRoadName } from "./traffic-incidents";
-import { routeTravelSeconds } from "./drive/traffic-summary";
 
 const TOMTOM_KEY = process.env["TOMTOM_API_KEY"] ?? atob("MzQ4RDAwQzYtODQxMi00ODVCLTk2N0MtNjE2QzA5NzU1MTA1");
 
@@ -109,76 +108,91 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     });
 
-    const routeUrl =
-      `https://api.tomtom.com/routing/1/calculateRoute/${from}:${to}/json` +
-      `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
-      `&sectionType=traffic` +
-      `&routeRepresentation=polyline&instructionsType=text` +
-      `${data.bearing === undefined ? "" : `&vehicleHeading=${Math.round(data.bearing % 360)}`}` +
-      `${data.departureTime ? `&departAt=${encodeURIComponent(data.departureTime)}` : ""}`;
+    const routeUrl = "https://api.tomtom.com/maps/orbis/routing/routes/calculate?apiVersion=3";
+    const routeBody = {
+      routePlanningLocations: {
+        origin: { type: "Point", coordinates: [data.fromLon, data.fromLat] },
+        destination: { type: "Point", coordinates: [data.toLon, data.toLat] },
+      },
+      traffic: "live",
+      routeType: "fast",
+      travelMode: "car",
+      vehicleEngineType: "combustion",
+      ...(data.departureTime ? { departureDateTime: data.departureTime } : {}),
+      ...(data.bearing === undefined ? {} : { vehicleHeadingInDegrees: Math.round(data.bearing % 360) }),
+      guidance: "instructions",
+      instructionPhonetics: "ipa",
+    };
 
-    const response = await fetch(routeUrl);
+    const response = await fetch(routeUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "TomTom-Api-Key": key,
+        "TomTom-Api-Version": "3",
+        Accept: "application/json",
+        Attributes: "routes",
+        "Accept-Language": "en-GB",
+      },
+      body: JSON.stringify(routeBody),
+    });
     if (!response.ok) {
-      console.error(`[drive] routing unavailable: TomTom returned ${response.status}`);
+      console.error(`[drive] Orbis routing unavailable: TomTom returned ${response.status}`);
       return null;
     }
 
     const payload = (await response.json()) as {
       routes?: Array<{
-        summary?: {
-          lengthInMeters?: number;
-          travelTimeInSeconds?: number;
-          noTrafficTravelTimeInSeconds?: number;
-          historicTrafficTravelTimeInSeconds?: number;
-          liveTrafficIncidentsTravelTimeInSeconds?: number;
-          trafficDelayInSeconds?: number;
-        };
-        legs?: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>;
-        sections?: Array<{
-          sectionType?: string;
-          startPointIndex?: number;
-          endPointIndex?: number;
-          magnitudeOfDelay?: number;
-          delayInSeconds?: number;
-          simpleCategory?: string;
-        }>;
-        guidance?: {
-          instructions?: Array<
-            GuidanceInstruction & {
-              point?: { latitude?: number; longitude?: number };
-              message?: string;
-              combinedMessage?: string;
-            }
-          >;
-        };
+        summary?: { lengthInMeters?: number; travelDurationInSeconds?: number; trafficDelayDurationInSeconds?: number; trafficLengthInMeters?: number; departureDateTime?: string; arrivalDateTime?: string };
+        legs?: Array<{ path?: { type?: string; coordinates?: Array<[number, number]> } }>;
+        path?: { type?: string; coordinates?: Array<[number, number]> };
+        sections?: { traffic?: Array<{ startPathIndex?: number; endPathIndex?: number; iconCategory?: string; effectiveSpeedInKilometersPerHour?: number; delayDurationInSeconds?: number; delayMagnitude?: string }> };
+        instructions?: OrbisInstruction[];
       }>;
     };
     const route = payload.routes?.[0];
     const summary = route?.summary;
-    if (!summary?.travelTimeInSeconds) {
+    if (!summary?.travelDurationInSeconds) {
       console.warn("[drive] routing unavailable: no route was returned");
       return null;
     }
 
-    const trafficSeconds = routeTravelSeconds(
-      { travelTimeInSeconds: summary.travelTimeInSeconds,
-        liveTrafficIncidentsTravelTimeInSeconds: summary.liveTrafficIncidentsTravelTimeInSeconds },
-      Boolean(data.departureTime),
-    );
-    // What this road usually takes at this hour. Free-flow is not achievable at
-    // rush hour, so it never becomes the low end of anything shown to a rider.
-    const typicalSeconds = summary.historicTrafficTravelTimeInSeconds ?? trafficSeconds;
+    const trafficSeconds = summary.travelDurationInSeconds;
+    let typicalSeconds = trafficSeconds;
+    if (!data.departureTime) {
+      try {
+        const historicalResponse = await fetch(routeUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "TomTom-Api-Key": key,
+            "TomTom-Api-Version": "3",
+            Accept: "application/json",
+            Attributes: "routes",
+            "Accept-Language": "en-GB",
+          },
+          body: JSON.stringify({ ...routeBody, traffic: "historical" }),
+        });
+        if (historicalResponse.ok) {
+          const historical = (await historicalResponse.json()) as { routes?: Array<{ summary?: { travelDurationInSeconds?: number } }> };
+          const historicalSeconds = historical.routes?.[0]?.summary?.travelDurationInSeconds;
+          if (typeof historicalSeconds === "number" && historicalSeconds > 0) typicalSeconds = historicalSeconds;
+        }
+      } catch {
+        // Historical baseline is supplemental; keep the live route if unavailable.
+      }
+    }
 
-    const fullPath = flattenPath(route?.legs ?? []);
+    const fullPath = flattenOrbisPath(route);
     const path = thinPath(fullPath);
-    const trafficSections = readTrafficSections(route?.sections ?? [], fullPath);
+    const trafficSections = readOrbisTrafficSections(route?.sections?.traffic ?? [], fullPath);
     // Current incidents are not evidence about a later departure.
     const { onRoute: incidents, offRoute } = data.departureTime
       ? { onRoute: [] as DriveIncident[], offRoute: [] as Array<string | null> }
       : await fetchIncidents(key, data, path);
 
     const corridor = extractCorridor(
-      route?.guidance?.instructions ?? [],
+      normalizeOrbisInstructions(route?.instructions ?? []),
       summary.lengthInMeters ?? 0,
       { fromLon: data.fromLon, toLon: data.toLon },
     );
@@ -188,15 +202,18 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
 
     const trafficMinutes = Math.round(trafficSeconds / 60);
     const typicalMinutes = Math.round(typicalSeconds / 60);
-    // Variance grows with how far today sits from typical; never pretend certainty.
-    const spread = Math.max(3, Math.round(Math.abs(trafficMinutes - typicalMinutes) * 0.5));
-
+    // TomTom Orbis does not provide a route-level uncertainty interval.
+    // Never manufacture one from the live-vs-typical difference: that is a
+    // comparison to the historical profile, not a confidence range.
     const result: DriveTime = {
       trafficMinutes,
       typicalMinutes,
       delayMinutes: trafficMinutes - typicalMinutes,
-      lowMinutes: Math.min(typicalMinutes, trafficMinutes),
-      highMinutes: trafficMinutes + spread,
+      // No fabricated uncertainty: the live provider ETA is the only
+      // defensible current-trip duration. Keep the legacy fields equal so
+      // downstream planners cannot silently turn a made-up range into an ETA.
+      lowMinutes: trafficMinutes,
+      highMinutes: trafficMinutes,
       meters: summary.lengthInMeters ?? 0,
       path,
       trafficSections,
@@ -204,15 +221,8 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       corridorLabel: corridor?.label ?? null,
       corridorRoads: corridor?.roads ?? [],
       bypassedRoads,
-      maneuvers: (route?.guidance?.instructions ?? [])
-        .filter(
-          (step) =>
-            typeof step.point?.latitude === "number" &&
-            typeof step.point?.longitude === "number" &&
-            step.maneuver &&
-            step.maneuver !== "DEPART" &&
-            step.message,
-        )
+      maneuvers: normalizeOrbisInstructions(route?.instructions ?? [])
+        .filter((step) => typeof step.point?.latitude === "number" && typeof step.point?.longitude === "number" && step.maneuver && step.maneuver !== "depart" && step.maneuver !== "arrive")
         .slice(0, 80)
         .map((step) => ({
           lat: step.point?.latitude as number,
@@ -337,6 +347,54 @@ function readIncidentPoints(coordinates: unknown): GeoPoint[] {
     value.forEach(visit);
   };
   visit(coordinates);
+  return out;
+}
+
+function flattenOrbisPath(route: { path?: { coordinates?: Array<[number, number]> }; legs?: Array<{ path?: { coordinates?: Array<[number, number]> } }> } | undefined): Array<{ lat: number; lon: number }> {
+  const coordinates = route?.path?.coordinates ?? route?.legs?.flatMap((leg) => leg.path?.coordinates ?? []) ?? [];
+  return coordinates.map(([lon, lat]) => ({ lat, lon }));
+}
+
+type OrbisRoadInfo = {
+  streetName?: { text?: string };
+  roadShields?: Array<{ roadNumber?: { text?: string } }>;
+};
+
+type OrbisInstruction = {
+  routeOffsetInMeters?: number;
+  maneuverPoint?: { latitude?: number; longitude?: number };
+  maneuver?: string;
+  instructionMessage?: string;
+  previousRoadInformation?: OrbisRoadInfo;
+  nextRoadInformation?: OrbisRoadInfo;
+};
+
+function normalizeOrbisInstructions(instructions: OrbisInstruction[]): Array<GuidanceInstruction & { point?: { latitude?: number; longitude?: number }; message?: string }> {
+  return instructions.map((instruction) => ({
+    routeOffsetInMeters: instruction.routeOffsetInMeters,
+    point: instruction.maneuverPoint,
+    maneuver: instruction.maneuver,
+    message: instruction.instructionMessage,
+    street: instruction.nextRoadInformation?.streetName?.text ?? instruction.previousRoadInformation?.streetName?.text,
+    roadNumbers: [...(instruction.nextRoadInformation?.roadShields ?? []), ...(instruction.previousRoadInformation?.roadShields ?? [])].map((shield) => shield.roadNumber?.text).filter(Boolean),
+  }));
+}
+
+function readOrbisTrafficSections(sections: Array<{ startPathIndex?: number; endPathIndex?: number; delayDurationInSeconds?: number; delayMagnitude?: string }>, fullPath: Array<{ lat: number; lon: number }>): DriveTrafficSection[] {
+  const out: DriveTrafficSection[] = [];
+  for (const section of sections) {
+    const start = section.startPathIndex;
+    const end = section.endPathIndex;
+    if (typeof start !== "number" || typeof end !== "number" || end <= start) continue;
+    const slice = fullPath.slice(start, Math.min(end + 1, fullPath.length));
+    if (slice.length < 2) continue;
+    out.push({
+      severity: section.delayMagnitude === "major" || section.delayMagnitude === "undefined" ? "heavy" : "moderate",
+      delayMinutes: Math.round((section.delayDurationInSeconds ?? 0) / 60),
+      points: thinPath(slice, 80),
+    });
+    if (out.length === 12) break;
+  }
   return out;
 }
 
