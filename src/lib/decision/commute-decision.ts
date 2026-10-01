@@ -6,6 +6,7 @@ import {
   type DecisionModeEstimate,
 } from "../intelligence/drive-transit-decision";
 import { normalizeEvidence, type NormalizedEvidence } from "../intelligence/evidence-normalizer";
+import { FRESHNESS_POLICIES } from "../intelligence/freshness-policy";
 
 export type DecisionState = "drive" | "rail" | "same" | "none" | "uncertain";
 export type { EvidenceKind };
@@ -24,6 +25,7 @@ export const DEFAULT_SWITCH_MARGIN_MINUTES = 3;
 function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
   const now = Date.now();
   const source = item.mode === "drive" ? "drive-provider" : "transit-provider";
+  const policy = item.mode === "drive" ? FRESHNESS_POLICIES.driveEta : FRESHNESS_POLICIES.transitSchedule;
   const quality = item.source.quality;
   const evidence: NormalizedEvidence[] = [
     normalizeEvidence({
@@ -37,7 +39,7 @@ function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
       quality,
       impact: "neutral",
       relevance: "route",
-    }),
+      }, { staleAfterMs: policy.staleAfterMs }),
   ];
 
   if (item.trafficDelayMinutes !== null) {
@@ -52,7 +54,7 @@ function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
       quality,
       impact: "negative",
       relevance: "route",
-    }));
+      }, { staleAfterMs: policy.staleAfterMs }));
   }
 
   return evidence;
