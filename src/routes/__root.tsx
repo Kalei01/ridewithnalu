@@ -9,7 +9,7 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import liquidTitaniumCss from "../liquid-titanium.css?url";
@@ -106,22 +106,39 @@ function RootComponent() {
   );
 }
 
+export const WELCOME_SEEN_KEY = "nalu-welcome-seen-v1";
+
 function AppRouteGate() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
+  // null = not yet read from storage (avoids hydration mismatch)
+  const [welcomeSeen, setWelcomeSeen] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (loading) return;
-
-    if (pathname === "/" && !user) {
-      void router.navigate({ to: "/welcome", replace: true });
-      return;
+    let seen = true;
+    try {
+      seen = window.localStorage.getItem(WELCOME_SEEN_KEY) === "1";
+    } catch {
+      seen = true;
     }
+    setWelcomeSeen(seen);
+  }, [pathname]);
 
-    // /welcome remains reachable for signed-in users. The root URL is still the
-    // automatic entry point: signed-in users land in Browse, guests land in Welcome.
-  }, [loading, pathname, router, user]);
+  useEffect(() => {
+    // First visit (signed in or not) shows Welcome once; afterwards "/" opens Browse.
+    if (welcomeSeen === false && pathname === "/") {
+      try {
+        if (window.localStorage.getItem(WELCOME_SEEN_KEY) === "1") {
+          setWelcomeSeen(true);
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
+      void router.navigate({ to: "/welcome", replace: true });
+    }
+  }, [welcomeSeen, pathname, router]);
 
   useEffect(() => {
     initGoogleAnalytics();
@@ -132,7 +149,7 @@ function AppRouteGate() {
     });
   }, [pathname]);
 
-  const routingToWelcome = pathname === "/" && !user;
+  const routingToWelcome = pathname === "/" && welcomeSeen !== true;
   if (loading || routingToWelcome) {
     return (
       <main className="min-h-[100dvh] bg-background text-foreground" aria-label="Loading Nalu">

@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
 
 const SITE_URL = "https://ridewithnalu.lovable.app";
@@ -52,6 +53,14 @@ export const Route = createFileRoute("/welcome")({
 });
 
 function WelcomePage() {
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("nalu-welcome-seen-v1", "1");
+    } catch {
+      /* private mode: gate treats unreadable storage as seen */
+    }
+  }, []);
+
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(105,183,245,.14),transparent_32%),radial-gradient(circle_at_85%_65%,rgba(104,211,161,.08),transparent_30%)]" />
