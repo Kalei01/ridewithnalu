@@ -202,15 +202,18 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
 
     const trafficMinutes = Math.round(trafficSeconds / 60);
     const typicalMinutes = Math.round(typicalSeconds / 60);
-    // Variance grows with how far today sits from typical; never pretend certainty.
-    const spread = Math.max(3, Math.round(Math.abs(trafficMinutes - typicalMinutes) * 0.5));
-
+    // TomTom Orbis does not provide a route-level uncertainty interval.
+    // Never manufacture one from the live-vs-typical difference: that is a
+    // comparison to the historical profile, not a confidence range.
     const result: DriveTime = {
       trafficMinutes,
       typicalMinutes,
       delayMinutes: trafficMinutes - typicalMinutes,
-      lowMinutes: Math.min(typicalMinutes, trafficMinutes),
-      highMinutes: trafficMinutes + spread,
+      // No fabricated uncertainty: the live provider ETA is the only
+      // defensible current-trip duration. Keep the legacy fields equal so
+      // downstream planners cannot silently turn a made-up range into an ETA.
+      lowMinutes: trafficMinutes,
+      highMinutes: trafficMinutes,
       meters: summary.lengthInMeters ?? 0,
       path,
       trafficSections,
