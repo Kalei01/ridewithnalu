@@ -91,6 +91,8 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
   const key = TOMTOM_KEY;
 
   try {
+    const from = `${round(data.fromLat)},${round(data.fromLon)}`;
+    const to = `${round(data.toLat)},${round(data.toLon)}`;
     const departureBucket = data.departureTime
       ? Math.floor(new Date(data.departureTime).getTime() / (5 * 60_000))
       : "now";
