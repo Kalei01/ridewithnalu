@@ -224,14 +224,9 @@ export function transitEstimate(input: {
     walkingMinutes: walking,
     trafficDelayMinutes: null,
     majorIncident: false,
-    source:
-      input.liveBusFetchedAt && nowMs - input.liveBusFetchedAt <= 90_000
-        ? {
-            name: "GTFS timetable + TheBus arrival",
-            basis: "scheduled",
-            fetchedAt: input.scheduleFetchedAt,
-            quality: source.quality,
-          }
-        : source,
+    // The live bus check is used by the trip/navigation flow separately; this
+    // estimate's arrival time remains schedule-based. Do not label a scheduled
+    // ETA as live merely because a live vehicle check was performed.
+    source,
   };
 }
