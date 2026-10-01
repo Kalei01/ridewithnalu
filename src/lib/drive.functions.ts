@@ -271,7 +271,7 @@ async function fetchIncidents(
           magnitudeOfDelay?: number;
           delay?: number;
           roadNumbers?: string[];
-          endTime?: string;
+          from?: string;
           iconCategory?: number;
           to?: string;
           endTime?: string;
