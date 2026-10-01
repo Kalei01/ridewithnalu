@@ -2,7 +2,6 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { Output, stepCountIs, streamText, tool } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { routeTravelSeconds } from "./drive/traffic-summary";
 
 export type Pt = { lat: number; lon: number };
 
@@ -266,57 +265,98 @@ export async function routeOptions(
 ): Promise<RouteSummary[]> {
   const key = process.env["TOMTOM_API_KEY"];
   if (!key) throw new Error("Drive times are not configured.");
-  const url =
-    `https://api.tomtom.com/routing/1/calculateRoute/${from.lat},${from.lon}:${to.lat},${to.lon}/json` +
-    `?key=${key}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all` +
-    `&instructionsType=text&routeRepresentation=polyline&maxAlternatives=${opts.alternatives ?? 0}` +
-    (opts.arriveAt ? `&arriveAt=${encodeURIComponent(opts.arriveAt)}` : "") +
-    (opts.departAt ? `&departAt=${encodeURIComponent(opts.departAt)}` : "");
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Drive lookup failed (${res.status}).`);
+
+  const url = "https://api.tomtom.com/maps/orbis/routing/routes/calculate?apiVersion=3";
+  const routeBody = {
+    routePlanningLocations: {
+      origin: { type: "Point", coordinates: [from.lon, from.lat] },
+      destination: { type: "Point", coordinates: [to.lon, to.lat] },
+    },
+    traffic: "live",
+    routeType: "fast",
+    travelMode: "car",
+    vehicleEngineType: "combustion",
+    ...(opts.departAt ? { departureDateTime: opts.departAt } : {}),
+    ...(opts.arriveAt ? { arrivalDateTime: opts.arriveAt } : {}),
+    ...(opts.alternatives && opts.alternatives > 0
+      ? { maxPathAlternativeRoutes: Math.min(5, Math.max(0, opts.alternatives)) }
+      : {}),
+    guidance: "instructions",
+    instructionPhonetics: "ipa",
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "TomTom-Api-Key": key,
+      "TomTom-Api-Version": "3",
+      Accept: "application/json",
+      Attributes: "routes",
+      "Accept-Language": "en-GB",
+    },
+    body: JSON.stringify(routeBody),
+  });
+  if (!res.ok) throw new Error(`Drive lookup failed (TomTom Orbis ${res.status}).`);
+
   const body = (await res.json()) as {
     routes?: Array<{
       summary?: {
-        travelTimeInSeconds?: number;
-        historicTrafficTravelTimeInSeconds?: number;
-        liveTrafficIncidentsTravelTimeInSeconds?: number;
-        noTrafficTravelTimeInSeconds?: number;
+        travelDurationInSeconds?: number;
+        trafficDelayDurationInSeconds?: number;
         lengthInMeters?: number;
       };
-      guidance?: { instructions?: Array<{ street?: string; roadNumbers?: string[] }> };
-      legs?: Array<{ points?: Array<{ latitude?: number; longitude?: number }> }>;
+      instructions?: Array<{
+        message?: string;
+        nextRoadInformation?: {
+          roadNames?: Array<{ text?: string }>;
+          roadNumbers?: Array<{ text?: string }>;
+        };
+        previousRoadInformation?: {
+          roadNames?: Array<{ text?: string }>;
+          roadNumbers?: Array<{ text?: string }>;
+        };
+      }>;
+      path?: { coordinates?: Array<[number, number]> };
+      legs?: Array<{ path?: { coordinates?: Array<[number, number]> } }>;
     }>;
   };
 
   const routes = await Promise.all((body.routes ?? []).map(async (r) => {
-    const minutes = Math.round(routeTravelSeconds({
-      travelTimeInSeconds: r.summary?.travelTimeInSeconds ?? 0,
-      liveTrafficIncidentsTravelTimeInSeconds: r.summary?.liveTrafficIncidentsTravelTimeInSeconds,
-    }, Boolean(opts.departAt || opts.arriveAt)) / 60);
-    const typical = Math.round((r.summary?.historicTrafficTravelTimeInSeconds ?? r.summary?.noTrafficTravelTimeInSeconds ?? 0) / 60);
+    const summary = r.summary;
+    const minutes = Math.round((summary?.travelDurationInSeconds ?? 0) / 60);
+    const delayMinutes = Math.round((summary?.trafficDelayDurationInSeconds ?? 0) / 60);
+
     const roads: string[] = [];
-    for (const i of r.guidance?.instructions ?? []) {
-      const name = i.roadNumbers?.[0] ?? i.street;
+    for (const instruction of r.instructions ?? []) {
+      const roadInfo = instruction.nextRoadInformation ?? instruction.previousRoadInformation;
+      const name = roadInfo?.roadNames?.[0]?.text ?? roadInfo?.roadNumbers?.[0]?.text;
       if (name && !roads.includes(name)) roads.push(name);
     }
-    const routePoints = (r.legs ?? []).flatMap((leg) =>
-      (leg.points ?? []).map((point) =>
-        typeof point.latitude === "number" && typeof point.longitude === "number"
-          ? { lat: point.latitude, lon: point.longitude } : null,
-      ).filter((point): point is Pt => Boolean(point)),
-    );
+
+    const routePoints = [
+      ...(r.path?.coordinates ?? []),
+      ...((r.legs ?? []).flatMap((leg) => leg.path?.coordinates ?? [])),
+    ].map(([lon, lat]) => ({ lat, lon }));
+
     const incidents = opts.departAt || opts.arriveAt
       ? []
       : (await trafficIncidentsForRoute(routePoints, key)).filter(incidentMateriallyAffectsRoute);
+
     return {
       minutes,
-      typicalMinutes: typical,
-      delayMinutes: Math.max(0, minutes - typical),
-      miles: Math.round(((r.summary?.lengthInMeters ?? 0) / 1609) * 10) / 10,
+      // Orbis v3 does not expose the legacy historicTrafficTravelTimeInSeconds
+      // field. The live route duration is the canonical ETA; use its explicit
+      // traffic delay for the current-vs-free-flow signal instead of inventing
+      // a historical baseline.
+      typicalMinutes: Math.max(0, minutes - delayMinutes),
+      delayMinutes,
+      miles: Math.round(((summary?.lengthInMeters ?? 0) / 1609) * 10) / 10,
       roads: roads.slice(0, 8),
       incidents,
     };
   }));
+
   return routes;
 }
 
