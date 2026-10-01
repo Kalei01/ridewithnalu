@@ -133,7 +133,10 @@ function AppRouteGate() {
     });
   }, [pathname]);
 
-  if ((pathname === "/" && !user && loading) || (pathname === "/welcome" && loading)) {
+  const routingToWelcome = pathname === "/" && !user;
+  const routingToBrowse = pathname === "/welcome" && Boolean(user);
+
+  if (loading || routingToWelcome || routingToBrowse) {
     return (
       <main className="min-h-[100dvh] bg-background text-foreground" aria-label="Loading Nalu">
         <div className="mx-auto flex min-h-[100dvh] max-w-5xl items-center justify-center px-5">
