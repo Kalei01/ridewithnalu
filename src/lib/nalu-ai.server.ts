@@ -289,11 +289,7 @@ const PlanAnswer = z.object({
 });
 export type AskNaluAnswer = z.infer<typeof PlanAnswer>;
 
-export async function runAskNalu(
-  query: string,
-  origin: Pt | null,
-  selectedPlace: { name: string; address: string; lat: number; lon: number } | null = null,
-) {
+export async function runAskNalu(query: string, origin: Pt | null) {
   const nowHst = new Intl.DateTimeFormat("en-US", {
     timeZone: "Pacific/Honolulu",
     weekday: "long",
@@ -308,13 +304,10 @@ export async function runAskNalu(
       "Use the tools for every place, drive time and Skyline lookup; never guess times or coordinates. " +
       "The rider's origin is 'origin' when provided. Compare driving with park-and-ride (drive to nearest Skyline station, then rail) when relevant. " +
       "Use local Oʻahu road names. Give leave-by times in Honolulu local time like 6:45 AM. Keep steps short. " +
-      "Do not ask follow-up questions just because the request is broad. Make reasonable, transparent assumptions using the rider's origin, current Honolulu time, and common Oʻahu destinations. " +
-      "Only ask a follow-up when a required fact cannot be safely inferred or found with the tools. If a destination or place name appears in the request, use findPlace to resolve it rather than asking the rider to clarify. " +
-      (selectedPlace
-        ? `The rider explicitly selected this place suggestion; use it as the place context when relevant: ${selectedPlace.name}, ${selectedPlace.address}. `
-        : "") +
-      "If the request can be answered now, answer it now rather than ending with a question.",
-    prompt: `Rider request: ${query}\nOrigin available: ${origin ? "yes" : "no"}\nSelected place: ${selectedPlace?.name ?? "none"}`,
+      "Do not ask follow-up questions just because the request is broad. Make reasonable, transparent assumptions using the rider’s origin, current Honolulu time, and common Oʻahu destinations. " +
+      "If a destination or place name appears, use findPlace to resolve it rather than asking the rider to clarify. " +
+      "Only ask a follow-up when a required fact cannot be safely inferred or found with the tools. If the request can be answered now, answer it now rather than ending with a question.",
+    prompt: `Rider request: ${query}\nOrigin available: ${origin ? "yes" : "no"}`,
     tools: {
       findPlace: tool({
         description: "Find an Oʻahu place or address. Returns door coordinates.",
