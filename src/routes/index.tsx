@@ -6421,6 +6421,38 @@ function QuickPlaceDialog({
   );
 }
 
+function SettingsGroup({
+  title,
+  description,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="overflow-hidden rounded-2xl border border-border bg-background/30"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-foreground">{title}</span>
+          {description && (
+            <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+              {description}
+            </span>
+          )}
+        </span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-border px-4 py-4">{children}</div>
+    </details>
+  );
+}
+
 function SetupDialog({
   open,
   firstRun,
@@ -6716,15 +6748,22 @@ function SetupDialog({
       <DialogContent className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
         <SettingsExpiryBanner />
         <DialogHeader className="text-left">
-          <DialogTitle className="text-2xl">{firstRun ? "WHERE TO?" : "Your trip"}</DialogTitle>
+          <DialogTitle className="text-2xl">{firstRun ? "WHERE TO?" : "Settings"}</DialogTitle>
           <DialogDescription>
-            Where you’re starting and where you’re going. Nalu picks the best station and route for
-            you.
+            {firstRun
+              ? "Where you’re starting and where you’re going. Nalu picks the best station and route for you."
+              : "Keep the essentials up front. Open a section only when you need to change something."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-5">
-          <div className="grid gap-2">
+          {!firstRun && (
+            <SettingsGroup
+              title="Current trip"
+              description="Change where you’re starting or going."
+              defaultOpen={false}
+            >
+              <div className="grid gap-5">
             <Label>From</Label>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
               <div className="flex min-w-0 items-center gap-2">
@@ -6830,6 +6869,12 @@ function SetupDialog({
           <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
             GO
           </Button>
+              </div>
+            </SettingsGroup>
+          )}
+
+          {firstRun && (
+            <div className="grid gap-5">
 
           {!firstRun && permissionBlocked && (
             <section className="space-y-2 border-t border-border pt-5">
@@ -6841,7 +6886,12 @@ function SetupDialog({
           )}
 
           {!firstRun && (
-            <section className="grid gap-3 rounded-lg border border-border p-4">
+            <SettingsGroup
+              title="Saved places"
+              description="Home, Work, School, Gym, and custom places."
+              defaultOpen={false}
+            >
+              <section className="grid gap-3">
               <div className="flex items-center justify-between gap-3">
                 <Label className="text-sm">Saved places</Label>
                 {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
@@ -6988,18 +7038,59 @@ function SetupDialog({
                   Save destination
                 </Button>
               </div>
-            </section>
+              </section>
+            </SettingsGroup>
           )}
 
-          {!firstRun && <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />}
+          {!firstRun && (
+            <SettingsGroup
+              title="Stop alerts"
+              description="Sound, vibration, and transfer alerts during an active trip."
+              defaultOpen={false}
+            >
+              <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />
+            </SettingsGroup>
+          )}
 
-          {!firstRun && <NotificationsSection />}
+          {!firstRun && (
+            <SettingsGroup
+              title="Notifications"
+              description="Optional commute alerts and quiet hours."
+              defaultOpen={false}
+            >
+              <NotificationsSection />
+            </SettingsGroup>
+          )}
 
-          {!firstRun && <PrivacySection />}
+          {!firstRun && (
+            <SettingsGroup
+              title="Privacy & data"
+              description="Analytics consent and trip diagnostics."
+              defaultOpen={false}
+            >
+              <PrivacySection />
+            </SettingsGroup>
+          )}
 
-          {!firstRun && <AccountSection />}
+          {!firstRun && (
+            <SettingsGroup
+              title="Account"
+              description="Sign in, sign out, or manage your Nalu account."
+              defaultOpen={false}
+            >
+              <AccountSection />
+            </SettingsGroup>
+          )}
 
-          {!firstRun && <AboutSection />}
+          {!firstRun && (
+            <SettingsGroup
+              title="About Nalu"
+              description="App information, data sources, feedback, and the Welcome page."
+              defaultOpen={false}
+            >
+              <AboutSection />
+            </SettingsGroup>
+          )}
 
           {status && <p className="text-sm text-muted-foreground">{status}</p>}
         </div>
