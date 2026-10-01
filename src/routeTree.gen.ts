@@ -10,15 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OahuCommuteRouteImport } from './routes/oahu-commute'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as WelcomeRouteImport } from './routes/welcome'
-import { Route as OahuCommuteRouteImport } from './routes/oahu-commute'
 import { Route as ApiPublicImportGtfsRouteImport } from './routes/api/public/import-gtfs'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push-dispatch'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OahuCommuteRoute = OahuCommuteRouteImport.update({
+  id: '/oahu-commute',
+  path: '/oahu-commute',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -29,11 +34,6 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const WelcomeRoute = WelcomeRouteImport.update({
   id: '/welcome',
   path: '/welcome',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OahuCommuteRoute = OahuCommuteRouteImport.update({
-  id: '/oahu-commute',
-  path: '/oahu-commute',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicImportGtfsRoute = ApiPublicImportGtfsRouteImport.update({
@@ -49,26 +49,26 @@ const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/oahu-commute': typeof OahuCommuteRoute
   '/reset-password': typeof ResetPasswordRoute
   '/welcome': typeof WelcomeRoute
-  '/oahu-commute': typeof OahuCommuteRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/oahu-commute': typeof OahuCommuteRoute
   '/reset-password': typeof ResetPasswordRoute
   '/welcome': typeof WelcomeRoute
-  '/oahu-commute': typeof OahuCommuteRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/oahu-commute': typeof OahuCommuteRoute
   '/reset-password': typeof ResetPasswordRoute
   '/welcome': typeof WelcomeRoute
-  '/oahu-commute': typeof OahuCommuteRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
 }
@@ -76,34 +76,34 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/oahu-commute'
     | '/reset-password'
     | '/welcome'
-    | '/oahu-commute'
     | '/api/public/import-gtfs'
     | '/api/public/push-dispatch'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/oahu-commute'
     | '/reset-password'
     | '/welcome'
-    | '/oahu-commute'
     | '/api/public/import-gtfs'
     | '/api/public/push-dispatch'
   id:
     | '__root__'
     | '/'
+    | '/oahu-commute'
     | '/reset-password'
     | '/welcome'
-    | '/oahu-commute'
     | '/api/public/import-gtfs'
     | '/api/public/push-dispatch'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OahuCommuteRoute: typeof OahuCommuteRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   WelcomeRoute: typeof WelcomeRoute
-  OahuCommuteRoute: typeof OahuCommuteRoute
   ApiPublicImportGtfsRoute: typeof ApiPublicImportGtfsRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
 }
@@ -115,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oahu-commute': {
+      id: '/oahu-commute'
+      path: '/oahu-commute'
+      fullPath: '/oahu-commute'
+      preLoaderRoute: typeof OahuCommuteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -129,13 +136,6 @@ declare module '@tanstack/react-router' {
       path: '/welcome'
       fullPath: '/welcome'
       preLoaderRoute: typeof WelcomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/oahu-commute': {
-      id: '/oahu-commute'
-      path: '/oahu-commute'
-      fullPath: '/oahu-commute'
-      preLoaderRoute: typeof OahuCommuteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/import-gtfs': {
@@ -157,9 +157,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OahuCommuteRoute: OahuCommuteRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   WelcomeRoute: WelcomeRoute,
-  OahuCommuteRoute: OahuCommuteRoute,
   ApiPublicImportGtfsRoute: ApiPublicImportGtfsRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
 }
