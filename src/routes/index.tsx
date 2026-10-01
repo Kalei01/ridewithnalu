@@ -6762,9 +6762,9 @@ function SetupDialog({
             description={firstRun ? "Choose where you’re starting and going." : "Change where you’re starting or going."}
             defaultOpen={firstRun}
           >
-              <div className="grid gap-5">
-                <div className="grid gap-2">
-            <Label>From</Label>
+            <div className="grid gap-5">
+              <div className="grid gap-2">
+                <Label>From</Label>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
               <div className="flex min-w-0 items-center gap-2">
                 <LocateFixed className="size-4 shrink-0 text-primary" />
@@ -6788,10 +6788,10 @@ function SetupDialog({
             {permissionBlocked && (
               <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
             )}
-          </div>
+              </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="destination">To</Label>
+              <div className="grid gap-2">
+                <Label htmlFor="destination">To</Label>
             {draft.destinationName ? (
               <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
                 <div className="min-w-0">
@@ -6864,12 +6864,12 @@ function SetupDialog({
                 )}
               </>
             )}
-          </div>
-
-          <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
-            GO
-          </Button>
               </div>
+
+              <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
+            GO
+              </Button>
+            </div>
           </SettingsGroup>
 
           {!firstRun && permissionBlocked && (
