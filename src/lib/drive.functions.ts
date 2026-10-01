@@ -3,7 +3,6 @@ import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
 import { incidentAffectsTrip, localRoadName } from "./traffic-incidents";
-import { routeTravelSeconds } from "./drive/traffic-summary";
 
 const TOMTOM_KEY = process.env["TOMTOM_API_KEY"] ?? atob("MzQ4RDAwQzYtODQxMi00ODVCLTk2N0MtNjE2QzA5NzU1MTA1");
 
@@ -92,8 +91,6 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
   const key = TOMTOM_KEY;
 
   try {
-    const from = `${round(data.fromLat)},${round(data.fromLon)}`;
-    const to = `${round(data.toLat)},${round(data.toLon)}`;
     const departureBucket = data.departureTime
       ? Math.floor(new Date(data.departureTime).getTime() / (5 * 60_000))
       : "now";
@@ -148,7 +145,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
         legs?: Array<{ path?: { type?: string; coordinates?: Array<[number, number]> } }>;
         path?: { type?: string; coordinates?: Array<[number, number]> };
         sections?: { traffic?: Array<{ startPathIndex?: number; endPathIndex?: number; iconCategory?: string; effectiveSpeedInKilometersPerHour?: number; delayDurationInSeconds?: number; delayMagnitude?: string }> };
-        instructions?: Array<any>;
+        instructions?: OrbisInstruction[];
       }>;
     };
     const route = payload.routes?.[0];
@@ -353,14 +350,28 @@ function flattenOrbisPath(route: { path?: { coordinates?: Array<[number, number]
   return coordinates.map(([lon, lat]) => ({ lat, lon }));
 }
 
-function normalizeOrbisInstructions(instructions: Array<any>): Array<GuidanceInstruction & { point?: { latitude?: number; longitude?: number }; message?: string }> {
+type OrbisRoadInfo = {
+  streetName?: { text?: string };
+  roadShields?: Array<{ roadNumber?: { text?: string } }>;
+};
+
+type OrbisInstruction = {
+  routeOffsetInMeters?: number;
+  maneuverPoint?: { latitude?: number; longitude?: number };
+  maneuver?: string;
+  instructionMessage?: string;
+  previousRoadInformation?: OrbisRoadInfo;
+  nextRoadInformation?: OrbisRoadInfo;
+};
+
+function normalizeOrbisInstructions(instructions: OrbisInstruction[]): Array<GuidanceInstruction & { point?: { latitude?: number; longitude?: number }; message?: string }> {
   return instructions.map((instruction) => ({
     routeOffsetInMeters: instruction.routeOffsetInMeters,
     point: instruction.maneuverPoint,
     maneuver: instruction.maneuver,
     message: instruction.instructionMessage,
     street: instruction.nextRoadInformation?.streetName?.text ?? instruction.previousRoadInformation?.streetName?.text,
-    roadNumbers: [...(instruction.nextRoadInformation?.roadShields ?? []), ...(instruction.previousRoadInformation?.roadShields ?? [])].map((shield: any) => shield.roadNumber?.text).filter(Boolean),
+    roadNumbers: [...(instruction.nextRoadInformation?.roadShields ?? []), ...(instruction.previousRoadInformation?.roadShields ?? [])].map((shield) => shield.roadNumber?.text).filter(Boolean),
   }));
 }
 
