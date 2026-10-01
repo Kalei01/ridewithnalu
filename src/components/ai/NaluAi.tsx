@@ -218,7 +218,19 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           className="min-h-24 resize-none border-white/10 bg-background/70"
         />
 
-        <div className="flex items-center justify-end">\n          <button\n            type="button"\n            onClick={() => setShowExamples((value) => !value)}\n            aria-expanded={showExamples}\n            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"\n          >\n            <HelpCircle className="size-3.5" />\n            Need an idea?\n          </button>\n        </div>\n\n        {showExamples && <div className="flex flex-wrap gap-2" aria-label="Ask Nalu examples">
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setShowExamples((value) => !value)}
+            aria-expanded={showExamples}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            <HelpCircle className="size-3.5" />
+            Need an idea?
+          </button>
+        </div>
+
+        {showExamples && <div className="flex flex-wrap gap-2" aria-label="Ask Nalu examples">
           {[
             "I need to be downtown by 8.",
             "Two stops before work.",
