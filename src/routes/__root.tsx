@@ -111,7 +111,7 @@ export const WELCOME_SEEN_KEY = "nalu-welcome-seen-v1";
 function AppRouteGate() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const router = useRouter();
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
   // null = not yet read from storage (avoids hydration mismatch)
   const [welcomeSeen, setWelcomeSeen] = useState<boolean | null>(null);
 
@@ -126,8 +126,14 @@ function AppRouteGate() {
   }, [pathname]);
 
   useEffect(() => {
-    // First visit (signed in or not) shows Welcome once; afterwards "/" opens Browse.
-    if (welcomeSeen === false && pathname === "/") {
+    // Signed-in users always start in Browse. Welcome is for signed-out entry only.
+    if (!loading && user && (pathname === "/" || pathname === "/welcome")) {
+      void router.navigate({ to: "/", replace: true });
+      return;
+    }
+
+    // First visit for a signed-out user shows Welcome once; afterwards "/" opens Browse.
+    if (!loading && !user && welcomeSeen === false && pathname === "/") {
       try {
         if (window.localStorage.getItem(WELCOME_SEEN_KEY) === "1") {
           setWelcomeSeen(true);
@@ -138,7 +144,7 @@ function AppRouteGate() {
       }
       void router.navigate({ to: "/welcome", replace: true });
     }
-  }, [welcomeSeen, pathname, router]);
+  }, [loading, user, welcomeSeen, pathname, router]);
 
   useEffect(() => {
     initGoogleAnalytics();
