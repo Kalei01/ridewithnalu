@@ -212,7 +212,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     }
   }
 
-  function useExample(example: string) {
+  function setExample(example: string) {
     setSelectedPlace(null);
     setPlaceResults([]);
     setQuery(example);
@@ -220,8 +220,6 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   }
 
   function choosePlace(place: PlaceSuggestion) {
-    // Suggestions are assistive context, not a replacement for the rider's request.
-    // Keep the natural-language sentence intact so the rider can continue typing normally.
     setSelectedPlace(place);
     setPlaceResults([]);
     setSettledQuery(query.trim());
@@ -255,7 +253,6 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           value={query}
           maxLength={400}
           onChange={(e) => {
-            setSelectedPlace(null);
             setQuery(e.target.value);
           }}
           placeholder="I need to drop my son off first, then be downtown by 8."
@@ -327,7 +324,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
               <button
                 key={example}
                 type="button"
-                onClick={() => useExample(example)}
+                onClick={() => setExample(example)}
                 className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-left text-xs font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
               >
                 {example}
