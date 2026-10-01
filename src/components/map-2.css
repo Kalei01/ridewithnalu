@@ -109,23 +109,40 @@
 
 .nalu-map-frame .nalu-journey-marker-rail,
 .nalu-map-frame .nalu-journey-marker-bus {
-  width: 10px;
-  height: 10px;
-  min-width: 10px;
-  min-height: 10px;
-  max-width: 10px;
-  max-height: 10px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  max-width: 20px;
+  max-height: 20px;
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,.92);
-  box-shadow: 0 1px 5px rgba(0,0,0,.55);
+  box-shadow: 0 2px 7px rgba(0,0,0,.55);
+  color: #fff;
 }
 
 .nalu-map-frame .nalu-journey-marker-rail {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 24px;
+  max-height: 24px;
   background: var(--color-primary);
 }
 
 .nalu-map-frame .nalu-journey-marker-bus {
   background: var(--color-location);
+}
+
+.nalu-map-frame .nalu-journey-marker-rail svg,
+.nalu-map-frame .nalu-journey-marker-bus svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
 }
 
 .nalu-map-frame .nalu-journey-marker-start,
