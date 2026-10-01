@@ -278,7 +278,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           disabled={
             busy ||
             cooldownUntil > 0 ||
-            query.trim().length < 4 ||
+            query.trim().length < 4
           }
           className="w-full sm:w-auto sm:justify-self-start"
         >
