@@ -144,6 +144,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof ask>> | null>(null);
   const [showExamples, setShowExamples] = useState(false);
+  const placeRequestId = useRef(0);
 
   useEffect(() => {
     const text = query.trim();
@@ -153,14 +154,21 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
       return;
     }
     const timer = window.setTimeout(async () => {
+      const requestId = ++placeRequestId.current;
       setPlacesLoading(true);
       try {
         const result = await findPlaces({ data: { query: text } });
-        setPlaceResults(result.results ?? []);
+        if (requestId === placeRequestId.current) {
+          setPlaceResults(result.results ?? []);
+        }
       } catch {
-        setPlaceResults([]);
+        if (requestId === placeRequestId.current) {
+          setPlaceResults([]);
+        }
       } finally {
-        setPlacesLoading(false);
+        if (requestId === placeRequestId.current) {
+          setPlacesLoading(false);
+        }
       }
     }, 350);
     return () => window.clearTimeout(timer);
@@ -212,10 +220,11 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   }
 
   function choosePlace(place: PlaceSuggestion) {
+    // Suggestions are assistive context, not a replacement for the rider's request.
+    // Keep the natural-language sentence intact so the rider can continue typing normally.
     setSelectedPlace(place);
     setPlaceResults([]);
-    setQuery(place.name);
-    setSettledQuery(place.name);
+    setSettledQuery(query.trim());
   }
 
   return (
@@ -254,7 +263,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
         />
 
         {selectedPlace ? (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2" aria-label="Recognized place">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{selectedPlace.name}</p>
               <p className="truncate text-xs text-muted-foreground">{selectedPlace.address}</p>
