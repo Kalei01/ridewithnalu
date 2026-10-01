@@ -3279,9 +3279,34 @@ function Index() {
       return { lat: Number(stop.stop_lat), lon: Number(stop.stop_lon) };
     };
 
+    // Plot every stop in the selected transit itinerary, not just the
+    // boarding/alighting endpoints. The map is a visualization of the chosen
+    // itinerary, so Skyline stations and bus stops must remain visible even
+    // when the route geometry is only available from the stop sequence.
     best.legs.forEach((leg, index) => {
       if (leg.mode !== "rail" && leg.mode !== "bus") return;
       const transitKind: "rail" | "bus" = leg.mode;
+      const sequence = itineraryLegSequences.find((item) => item.legIndex === index);
+      const sequencePoints = sequence?.points ?? [];
+      if (sequencePoints.length > 1) {
+        sequencePoints.forEach((stop, stopIndex) => {
+          const last = points[points.length - 1];
+          if (last && distanceM(last, stop) < 20) return;
+          points.push({
+            id: `${leg.kind}-${index}-stop-${stopIndex}-${stop.stopId}`,
+            name:
+              leg.mode === "rail"
+                ? `${stationLabel(stop.stopName)} Station`
+                : titleCase(stop.stopName),
+            lat: stop.lat,
+            lon: stop.lon,
+            kind: transitKind,
+          });
+        });
+        return;
+      }
+
+      // Preserve a useful fallback when the timed stop sequence is unavailable.
       const endpoints: Array<[string | null, string | null | undefined]> = [
         [leg.from, leg.from_stop_id],
         [leg.to, leg.to_stop_id],
@@ -5162,7 +5187,7 @@ function Index() {
                       livePoint={riderPoint}
                       liveHeading={riderHeading}
                       followLive={Boolean(commitment)}
-                      {...(selectedMode === "rail" && transitMapSegments.length > 0
+                      {...(selectedMode !== "drive" && transitMapSegments.length > 0
                         ? { segments: transitMapSegments }
                         : {})}
                       {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})}
