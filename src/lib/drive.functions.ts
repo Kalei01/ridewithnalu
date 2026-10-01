@@ -23,6 +23,13 @@ export type DriveIncident = {
   description: string;
   road: string | null;
   delayMinutes: number | null;
+  /** TomTom's structured incident category when available. */
+  category?: string | null;
+  /** Start/end names for the affected stretch when TomTom provides them. */
+  from?: string | null;
+  to?: string | null;
+  /** Expected incident end time when the provider supplies one. */
+  endTime?: string | null;
   /** TomTom incident geometry, used to place the reported incident on the route map. */
   points?: Array<{ lat: number; lon: number }>;
 };
@@ -245,7 +252,7 @@ async function fetchIncidents(
   const maxLon = Math.max(points.fromLon, points.toLon) + pad;
 
   const fields =
-    "{incidents{geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,delay,roadNumbers,events{description}}}}";
+    "{incidents{geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,delay,roadNumbers,from,to,endTime,events{description}}}}";
   const url =
     `https://api.tomtom.com/traffic/services/5/incidentDetails` +
     `?key=${key}&bbox=${minLon},${minLat},${maxLon},${maxLat}` +
@@ -264,6 +271,9 @@ async function fetchIncidents(
           magnitudeOfDelay?: number;
           delay?: number;
           roadNumbers?: string[];
+          from?: string;
+          to?: string;
+          endTime?: string;
           events?: Array<{ description?: string }>;
         };
       }>;
@@ -292,6 +302,15 @@ async function fetchIncidents(
         description,
         road: localRoadName(road),
         delayMinutes: typeof delay === "number" ? Math.round(delay / 60) : null,
+        category:
+          typeof incident.properties?.iconCategory === "string"
+            ? incident.properties.iconCategory
+            : typeof incident.properties?.iconCategory === "number"
+              ? String(incident.properties.iconCategory)
+              : null,
+        from: incident.properties?.from ?? null,
+        to: incident.properties?.to ?? null,
+        endTime: incident.properties?.endTime ?? null,
         points: incidentPoints,
       };
       // Don't alarm the driver about something their own route is not paying for.
