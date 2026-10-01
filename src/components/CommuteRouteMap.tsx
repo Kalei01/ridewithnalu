@@ -59,14 +59,6 @@ const BASEMAPS = {
 } as const;
 
 function journeyIcon(point: JourneyPoint) {
-  // Transit stops are deliberately tiny: the route line is the primary
-  // visual. The marker remains tappable/hoverable for the station tooltip.
-  const glyph =
-    point.kind === "start"
-      ? "START"
-      : point.kind === "end"
-        ? "END"
-        : "";
   const label =
     point.kind === "start"
       ? "Start"
@@ -76,11 +68,19 @@ function journeyIcon(point: JourneyPoint) {
           ? "Rail station"
           : "Bus stop";
   const endpoint = point.kind === "start" || point.kind === "end";
+  const glyph =
+    point.kind === "rail"
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Zm0 3v4h10V6H7Zm0 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm10 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM8 19h8v2H8v-2Z"/></svg>'
+      : point.kind === "bus"
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-1l1.5 2h-3L14 18h-4l-1.5 2h-3L7 18H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Zm0 3v5h12V7H6Zm1 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0-3 0Zm10 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0-3 0Z"/></svg>'
+        : "";
+  const hitSize = endpoint ? 58 : 40;
+  const half = hitSize / 2;
   return L.divIcon({
     className: "nalu-marker-shell",
-    html: `<span class="nalu-journey-marker nalu-journey-marker-${point.kind}" aria-label="${label}"><span class="nalu-journey-marker-label">${glyph}</span></span>`,
-    iconSize: endpoint ? [58, 34] : [10, 10],
-    iconAnchor: endpoint ? [29, 17] : [5, 5],
+    html: `<span class="nalu-journey-marker nalu-journey-marker-${point.kind}" aria-label="${label}"><span class="nalu-journey-marker-label">${endpoint ? (point.kind === "start" ? "START" : "END") : glyph}</span></span>`,
+    iconSize: [hitSize, hitSize],
+    iconAnchor: [half, half],
   });
 }
 
