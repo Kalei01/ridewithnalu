@@ -118,9 +118,11 @@ function OahuCommutePage() {
           <p className="mt-3 leading-7 text-muted-foreground">
             Nalu combines commute information from services used for traffic, transit,
             weather, and air quality. Availability and freshness can vary, so the app shows
-            when current information is unavailable or ne<LegalFooter />            Try Nalu
-          </Link>
-        </footer>
+            when current information is unavailable or needs caution.
+          </p>
+        </section>
+
+        <LegalFooter />
       </div>
     </main>
   );
