@@ -53,6 +53,11 @@ type HourlyPeriod = {
 
 const forecastCache = new Map<string, { at: number; periods: HourlyPeriod[] }>();
 const airCache = new Map<string, { at: number; air: AirQuality | null }>();
+
+// Share identical in-flight provider requests so concurrent commute moments do not
+// fan out into duplicate NWS/AirNow calls before the response reaches the cache.
+const forecastInflight = new Map<string, Promise<HourlyPeriod[] | null>>();
+const airInflight = new Map<string, Promise<AirQuality | null>>();
 const MAX_CACHE_ENTRIES = 64;
 
 function setBoundedCache<T>(cache: Map<string, T>, key: string, value: T) {
@@ -95,32 +100,42 @@ async function getHourly(lat: number, lon: number): Promise<HourlyPeriod[] | nul
   const cached = forecastCache.get(key);
   if (cached && Date.now() - cached.at < FORECAST_TTL_MS) return cached.periods;
 
-  try {
-    const headers = { "User-Agent": USER_AGENT, Accept: "application/geo+json" };
-    const pointsResponse = await fetch(
-      `https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,
-      { headers },
-    );
-    if (!pointsResponse.ok) return null;
-    const pointsPayload = (await pointsResponse.json()) as {
-      properties?: { forecastHourly?: string };
-    };
-    const hourlyUrl = pointsPayload.properties?.forecastHourly;
-    if (!hourlyUrl) return null;
+  const existing = forecastInflight.get(key);
+  if (existing) return existing;
 
-    const hourlyResponse = await fetch(hourlyUrl, { headers });
-    if (!hourlyResponse.ok) return null;
-    const hourlyPayload = (await hourlyResponse.json()) as {
-      properties?: { periods?: HourlyPeriod[] };
-    };
-    const periods = hourlyPayload.properties?.periods ?? [];
-    if (!periods.length) return null;
-    setBoundedCache(forecastCache, key, { at: Date.now(), periods });
-    return periods;
-  } catch (error) {
-    console.error("NWS forecast unavailable", error);
-    return null;
-  }
+  const request = (async () => {
+    try {
+      const headers = { "User-Agent": USER_AGENT, Accept: "application/geo+json" };
+      const pointsResponse = await fetch(
+        `https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,
+        { headers },
+      );
+      if (!pointsResponse.ok) return null;
+      const pointsPayload = (await pointsResponse.json()) as {
+        properties?: { forecastHourly?: string };
+      };
+      const hourlyUrl = pointsPayload.properties?.forecastHourly;
+      if (!hourlyUrl) return null;
+
+      const hourlyResponse = await fetch(hourlyUrl, { headers });
+      if (!hourlyResponse.ok) return null;
+      const hourlyPayload = (await hourlyResponse.json()) as {
+        properties?: { periods?: HourlyPeriod[] };
+      };
+      const periods = hourlyPayload.properties?.periods ?? [];
+      if (!periods.length) return null;
+      setBoundedCache(forecastCache, key, { at: Date.now(), periods });
+      return periods;
+    } catch (error) {
+      console.error("NWS forecast unavailable", error);
+      return null;
+    } finally {
+      forecastInflight.delete(key);
+    }
+  })();
+
+  forecastInflight.set(key, request);
+  return request;
 }
 
 function periodAt(periods: HourlyPeriod[], when: number): HourlyPeriod | null {
@@ -138,30 +153,40 @@ async function getAir(lat: number, lon: number): Promise<AirQuality | null> {
   const cached = airCache.get(key);
   if (cached && Date.now() - cached.at < AIR_TTL_MS) return cached.air;
 
+  const existing = airInflight.get(key);
+  if (existing) return existing;
+
   const apiKey = process.env["AIRNOW_API_KEY"];
   if (!apiKey) return null;
 
-  try {
-    const url =
-      `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json` +
-      `&latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&distance=25&API_KEY=${apiKey}`;
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const payload = (await response.json()) as Array<{
-      Category?: { Number?: number };
-    }>;
-    let category = 0;
-    for (const observation of payload ?? []) {
-      const value = observation.Category?.Number;
-      if (typeof value === "number" && value > category) category = value;
+  const request = (async () => {
+    try {
+      const url =
+        `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json` +
+        `&latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&distance=25&API_KEY=${apiKey}`;
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const payload = (await response.json()) as Array<{
+        Category?: { Number?: number };
+      }>;
+      let category = 0;
+      for (const observation of payload ?? []) {
+        const value = observation.Category?.Number;
+        if (typeof value === "number" && value > category) category = value;
+      }
+      const air = category > 0 ? { category } : null;
+      setBoundedCache(airCache, key, { at: Date.now(), air });
+      return air;
+    } catch (error) {
+      console.error("AirNow unavailable", error);
+      return null;
+    } finally {
+      airInflight.delete(key);
     }
-    const air = category > 0 ? { category } : null;
-    setBoundedCache(airCache, key, { at: Date.now(), air });
-    return air;
-  } catch (error) {
-    console.error("AirNow unavailable", error);
-    return null;
-  }
+  })();
+
+  airInflight.set(key, request);
+  return request;
 }
 
 /**
