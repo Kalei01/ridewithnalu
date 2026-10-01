@@ -28,9 +28,9 @@ export function PrivacySection() {
       </h3>
       <div className="flex items-center justify-between gap-3">
         <Label htmlFor="analytics-consent" className="grid gap-0.5">
-          <span className="text-sm font-semibold">Share anonymous usage stats</span>
+          <span className="text-sm font-semibold">Share anonymous product usage stats</span>
           <span className="text-xs font-normal text-muted-foreground">
-            Which features get used, never where you go.
+            Which features are used. Analytics does not receive your GPS position or saved addresses.
           </span>
         </Label>
         <Switch
@@ -79,48 +79,5 @@ function PurgeDiagnostics() {
           ? "Couldn't delete — try again"
           : "Delete my trip diagnostics now"}
     </Button>
-  );
-}
-
-/** One-time, dismissible ask shown on the home screen. */
-export function AnalyticsConsentBanner() {
-  const consent = useConsent();
-  const [ready, setReady] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  useEffect(() => setReady(true), []);
-  // Only an "Allow" answer is remembered; declining or ignoring asks again next launch.
-  if (!ready || consent === "granted" || dismissed) return null;
-  return (
-    <div
-      role="region"
-      aria-label="Usage stats"
-      className="glass-panel mt-4 rounded-lg border border-border p-3 text-xs text-muted-foreground"
-    >
-      <p>
-        Help improve Nalu with anonymous usage stats? We never collect your location or addresses.
-        You can change this anytime in Settings.
-      </p>
-      <div className="mt-2 flex justify-end gap-2">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            setAnalyticsConsent("denied");
-            setDismissed(true);
-          }}
-        >
-          No thanks
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => {
-            setAnalyticsConsent("granted");
-            setDismissed(true);
-          }}
-        >
-          Allow
-        </Button>
-      </div>
-    </div>
   );
 }
