@@ -4897,7 +4897,6 @@ function Index() {
               </div>
             </details>
           )}
-}
         </section>
 
         {/* Keep the trip commitment action directly beneath the verdict so it

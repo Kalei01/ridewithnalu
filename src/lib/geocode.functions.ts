@@ -62,7 +62,7 @@ async function tomtomSearch(
 export const geocodeAddress = createServerFn({ method: "POST" })
   .inputValidator((input) => schema.parse(input))
   .handler(async ({ data }) => {
-    const key = TOMTOM_KEY;
+    const key = TOMTOM_KEY ?? "";
     const addressQuery = looksLikeStreetAddress(data.address);
     const hits = addressQuery
       ? await addressSearch(data.address, { key, limit: "10" })
@@ -161,7 +161,7 @@ function insideOahu(lat: number, lon: number) {
 export const searchPlaces = createServerFn({ method: "POST" })
   .inputValidator((input) => searchSchema.parse(input))
   .handler(async ({ data }): Promise<{ results: PlaceSuggestion[] }> => {
-    const key = TOMTOM_KEY;
+    const key = TOMTOM_KEY ?? "";
 
     try {
       const addressQuery = looksLikeStreetAddress(data.query);
@@ -287,7 +287,7 @@ const reverseSchema = z.object({ lat: z.number(), lon: z.number() });
 export const reverseGeocode = createServerFn({ method: "POST" })
   .inputValidator((input) => reverseSchema.parse(input))
   .handler(async ({ data }): Promise<{ found: boolean; label: string | null }> => {
-    const key = TOMTOM_KEY;
+    const key = TOMTOM_KEY ?? "";
     const url =
       `https://api.tomtom.com/search/2/reverseGeocode/${data.lat},${data.lon}.json` +
       `?key=${key}&radius=100&language=en-US`;
