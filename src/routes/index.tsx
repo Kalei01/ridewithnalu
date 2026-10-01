@@ -6757,12 +6757,11 @@ function SetupDialog({
         </DialogHeader>
 
         <div className="grid gap-5">
-          {!firstRun && (
-            <SettingsGroup
-              title="Current trip"
-              description="Change where you’re starting or going."
-              defaultOpen={false}
-            >
+          <SettingsGroup
+            title={firstRun ? "Trip setup" : "Current trip"}
+            description={firstRun ? "Choose where you’re starting and going." : "Change where you’re starting or going."}
+            defaultOpen={firstRun}
+          >
               <div className="grid gap-5">
             <Label>From</Label>
             <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
@@ -6870,11 +6869,7 @@ function SetupDialog({
             GO
           </Button>
               </div>
-            </SettingsGroup>
-          )}
-
-          {firstRun && (
-            <div className="grid gap-5">
+          </SettingsGroup>
 
           {!firstRun && permissionBlocked && (
             <section className="space-y-2 border-t border-border pt-5">
