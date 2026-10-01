@@ -181,11 +181,11 @@ function insideOahu(lat: number, lon: number) {
  * Waipahu and 'Aiea, which sent riders to the wrong side of the island.
  */
 function autocompleteSearchQuery(query: string) {
-  const cleaned = query.trim().replace(/\\s+/g, " ");
-  const destinationMatch = cleaned.match(/\\b(?:go|head|take me)\\s+to\\s+(.+)$/i);
+  const cleaned = query.trim().replace(/\s+/g, " ");
+  const destinationMatch = cleaned.match(/\b(?:go|head|take me)\s+to\s+(.+)$/i);
   const target = destinationMatch?.[1]?.trim() ?? cleaned;
-  const normalized = target.replace(/\\balamoana\\b/gi, "Ala Moana");
-  if (/^ala\\s+moana$/i.test(normalized)) return "Ala Moana Center Honolulu";
+  const normalized = target.replace(/\balamoana\b/gi, "Ala Moana");
+  if (/^ala\s+moana$/i.test(normalized)) return "Ala Moana Center Honolulu";
   return normalized;
 }
 
@@ -195,7 +195,7 @@ export const searchPlaces = createServerFn({ method: "POST" })
     const key = TOMTOM_KEY ?? "";
 
     try {
-      const searchQuery = autocompleteSearchQuery(data.query);\n    const addressQuery = looksLikeStreetAddress(searchQuery);
+      const searchQuery = autocompleteSearchQuery(data.query);\n      const addressQuery = looksLikeStreetAddress(searchQuery);
     // A numbered query is a street address: keep shop listings out of it.
     const hits = addressQuery
       ? await addressSearch(searchQuery, {
