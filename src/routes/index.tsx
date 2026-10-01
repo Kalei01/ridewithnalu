@@ -3279,39 +3279,62 @@ function Index() {
       return { lat: Number(stop.stop_lat), lon: Number(stop.stop_lon) };
     };
 
-    // Plot every stop in the selected transit itinerary, not just the
-    // boarding/alighting endpoints. The map is a visualization of the chosen
-    // itinerary, so Skyline stations and bus stops must remain visible even
-    // when the route geometry is only available from the stop sequence.
+    // The map should explain the itinerary, not expose every GTFS stop.
+    // Rail stations are meaningful waypoints, so keep the Skyline station dots.
+    // Bus stop sequences are used for the route line, but only the meaningful
+    // boarding/alighting points get markers. Otherwise every bus stop looks
+    // like a required transfer.
     best.legs.forEach((leg, index) => {
       if (leg.mode !== "rail" && leg.mode !== "bus") return;
       const transitKind: "rail" | "bus" = leg.mode;
       const sequence = itineraryLegSequences.find((item) => item.legIndex === index);
       const sequencePoints = sequence?.points ?? [];
+
       if (sequencePoints.length > 1) {
-        sequencePoints.forEach((stop, stopIndex) => {
-          const last = points[points.length - 1];
-          if (last && distanceM(last, stop) < 20) return;
-          points.push({
-            id: `${leg.kind}-${index}-stop-${stopIndex}-${stop.stopId}`,
-            name:
-              leg.mode === "rail"
-                ? `${stationLabel(stop.stopName)} Station`
-                : titleCase(stop.stopName),
-            lat: stop.lat,
-            lon: stop.lon,
-            kind: transitKind,
+        if (leg.mode === "rail") {
+          sequencePoints.forEach((stop, stopIndex) => {
+            const station = stationPoint(stop.stopName);
+            const point = station ?? { lat: stop.lat, lon: stop.lon };
+            const last = points[points.length - 1];
+            if (last && distanceM(last, point) < 20) return;
+            points.push({
+              id: `${leg.kind}-${index}-station-${stopIndex}-${stop.stopId}`,
+              name: `${stationLabel(stop.stopName)} Station`,
+              ...point,
+              kind: "rail",
+            });
           });
-        });
+        } else {
+          // For a bus leg, mark only the alighting stop. The boarding stop is
+          // already represented by the preceding origin/rail/transfer point
+          // when applicable. Access buses still need a boarding marker.
+          const stopsToMark = leg.kind === "access"
+            ? [sequencePoints[0], sequencePoints[sequencePoints.length - 1]]
+            : [sequencePoints[sequencePoints.length - 1]];
+          stopsToMark.forEach((stop, stopIndex) => {
+            if (!stop) return;
+            const point = { lat: stop.lat, lon: stop.lon };
+            const last = points[points.length - 1];
+            if (last && distanceM(last, point) < 20) return;
+            points.push({
+              id: `${leg.kind}-${index}-bus-end-${stopIndex}-${stop.stopId}`,
+              name: titleCase(stop.stopName),
+              ...point,
+              kind: "bus",
+            });
+          });
+        }
         return;
       }
 
-      // Preserve a useful fallback when the timed stop sequence is unavailable.
+      // Preserve a useful endpoint fallback when the timed stop sequence is unavailable.
       const endpoints: Array<[string | null, string | null | undefined]> = [
         [leg.from, leg.from_stop_id],
         [leg.to, leg.to_stop_id],
       ];
-      endpoints.forEach(([name, stopId], endpointIndex) => {
+      const endpointIndexes = leg.mode === "bus" && leg.kind !== "access" ? [1] : [0, 1];
+      endpointIndexes.forEach((endpointIndex) => {
+        const [name, stopId] = endpoints[endpointIndex] ?? [];
         const point = stopPoint(name, stopId);
         if (!name || !point) return;
         const last = points[points.length - 1];
