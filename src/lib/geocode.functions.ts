@@ -180,22 +180,31 @@ function insideOahu(lat: number, lon: number) {
  * results (e.g. Ala Moana Center) below identically named listings in
  * Waipahu and 'Aiea, which sent riders to the wrong side of the island.
  */
+function autocompleteSearchQuery(query: string) {
+  const cleaned = query.trim().replace(/\\s+/g, " ");
+  const destinationMatch = cleaned.match(/\\b(?:go|head|take me)\\s+to\\s+(.+)$/i);
+  const target = destinationMatch?.[1]?.trim() ?? cleaned;
+  const normalized = target.replace(/\\balamoana\\b/gi, "Ala Moana");
+  if (/^ala\\s+moana$/i.test(normalized)) return "Ala Moana Center Honolulu";
+  return normalized;
+}
+
 export const searchPlaces = createServerFn({ method: "POST" })
   .inputValidator((input) => searchSchema.parse(input))
   .handler(async ({ data }): Promise<{ results: PlaceSuggestion[] }> => {
     const key = TOMTOM_KEY ?? "";
 
     try {
-      const addressQuery = looksLikeStreetAddress(data.query);
+      const searchQuery = autocompleteSearchQuery(data.query);\n    const addressQuery = looksLikeStreetAddress(searchQuery);
     // A numbered query is a street address: keep shop listings out of it.
     const hits = addressQuery
-      ? await addressSearch(data.query, {
+      ? await addressSearch(searchQuery, {
           key,
           limit: "10",
           typeahead: "true",
           extendedPostalCodesFor: "PAD,Addr",
         })
-      : await tomtomSearch("search", data.query, {
+      : await tomtomSearch("search", searchQuery, {
           key,
           limit: "10",
           typeahead: "true",
@@ -220,7 +229,7 @@ export const searchPlaces = createServerFn({ method: "POST" })
     }
 
     if (!addressQuery) {
-      const venue = await resolveAmbiguousVenue(key, data.query, results).catch((error) => {
+      const venue = await resolveAmbiguousVenue(key, searchQuery, results).catch((error) => {
         console.error("Venue disambiguation failed", error);
         return null;
       });
