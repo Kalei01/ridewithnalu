@@ -171,7 +171,7 @@ function WelcomePage() {
               </div>
               <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3">
                 <p className="text-sm font-semibold">Arrive By planning</p>
-                <p className="mt-1 text-xs text-muted-foreground">Work backward from the time you need to arrive.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Tell Nalu when you need to arrive, and it helps plan when to leave.</p>
               </div>
             </div>
 
