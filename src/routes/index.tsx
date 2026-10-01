@@ -7244,9 +7244,9 @@ function AboutSection() {
         Privacy
       </p>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        Guest trips stay on this device. If you choose to sign in, your profile, saved places, and
-        preferences are stored privately so they can sync across your devices. Feedback you submit
-        is sent directly to the Nalu team and not shared.
+        Guest trips and saved places can remain on this device. If you choose to sign in, your profile,
+        saved places, and preferences can sync across your devices. Feedback you submit is sent to Nalu
+        for review and is processed through our feedback service provider.
       </p>
       <div className="mt-6 h-px bg-border/60" />
 
