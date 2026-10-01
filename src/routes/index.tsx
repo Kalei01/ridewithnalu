@@ -45,6 +45,8 @@ import { outdoorConditions, type MomentConditions } from "@/lib/weather.function
 import {
   incidentImpactText,
   incidentText,
+  incidentHeadline,
+  incidentDetailText,
   mainlineClearNote,
   trafficDelayText,
 } from "@/lib/traffic-incidents";
@@ -3057,46 +3059,81 @@ function Index() {
             : activeDecision.primary.text;
 
   const decisionSignals = useMemo(() => {
-    const signals: Array<{ label: string; value: string; tone: "neutral" | "alert" | "positive" }> = [];
-    const driveMinutes = driveTripEstimate.expectedDurationMinutes;
-    if (driveMinutes !== null) signals.push({
-      label: "Drive",
-      value: `${Math.round(driveMinutes)} min`,
-      tone: activeDecision.state === "drive" ? "positive" : "neutral",
-    });
-    const railMinutes = railTripEstimate.expectedDurationMinutes;
-    if (railMinutes !== null) signals.push({
-      label: "Skyline",
-      value: `${Math.round(railMinutes)} min`,
-      tone: activeDecision.state === "rail" ? "positive" : "neutral",
-    });
-    if ((driveTripEstimate.trafficDelayMinutes ?? 0) >= 5) signals.push({
-      label: "Traffic",
-      value: `+${Math.round(driveTripEstimate.trafficDelayMinutes ?? 0)} min`,
-      tone: "alert",
-    });
-    if ((railTripEstimate.railWaitMinutes ?? 0) >= 5) signals.push({
-      label: "Train wait",
-      value: `${Math.round(railTripEstimate.railWaitMinutes ?? 0)} min`,
-      tone: "neutral",
-    });
-    if ((railTripEstimate.busWaitMinutes ?? 0) >= 5) signals.push({
-      label: "Bus wait",
-      value: `${Math.round(railTripEstimate.busWaitMinutes ?? 0)} min`,
-      tone: "neutral",
-    });
-    if (driveTripEstimate.majorIncident) signals.push({ label: "Road incident", value: "Reported", tone: "alert" });
-    return signals.slice(0, 5);
+    const signals: Array<{
+      label: string;
+      value: string;
+      detail?: string;
+      tone: "neutral" | "alert" | "positive";
+    }> = [];
+
+    const delay = Math.round(driveTripEstimate.trafficDelayMinutes ?? 0);
+    if (verdict === "drive") {
+      const trafficValue =
+        delay >= 15
+          ? `Heavy · +${delay} min vs usual`
+          : delay >= 5
+            ? `Slower · +${delay} min vs usual`
+            : delay > 0
+              ? `Slightly slower · +${delay} min`
+              : "Moving normally";
+      signals.push({
+        label: "Traffic",
+        value: trafficValue,
+        tone: delay >= 5 ? "alert" : "neutral",
+      });
+
+      const incident = driveTripEstimate.majorIncident ? drive?.incidents[0] : null;
+      if (incident) {
+        signals.push({
+          label: "Road incident",
+          value: incidentHeadline(incident),
+          detail: incidentDetailText(incident) ?? incidentImpactText(incident),
+          tone: "alert",
+        });
+      } else if (drive?.corridorLabel) {
+        signals.push({
+          label: "Route",
+          value: drive.corridorLabel,
+          tone: "neutral",
+        });
+      }
+    } else if (verdict === "rail") {
+      const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
+      const busWait = Math.round(railTripEstimate.busWaitMinutes ?? 0);
+      if (railWait >= 5) signals.push({ label: "Skyline wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
+      if (busWait >= 5) signals.push({ label: "Bus wait", value: `${busWait} min`, tone: busWait >= 10 ? "alert" : "neutral" });
+      if (drive?.incidents[0] && driveTripEstimate.majorIncident) {
+        signals.push({
+          label: "Road incident",
+          value: incidentHeadline(drive.incidents[0]),
+          detail: incidentDetailText(drive.incidents[0]) ?? incidentImpactText(drive.incidents[0]),
+          tone: "neutral",
+        });
+      }
+    } else {
+      if (delay >= 5) signals.push({ label: "Traffic", value: `+${delay} min vs usual`, tone: "alert" });
+      const incident = driveTripEstimate.majorIncident ? drive?.incidents[0] : null;
+      if (incident) {
+        signals.push({
+          label: "Road incident",
+          value: incidentHeadline(incident),
+          detail: incidentDetailText(incident) ?? incidentImpactText(incident),
+          tone: "alert",
+        });
+      }
+      const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
+      if (railWait >= 5) signals.push({ label: "Skyline wait", value: `${railWait} min`, tone: "neutral" });
+    }
+
+    return signals.slice(0, 4);
   }, [
-    activeDecision.state,
-    driveTripEstimate.expectedDurationMinutes,
+    drive,
     driveTripEstimate.trafficDelayMinutes,
     driveTripEstimate.majorIncident,
-    railTripEstimate.expectedDurationMinutes,
     railTripEstimate.railWaitMinutes,
     railTripEstimate.busWaitMinutes,
+    verdict,
   ]);
-
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   const tripOriginLabel = reverseTrip ? destinationLabel
     : departingFromSavedHome || (!savedHome && !inbound)
@@ -4816,21 +4853,22 @@ function Index() {
           )}
           {configured && (verdict === "rail" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
           {configured && !commitment && decisionSignals.length > 0 && (
-            <details className="nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25" aria-label="Live decision signals">
-              <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-3 marker:hidden">
+            <section
+              className="nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25"
+              aria-label="What Nalu is watching"
+            >
+              <div className="flex items-center gap-3 px-4 py-3">
                 <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-primary" aria-hidden="true" />
                 <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Nalu is watching</span>
-                <span className="ml-auto text-[11px] font-semibold text-muted-foreground">
-                  {decisionSignals.length} live {decisionSignals.length === 1 ? "signal" : "signals"}
-                </span>
-                <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform" />
-              </summary>
+                <span className="ml-auto text-[11px] font-semibold text-muted-foreground">Live conditions</span>
+              </div>
               <div className="border-t border-border/50 px-4 py-3">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {decisionSignals.map((signal) => (
                     <div key={signal.label} className="rounded-xl border border-border/50 bg-background/35 px-3 py-2.5">
                       <p className="text-[11px] font-semibold text-muted-foreground">{signal.label}</p>
-                      <p className={signal.tone === "alert" ? "mt-0.5 text-sm font-bold tabular-nums text-warning" : signal.tone === "positive" ? "mt-0.5 text-sm font-bold tabular-nums text-primary" : "mt-0.5 text-sm font-bold tabular-nums text-foreground"}>{signal.value}</p>
+                      <p className={signal.tone === "alert" ? "mt-0.5 text-sm font-bold leading-5 text-warning" : signal.tone === "positive" ? "mt-0.5 text-sm font-bold leading-5 text-primary" : "mt-0.5 text-sm font-bold leading-5 text-foreground"}>{signal.value}</p>
+                      {signal.detail && <p className="mt-1 text-xs leading-5 text-muted-foreground">{signal.detail}</p>}
                     </div>
                   ))}
                 </div>
@@ -4839,9 +4877,8 @@ function Index() {
                   <p className="mt-1">{sourceFreshnessLabel(railTripEstimate.source, now.getTime())}</p>
                 </div>
               </div>
-            </details>
-          )}
-          {configured && !commitment && decisionChanges.length > 0 && (
+            </section>
+          )}          {configured && !commitment && decisionChanges.length > 0 && (
             <details className="mt-3 overflow-hidden rounded-2xl border border-border/60 bg-background/25 text-sm">
               <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-foreground marker:hidden">
                 <span className="inline-flex items-center gap-2">
@@ -4860,16 +4897,7 @@ function Index() {
               </div>
             </details>
           )}
-          {verdict === "drive" && drive?.incidents[0] && (
-            <div className="mt-4 border-l-2 border-warning pl-3">
-              <p className="text-base font-bold text-foreground">
-                {trafficDelayText(drive.incidents[0], drive.delayMinutes)}
-              </p>
-              <p className="mt-1 text-xs font-medium text-muted-foreground">
-                {incidentImpactText(drive.incidents[0])}
-              </p>
-            </div>
-          )}
+}
         </section>
 
         {/* Keep the trip commitment action directly beneath the verdict so it
