@@ -1,7 +1,10 @@
-import { readAnalyticsConsent } from "@/lib/analytics";
-
 let loaded = false;
 let measurementId: string | null = null;
+
+function readGoogleAnalyticsConsent() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem("nalu-analytics-consent-v1") === "granted" ? "granted" : "denied";
+}
 
 function getMeasurementId() {
   const value = import.meta.env["VITE_GA4_MEASUREMENT_ID"];
@@ -15,7 +18,7 @@ export function googleAnalyticsAvailable() {
 function loadGoogleAnalytics() {
   if (typeof window === "undefined" || loaded) return;
   const id = getMeasurementId();
-  if (!id || readAnalyticsConsent() !== "granted") return;
+  if (!id || readGoogleAnalyticsConsent() !== "granted") return;
 
   const script = document.createElement("script");
   script.async = true;
