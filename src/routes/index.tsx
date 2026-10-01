@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { ClientOnly, createFileRoute } from "@tanstack/react-router";
+import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

@@ -15,7 +15,7 @@ import appCss from "../styles.css?url";
 import liquidTitaniumCss from "../liquid-titanium.css?url";
 import commuteCardPolishCss from "../commute-card-polish.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider } from "../hooks/use-auth";
+import { AuthProvider, useAuth } from "../hooks/use-auth";
 import { Toaster } from "../components/ui/sonner";
 import { initGoogleAnalytics, trackGooglePageView } from "../lib/google-analytics";
 import { onAnalyticsConsentChange } from "../lib/analytics";
