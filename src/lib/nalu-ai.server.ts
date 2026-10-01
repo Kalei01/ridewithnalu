@@ -163,6 +163,14 @@ function distancePointToPolylineMeters(point: Pt, polyline: Pt[]): number {
   return best;
 }
 
+function incidentMateriallyAffectsRoute(incident: RouteTrafficIncident): boolean {
+  if (incident.type === "Road closure" || incident.type === "Lane closure") return true;
+  if (incident.type === "Stalled vehicle" || incident.type === "Accident" || incident.type === "Road works") {
+    return incident.severity === "moderate" || incident.severity === "major" || incident.delayMinutes >= 3;
+  }
+  return incident.delayMinutes >= 3 || incident.severity === "major";
+}
+
 function incidentCoordinates(value: unknown): Pt[] {
   if (!Array.isArray(value)) return [];
   if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") {
@@ -293,7 +301,9 @@ export async function routeOptions(
           ? { lat: point.latitude, lon: point.longitude } : null,
       ).filter((point): point is Pt => Boolean(point)),
     );
-    const incidents = opts.departAt || opts.arriveAt ? [] : await trafficIncidentsForRoute(routePoints, key);
+    const incidents = opts.departAt || opts.arriveAt
+      ? []
+      : (await trafficIncidentsForRoute(routePoints, key)).filter(incidentMateriallyAffectsRoute);
     return {
       minutes,
       typicalMinutes: typical,
