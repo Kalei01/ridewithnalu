@@ -128,7 +128,7 @@ function WelcomePage() {
               Your Oʻahu commute, <span className="text-[var(--nalu-platinum-2)]">simplified.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-              Nalu checks the trip conditions and helps you decide what to take and when to leave — without making you piece together several apps.
+              Nalu brings your commute information together and tells you whether driving or transit makes more sense — and when you should leave.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -153,7 +153,7 @@ function WelcomePage() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Nalu says</p>
-                  <p className="mt-2 text-3xl font-black tracking-tight">Choose your commute.</p>
+                  <p className="mt-2 text-3xl font-black tracking-tight">What should you take today?</p>
                 </div>
                 <HonuMark />
               </div>
@@ -186,9 +186,9 @@ function WelcomePage() {
         <section className="grid gap-6 border-t border-white/10 py-10 lg:grid-cols-2" aria-labelledby="how-nalu-works">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">How Nalu works</p>
-            <h2 id="how-nalu-works" className="mt-2 text-2xl font-black tracking-tight">One commute decision, built from the pieces that matter.</h2>
+            <h2 id="how-nalu-works" className="mt-2 text-2xl font-black tracking-tight">Everything you need for the commute ahead.</h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-              Nalu is focused on Oʻahu commuting rather than trying to replace every map app. It brings driving, Skyline, and TheBus information into one trip view so you can compare the practical trip instead of checking several apps yourself.
+              Nalu brings the important pieces of your Oʻahu commute together, so you can make one decision instead of checking several apps.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -236,9 +236,9 @@ function WelcomePage() {
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 sm:p-6" aria-labelledby="trust">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Trust & data</p>
-          <h2 id="trust" className="mt-2 text-xl font-black tracking-tight">Useful information, not a promise of the future.</h2>
+          <h2 id="trust" className="mt-2 text-xl font-black tracking-tight">Current information. Real-world conditions can still change.</h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Commute information can change because of traffic, incidents, transit operations, weather, road conditions, and other real-world events. Nalu is a decision-support tool and does not guarantee route availability or arrival times. Always use your judgment and follow applicable traffic and transit rules.
+            Traffic, transit, weather, and road conditions can change. Nalu uses the information available at planning time to help you make a commute decision, but it cannot guarantee an arrival time.
           </p>
           <p className="mt-3 text-xs leading-5 text-muted-foreground">
             Nalu may use information from third-party traffic, transit, weather, and air-quality services. Their availability, timing, and accuracy can vary.
@@ -252,12 +252,7 @@ function WelcomePage() {
             <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
               Save Home and Work, keep your places across devices, and make future Nalu features available to your account.
             </p>
-            <div className="mt-5 rounded-2xl border border-white/8 bg-white/[0.025] p-4">
-              <p className="text-sm font-semibold">Premium is coming later.</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                We will only put features behind Premium when they provide clear extra value. Nothing here requires a payment today.
-              </p>
-            </div>
+            
           </div>
           <div className="liquid-titanium-slab rounded-[24px] p-5 sm:p-6">
             <AccountSection compact />
