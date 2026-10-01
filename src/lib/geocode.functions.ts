@@ -188,14 +188,14 @@ function autocompleteSearchQuery(query: string) {
   if (/^ala\s+moana$/i.test(normalized)) return "Ala Moana Center Honolulu";
   return normalized;
 }
-
 export const searchPlaces = createServerFn({ method: "POST" })
   .inputValidator((input) => searchSchema.parse(input))
   .handler(async ({ data }): Promise<{ results: PlaceSuggestion[] }> => {
     const key = TOMTOM_KEY ?? "";
 
     try {
-      const searchQuery = autocompleteSearchQuery(data.query);\n      const addressQuery = looksLikeStreetAddress(searchQuery);
+      const searchQuery = autocompleteSearchQuery(data.query);
+      const addressQuery = looksLikeStreetAddress(searchQuery);
     // A numbered query is a street address: keep shop listings out of it.
     const hits = addressQuery
       ? await addressSearch(searchQuery, {
