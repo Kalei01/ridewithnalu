@@ -8,7 +8,6 @@ import { askNalu, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
-import { searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 
 type Place = { lat: number; lon: number; label: string };
 
@@ -139,10 +138,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   const requestGate = useRef(createClientRateWindow(10_000));
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof ask>> | null>(null);
-  const [placeResults, setPlaceResults] = useState<PlaceSuggestion[]>([]);
-  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
   const [showExamples, setShowExamples] = useState(false);
-  const search = useServerFn(searchPlaces);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSettledQuery(query.trim()), 350);
@@ -172,7 +168,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
     setBusy(true);
     setAnswer(null);
     try {
-      setAnswer(await ask({ data: { query: text, origin, selectedPlace: selectedPlace ? { name: selectedPlace.name, address: selectedPlace.address, lat: selectedPlace.lat, lon: selectedPlace.lon } : null } }));
+      setAnswer(await ask({ data: { query: text, origin } }));
     } catch {
       setAnswer({ ok: false, error: "Nalu couldn't answer that right now." });
     } finally {
@@ -218,7 +214,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           className="min-h-24 resize-none border-white/10 bg-background/70"
         />
 
-        <div className="flex items-center justify-end">
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={() => setShowExamples((value) => !value)}
@@ -230,22 +226,24 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           </button>
         </div>
 
-        {showExamples && <div className="flex flex-wrap gap-2" aria-label="Ask Nalu examples">
-          {[
-            "I need to be downtown by 8.",
-            "Two stops before work.",
-            "Should I drive or take Skyline?",
-          ].map((example) => (
-            <button
-              key={example}
-              type="button"
-              onClick={() => useExample(example)}
-              className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-left text-xs font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
-            >
-              {example}
-            </button>
-          ))}
-        </div>
+        {showExamples && (
+          <div className="flex flex-wrap gap-2" aria-label="Ask Nalu examples">
+            {[
+              "I need to be downtown by 8.",
+              "Two stops before work.",
+              "Should I drive or take Skyline?",
+            ].map((example) => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => useExample(example)}
+                className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-left text-xs font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        )}
 
         <Button
           onClick={() => void submit()}
