@@ -231,6 +231,43 @@ function WelcomePage() {
           </div>
         </section>
 
+        <section className="border-t border-white/10 py-10" aria-labelledby="turn-by-turn">
+          <div className="grid gap-6 lg:grid-cols-[.85fr_1.15fr] lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Need directions?</p>
+              <h2 id="turn-by-turn" className="mt-2 text-2xl font-black tracking-tight">Nalu can take you there.</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+                If you choose to drive, Nalu can guide you with turn-by-turn navigation, live traffic updates, and rerouting when conditions change.
+              </p>
+              <p className="mt-3 text-xs text-muted-foreground">Navigation is available when you choose to drive.</p>
+            </div>
+            <div className="liquid-titanium-slab rounded-[24px] p-4 sm:p-5" aria-label="Nalu turn-by-turn navigation preview">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Turn-by-turn</p>
+                  <p className="mt-1 text-lg font-black tracking-tight">Driving to Work</p>
+                </div>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-bold text-muted-foreground">Navigation</span>
+              </div>
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                <p className="text-xs text-muted-foreground">Next turn</p>
+                <p className="mt-1 text-xl font-black tracking-tight">→ Take H-1 West toward Honolulu</p>
+                <p className="mt-2 text-xs text-muted-foreground">1.8 mi · 4 min</p>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                  <p className="text-[11px] text-muted-foreground">Traffic</p>
+                  <p className="mt-1 text-sm font-bold">Live updates</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                  <p className="text-[11px] text-muted-foreground">Route</p>
+                  <p className="mt-1 text-sm font-bold">Reroute if needed</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="grid gap-6 border-t border-white/10 py-10 lg:grid-cols-2" aria-labelledby="how-nalu-works">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">How Nalu works</p>
