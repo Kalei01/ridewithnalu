@@ -47,8 +47,13 @@ function PrivacyPage() {
           </section>
 
           <section>
+            <h2 className="text-lg font-bold text-foreground">Navigation diagnostics</h2>
+            <p className="mt-2">When trip diagnostics are enabled for navigation, Nalu may temporarily collect technical events such as reroutes, spoken-turn events, and errors to troubleshoot navigation behavior. Diagnostics are designed to exclude addresses and GPS coordinates and are automatically deleted after 48 hours. You can also delete your available trip diagnostics from the Privacy & data settings.</p>
+          </section>
+
+          <section>
             <h2 className="text-lg font-bold text-foreground">Service providers</h2>
-            <p className="mt-2">Nalu relies on third-party services for functions such as authentication, routing, geocoding, traffic, transit, weather, air quality, and feedback. Those providers may process information according to their own terms and privacy policies. Nalu only requests information reasonably needed for the related feature.</p>
+            <p className="mt-2">Nalu relies on third-party services for functions such as authentication, routing, geocoding, traffic, transit, weather, air quality, analytics when you consent, diagnostics, and feedback. Those providers may process information according to their own terms and privacy policies. Nalu only requests information reasonably needed for the related feature.</p>
           </section>
 
           <section>
@@ -58,7 +63,7 @@ function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-bold text-foreground">Your choices</h2>
-            <p className="mt-2">You can choose whether to use guest features or create an account. You can also manage information you save in Nalu and request help with account or personal information through the available Nalu contact or feedback options.</p>
+            <p className="mt-2">You can choose whether to use guest features or create an account. You can manage analytics consent, delete available trip diagnostics, manage information you save in Nalu, and request help with account or personal information through the available Nalu contact or feedback options.</p>
           </section>
 
           <section>
