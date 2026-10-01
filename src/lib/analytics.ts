@@ -3,6 +3,7 @@
  * and properties never include coordinates, addresses, or free text.
  */
 import type { PostHog } from "posthog-js";
+import { trackGoogleEvent } from "@/lib/google-analytics";
 
 export type AnalyticsEvent =
   | "app_opened"
@@ -97,5 +98,7 @@ function sanitize(props?: Record<string, Primitive>) {
 
 export function track(event: AnalyticsEvent, props?: Record<string, Primitive>) {
   if (readAnalyticsConsent() !== "granted") return;
-  void load().then((ph) => ph?.capture(event, sanitize(props)));
+  const safeProps = sanitize(props);
+  trackGoogleEvent(event, safeProps);
+  void load().then((ph) => ph?.capture(event, safeProps));
 }
