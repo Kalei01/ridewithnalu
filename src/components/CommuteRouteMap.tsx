@@ -209,12 +209,17 @@ export default function CommuteRouteMap({
     const roadPath = pathRef.current;
     const transitSegments =
       segmentsRef.current?.filter((segment) => segment.points.length > 1) ?? [];
+    const hasTransitPoints = current.some(
+      (point) => point.kind === "rail" || point.kind === "bus",
+    );
     const drawableSegments =
       roadPath && roadPath.length > 1
         ? [{ id: "drive", mode: "drive" as const, points: roadPath }]
         : transitSegments.length > 0
           ? transitSegments
-          : [{ id: "fallback", mode: "rail" as const, points: current }];
+          : hasTransitPoints
+            ? []
+            : [{ id: "fallback", mode: "rail" as const, points: current }];
 
     for (const segment of drawableSegments) {
       const latLngs = segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
