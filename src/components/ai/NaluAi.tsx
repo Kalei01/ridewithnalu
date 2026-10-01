@@ -138,19 +138,30 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
   const requestGate = useRef(createClientRateWindow(10_000));
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [answer, setAnswer] = useState<Awaited<ReturnType<typeof ask>> | null>(null);
+
   useEffect(() => {
     const timer = window.setTimeout(() => setSettledQuery(query.trim()), 350);
     return () => window.clearTimeout(timer);
   }, [query]);
+
   useEffect(() => {
     if (!cooldownUntil) return;
-    const timer = window.setTimeout(() => setCooldownUntil(0), Math.max(0, cooldownUntil - Date.now()));
+    const timer = window.setTimeout(
+      () => setCooldownUntil(0),
+      Math.max(0, cooldownUntil - Date.now()),
+    );
     return () => window.clearTimeout(timer);
   }, [cooldownUntil]);
+
   async function submit() {
     const text = query.trim();
-    if (busyRef.current || text.length < 4 || text !== settledQuery ||
-      !requestGate.current.tryAcquire(Date.now())) return;
+    if (
+      busyRef.current ||
+      text.length < 4 ||
+      text !== settledQuery ||
+      !requestGate.current.tryAcquire(Date.now())
+    ) return;
+
     busyRef.current = true;
     setCooldownUntil(Date.now() + 10_000);
     setBusy(true);
@@ -164,38 +175,88 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
       setBusy(false);
     }
   }
+
+  function useExample(example: string) {
+    setQuery(example);
+    setSettledQuery(example);
+  }
+
   return (
-    <details className="glass-panel mt-3 rounded-lg">
-      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-        <Sparkles className="size-5 text-primary" />
-        <span className="font-semibold text-foreground">Ask Nalu</span>
-        <span className="ml-auto text-xs text-muted-foreground">Plan multi-stop trips</span>
-      </summary>
-      <div className="grid gap-3 border-t border-border p-4">
+    <section
+      aria-labelledby="ask-nalu-title"
+      className="mt-4 overflow-hidden rounded-2xl border border-primary/30 bg-primary/[0.06] shadow-[0_18px_50px_rgba(0,0,0,.18)]"
+    >
+      <div className="border-b border-primary/15 px-4 py-4 sm:px-5">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <Sparkles className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Nalu intelligence</p>
+            <h2 id="ask-nalu-title" className="mt-1 text-lg font-black tracking-tight text-foreground">
+              Tell Nalu what you’re trying to do.
+            </h2>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              Complicated commute? Just describe it. Nalu can work through stops, timing, rail, bus, and driving.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 p-4 sm:p-5">
         <Textarea
-          aria-label="Describe your trip"
+          aria-label="Tell Nalu what you're trying to do"
           value={query}
           maxLength={400}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Drop off at Campbell High by 7:15, then Ala Moana by 8:00 — drive or park and ride?"
-          className="min-h-20 bg-background"
+          placeholder="I need to drop my son off first, then be downtown by 8."
+          className="min-h-24 resize-none border-white/10 bg-background/70"
         />
-        <Button onClick={() => void submit()}
-          disabled={busy || cooldownUntil > 0 || query.trim().length < 4 || query.trim() !== settledQuery}>
+
+        <div className="flex flex-wrap gap-2" aria-label="Ask Nalu examples">
+          {[
+            "I need to be downtown by 8.",
+            "Two stops before work.",
+            "Should I drive or take Skyline?",
+          ].map((example) => (
+            <button
+              key={example}
+              type="button"
+              onClick={() => useExample(example)}
+              className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1.5 text-left text-xs font-medium text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+
+        <Button
+          onClick={() => void submit()}
+          disabled={
+            busy ||
+            cooldownUntil > 0 ||
+            query.trim().length < 4 ||
+            query.trim() !== settledQuery
+          }
+          className="w-full sm:w-auto sm:justify-self-start"
+        >
           {busy ? "Planning…" : cooldownUntil > 0 ? "Ready again shortly" : "Ask Nalu"}
         </Button>
+
         {!origin && (
           <p className="text-xs text-muted-foreground">
             Tip: allow location so Nalu knows where you're starting.
           </p>
         )}
+
         {answer && !answer.ok && (
           <p role="alert" className="text-sm text-warning">
             {answer.error}
           </p>
         )}
+
         {answer?.ok && (
-          <div className="rounded-md bg-surface-raised p-3 text-sm" aria-live="polite">
+          <div className="rounded-xl border border-white/10 bg-surface-raised/80 p-4 text-sm" aria-live="polite">
             <p className="font-semibold text-foreground">{answer.value.recommendation}</p>
             <p className="mt-1 text-primary">Leave by {answer.value.leaveBy}</p>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
@@ -209,7 +270,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           </div>
         )}
       </div>
-    </details>
+    </section>
   );
 }
 
