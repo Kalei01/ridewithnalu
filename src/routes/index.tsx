@@ -895,10 +895,10 @@ function H1ConditionsCard({
             const incident = item.data.incidents[0];
             return (
               <div key={item.label} className="py-3">
-                <div className="flex min-h-8 items-center justify-between gap-4">
-                  <span className="text-sm text-foreground">{item.label}</span>
+                <div className="grid min-h-9 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-4">
+                  <span className="min-w-0 text-sm text-foreground">{item.label}</span>
                   <span
-                    className={`shrink-0 text-right text-sm font-semibold tabular-nums ${status.className}`}
+                    className={`min-w-28 text-center text-sm font-semibold tabular-nums ${status.className}`}
                   >
                     {status.label}
                   </span>
