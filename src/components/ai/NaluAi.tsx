@@ -199,48 +199,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           className="min-h-24 resize-none border-white/10 bg-background/70"
         />
 
-        {selectedPlace && (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2" aria-label="Recognized place">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{selectedPlace.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{selectedPlace.address}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPlace(null);
-                setPlaceResults([]);
-                setSettledQuery(query.trim());
-              }}
-              className="shrink-0 text-xs font-semibold text-muted-foreground hover:text-foreground"
-              aria-label="Clear selected place"
-            >
-              Clear
-            </button>
-          </div>
-        )}
-
-        <div className="relative">
-          {placesLoading && query.trim().length >= 2 && (
-            <p className="px-1 text-xs text-muted-foreground">Finding places…</p>
-          )}
-          {placeResults.length > 0 && (
-            <div className="overflow-hidden rounded-xl border border-white/10 bg-surface-raised shadow-lg" role="listbox" aria-label="Place suggestions">
-              {placeResults.map((place) => (
-                <button
-                  key={place.id}
-                  type="button"
-                  role="option"
-                  onClick={() => choosePlace(place)}
-                  className="block w-full border-b border-white/5 px-3 py-2.5 text-left last:border-b-0 hover:bg-primary/[0.08]"
-                >
-                  <p className="truncate text-sm font-semibold text-foreground">{place.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{place.address}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <p className="text-xs text-muted-foreground">No need to pick a place — type the whole request naturally and Nalu will resolve the places for you.</p>
 
         <div className="flex justify-end">
           <button
