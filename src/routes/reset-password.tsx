@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LegalFooter } from "@/components/LegalFooter";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({ meta: [
@@ -31,5 +32,24 @@ function ResetPassword() {
     if (error) setMessage(error.message);
     else { setMessage("Password updated."); window.setTimeout(() => void navigate({ to: "/" }), 600); }
   }
-  return <main className="browse-radiance flex min-h-dvh items-center justify-center px-5"><section className="glass-panel w-full max-w-sm rounded-lg p-6"><h1 className="text-2xl font-bold">Reset password</h1>{ready ? <><Label htmlFor="new-password" className="mt-5 block">New password</Label><Input id="new-password" type="password" autoComplete="new-password" className="mt-2" value={password} onChange={(e) => setPassword(e.target.value)} /><Button className="mt-4 w-full" disabled={password.length < 6} onClick={() => void save()}>Update password</Button></> : <p className="mt-4 text-sm text-muted-foreground">Open the password reset link from your email.</p>}{message && <p className="mt-3 text-sm text-muted-foreground">{message}</p>}</section></main>;
+  return (
+    <main className="browse-radiance flex min-h-dvh flex-col items-center justify-center px-5 py-8">
+      <section className="glass-panel w-full max-w-sm rounded-lg p-6">
+        <h1 className="text-2xl font-bold">Reset password</h1>
+        {ready ? (
+          <>
+            <Label htmlFor="new-password" className="mt-5 block">New password</Label>
+            <Input id="new-password" type="password" autoComplete="new-password" className="mt-2" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Button className="mt-4 w-full" disabled={password.length < 6} onClick={() => void save()}>Update password</Button>
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">Open the password reset link from your email.</p>
+        )}
+        {message && <p className="mt-3 text-sm text-muted-foreground">{message}</p>}
+      </section>
+      <div className="w-full max-w-3xl">
+        <LegalFooter />
+      </div>
+    </main>
+  );
 }
