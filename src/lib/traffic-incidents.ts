@@ -130,6 +130,37 @@ export function trafficDelayText(incident: DriveIncident, fallbackDelayMinutes =
   return `${incidentText(incident)}${delay > 0 ? ` · +${delay} min` : ""}`;
 }
 
+export function incidentCategoryLabel(incident: DriveIncident): string | null {
+  const labels: Record<string, string> = {
+    "1": "Accident", "2": "Fog", "3": "Hazardous conditions", "4": "Rain", "5": "Ice",
+    "6": "Traffic jam", "7": "Lane closure", "8": "Road closure", "9": "Roadwork",
+    "10": "Wind", "11": "Flooding", "14": "Disabled vehicle",
+    accident: "Accident", fog: "Fog", dangerousConditions: "Hazardous conditions", rain: "Rain",
+    ice: "Ice", jam: "Traffic jam", laneClosed: "Lane closure", roadClosed: "Road closure",
+    roadWorks: "Roadwork", wind: "Wind", flooding: "Flooding", brokenDownVehicle: "Disabled vehicle",
+  };
+  return incident.category ? labels[incident.category] ?? null : null;
+}
+
+/** Prefer TomTom's structured category, then fall back to its event description. */
+export function incidentHeadline(incident: DriveIncident): string {
+  const category = incidentCategoryLabel(incident);
+  const road = localRoadName(incident.road);
+  const where = road ? " on " + road : "";
+  const delay = Math.max(0, Math.round(incident.delayMinutes ?? 0));
+  const fallback = incidentText(incident).replace(/^Reported |^Heavy traffic /, "");
+  return (category ?? fallback) + where + (delay > 0 ? " · +" + delay + " min" : "");
+}
+
+/** More detail only when TomTom actually supplies an affected stretch. */
+export function incidentDetailText(incident: DriveIncident): string | null {
+  const from = incident.from?.trim();
+  const to = incident.to?.trim();
+  if (from && to && from !== to) return "Backup reported from " + from + " to " + to + ".";
+  if (from) return "Reported near " + from + ".";
+  return null;
+}
+
 /** Blocking events matter on your route even before a delay is measured. */
 function isBlockingDescription(description: string): boolean {
   return /\b(closed|closure|accident|crash|blocked|road closed)\b/i.test(description);
