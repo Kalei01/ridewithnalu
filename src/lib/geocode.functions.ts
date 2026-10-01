@@ -316,25 +316,26 @@ export const reverseGeocode = createServerFn({ method: "POST" })
 
 
     const request = (async () => {
-    const url =
-      `https://api.tomtom.com/search/2/reverseGeocode/${data.lat},${data.lon}.json` +
-      `?key=${key}&radius=100&language=en-US`;
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.error(`TomTom reverse geocode failed [${response.status}]`);
+      const url =
+        `https://api.tomtom.com/search/2/reverseGeocode/${data.lat},${data.lon}.json` +
+        `?key=${key}&radius=100&language=en-US`;
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          console.error(`TomTom reverse geocode failed [${response.status}]`);
+          return { found: false, label: null };
+        }
+        const payload = (await response.json()) as {
+          addresses?: Array<{ address?: { freeformAddress?: string } }>;
+        };
+        const label = payload.addresses?.[0]?.address?.freeformAddress ?? null;
+        return { found: Boolean(label), label };
+      } catch (error) {
+        console.error("TomTom reverse geocode error", error);
         return { found: false, label: null };
+      } finally {
+        reverseInflight.delete(requestKey);
       }
-      const payload = (await response.json()) as {
-        addresses?: Array<{ address?: { freeformAddress?: string } }>;
-      };
-      const label = payload.addresses?.[0]?.address?.freeformAddress ?? null;
-      return { found: Boolean(label), label };
-    } catch (error) {
-      console.error("TomTom reverse geocode error", error);
-      return { found: false, label: null };
-    }
-
     })();
     reverseInflight.set(requestKey, request);
     return request;
