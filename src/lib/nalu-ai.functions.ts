@@ -151,7 +151,11 @@ export const morningPulse = createServerFn({ method: "POST" })
 /** Ask Nalu: natural-language, multi-stop trip planning. */
 export const askNalu = createServerFn({ method: "POST" })
   .inputValidator((input) =>
-    z.object({\n      query: z.string().min(4).max(400),\n      origin: point.nullable(),\n      selectedPlace: z.object({ name: z.string().max(120), address: z.string().max(200), lat: point.shape.lat, lon: point.shape.lon }).nullable().optional(),\n    }).parse(input),
+    z.object({
+      query: z.string().min(4).max(400),
+      origin: point.nullable(),
+      selectedPlace: z.object({ name: z.string().max(120), address: z.string().max(200), lat: point.shape.lat, lon: point.shape.lon }).nullable().optional(),
+    }).parse(input),
   )
   .handler(async ({ data }) => {
     const ai = await import("./nalu-ai.server");
