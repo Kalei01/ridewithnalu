@@ -12,15 +12,12 @@ export function routeTravelSeconds(
   // For a future departure, use TomTom's time-dependent primary estimate.
   if (futureDeparture) return primary;
 
-  // For a live trip, TomTom also exposes a second route-time calculation that
-  // incorporates currently reported live traffic incidents. In practice the
-  // primary ETA can lag that incident-aware value on a congested corridor.
-  // Use the higher of the two so Nalu does not present an artificially short
-  // ETA when TomTom itself is reporting a longer incident-aware travel time.
-  // Never replace the primary estimate outright: the incident-aware value is
-  // an additional signal, not a universally better route model.
+  // For a live trip, TomTom explicitly exposes a second estimate based on
+  // real-time speed data. Prefer that live model when it is present. This
+  // avoids silently preferring the primary estimate when the live traffic
+  // model has already detected a materially slower corridor.
   if (typeof live === "number" && Number.isFinite(live) && live > 0) {
-    return Math.max(primary, live);
+    return live;
   }
   return primary;
 }
