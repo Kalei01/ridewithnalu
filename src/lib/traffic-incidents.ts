@@ -195,6 +195,65 @@ export function incidentImpactText(incident: DriveIncident): string {
     ? `Lanes are blocked on ${road}, but your drive time is not slower yet. Expect possible backups.`
     : "Your drive time is not slower right now.";
 }
+/** Plain-language incident condition for a standalone traffic alert. */
+export function standaloneIncidentCondition(incident: DriveIncident): string {
+  const category = incidentCategoryLabel(incident);
+  if (category) return category;
+  const description = incident.description.trim();
+  return description || "Traffic incident";
+}
+
+/** Show a provider-supplied cause only when it is actually reported. */
+export function standaloneIncidentCause(incident: DriveIncident): string {
+  const description = incident.description.trim();
+  if (!description) return "Cause not reported";
+  if (/^(closed|closure|blocked|lane closed|road closed)$/i.test(description)) {
+    return "Cause not reported";
+  }
+  return description;
+}
+
+/** Describe the affected stretch without implying a selected destination. */
+export function standaloneIncidentLocation(incident: DriveIncident): string | null {
+  const from = incident.from?.trim();
+  const to = incident.to?.trim();
+  if (from && to && from !== to) return `${from} → ${to}`;
+  if (from) return `near ${from}`;
+  return null;
+}
+
+/** Impact language for the general road alert, not a selected trip. */
+export function standaloneIncidentImpact(
+  incident: DriveIncident,
+  mainlineDelayMinutes: number | null | undefined,
+): string {
+  const delay = Math.max(0, Math.round(mainlineDelayMinutes ?? incident.delayMinutes ?? 0));
+  if (delay > 0) return `Traffic is about +${delay} min slower here right now.`;
+  if (isFreewayMainline(incident.road)) return "Traffic is moving normally on this stretch right now.";
+  return "No slowdown is showing on the H-1 mainline yet. Possible backups on the connecting road.";
+}
+
+/** Expected clearance when TomTom supplies an end time. */
+export function standaloneIncidentClearance(incident: DriveIncident): string | null {
+  if (!incident.endTime) return null;
+  const end = new Date(incident.endTime);
+  if (Number.isNaN(end.getTime())) return null;
+  const time = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Pacific/Honolulu",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(end);
+  return `Expected to clear around ${time}`;
+}
+
+/** Freshness for a live traffic snapshot. */
+export function incidentFreshness(fetchedAt: number, nowMs = Date.now()): string {
+  const ageSeconds = Math.max(0, Math.round((nowMs - fetchedAt) / 1000));
+  if (ageSeconds < 10) return "Updated just now";
+  if (ageSeconds < 60) return `Updated ${ageSeconds} sec ago`;
+  return `Updated ${Math.round(ageSeconds / 60)} min ago`;
+}
+
 /**
  * Explains a "Clear" freeway reading shown next to an on-route alert, so a
  * commuter is not left guessing which road the closure is actually on.

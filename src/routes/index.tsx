@@ -48,6 +48,12 @@ import {
   incidentHeadline,
   incidentDetailText,
   mainlineClearNote,
+  standaloneIncidentCondition,
+  standaloneIncidentCause,
+  standaloneIncidentLocation,
+  standaloneIncidentImpact,
+  standaloneIncidentClearance,
+  incidentFreshness,
   trafficDelayText,
 } from "@/lib/traffic-incidents";
 import {
@@ -757,12 +763,11 @@ function modeIcon(mode: Leg["mode"]) {
 function trafficStatus(delayMinutes: number, incident?: DriveTime["incidents"][number]) {
   const delay = Math.max(0, Math.round(delayMinutes));
   if (incident) {
-    const description = incident.description.trim().toLowerCase();
-    const crash = /accident|crash|collision/.test(description);
-    const label = crash
-      ? `Crash reported${incident.road ? ` · ${incident.road}` : ""}`
-      : `Traffic incident reported${incident.road ? ` · ${incident.road}` : ""}`;
-    return { label, className: "text-destructive" };
+    const condition = standaloneIncidentCondition(incident);
+    return {
+      label: `${condition}${incident.road ? ` · ${incident.road}` : ""}`,
+      className: "text-destructive",
+    };
   }
   if (delay === 0) return { label: "Clear", className: "text-primary" };
   if (delay > 20) return { label: `Heavy traffic · +${delay} min`, className: "text-destructive" };
@@ -797,6 +802,7 @@ function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
   return `${label} · Updated ${age}${source.quality === "stale" ? " · Stale" : ""}`;
 }
 
+
 function H1ConditionsCard({
   eastbound,
   westbound,
@@ -812,32 +818,72 @@ function H1ConditionsCard({
   weatherLine?: WeatherLine | null;
   compact?: boolean;
 }) {
+  const rows = [
+    { label: "Eastbound", data: eastbound },
+    { label: "Westbound", data: westbound },
+  ];
+
+  const Incident = ({
+    direction,
+    data,
+  }: {
+    direction: string;
+    data: DriveTime;
+  }) => {
+    const incident = data.incidents[0];
+    if (!incident) return null;
+    const condition = standaloneIncidentCondition(incident);
+    const road = incident.road ?? "near H-1";
+    const location = standaloneIncidentLocation(incident);
+    const cause = standaloneIncidentCause(incident);
+    const clearance = standaloneIncidentClearance(incident);
+    const freshness = incidentFreshness(data.fetchedAt);
+    const note = mainlineClearNote(incident, data.delayMinutes);
+
+    return (
+      <div className="mt-3 rounded-xl border border-border bg-background/50 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-foreground">{direction} · {condition}</p>
+            <p className="mt-0.5 text-xs font-semibold text-muted-foreground">{road}</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-warning/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-warning">
+            Live alert
+          </span>
+        </div>
+        {location && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">Location:</span> {location}
+          </p>
+        )}
+        <p className="mt-1 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">Cause:</span> {cause}
+        </p>
+        <p className="mt-1 text-xs font-medium text-muted-foreground">
+          {standaloneIncidentImpact(incident, data.delayMinutes)}
+        </p>
+        {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
+        {clearance && <p className="mt-1 text-xs text-muted-foreground">{clearance}</p>}
+        <p className="mt-2 text-[10px] text-muted-foreground">{freshness}</p>
+      </div>
+    );
+  };
+
   if (compact) {
-    const rows = [
-      { label: "Eastbound", data: eastbound },
-      { label: "Westbound", data: westbound },
-    ];
     return (
       <details className="mt-4 rounded-lg border border-border bg-surface-raised/70">
         <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
           <span className="font-semibold text-foreground">H-1 live</span>
           <span className="ml-auto flex flex-wrap justify-end gap-2">
             {loading ? (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-                Checking traffic…
-              </span>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Checking traffic…</span>
             ) : unavailable ? (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-                Not available
-              </span>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Not available</span>
             ) : (
               rows.map(({ label, data }) => {
                 const status = data ? trafficStatus(data.delayMinutes, data.incidents[0]) : null;
                 return (
-                  <span
-                    key={label}
-                    className={`rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${status?.className ?? "text-muted-foreground"}`}
-                  >
+                  <span key={label} className={`rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${status?.className ?? "text-muted-foreground"}`}>
                     {label} · {status?.label ?? "—"}
                   </span>
                 );
@@ -846,75 +892,39 @@ function H1ConditionsCard({
           </span>
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </summary>
-        {!loading && !unavailable && eastbound && westbound && (
+        {!loading && !unavailable && (
           <div className="border-t border-border px-4 pb-4">
-            {rows.map(({ label, data }) => {
-              const incident = data?.incidents[0];
-              const note = mainlineClearNote(incident, data?.delayMinutes);
-              return incident ? (
-                <div key={label} className="mt-3">
-                  <p className="text-sm text-foreground">
-                    <span className="font-semibold">{label}:</span> {incidentText(incident)}
-                    {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
-                  </p>
-                  {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
-                  <p className="mt-1 text-xs font-medium text-muted-foreground">
-                    {incidentImpactText(incident)}
-                  </p>
-                </div>
-              ) : null;
-            })}
-            <p className="mt-3 text-[10px] text-muted-foreground">Traffic: TomTom</p>
+            {rows.map(({ label, data }) => data ? <Incident key={label} direction={label} data={data} /> : null)}
+            <p className="mt-3 text-[10px] text-muted-foreground">
+              Traffic: TomTom · General road alert — not a trip-specific ETA.
+            </p>
           </div>
         )}
       </details>
     );
   }
+
   return (
-    <section
-      className="verdict-lift mt-7 rounded-lg border border-border p-5"
-      aria-labelledby="h1-conditions-title"
-    >
+    <section className="verdict-lift mt-7 rounded-lg border border-border p-5" aria-labelledby="h1-conditions-title">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="h1-conditions-title" className="text-lg font-semibold">
-          H-1 conditions
-        </h2>
+        <h2 id="h1-conditions-title" className="text-lg font-semibold">H-1 conditions</h2>
         <span className="shrink-0 text-[10px] text-muted-foreground">TomTom</span>
       </div>
       {loading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
-      {unavailable && (
-        <p className="mt-4 text-sm text-muted-foreground">Live traffic is not available right now.</p>
-      )}
-      {!loading && !unavailable && eastbound && westbound && (
+      {unavailable && <p className="mt-4 text-sm text-muted-foreground">Live traffic is not available right now.</p>}
+      {!loading && !unavailable && (
         <div className="mt-3 divide-y divide-border">
-          {[
-            { label: "H-1 Eastbound (toward town)", data: eastbound },
-            { label: "H-1 Westbound (toward Kapolei)", data: westbound },
-          ].map((item) => {
-            const status = trafficStatus(item.data.delayMinutes, item.data.incidents[0]);
-            const incident = item.data.incidents[0];
+          {rows.map(({ label, data }) => {
+            const status = data ? trafficStatus(data.delayMinutes, data.incidents[0]) : null;
             return (
-              <div key={item.label} className="py-3">
+              <div key={label} className="py-3">
                 <div className="grid min-h-9 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-4">
-                  <span className="min-w-0 text-sm text-foreground">{item.label}</span>
-                  <span
-                    className={`min-w-28 text-center text-sm font-semibold tabular-nums ${status.className}`}
-                  >
-                    {status.label}
+                  <span className="min-w-0 text-sm text-foreground">H-1 {label}</span>
+                  <span className={`min-w-28 text-center text-sm font-semibold tabular-nums ${status?.className ?? "text-muted-foreground"}`}>
+                    {status?.label ?? "—"}
                   </span>
                 </div>
-                {incident && (
-                  <div className="mt-2 rounded-lg bg-surface-raised px-3 py-2 text-xs text-muted-foreground">
-                    <p>
-                      {incidentText(incident)}
-                      {incident.delayMinutes ? ` · +${incident.delayMinutes} min` : ""}
-                    </p>
-                    {mainlineClearNote(incident, item.data.delayMinutes) && (
-                      <p className="mt-1">{mainlineClearNote(incident, item.data.delayMinutes)}</p>
-                    )}
-                    <p className="mt-1 font-medium">{incidentImpactText(incident)}</p>
-                  </div>
-                )}
+                {data && <Incident direction={label} data={data} />}
               </div>
             );
           })}

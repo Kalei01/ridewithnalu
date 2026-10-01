@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { incidentAffectsTrip, incidentImpactText, incidentText, isFreewayMainline, localRoadName, mainlineClearNote, trafficDelayText } from "./traffic-incidents";
+import {
+  incidentAffectsTrip,
+  incidentImpactText,
+  incidentText,
+  isFreewayMainline,
+  localRoadName,
+  mainlineClearNote,
+  trafficDelayText,
+  standaloneIncidentCause,
+  standaloneIncidentCondition,
+  standaloneIncidentImpact,
+  standaloneIncidentLocation,
+} from "./traffic-incidents";
 
 describe("localRoadName", () => {
   it.each([
@@ -145,5 +157,51 @@ describe("local road names across feed formats", () => {
   it("leaves ordinary street names alone", () => {
     expect(localRoadName("Kualakaʻi Pkwy")).toBe("Kualakaʻi Pkwy");
     expect(localRoadName("Kamehameha Highway")).toBe("Kamehameha Hwy");
+  });
+});
+
+
+describe("standalone traffic alerts", () => {
+  it("uses the structured condition instead of generic traffic wording", () => {
+    expect(standaloneIncidentCondition({
+      description: "Closed",
+      road: "Nimitz Hwy",
+      category: "8",
+      delayMinutes: 0,
+    })).toBe("Road closure");
+  });
+
+  it("does not invent a closure cause", () => {
+    expect(standaloneIncidentCause({
+      description: "Closed",
+      road: "Nimitz Hwy",
+      delayMinutes: 0,
+    })).toBe("Cause not reported");
+  });
+
+  it("shows the provider-reported cause when one exists", () => {
+    expect(standaloneIncidentCause({
+      description: "Accident",
+      road: "Nimitz Hwy",
+      delayMinutes: 0,
+    })).toBe("Accident");
+  });
+
+  it("uses the affected stretch without implying a selected trip", () => {
+    expect(standaloneIncidentLocation({
+      description: "Closed",
+      road: "Nimitz Hwy",
+      from: "Puʻuhale Road",
+      to: "Libby Street",
+      delayMinutes: 0,
+    })).toBe("Puʻuhale Road → Libby Street");
+  });
+
+  it("does not say 'your drive time' in a general road alert", () => {
+    expect(standaloneIncidentImpact({
+      description: "Closed",
+      road: "Nimitz Hwy",
+      delayMinutes: 0,
+    }, 0)).toBe("No slowdown is showing on the H-1 mainline yet. Possible backups on the connecting road.");
   });
 });
