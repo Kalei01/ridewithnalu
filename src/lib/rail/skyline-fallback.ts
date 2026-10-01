@@ -32,7 +32,10 @@ function normalized(value: string | null | undefined) {
 
 /** Returns the observed minute-of-hour phase for UH-West, when known. */
 export function skylineFallbackPhaseMinute(stopName: string | null | undefined): number | null {
-  return UH_WEST_NAMES.has(normalized(stopName)) ? 2 : null;
+  const value = normalized(stopName);
+  return UH_WEST_NAMES.has(value) || value.includes("uh-west o'ahu") || value.startsWith("keone'ae")
+    ? 2
+    : null;
 }
 
 /**
