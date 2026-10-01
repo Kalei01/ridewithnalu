@@ -163,6 +163,10 @@ function distancePointToPolylineMeters(point: Pt, polyline: Pt[]): number {
   return best;
 }
 
+function incidentRequiresDetour(incident: RouteTrafficIncident): boolean {
+  return incident.type === "Road closure" || incident.type === "Lane closure";
+}
+
 function incidentMateriallyAffectsRoute(incident: RouteTrafficIncident): boolean {
   if (incident.type === "Road closure" || incident.type === "Lane closure") return true;
   if (incident.type === "Stalled vehicle" || incident.type === "Accident" || incident.type === "Road works") {
@@ -522,7 +526,7 @@ export async function runAskNalu(
       "Use familiar local Oʻahu road names with route designations when available, such as Moanalua Freeway (HI-78) or Kamehameha Highway (HI-99). Give leave-by times in Honolulu local time like 6:45 AM. Keep steps short. " +
       "Consumer output must never mention internal tools, database lookups, coordinate selection, debug reasoning, or implementation details. " +
       "For Skyline, distinguish service-ended from no matching trip: if serviceStatus is service-ended, say Skyline service has ended for now; if service is active but no trip is returned, say no matching trip was found for that direction/time. Never claim a route is unavailable solely because a tool returned no trips without explaining which case applies. " +
-      "Do not say 'no reported traffic delay', 'traffic is clear', or similar unless the data explicitly establishes that. No incident reported does not mean no congestion. If a route-relevant closure or lane closure is returned, do not also lead with '0 minutes of traffic delay' because that is confusing; lead with the closure and explain the ETA separately. Use the live drive ETA and delayMinutes when discussing traffic. If driveTime returns relevant traffic incidents, treat them as live route-specific evidence: mention the specific cause when it materially affects the trip, especially a stalled vehicle, crash, closure, lane closure, road works, or major delay. Do not mention incidents that are not relevant to the selected route. Do not invent an incident cause from delayMinutes alone. " +
+      "Do not say 'no reported traffic delay', 'traffic is clear', or similar unless the data explicitly establishes that. No incident reported does not mean no congestion. If a route-relevant closure or lane closure is returned, do not also lead with '0 minutes of traffic delay' because that is confusing. Treat the TomTom drive ETA as the ETA for the route it actually returned: do not add invented detour minutes. If the incident is a closure/lane closure, say the current route is being affected and tell the rider to follow live rerouting; only say the closure may add time if the route ETA does not already account for it. Use the live drive ETA and delayMinutes when discussing traffic. If driveTime returns relevant traffic incidents, treat them as live route-specific evidence: mention the specific cause when it materially affects the trip, especially a stalled vehicle, crash, closure, lane closure, road works, or major delay. Do not mention incidents that are not relevant to the selected route. Do not invent an incident cause from delayMinutes alone. " +
       "If the destination is a business, mall, venue, or similar place and the requested arrival is late, add a concise reminder to confirm it is open. Do not invent hours. " +
       "Do not ask follow-up questions just because the request is broad. Make reasonable, transparent assumptions using the rider’s origin, current Honolulu time, and common Oʻahu destinations. " +
       "Treat the rider’s entire message as the source of truth for intent. If multiple places or stops are named, resolve every relevant place with findPlace and preserve the order the rider described; do not reduce the request to one destination. " +
