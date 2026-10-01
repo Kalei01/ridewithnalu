@@ -289,6 +289,16 @@ export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, 
   return { originStation: fromStop, destStation: dest.name, trips: rows.slice(0, 2) };
 }
 
+function skylineServiceStatus(afterSeconds: number): "service-active" | "service-ended" {
+  // Current published Skyline Segment 2 span: 4:00 AM–10:30 PM daily.
+  // Keep this deterministic and separate from trip availability so the UI can
+  // distinguish "service has ended" from "no matching trip was found."
+  const daySeconds = ((afterSeconds % 86400) + 86400) % 86400;
+  return daySeconds >= 4 * 3600 && daySeconds < 22 * 3600 + 30 * 60
+    ? "service-active"
+    : "service-ended";
+}
+
 export async function bestRailBetween(fromPoint: Pt, toPoint: Pt, afterSeconds: number) {
   const nearestOrigin = await nearestStation(fromPoint);
   const dest = await nearestStation(toPoint);
@@ -309,10 +319,15 @@ export async function bestRailBetween(fromPoint: Pt, toPoint: Pt, afterSeconds: 
 
   for (const candidate of candidates) {
     const plan = await railBetween(candidate.stopId, fromPoint, toPoint, afterSeconds);
-    if (plan?.trips?.length) return plan;
+    if (plan?.trips?.length) return { ...plan, serviceStatus: skylineServiceStatus(afterSeconds) };
   }
 
-  return { originStation: nearestOrigin.name, destStation: dest.name, trips: [] };
+  return {
+    originStation: nearestOrigin.name,
+    destStation: dest.name,
+    trips: [],
+    serviceStatus: skylineServiceStatus(afterSeconds),
+  };
 }
 
 export function honoluluSeconds(date = new Date()) {
@@ -360,6 +375,9 @@ export async function runAskNalu(
       "Use the tools for every place, drive time and Skyline lookup; never guess times or coordinates. " +
       "The provided 'origin' is only the rider's current/device starting point. If the rider explicitly names a different starting place in their request (for example, 'Pearlridge to Ala Moana'), the named place overrides the device origin for that trip. Resolve that explicit origin with findPlace and use its coordinates for both driving and Skyline. Never silently substitute the device origin for a place the rider explicitly named. Compare driving with Skyline access when relevant. Never assume the geographically nearest station is the correct rail access point: the access station must be on the correct direction of travel toward the destination. The skylineTrip tool performs this directional station selection using the trip's actual origin coordinates. " +
       "Use local Oʻahu road names. Give leave-by times in Honolulu local time like 6:45 AM. Keep steps short. " +
+      "Consumer output must never mention internal tools, database lookups, coordinate selection, debug reasoning, or implementation details. " +
+      "For Skyline, distinguish service-ended from no matching trip: if serviceStatus is service-ended, say Skyline service has ended for now; if service is active but no trip is returned, say no matching trip was found for that direction/time. Never claim a route is unavailable solely because a tool returned no trips without explaining which case applies. " +
+      "Do not say 'no reported traffic delay', 'traffic is clear', or similar unless the data explicitly establishes that. No incident reported does not mean no congestion. Use the live drive ETA and delayMinutes when discussing traffic. " +
       "Do not ask follow-up questions just because the request is broad. Make reasonable, transparent assumptions using the rider’s origin, current Honolulu time, and common Oʻahu destinations. " +
       "Treat the rider’s entire message as the source of truth for intent. If multiple places or stops are named, resolve every relevant place with findPlace and preserve the order the rider described; do not reduce the request to one destination. " +
       "Never require autocomplete, a selected place, or exact address syntax—the rider may type naturally. Resolve familiar Oʻahu landmarks, malls, workplaces, neighborhoods, stations, and street addresses with findPlace. " +
