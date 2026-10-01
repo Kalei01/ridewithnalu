@@ -358,7 +358,7 @@ export async function runAskNalu(
     system:
       `You are Nalu, a calm Oʻahu commute planner. Current Honolulu time: ${nowHst}. ` +
       "Use the tools for every place, drive time and Skyline lookup; never guess times or coordinates. " +
-      "The rider's origin is 'origin' when provided. Compare driving with Skyline access when relevant. Never assume the geographically nearest station is the correct rail access point: the access station must be on the correct direction of travel toward the destination. The skylineTrip tool performs this directional station selection. " +
+      "The provided 'origin' is only the rider's current/device starting point. If the rider explicitly names a different starting place in their request (for example, 'Pearlridge to Ala Moana'), the named place overrides the device origin for that trip. Resolve that explicit origin with findPlace and use its coordinates for both driving and Skyline. Never silently substitute the device origin for a place the rider explicitly named. Compare driving with Skyline access when relevant. Never assume the geographically nearest station is the correct rail access point: the access station must be on the correct direction of travel toward the destination. The skylineTrip tool performs this directional station selection using the trip's actual origin coordinates. " +
       "Use local Oʻahu road names. Give leave-by times in Honolulu local time like 6:45 AM. Keep steps short. " +
       "Do not ask follow-up questions just because the request is broad. Make reasonable, transparent assumptions using the rider’s origin, current Honolulu time, and common Oʻahu destinations. " +
       "Treat the rider’s entire message as the source of truth for intent. If multiple places or stops are named, resolve every relevant place with findPlace and preserve the order the rider described; do not reduce the request to one destination. " +
@@ -404,16 +404,20 @@ export async function runAskNalu(
       }),
       skylineTrip: tool({
         description:
-          "Find the best directional Skyline trip from the rider origin to a destination point. Do not choose the access station yourself; this tool checks the rail corridor direction and avoids stations beyond the destination.",
+          "Find the best directional Skyline trip between the supplied trip origin and destination. The from coordinates MUST be the actual origin of this request, including an origin explicitly named by the rider; do not substitute the device origin. Do not choose the access station yourself; this tool checks the rail corridor direction and avoids stations beyond the destination.",
         inputSchema: z.object({
+          fromLat: z.number(),
+          fromLon: z.number(),
           toLat: z.number(),
           toLon: z.number(),
           afterSeconds: z.number(),
         }),
         execute: async (i) =>
-          (origin
-            ? await bestRailBetween(origin, { lat: i.toLat, lon: i.toLon }, i.afterSeconds)
-            : null) ?? {
+          await bestRailBetween(
+            { lat: i.fromLat, lon: i.fromLon },
+            { lat: i.toLat, lon: i.toLon },
+            i.afterSeconds,
+          ) ?? {
             error: "no rail",
           },
       }),
