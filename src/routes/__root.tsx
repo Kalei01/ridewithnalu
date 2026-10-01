@@ -119,9 +119,8 @@ function AppRouteGate() {
       return;
     }
 
-    if (pathname === "/welcome" && user) {
-      void router.navigate({ to: "/", replace: true });
-    }
+    // /welcome remains reachable for signed-in users. The root URL is still the
+    // automatic entry point: signed-in users land in Browse, guests land in Welcome.
   }, [loading, pathname, router, user]);
 
   useEffect(() => {
@@ -134,9 +133,9 @@ function AppRouteGate() {
   }, [pathname]);
 
   const routingToWelcome = pathname === "/" && !user;
-  const routingToBrowse = pathname === "/welcome" && Boolean(user);
+  const routingToBrowse = false;
 
-  if (loading || routingToWelcome || routingToBrowse) {
+  if (loading || routingToWelcome) {
     return (
       <main className="min-h-[100dvh] bg-background text-foreground" aria-label="Loading Nalu">
         <div className="mx-auto flex min-h-[100dvh] max-w-5xl items-center justify-center px-5">
