@@ -7052,6 +7052,12 @@ function AboutSection() {
         >
           Oʻahu commute guide
         </Link>
+        <Link
+          to="/welcome"
+          className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+        >
+          View Welcome page
+        </Link>
       </div>
       <div className="mt-6 h-px bg-border/60" />
 
