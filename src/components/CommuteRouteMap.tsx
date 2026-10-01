@@ -59,14 +59,14 @@ const BASEMAPS = {
 } as const;
 
 function journeyIcon(point: JourneyPoint) {
+  // Transit stops are deliberately tiny: the route line is the primary
+  // visual. The marker remains tappable/hoverable for the station tooltip.
   const glyph =
     point.kind === "start"
       ? "START"
       : point.kind === "end"
         ? "END"
-        : point.kind === "rail"
-          ? "▰"
-          : "●";
+        : "";
   const label =
     point.kind === "start"
       ? "Start"
@@ -79,8 +79,8 @@ function journeyIcon(point: JourneyPoint) {
   return L.divIcon({
     className: "nalu-marker-shell",
     html: `<span class="nalu-journey-marker nalu-journey-marker-${point.kind}" aria-label="${label}"><span class="nalu-journey-marker-label">${glyph}</span></span>`,
-    iconSize: endpoint ? [58, 34] : [30, 30],
-    iconAnchor: endpoint ? [29, 17] : [15, 15],
+    iconSize: endpoint ? [58, 34] : [10, 10],
+    iconAnchor: endpoint ? [29, 17] : [5, 5],
   });
 }
 
