@@ -4498,6 +4498,7 @@ function Index() {
         <NaluPageNav current="commute" onBrowse={() => setPageView("browse")} onTrip={() => setPageView("commute")} />
 
         {showApproach && approach && (
+          <ApproachBanner
             state={approach.state}
             stopsAway={approach.stopsAway}
             minutesToAlight={approach.minutesToAlight}
