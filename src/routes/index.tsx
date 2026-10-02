@@ -5622,6 +5622,9 @@ function Index() {
               {driveAvailable && driveRange && drive && (
                 <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
               )}
+              {drive?.hdotLaneClosures?.length > 0 && (
+                <HdotRoadworkNotice closures={drive.hdotLaneClosures} />
+              )}
               {!driveAvailable && carAwayReason && (
                 <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>
               )}
