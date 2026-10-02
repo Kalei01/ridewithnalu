@@ -7,7 +7,7 @@ export type FreshnessPolicy = {
   class: FreshnessClass;
 };
 
-export const FRESHNESS_POLICIES: Record<string, FreshnessPolicy> = {
+export type FreshnessPolicies = {\n  driveEta: FreshnessPolicy;\n  transitSchedule: FreshnessPolicy;\n  incident: FreshnessPolicy;\n  weather: FreshnessPolicy;\n};\n\nexport const FRESHNESS_POLICIES: FreshnessPolicies = {
   driveEta: { staleAfterMs: 5 * 60_000, class: "realtime" },
   transitSchedule: { staleAfterMs: 10 * 60_000, class: "scheduled" },
   incident: { staleAfterMs: 10 * 60_000, class: "context" },
