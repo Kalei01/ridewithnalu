@@ -390,7 +390,7 @@ function changedMinutes(now: number | null, previous: number | null) {
 function parseCommitment(raw: string | null): Commitment | null {
   if (!raw) return null;
   try {
-    const value = JSON.parse(raw) as Partial<Commitment>;
+    const value = JSON.parse(raw) as Partial<Commitment> & { mode?: "rail" | "transit" | "drive" };
     if (value.mode !== "rail" && value.mode !== "transit" && value.mode !== "drive") return null;
     return { mode: value.mode === "transit" ? "transit" : value.mode, at: typeof value.at === "number" ? value.at : Date.now() };
   } catch {
@@ -7821,7 +7821,7 @@ function NavBottomCard({
 }) {
   const [open, setOpen] = useState(false);
   const traffic =
-    mode === "rail"
+    mode === "transit"
       ? "Transit live"
       : delayMinutes === null
         ? "Checking traffic"
