@@ -2,6 +2,8 @@ import type { DestinationAccess } from "../destination-access";
 import { FRESHNESS_POLICIES } from "../intelligence/freshness-policy";
 
 export type EstimateMode = "drive" | "rail";
+/** Actual public-transit family represented by the itinerary. Kept separate from the legacy drive-vs-rail decision mode while Phase 3 is rolled out. */
+export type TransitMode = "walk" | "bus" | "rail" | "mixed";
 export type Availability = "available" | "service-unavailable" | "car-unavailable" | "data-error";
 export type DataBasis = "live" | "scheduled" | "future-estimate";
 export type DataQuality = "good" | "limited" | "stale" | "unavailable";
@@ -17,6 +19,8 @@ export type EstimateSource = {
 /** Drive duration is the canonical road ETA; parking/walking access is tracked separately. */
 export type TripEstimate = {
   mode: EstimateMode;
+  /** Actual public-transit family represented by the itinerary. */
+  transitMode?: TransitMode;
   /** Human-facing transit family label, e.g. Bus or Rail + Bus. */
   transitLabel?: string;
   availability: Availability;
@@ -212,6 +216,12 @@ export function transitEstimate(input: {
   const latest = option.arrive_seconds + lateAllowance * 60;
   return {
     mode: "rail",
+    transitMode:
+      transitModes.length === 0
+        ? "walk"
+        : transitModes.includes("bus") && transitModes.includes("rail")
+          ? "mixed"
+          : transitModes[0],
     transitLabel,
     availability: "available",
     leaveTime: option.leave_by_seconds,
