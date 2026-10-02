@@ -38,6 +38,8 @@ export type TripEstimate = {
   walkingMinutes: number;
   trafficDelayMinutes: number | null;
   majorIncident: boolean;
+  /** Drive may be a reference route while ineligible as a user action. */
+  eligible?: boolean | undefined;
   source: EstimateSource;
 };
 

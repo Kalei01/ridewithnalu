@@ -26,7 +26,7 @@ export type DecisionModeEstimate = {
   busWaitMinutes: number;
   transferMinutes: number;
   /** Drive may be present as a reference route while ineligible as a user action. */
-  eligible?: boolean;
+  eligible?: boolean | undefined;
 };
 
 export type DriveTransitDecision = {

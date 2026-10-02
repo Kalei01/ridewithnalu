@@ -1,6 +1,4 @@
--- Phase 1 transit hardening: broaden direct bus rescue and correct walk-leg minutes.\n\n-- General transit fallback: when a rail-inclusive itinerary cannot be found,
--- return a direct bus itinerary from the actual trip origin to a stop near the
--- actual destination. Transit is a family of modes; rail is not a prerequisite.
+-- Phase 1 transit hardening: broaden direct bus rescue and correct walk-leg minutes.
 CREATE OR REPLACE FUNCTION public.plan_bus_direct(
   p_origin_lat numeric,
   p_origin_lon numeric,

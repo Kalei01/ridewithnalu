@@ -2,48 +2,313 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    {"idx":0,"version":"7","when":1789814693863,"tag":"0000_create_gtfs_tables","breakpoints":true},
-    {"idx":1,"version":"7","when":1789815012280,"tag":"0001_next_departures_normalized_match","breakpoints":true},
-    {"idx":2,"version":"7","when":1789815509529,"tag":"0002_create_trip_updates_realtime_cache","breakpoints":true},
-    {"idx":3,"version":"7","when":1789815888257,"tag":"0003_departures_schedule_only","breakpoints":true},
-    {"idx":4,"version":"7","when":1789819776925,"tag":"0004_trip_chaining_functions","breakpoints":true},
-    {"idx":5,"version":"7","when":1789820052780,"tag":"0005_speed_up_plan_rail_chains","breakpoints":true},
-    {"idx":6,"version":"7","when":1789820090956,"tag":"0006_plan_rail_chains_materialized_ctes","breakpoints":true},
-    {"idx":7,"version":"7","when":1789820737779,"tag":"0007_four_leg_trip_planner","breakpoints":true},
-    {"idx":8,"version":"7","when":1789820787904,"tag":"0008_access_legs_route_prefilter","breakpoints":true},
-    {"idx":9,"version":"7","when":1789820841945,"tag":"0009_plan_inbound_single_egress_pass","breakpoints":true},
-    {"idx":10,"version":"7","when":1789821041573,"tag":"0010_egress_home_labels","breakpoints":true},
-    {"idx":11,"version":"7","when":1789821231650,"tag":"0011_us_customary_walk_and_radii","breakpoints":true},
-    {"idx":12,"version":"7","when":1789822788733,"tag":"0012_rail_departures_per_direction","breakpoints":true},
-    {"idx":13,"version":"7","when":1789824934704,"tag":"0013_wider_transfer_radius_with_walk","breakpoints":true},
-    {"idx":14,"version":"7","when":1789824972790,"tag":"0014_restore_plan_rail_chains_wider_radius","breakpoints":true},
-    {"idx":15,"version":"7","when":1789846927617,"tag":"0015_connecting_departures_from_position","breakpoints":true},
-    {"idx":16,"version":"7","when":1789848787144,"tag":"0016_plan_outbound_multi_dest_stops","breakpoints":true},
-    {"idx":17,"version":"7","when":1789848945087,"tag":"0017_plan_outbound_multi_dest_fast","breakpoints":true},
-    {"idx":18,"version":"7","when":1789849489597,"tag":"0018_plan_by_earliest_arrival","breakpoints":true},
-    {"idx":19,"version":"7","when":1789849677963,"tag":"0019_plan_outbound_faster_links","breakpoints":true},
-    {"idx":20,"version":"7","when":1789849748006,"tag":"0020_plan_outbound_pattern_coverage","breakpoints":true},
-    {"idx":21,"version":"7","when":1789849817062,"tag":"0021_raise_anon_statement_timeout","breakpoints":true},
-    {"idx":22,"version":"7","when":1789850186250,"tag":"0022_rail_departures_exclude_terminus","breakpoints":true},
-    {"idx":23,"version":"7","when":1789850932585,"tag":"0023_rail_departures_group_by_direction","breakpoints":true},
-    {"idx":24,"version":"7","when":1789852656409,"tag":"0024_rail_departures_add_data_derived_ride_context","breakpoints":true},
-    {"idx":25,"version":"7","when":1789855731690,"tag":"0025_gtfs_staging_swap_job_tracking","breakpoints":true},
-    {"idx":26,"version":"7","when":1789857344870,"tag":"0026_swap_gtfs_staging_truncate_live","breakpoints":true},
-    {"idx":27,"version":"7","when":1789857394842,"tag":"0027_swap_gtfs_staging_statement_timeout","breakpoints":true},
-    {"idx":28,"version":"7","when":1789861451522,"tag":"0028_plan_inbound_walk_and_rail_share_penalty","breakpoints":true},
-    {"idx":29,"version":"7","when":1789864023057,"tag":"0029_leg_stop_sequence","breakpoints":true},
-    {"idx":30,"version":"7","when":1789870977593,"tag":"0030_nearby_transit_stops","breakpoints":true},
-    {"idx":31,"version":"7","when":1790048886143,"tag":"0031_add_user_profiles_and_preferences","breakpoints":true},
-    {"idx":32,"version":"7","when":1790105486925,"tag":"0032_carry_gtfs_stop_ids_in_itineraries","breakpoints":true},
-    {"idx":33,"version":"7","when":1790106055070,"tag":"0033_widen_leg_stop_sequence_tolerance","breakpoints":true},
-    {"idx":34,"version":"7","when":1790114068576,"tag":"0034_rail_line_stations_order","breakpoints":true},
-    {"idx":35,"version":"7","when":1790298444167,"tag":"0035_push_subscriptions","breakpoints":true},
-    {"idx":36,"version":"7","when":1790308002638,"tag":"0036_feeder_bus_and_park_ride","breakpoints":true},
-    {"idx":37,"version":"7","when":1790470949490,"tag":"0037_debug_logs_and_cleanup","breakpoints":true},
-    {"idx":38,"version":"7","when":1790555253963,"tag":"0038_cascade_account_owned_data","breakpoints":true},
-    {"idx":39,"version":"7","when":1790907204551,"tag":"0040_inbound_multimodal_egress_recovery","breakpoints":true},
-    {"idx":40,"version":"7","when":1790908171745,"tag":"0041_general_transit_bus_fallback","breakpoints":true},
-    {"idx":41,"version":"7","when":1790913008313,"tag":"0043_general_transit_planner_apply","breakpoints":true},
-    {"idx":42,"version":"7","when":1790915000000,"tag":"0044_resilient_active_service_ids","breakpoints":true}
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789814693863,
+      "tag": "0000_create_gtfs_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789815012280,
+      "tag": "0001_next_departures_normalized_match",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789815509529,
+      "tag": "0002_create_trip_updates_realtime_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789815888257,
+      "tag": "0003_departures_schedule_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789819776925,
+      "tag": "0004_trip_chaining_functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789820052780,
+      "tag": "0005_speed_up_plan_rail_chains",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789820090956,
+      "tag": "0006_plan_rail_chains_materialized_ctes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789820737779,
+      "tag": "0007_four_leg_trip_planner",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789820787904,
+      "tag": "0008_access_legs_route_prefilter",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789820841945,
+      "tag": "0009_plan_inbound_single_egress_pass",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789821041573,
+      "tag": "0010_egress_home_labels",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789821231650,
+      "tag": "0011_us_customary_walk_and_radii",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789822788733,
+      "tag": "0012_rail_departures_per_direction",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789824934704,
+      "tag": "0013_wider_transfer_radius_with_walk",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789824972790,
+      "tag": "0014_restore_plan_rail_chains_wider_radius",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1789846927617,
+      "tag": "0015_connecting_departures_from_position",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789848787144,
+      "tag": "0016_plan_outbound_multi_dest_stops",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789848945087,
+      "tag": "0017_plan_outbound_multi_dest_fast",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789849489597,
+      "tag": "0018_plan_by_earliest_arrival",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789849677963,
+      "tag": "0019_plan_outbound_faster_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789849748006,
+      "tag": "0020_plan_outbound_pattern_coverage",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789849817062,
+      "tag": "0021_raise_anon_statement_timeout",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1789850186250,
+      "tag": "0022_rail_departures_exclude_terminus",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789850932585,
+      "tag": "0023_rail_departures_group_by_direction",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789852656409,
+      "tag": "0024_rail_departures_add_data_derived_ride_context",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789855731690,
+      "tag": "0025_gtfs_staging_swap_job_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789857344870,
+      "tag": "0026_swap_gtfs_staging_truncate_live",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1789857394842,
+      "tag": "0027_swap_gtfs_staging_statement_timeout",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1789861451522,
+      "tag": "0028_plan_inbound_walk_and_rail_share_penalty",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789864023057,
+      "tag": "0029_leg_stop_sequence",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1789870977593,
+      "tag": "0030_nearby_transit_stops",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790048886143,
+      "tag": "0031_add_user_profiles_and_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790105486925,
+      "tag": "0032_carry_gtfs_stop_ids_in_itineraries",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790106055070,
+      "tag": "0033_widen_leg_stop_sequence_tolerance",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790114068576,
+      "tag": "0034_rail_line_stations_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790298444167,
+      "tag": "0035_push_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790308002638,
+      "tag": "0036_feeder_bus_and_park_ride",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790470949490,
+      "tag": "0037_debug_logs_and_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790555253963,
+      "tag": "0038_cascade_account_owned_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790907204551,
+      "tag": "0040_inbound_multimodal_egress_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790908171745,
+      "tag": "0041_general_transit_bus_fallback",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790913008313,
+      "tag": "0043_general_transit_planner_apply",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790915000000,
+      "tag": "0044_resilient_active_service_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790932300989,
+      "tag": "0043_apply_plan_bus_direct",
+      "breakpoints": true
+    }
   ]
 }

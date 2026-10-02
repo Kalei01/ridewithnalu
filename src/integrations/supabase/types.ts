@@ -774,37 +774,6 @@ export type Database = {
           total_minutes: number
         }[]
       }
-      plan_transit_general: {
-        Args: {
-          p_after_seconds?: number
-          p_dest_lat: number
-          p_dest_lon: number
-          p_dest_radius_m?: number
-          p_limit?: number
-          p_origin_lat: number
-          p_origin_lon: number
-          p_origin_radius_m?: number
-          p_transfer_radius_m?: number
-        }
-        Returns: {
-          arrive_seconds: number
-          depart_seconds: number
-          leave_by_seconds: number
-          legs: Json
-          rail_trip_id: string
-          total_minutes: number
-        }[]
-      }
-      diagnose_transit_general: {
-        Args: {
-          p_after_seconds?: number
-          p_dest_lat: number
-          p_dest_lon: number
-          p_origin_lat: number
-          p_origin_lon: number
-        }
-        Returns: string
-      }
       plan_inbound: {
         Args: {
           p_after_seconds?: number
@@ -884,6 +853,27 @@ export type Database = {
           total_minutes: number
           transfer_stop_id: string
           transfer_stop_name: string
+        }[]
+      }
+      plan_transit_general: {
+        Args: {
+          p_after_seconds?: number
+          p_dest_lat: number
+          p_dest_lon: number
+          p_dest_radius_m?: number
+          p_limit?: number
+          p_origin_lat: number
+          p_origin_lon: number
+          p_origin_radius_m?: number
+          p_transfer_radius_m?: number
+        }
+        Returns: {
+          arrive_seconds: number
+          depart_seconds: number
+          leave_by_seconds: number
+          legs: Json
+          rail_trip_id: string
+          total_minutes: number
         }[]
       }
       prune_import_log: { Args: never; Returns: undefined }

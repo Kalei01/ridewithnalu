@@ -1,4 +1,4 @@
-export type TripMode = "drive" | "rail" | "bus" | "walk";
+export type TripMode = "drive" | "transit" | "rail" | "bus" | "walk";
 
 export type TripPoint = { latitude: number; longitude: number; label?: string };
 export type TripTimeConstraint =
