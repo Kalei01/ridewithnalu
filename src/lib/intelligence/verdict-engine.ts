@@ -102,7 +102,7 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
       decision.state === "drive"
         ? "drive"
         : decision.state === "transit"
-          ? "rail"
+          ? "transit"
           : null,
     alternatives,
     departureTime: selectedRoute?.departureTime == null
