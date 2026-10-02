@@ -121,6 +121,12 @@ export function EveningPulse({
       }),
   });
   if (!inWindow || !home || !work) return null;
+  const pulseText = data?.ok
+    ? data.value.text.replace(
+        "Roads look normal right now.",
+        "No material delay is showing on your calculated route right now.",
+      )
+    : null;
   return (
     <section aria-label="Evening Pulse" className="glass-panel mt-3 rounded-lg p-4">
       <div className="flex items-center gap-2">
@@ -139,7 +145,7 @@ export function EveningPulse({
         )}
       </div>
       <p className="mt-2 text-sm leading-relaxed text-foreground">
-        {isLoading ? "Checking your trip home…" : data?.ok ? data.value.text : data?.error}
+        {isLoading ? "Checking your trip home…" : data?.ok ? pulseText : data?.error}
       </p>
     </section>
   );
