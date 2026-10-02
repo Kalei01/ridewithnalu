@@ -105,7 +105,9 @@ import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } fro
 import { carAvailableForDrive } from "@/lib/car-state";
 import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-direction";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
-import { decideArrival, decideTrip, type DecisionState } from "@/lib/decision/commute-decision";
+import { decideArrival, type DecisionState } from "@/lib/decision/commute-decision";
+import { createNaluVerdict } from "@/lib/intelligence/verdict-engine";
+import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
 import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
@@ -3023,17 +3025,125 @@ function Index() {
       : null;
   const previousDecisionSnapshot = decisionHistoryRef.current?.key === decisionKey
     ? decisionHistoryRef.current.snapshot : null;
-  const decision = decideTrip(driveTripEstimate, railTripEstimate, previousVerdict,
-    { tossUpMinutes: TOSS_UP_MIN });
-  const activeDecision = arriveByActive && arriveByComparison ? arriveByComparison : decision;
+  const centralTrip = useMemo(() => {
+    if (
+      setup.homeLat === null || setup.homeLon === null ||
+      setup.destLat === null || setup.destLon === null
+    ) return null;
+
+    const origin = { latitude: setup.homeLat, longitude: setup.homeLon };
+    const destination = { latitude: setup.destLat, longitude: setup.destLon };
+    const constraint = arriveByTarget !== null
+      ? { type: "arrive-by" as const, timestamp: arriveByTarget }
+      : { type: "now" as const };
+
+    return createCanonicalTrip({
+      origin,
+      destination,
+      constraint,
+      requestedAt: nowSeconds,
+      selectedRouteId: null,
+      routes: [driveTripEstimate, railTripEstimate].map((estimate) => ({
+        id: `${estimate.mode}-route`,
+        mode: estimate.mode,
+        segments: [{
+          id: `${estimate.mode}-estimate`,
+          mode: estimate.mode,
+          origin,
+          destination,
+          departureTime: estimate.leaveTime,
+          arrivalTime: estimate.arrivalTime,
+          durationMinutes: estimate.expectedDurationMinutes,
+          distanceMeters: null,
+          routeGeometry: [],
+          source: estimate.source.name,
+          observedAt: estimate.source.fetchedAt === null ? null : estimate.source.fetchedAt / 1000,
+          quality:
+            estimate.source.quality === "good" ? "current" :
+            estimate.source.quality === "limited" ? "limited" :
+            estimate.source.quality === "stale" ? "stale" : "unavailable",
+          notes: [],
+        }],
+        departureTime: estimate.leaveTime,
+        arrivalTime: estimate.arrivalTime,
+        durationMinutes: estimate.expectedDurationMinutes,
+        transferCount: estimate.transferMinutes > 0 ? 1 : 0,
+        walkingMinutes: estimate.walkingMinutes,
+        source: estimate.source.name,
+      })),
+    });
+  }, [
+    setup.homeLat, setup.homeLon, setup.destLat, setup.destLon,
+    arriveByTarget, nowSeconds, driveTripEstimate, railTripEstimate,
+  ]);
+
+  const centralVerdict = useMemo(
+    () => centralTrip === null ? null : createNaluVerdict({
+      trip: centralTrip,
+      estimates: [driveTripEstimate, railTripEstimate].map((estimate) => ({
+        mode: estimate.mode,
+        availability: estimate.availability,
+        quality: estimate.source.quality === "good" ? "good" : estimate.source.quality,
+        expectedMinutes: estimate.expectedDurationMinutes,
+        leaveTime: estimate.leaveTime,
+        arrivalTime: estimate.arrivalTime,
+        earliestArrival: estimate.earliestArrival,
+        latestArrival: estimate.latestArrival,
+        uncertaintyMinutes: estimate.uncertaintyMinutes,
+        trafficDelayMinutes: estimate.trafficDelayMinutes,
+        majorIncident: estimate.majorIncident,
+        railWaitMinutes: estimate.railWaitMinutes,
+        busWaitMinutes: estimate.busWaitMinutes,
+        transferMinutes: estimate.transferMinutes,
+      })),
+      previousMode: previousVerdict,
+      tossUpMinutes: TOSS_UP_MIN,
+    }),
+    [centralTrip, driveTripEstimate, railTripEstimate, previousVerdict],
+  );
+
+  const activeDecision = arriveByActive && arriveByComparison
+    ? arriveByComparison
+    : centralVerdict
+      ? {
+          state: centralVerdict.decisionState as DecisionState,
+          confidence:
+            centralVerdict.confidence === "medium" ? "moderate" : centralVerdict.confidence ?? "low",
+          differenceMinutes:
+            driveTripEstimate.expectedDurationMinutes !== null &&
+            railTripEstimate.expectedDurationMinutes !== null
+              ? Math.abs(driveTripEstimate.expectedDurationMinutes - railTripEstimate.expectedDurationMinutes)
+              : null,
+          primary: {
+            kind: centralVerdict.reasons[0]?.evidence?.[0] as import("@/lib/intelligence/drive-transit-decision").EvidenceKind ?? "data_quality",
+            text: centralVerdict.reasons[0]?.text ?? "Nalu could not establish a clear advantage",
+          },
+          supporting: centralVerdict.reasons[1]
+            ? {
+                kind: centralVerdict.reasons[1].evidence?.[0] as import("@/lib/intelligence/drive-transit-decision").EvidenceKind ?? "data_quality",
+                text: centralVerdict.reasons[1].text,
+              }
+            : null,
+        }
+      : {
+          state: "uncertain" as DecisionState,
+          confidence: "low",
+          differenceMinutes: null,
+          primary: {
+            kind: "data_quality",
+            text: "Nalu is waiting for enough route information",
+          },
+          supporting: null,
+        };
+
   const verdict: DecisionState = commitment?.mode ??
     (!arriveByActive && railServiceClosed
-      ? activeDecision.state
+      ? activeDecision?.state ?? "uncertain"
       : optionsLoading || driveLoading
         ? "uncertain"
-        : activeDecision.state);
+        : activeDecision?.state ?? "uncertain");
   const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
-    ? decision.differenceMinutes : null;
+    ? activeDecision?.differenceMinutes ?? null : null;
   const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
   const currentDecisionSnapshot: DecisionSnapshot = {
     key: decisionKey,
@@ -3360,8 +3470,8 @@ function Index() {
       ];
       const endpointIndexes = leg.mode === "bus" && leg.kind !== "access" ? [1] : [0, 1];
       endpointIndexes.forEach((endpointIndex) => {
-        const [name, stopId] = endpoints[endpointIndex] ?? [];
-        const point = stopPoint(name, stopId);
+        const [name, stopId] = endpoints[endpointIndex] ?? [null, null];
+        const point = stopPoint(name, stopId ?? null);
         if (!name || !point) return;
         const last = points[points.length - 1];
         if (last && distanceM(last, point) < 20) return;
@@ -3378,7 +3488,13 @@ function Index() {
     return points;
   }, [best, homePoint, destPoint, reverseTrip, tripOriginLabel, tripArrivalLabel, itineraryStopCoords, stationCoords]);
 
-  const transitMapSegments = useMemo(() => {
+  type TransitMapSegment = {
+    id: string;
+    mode: "walk" | "drive" | "bus" | "rail";
+    points: Array<{ lat: number; lon: number }>;
+  };
+
+  const transitMapSegments = useMemo<TransitMapSegment[]>(() => {
     if (!best || !homePoint || !destPoint) return [];
     const origin = reverseTrip ? destPoint : homePoint;
     const destination = reverseTrip ? homePoint : destPoint;
@@ -3414,7 +3530,7 @@ function Index() {
       );
       return points.length > 1 ? points : null;
     };
-    return best.legs.flatMap((leg, legIndex) => {
+    return best.legs.flatMap<TransitMapSegment>((leg, legIndex): TransitMapSegment[] => {
       const sequence = sequenceByLeg.get(legIndex);
       if (sequence)
         return [
