@@ -3106,7 +3106,7 @@ function Index() {
     ? arriveByComparison
     : centralVerdict
       ? {
-          state: centralVerdict.decisionState,
+          state: centralVerdict.decisionState as DecisionState,
           confidence:
             centralVerdict.confidence === "medium" ? "moderate" : centralVerdict.confidence ?? "low",
           differenceMinutes:
