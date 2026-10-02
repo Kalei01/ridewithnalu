@@ -372,7 +372,7 @@ export function WeeklyDigestCard() {
       </p>
       <p className="mt-2 text-sm text-foreground">
         {digest.trips} trip{digest.trips === 1 ? "" : "s"} ({digest.driveTrips} drive,{" "}
-        {digest.railTrips} Skyline) · about {digest.averageMinutes} min each.
+        {digest.transitTrips} transit) · about {digest.averageMinutes} min each.
       </p>
       <p className="mt-1 text-sm text-primary">
         {digest.minutesSaved > 0
