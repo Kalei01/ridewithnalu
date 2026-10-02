@@ -81,7 +81,7 @@ describe("normalized trip estimates", () => {
 
     expect(rail(35, 0, [
       { mode: "rail", depart_seconds: at(6), arrive_seconds: at(6, 35), minutes: 35 },
-    ]).transitLabel).toBe("Skyline");
+    ]).transitLabel).toBe("Rail");
   });
 
   it("keeps walking and bus/rail transfer waits as evidence without double-counting", () => {
