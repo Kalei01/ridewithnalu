@@ -5,7 +5,7 @@ import { decideDriveVsTransit, type DecisionModeEstimate } from "./drive-transit
 export type VerdictEngineInput = {
   trip: CanonicalTrip;
   estimates: DecisionModeEstimate[];
-  previousMode?: "drive" | "rail" | null;
+  previousMode?: "drive" | "transit" | null;
   now?: number;
   tossUpMinutes?: number;
   switchMarginMinutes?: number;
@@ -25,7 +25,7 @@ function toFreshness(trip: CanonicalTrip): EvidenceFreshness[] {
 /**
  * Central Nalu verdict: turns normalized route evidence into the provider-neutral
  * decision contract. UI surfaces should consume this result instead of recreating
- * drive-vs-rail reasoning independently.
+ * Drive-vs-transit reasoning independently.
  */
 export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
   const drive = input.estimates.find((item) => item.mode === "drive");
