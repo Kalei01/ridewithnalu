@@ -1,4 +1,4 @@
-export type EvidenceMode = "drive" | "rail" | "bus" | "weather" | "incident";
+export type EvidenceMode = "drive" | "transit" | "rail" | "bus" | "weather" | "incident";
 export type EvidenceQuality = "current" | "limited" | "stale" | "unavailable";
 export type EvidenceImpact = "positive" | "neutral" | "negative" | "unknown";
 
