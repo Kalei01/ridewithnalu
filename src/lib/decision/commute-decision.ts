@@ -80,6 +80,7 @@ function toDecisionEstimate(item: TripEstimate): DecisionModeEstimate {
     railWaitMinutes: item.railWaitMinutes,
     busWaitMinutes: item.busWaitMinutes,
     transferMinutes: item.transferMinutes,
+    eligible: item.eligible,
   };
 }
 
