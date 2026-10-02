@@ -68,7 +68,7 @@ export function createMorningPulseVerdict(input: MorningPulseVerdictInput): Morn
   };
 
   const rail: DecisionModeEstimate = {
-    mode: "rail",
+    mode: "transit",
     availability: input.rail ? "available" : "service-unavailable",
           quality: input.rail ? "good" : "unavailable",
     expectedMinutes:
