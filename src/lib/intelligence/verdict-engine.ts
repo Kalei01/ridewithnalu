@@ -34,6 +34,7 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
 
   if (!drive || !rail) {
     return {
+      decisionState: "none",
       selectedMode: null,
       alternatives: input.trip.routes.map((route) => route.mode),
       reasons: [{
@@ -94,6 +95,7 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
   }
 
   return {
+    decisionState: decision.state,
     selectedMode:
       decision.state === "drive" || decision.state === "rail"
         ? decision.state
