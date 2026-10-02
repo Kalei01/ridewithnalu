@@ -110,3 +110,4 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
     confidence: decision.confidence === "moderate" ? "medium" : decision.confidence,
   };
 }
+
