@@ -3030,7 +3030,7 @@ function Index() {
   const previousVerdict =
     decisionHistoryRef.current?.key === decisionKey &&
     decisionHistoryRef.current.state !== "same"
-      ? decisionHistoryRef.current.state
+      ? (decisionHistoryRef.current.state === "rail" ? "transit" : "drive")
       : null;
   const previousDecisionSnapshot = decisionHistoryRef.current?.key === decisionKey
     ? decisionHistoryRef.current.snapshot : null;
@@ -3090,7 +3090,8 @@ function Index() {
     () => centralTrip === null ? null : createNaluVerdict({
       trip: centralTrip,
       estimates: [driveTripEstimate, railTripEstimate].map((estimate) => ({
-        mode: estimate.mode,
+        mode: estimate.mode === "drive" ? "drive" : "transit",
+        transitMode: estimate.transitMode,
         label: estimate.transitLabel,
         availability: estimate.availability,
         quality: estimate.source.quality === "good" ? "good" : estimate.source.quality,
@@ -3146,12 +3147,16 @@ function Index() {
           supporting: null,
         };
 
-  const verdict: DecisionState = commitment?.mode ??
+  // Canonical decision state is Drive vs Transit. The UI still uses "rail"
+  // as its transit-view key for compatibility with the existing transit panels;
+  // this adapter keeps that legacy UI vocabulary out of the decision engine.
+  const canonicalVerdict = commitment?.mode === "rail" ? "transit" : commitment?.mode ??
     (!arriveByActive && railServiceClosed
       ? activeDecision?.state ?? "uncertain"
       : optionsLoading || driveLoading
         ? "uncertain"
         : activeDecision?.state ?? "uncertain");
+  const verdict: DecisionState = canonicalVerdict === "transit" ? "rail" : canonicalVerdict;
   const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
     ? activeDecision?.differenceMinutes ?? null : null;
   const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
