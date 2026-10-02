@@ -11,21 +11,23 @@ function mode(
   partial: { mode: DecisionModeEstimate["mode"]; expectedMinutes: number } &
     Partial<Omit<DecisionModeEstimate, "mode" | "expectedMinutes">>,
 ): DecisionModeEstimate {
+  const { mode: selectedMode, expectedMinutes, ...overrides } = partial;
   return {
     availability: "available",
     quality: "good",
-    expectedMinutes: partial.expectedMinutes,
+    ...overrides,
+    mode: selectedMode,
+    expectedMinutes,
     leaveTime: at(6),
-    arrivalTime: at(6) + partial.expectedMinutes * 60,
-    earliestArrival: at(6) + (partial.expectedMinutes - 2) * 60,
-    latestArrival: at(6) + (partial.expectedMinutes + 3) * 60,
+    arrivalTime: at(6) + expectedMinutes * 60,
+    earliestArrival: at(6) + (expectedMinutes - 2) * 60,
+    latestArrival: at(6) + (expectedMinutes + 3) * 60,
     uncertaintyMinutes: 3,
     trafficDelayMinutes: null,
     majorIncident: false,
     railWaitMinutes: 0,
     busWaitMinutes: 0,
     transferMinutes: 0,
-    ...partial,
   };
 }
 
