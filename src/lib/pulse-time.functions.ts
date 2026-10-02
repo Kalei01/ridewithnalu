@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { localPulseClock } from "./intelligence/pulse-time";
 
-const point = z.object({
+const coordinate = z.object({
   lat: z.number().min(-90).max(90),
   lon: z.number().min(-180).max(180),
 });
@@ -17,7 +17,7 @@ type TimeZoneLookup = { timezone: string; source: "TomTom" | "fallback" };
 
 const inflight = new Map<string, Promise<TimeZoneLookup>>();
 
-async function resolveTimeZone(point: z.infer<typeof point>, fallbackTimeZone: string): Promise<TimeZoneLookup> {
+async function resolveTimeZone(point: z.infer<typeof coordinate>, fallbackTimeZone: string): Promise<TimeZoneLookup> {
   const key = process.env["TOMTOM_API_KEY"];
   if (!key) return { timezone: fallbackTimeZone, source: "fallback" };
 
