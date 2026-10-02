@@ -1,4 +1,5 @@
 -- General transit recovery planner.
+-- Walking access is intentionally broader than the legacy rail planner.
 -- Finds complete door-to-door public-transit itineraries without making
 -- Skyline a prerequisite: direct bus/rail plus one timed transfer.
 CREATE OR REPLACE FUNCTION public.plan_transit_general(
