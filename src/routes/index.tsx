@@ -1478,14 +1478,10 @@ function Index() {
             ? `Your car is at ${setup.destinationName || "your destination"}.`
             : null;
 
-  // An outbound plan starts at home. A station marker left by an unfinished
-  // earlier plan is stale and must not suppress the drive option or contradict
-  // a drive-to-station first leg.
-  useEffect(() => {
-    if (!hydrated || inbound || carPlace === "home") return;
-    setParked(null);
-    window.localStorage.removeItem(PARKED_KEY);
-  }, [hydrated, inbound, carPlace]);
+  // Do not clear a same-day parked-car record just because the current
+  // screen is outbound. The record is intentionally persistent so a car marked
+  // at the destination remains available to the return-trip logic later that day.
+  // Stale records are already excluded by parkedToday/date matching.
 
   function setCarPlace(place: CarPlace) {
     const entry: ParkedCar = {
