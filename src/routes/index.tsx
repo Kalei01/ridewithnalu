@@ -101,7 +101,7 @@ import {
   type PlaceKind,
   type SavedPlace,
 } from "@/lib/saved-places";
-import { latestRailArrival } from "@/lib/leave-by";
+import { latestRailArrival as latestTransitArrival } from "@/lib/leave-by";
 import { skylineFallbackHeadwayMinutes } from "@/lib/rail/skyline-fallback";
 import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } from "@/lib/drive/planner";
 import { carAvailableForDrive } from "@/lib/car-state";
