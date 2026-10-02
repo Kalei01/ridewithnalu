@@ -2923,8 +2923,8 @@ function Index() {
   // mode, using the same TomTom drive time and GTFS itineraries as Leave now.
   const arriveByActive = planMode === "arrive-by" && arriveByTarget !== null;
   const arriveByPassed = arriveByActive && arriveByTarget < nowSeconds;
-  const railPick = useMemo(
-    () => (arriveByTarget === null ? null : latestRailArrival(options, arriveByTarget)),
+  const transitPick = useMemo(
+    () => (arriveByTarget === null ? null : latestTransitArrival(options, arriveByTarget)),
     [options, arriveByTarget],
   );
   const gtfsExpiry = useDataExpiry();
@@ -3021,7 +3021,7 @@ function Index() {
       ? { qualityOverride: "limited" as const } : {}),
   });
   const arrivalRailEstimate = transitEstimate({
-    option: railPick?.option ?? null, nowSeconds, nowMs: now.getTime(),
+    option: transitPick?.option ?? null, nowSeconds, nowMs: now.getTime(),
     scheduleFetchedAt: optionsFetchedAt || null, failed: optionsFailed,
     targetArrivalSeconds: arriveByTarget,
     feedExpired: gtfsExpiry !== null && gtfsExpiry.daysRemaining < 0,
@@ -3032,7 +3032,7 @@ function Index() {
 
   // In arrive-by mode the itinerary shown is the latest one that still makes it.
   const arriveByLeaveBy =
-    arriveByActive && railPick?.option ? optionIdentity(railPick.option) : null;
+    arriveByActive && transitPick?.option ? optionIdentity(transitPick.option) : null;
   useEffect(() => {
     if (arriveByLeaveBy !== null) setSelectedDeparture(arriveByLeaveBy);
   }, [arriveByLeaveBy]);
@@ -5050,17 +5050,17 @@ function Index() {
                       <p className="flex items-center gap-2 text-sm font-bold text-foreground">
                         <TrainFront className="size-4 text-primary" /> Rail
                       </p>
-                      {railPick?.option && (
+                      {transitPick?.option && (
                         <p className="text-xs font-semibold text-muted-foreground">
-                          {railPick.option.total_minutes} min total
+                          {transitPick.option.total_minutes} min total
                         </p>
                       )}
                     </div>
-                    {railPick?.option && !arriveByPassed ? (
+                    {transitPick?.option && !arriveByPassed ? (
                       <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
-                        Leave by {clockFromSeconds(railPick.option.leave_by_seconds)}
+                        Leave by {clockFromSeconds(transitPick.option.leave_by_seconds)}
                         <span className="ml-2 text-sm font-medium text-muted-foreground">
-                          · arrive {clockFromSeconds(railPick.option.arrive_seconds)}
+                          · arrive {clockFromSeconds(transitPick.option.arrive_seconds)}
                         </span>
                       </p>
                     ) : railClosedForEvening ? (
@@ -5077,13 +5077,13 @@ function Index() {
                       <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
                     ) : optionsFailed ? (
                       <p className="mt-2 text-sm text-warning">Rail information is not available right now.</p>
-                    ) : railPick?.earliestOption ? (
+                    ) : transitPick?.earliestOption ? (
                       <p className="mt-2 text-sm text-warning">
                         {arriveByPassed
                           ? "Earliest option: "
                           : `Rail can't get you there by ${clockFromSeconds(arriveByTarget)}. Earliest option: `}
-                        leave at {clockFromSeconds(railPick.earliestOption.leave_by_seconds)} ·
-                        arrive {clockFromSeconds(railPick.earliestOption.arrive_seconds)}.
+                        leave at {clockFromSeconds(transitPick.earliestOption.leave_by_seconds)} ·
+                        arrive {clockFromSeconds(transitPick.earliestOption.arrive_seconds)}.
                       </p>
                     ) : (
                       <p className="mt-2 text-sm text-muted-foreground">
