@@ -9,7 +9,7 @@ export type DecisionAvailability =
 
 export type DecisionModeEstimate = {
   mode: DecisionMode;
-  label?: string;
+  label?: string | undefined;
   availability: DecisionAvailability;
   quality: DecisionQuality;
   expectedMinutes: number | null;
