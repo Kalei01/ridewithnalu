@@ -1796,7 +1796,7 @@ function Index() {
     queryFn: async () => {
       let selectedInboundStation = arrivalStationId;
       let fallbackChecked = false;
-      const fetchGeneralTransit = async (): Promise<Option[]> => {
+      const fetchGeneralTransit = async (cursor: number): Promise<Option[]> => {
         const { data, error } = await supabase.rpc("plan_transit_general", {
           p_origin_lat: tripDirection.from.lat as number,
           p_origin_lon: tripDirection.from.lon as number,
@@ -1848,7 +1848,7 @@ function Index() {
             const primary = await fetchAtStation(selectedInboundStation);
             if (primary.length) {
               fallbackChecked = true;
-              return mergeTransitOptions(primary, await fetchGeneralTransit());
+              return mergeTransitOptions(primary, await fetchGeneralTransit(cursor));
             }
             primaryAlreadyChecked = true;
           }
@@ -1867,7 +1867,7 @@ function Index() {
         selectedInboundStation = result.stationId ?? selectedInboundStation;
         fallbackChecked = true;
         if (result.options.length || !selectedInboundStation) {
-          return mergeTransitOptions(result.options, await fetchGeneralTransit());
+          return mergeTransitOptions(result.options, await fetchGeneralTransit(cursor));
         }
         // No direct walk/bus from the origin reaches Skyline: board at the rail
         // hub nearest the origin with an estimated road access leg instead.
@@ -1891,13 +1891,13 @@ function Index() {
           },
         })) as Option[];
         if (hubOptions.length) {
-          return mergeTransitOptions(hubOptions, await fetchGeneralTransit());
+          return mergeTransitOptions(hubOptions, await fetchGeneralTransit(cursor));
         }
 
         // Transit is not synonymous with rail. If no rail-inclusive itinerary
         // exists, search the actual origin/destination for a direct bus
         // itinerary before declaring transit unavailable.
-        const generalOptions = await fetchGeneralTransit();
+        const generalOptions = await fetchGeneralTransit(cursor);
         if (generalOptions.length) return generalOptions;
 
         // Keep a direct-bus safety net while the generalized planner is rolling out.
