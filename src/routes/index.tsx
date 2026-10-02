@@ -3420,7 +3420,7 @@ function Index() {
       );
       return points.length > 1 ? points : null;
     };
-    return best.legs.flatMap((leg, legIndex) => {
+    return best.legs.flatMap<TransitMapSegment>((leg, legIndex): TransitMapSegment[] => {
       const sequence = sequenceByLeg.get(legIndex);
       if (sequence)
         return [
