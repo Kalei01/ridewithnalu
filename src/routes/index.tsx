@@ -303,6 +303,14 @@ function optionIdentity(option: Option) {
   return `${option.leave_by_seconds}:${option.depart_seconds}:${option.arrive_seconds}:${option.total_minutes}:${option.legs.map((leg) => `${leg.mode}:${leg.route_short ?? ""}:${leg.from_stop_id ?? leg.from ?? ""}:${leg.to_stop_id ?? leg.to ?? ""}`).join("|")}`;
 }
 
+function mergeTransitOptions(...groups: Option[][]): Option[] {
+  const unique = new Map<string, Option>();
+  for (const option of groups.flat()) unique.set(optionIdentity(option), option);
+  return Array.from(unique.values())
+    .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
+    .slice(0, 8);
+}
+
 const STORAGE_KEY = "nalu-setup-v3";
 const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
 const BROWSE_STATION_KEY = "nalu-browse-station-v1";
@@ -1788,6 +1796,22 @@ function Index() {
     queryFn: async () => {
       let selectedInboundStation = arrivalStationId;
       let fallbackChecked = false;
+      const fetchGeneralTransit = async (cursor: number): Promise<Option[]> => {
+        const { data, error } = await supabase.rpc("plan_transit_general", {
+          p_origin_lat: tripDirection.from.lat as number,
+          p_origin_lon: tripDirection.from.lon as number,
+          p_dest_lat: tripDirection.to.lat as number,
+          p_dest_lon: tripDirection.to.lon as number,
+          p_after_seconds: cursor,
+          p_limit: planMode === "arrive-by" ? 8 : 4,
+        });
+        if (error) return [];
+        return (data ?? []).map((row) => ({
+          ...row,
+          legs: row.legs as unknown as Leg[],
+        })) as Option[];
+      };
+
       const fetchPage = async (cursor: number): Promise<Option[]> => {
       if (inbound) {
         const fetchAtStation = async (stationId: string) => {
@@ -1824,7 +1848,7 @@ function Index() {
             const primary = await fetchAtStation(selectedInboundStation);
             if (primary.length) {
               fallbackChecked = true;
-              return primary;
+              return mergeTransitOptions(primary, await fetchGeneralTransit(cursor));
             }
             primaryAlreadyChecked = true;
           }
@@ -1842,7 +1866,9 @@ function Index() {
         });
         selectedInboundStation = result.stationId ?? selectedInboundStation;
         fallbackChecked = true;
-        if (result.options.length || !selectedInboundStation) return result.options;
+        if (result.options.length || !selectedInboundStation) {
+          return mergeTransitOptions(result.options, await fetchGeneralTransit(cursor));
+        }
         // No direct walk/bus from the origin reaches Skyline: board at the rail
         // hub nearest the origin with an estimated road access leg instead.
         const homeStation = selectedInboundStation;
@@ -1864,60 +1890,83 @@ function Index() {
             return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] }));
           },
         })) as Option[];
-        if (hubOptions.length) return hubOptions;
+        if (hubOptions.length) {
+          return mergeTransitOptions(hubOptions, await fetchGeneralTransit(cursor));
+        }
 
         // Transit is not synonymous with rail. If no rail-inclusive itinerary
         // exists, search the actual origin/destination for a direct bus
         // itinerary before declaring transit unavailable.
-        const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+        const generalOptions = await fetchGeneralTransit(cursor);
+        if (generalOptions.length) return generalOptions;
+
+        // Keep a direct-bus safety net while the generalized planner is rolling out.
+        // It uses the same real door coordinates, but a wider walking radius so a
+        // distant stop can still be offered instead of declaring transit unavailable.
+        const legacyBus = await supabase.rpc("plan_bus_direct", {
           p_origin_lat: tripDirection.from.lat as number,
           p_origin_lon: tripDirection.from.lon as number,
           p_dest_lat: tripDirection.to.lat as number,
           p_dest_lon: tripDirection.to.lon as number,
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
+          p_origin_radius_m: 4000,
+          p_dest_radius_m: 3000,
         });
-        if (busError) throw busError;
-        return (busData ?? []).map((row) => ({
+        if (legacyBus.error) throw legacyBus.error;
+        return (legacyBus.data ?? []).map((row) => ({
           ...row,
           legs: row.legs as unknown as Leg[],
         })) as Option[];
       }
-      const { data, error } = await supabase.rpc("plan_outbound", {
+      const generalTransit = await supabase.rpc("plan_transit_general", {
         p_origin_lat: setup.homeLat as number,
         p_origin_lon: setup.homeLon as number,
-        p_station: setup.homeStopId,
-        p_dest_stop: setup.destStopId,
-        p_allow_drive: driveAvailable,
-        p_after_seconds: cursor,
-        p_limit: planMode === "arrive-by" ? 8 : 4,
-        // Any stop within a quarter mile of the door is fair game, walk included.
         p_dest_lat: setup.destLat as number,
         p_dest_lon: setup.destLon as number,
+        p_after_seconds: cursor,
+        p_limit: planMode === "arrive-by" ? 8 : 4,
+        // Do not require a nearby rail station. Walking to a farther bus stop is
+        // allowed because Transit is compared against Drive door-to-door.
+        p_origin_radius_m: 4000,
+        p_dest_radius_m: 3000,
       });
-      if (error) throw error;
-      const railOptions = (data ?? []).map((row) => ({
-        ...row,
-        legs: row.legs as unknown as Leg[],
-      })) as Option[];
-      if (railOptions.length) return railOptions;
+      const generalOptions = !generalTransit.error
+        ? (generalTransit.data ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[]
+        : [];
 
-      // Transit is not synonymous with rail. If no rail-inclusive itinerary
-      // exists, search the same real origin/destination for a direct bus
-      // itinerary before declaring transit unavailable.
-      const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
-        p_origin_lat: setup.homeLat as number,
-        p_origin_lon: setup.homeLon as number,
-        p_dest_lat: setup.destLat as number,
-        p_dest_lon: setup.destLon as number,
-        p_after_seconds: cursor,
-        p_limit: planMode === "arrive-by" ? 8 : 4,
-      });
-      if (busError) throw busError;
-      return (busData ?? []).map((row) => ({
-        ...row,
-        legs: row.legs as unknown as Leg[],
-      })) as Option[];
+      let railOptions: Option[] = [];
+      try {
+        const { data, error } = await supabase.rpc("plan_outbound", {
+          p_origin_lat: setup.homeLat as number,
+          p_origin_lon: setup.homeLon as number,
+          p_station: setup.homeStopId,
+          p_dest_stop: setup.destStopId,
+          p_allow_drive: driveAvailable,
+          p_after_seconds: cursor,
+          p_limit: planMode === "arrive-by" ? 8 : 4,
+          p_dest_lat: setup.destLat as number,
+          p_dest_lon: setup.destLon as number,
+        });
+        if (!error) {
+          railOptions = (data ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[];
+        }
+      } catch {
+        // A rail planner failure must not suppress a valid bus-only itinerary.
+      }
+
+      if (generalOptions.length || railOptions.length) {
+        return mergeTransitOptions(railOptions, generalOptions);
+      }
+
+      if (generalTransit.error) throw generalTransit.error;
+      throw new Error("No transit itinerary found for this origin and destination.");
       };
       if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
         return fetchPage(scheduleAfterSeconds);
@@ -3138,6 +3187,7 @@ function Index() {
       trip: centralTrip,
       estimates: [driveTripEstimate, railTripEstimate].map((estimate) => ({
         mode: estimate.mode,
+        label: estimate.transitLabel,
         availability: estimate.availability,
         quality: estimate.source.quality === "good" ? "good" : estimate.source.quality,
         expectedMinutes: estimate.expectedDurationMinutes,
@@ -3278,7 +3328,9 @@ function Index() {
         : verdict === "drive"
         ? "Nalu compares the full trip from where you start to where you’re going, including getting to transit, waiting for your ride, and walking at the end—not just the freeway drive."
         : verdict === "rail"
-          ? "The Skyline option includes getting to the station, waiting, the train ride, any bus connection, and the walk to your destination."
+          ? transitLabel === "Rail"
+            ? "The Skyline option includes getting to the station, waiting, the train ride, and the walk to your destination."
+            : "The " + transitLabel + " option includes getting to transit, waiting, transfers, and the walk to your destination."
           : verdict === "same"
             ? "The estimated arrival times are close enough that neither option has a clear time advantage right now."
             : activeDecision.primary.text;
@@ -3325,7 +3377,7 @@ function Index() {
     } else if (verdict === "rail") {
       const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
       const busWait = Math.round(railTripEstimate.busWaitMinutes ?? 0);
-      if (railWait >= 5) signals.push({ label: "Skyline wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
+      if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
       if (busWait >= 5) signals.push({ label: "Bus wait", value: `${busWait} min`, tone: busWait >= 10 ? "alert" : "neutral" });
       if (drive?.incidents[0] && driveTripEstimate.majorIncident) {
         signals.push({
@@ -3347,7 +3399,7 @@ function Index() {
         });
       }
       const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
-      if (railWait >= 5) signals.push({ label: "Skyline wait", value: `${railWait} min`, tone: "neutral" });
+      if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: "neutral" });
     }
 
     return signals.slice(0, 4);
@@ -3357,6 +3409,7 @@ function Index() {
     driveTripEstimate.majorIncident,
     railTripEstimate.railWaitMinutes,
     railTripEstimate.busWaitMinutes,
+    transitLabel,
     verdict,
   ]);
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
