@@ -1949,6 +1949,10 @@ function Index() {
     commitment?.mode === "rail" && lockedOptionRef.current ? lockedOptionRef.current : liveBest;
   lockedItineraryCandidate.current = liveBest ?? null;
 
+  const transitLabel = best?.legs.some((leg) => leg.mode === "rail")
+    ? best.legs.some((leg) => leg.mode === "bus") ? "Rail + Bus" : "Rail"
+    : best?.legs.some((leg) => leg.mode === "bus") ? "Bus" : "Transit";
+
   const stationCoords = browseStations;
   /* One authoritative rail-station query serves browse, setup, maps and planning. */
   function stationPoint(name: string | null | undefined): Coords | null {
@@ -5078,7 +5082,7 @@ function Index() {
             </div>
           )}
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
-            low: driveRange?.low, high: driveRange?.high }} transit={{ label: "Rail", minutes: railTripEstimate.expectedDurationMinutes,
+            low: driveRange?.low, high: driveRange?.high }} transit={{ label: transitLabel, minutes: railTripEstimate.expectedDurationMinutes,
             low: railRange?.low, high: railRange?.high }} />}
           {verdict === "rail" && best && railRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
@@ -5462,7 +5466,7 @@ function Index() {
               onClick={() => chooseMode("rail")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              <TrainFront /> Rail {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
+              <TrainFront /> {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
               {!commitment && verdict === "rail" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}
