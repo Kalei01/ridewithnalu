@@ -31,6 +31,21 @@ export type EvidencePolicy = {
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+function confidenceForQuality(
+  quality: EvidenceQuality,
+  observedAt: number | null,
+  now: number,
+  staleAfterMs: number,
+): number {
+  if (quality === "unavailable" || quality === "stale") {
+    return quality === "stale" ? 0.2 : 0;
+  }
+  if (quality === "limited" || observedAt === null) return 0.6;
+
+  const ageRatio = Math.min(1, Math.max(0, now - observedAt) / staleAfterMs);
+  return Math.max(0.5, 0.95 - ageRatio * 0.35);
+}
+
 /**
  * Converts provider-specific facts into a stable Nalu evidence contract.
  * Providers should never be required to know how the Intelligence Core
@@ -42,18 +57,23 @@ export function normalizeEvidence(
 ): NormalizedEvidence {
   const now = policy.now ?? Date.now();
   const staleAfterMs = policy.staleAfterMs ?? 15 * 60_000;
-  const baseQuality = input.quality ?? "current";
+  let quality = input.quality ?? "current";
 
-  let quality = baseQuality;
-  if (input.observedAt !== null && now - input.observedAt > staleAfterMs) {
+  // A current claim without an observation timestamp cannot be verified as
+  // current. Keep it usable, but explicitly downgrade it to limited.
+  if (input.observedAt === null && quality === "current") {
+    quality = "limited";
+  } else if (input.observedAt !== null && now - input.observedAt > staleAfterMs) {
     quality = "stale";
   }
+
   if (input.expiresAt !== null && now >= input.expiresAt) {
     quality = "stale";
   }
 
   const confidence = clamp(
-    input.confidence ?? (quality === "current" ? 0.9 : quality === "limited" ? 0.6 : 0.2),
+    input.confidence ??
+      confidenceForQuality(quality, input.observedAt, now, staleAfterMs),
     0,
     policy.maxConfidence ?? 1,
   );
