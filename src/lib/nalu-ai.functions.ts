@@ -102,7 +102,7 @@ export const morningPulse = createServerFn({ method: "POST" })
               source: "TomTom",
             }
           : null,
-        rail: railTrip
+        rail: railTrip && skylineMinutes !== null
           ? {
               depart_seconds: Number(railTrip.depart_seconds),
               arrive_seconds: Number(railTrip.arrive_seconds),
@@ -221,7 +221,7 @@ export const eveningPulse = createServerFn({ method: "POST" })
               source: "TomTom",
             }
           : null,
-        rail: railTrip
+        rail: railTrip && skylineMinutes !== null
           ? {
               depart_seconds: Number(railTrip.depart_seconds),
               arrive_seconds: Number(railTrip.arrive_seconds),
