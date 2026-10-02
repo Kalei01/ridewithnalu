@@ -36,8 +36,8 @@ describe("Nalu Intelligence Core contracts", () => {
       incidents: [],
     };
 
-    expect(snapshot.transit[0].scheduled).toBe(true);
-    expect(snapshot.transit[0].liveObservation).toBe(false);
+    expect(snapshot.transit[0]!.scheduled).toBe(true);
+    expect(snapshot.transit[0]!.liveObservation).toBe(false);
   });
 
   it("allows a decision without pretending every mode has a result", () => {
