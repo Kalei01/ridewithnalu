@@ -25,7 +25,8 @@ export const DEFAULT_SWITCH_MARGIN_MINUTES = 3;
 function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
   const source = item.mode === "drive" ? "drive-provider" : "transit-provider";
   const policy = item.mode === "drive" ? FRESHNESS_POLICIES.driveEta : FRESHNESS_POLICIES.transitSchedule;
-  const quality = item.source.quality;
+  const quality =
+    item.source.quality === "good" ? "current" : item.source.quality;
   const evidence: NormalizedEvidence[] = [
     normalizeEvidence({
       id: `${item.mode}-eta`,
