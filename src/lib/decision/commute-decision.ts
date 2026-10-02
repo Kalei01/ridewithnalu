@@ -8,7 +8,7 @@ import {
 import { normalizeEvidence, type NormalizedEvidence } from "../intelligence/evidence-normalizer";
 import { FRESHNESS_POLICIES } from "../intelligence/freshness-policy";
 
-export type DecisionState = "drive" | "rail" | "same" | "none" | "uncertain";
+export type DecisionState = "drive" | "transit" | "same" | "none" | "uncertain";
 export type { EvidenceKind };
 export type DecisionEvidence = { kind: EvidenceKind; text: string };
 export type TripDecision = {
@@ -30,7 +30,8 @@ function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
   const evidence: NormalizedEvidence[] = [
     normalizeEvidence({
       id: `${item.mode}-eta`,
-      mode: item.mode,
+      mode: item.mode === "drive" ? "drive" : "transit",
+    transitMode: item.transitMode,
       source,
       value: item.expectedDurationMinutes,
       unit: "minutes",
@@ -85,13 +86,13 @@ function toDecisionEstimate(item: TripEstimate): DecisionModeEstimate {
 
 export function decideTrip(
   drive: TripEstimate,
-  rail: TripEstimate,
-  previous: "drive" | "rail" | null = null,
+  transit: TripEstimate,
+  previous: "drive" | "transit" | null = null,
   config: { tossUpMinutes?: number; switchMarginMinutes?: number } = {},
 ): TripDecision {
   return decideDriveVsTransit(
     toDecisionEstimate(drive),
-    toDecisionEstimate(rail),
+    toDecisionEstimate(transit),
     previous,
     config,
   );
@@ -104,7 +105,7 @@ export type ArrivalDecision = TripDecision & {
 
 export function decideArrival(
   drive: TripEstimate,
-  rail: TripEstimate,
+  transit: TripEstimate,
   targetSeconds: number,
 ): ArrivalDecision {
   return decideDriveVsTransitArrival(
