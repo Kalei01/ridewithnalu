@@ -200,13 +200,14 @@ export function transitEstimate(input: {
   }
   const initialWait = Math.max(0, (option.leave_by_seconds - nowSeconds) / 60);
   const expected = Math.max(0, (option.arrive_seconds - nowSeconds) / 60);
-  const hasRail = option.legs.some((leg) => leg.mode === "rail");
-  const hasBus = option.legs.some((leg) => leg.mode === "bus");
-  const transitLabel =
-    hasRail && hasBus ? "Rail + Bus" :
-    hasRail ? "Rail" :
-    hasBus ? "Bus" :
-    "Transit";
+  const transitModes = option.legs
+    .map((leg) => leg.mode)
+    .filter((mode): mode is "bus" | "rail" => mode === "bus" || mode === "rail");
+  const transitLabel = transitModes.length
+    ? transitModes.filter((mode, index) => index === 0 || mode !== transitModes[index - 1])
+        .map((mode) => mode === "rail" ? "Rail" : "Bus")
+        .join(" + ")
+    : "Transit";
   // Scheduled bus connections are less certain than a rail-only trip. This is a
   // bounded display range, not a claim of live vehicle prediction.
   const lateAllowance = 4 + Math.min(8, transfer * 0.5);
