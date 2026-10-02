@@ -795,6 +795,16 @@ export type Database = {
           total_minutes: number
         }[]
       }
+      diagnose_transit_general: {
+        Args: {
+          p_after_seconds?: number
+          p_dest_lat: number
+          p_dest_lon: number
+          p_origin_lat: number
+          p_origin_lon: number
+        }
+        Returns: string
+      }
       plan_inbound: {
         Args: {
           p_after_seconds?: number
