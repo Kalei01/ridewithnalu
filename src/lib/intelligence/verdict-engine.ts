@@ -38,7 +38,7 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
       selectedMode: null,
       alternatives: input.trip.routes.map((route) => route.mode),
       reasons: [{
-        text: "A complete drive-versus-rail comparison is not available yet",
+        text: "A complete drive-versus-transit comparison is not available yet",
         evidence: ["missing-mode-data"],
       }],
       warnings: ["One or more travel options are missing."],
@@ -84,7 +84,7 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
   for (const estimate of input.estimates) {
     if (estimate.availability !== "available") {
       warnings.push(
-        `${estimate.mode === "drive" ? "Drive" : "Rail"} is ${estimate.availability.replaceAll("-", " ")}.`,
+        `${estimate.mode === "drive" ? "Drive"  : "Transit"} is ${estimate.availability.replaceAll("-", " ")}.`,
       );
     }
     if (estimate.quality === "stale") {
