@@ -1839,6 +1839,14 @@ function Index() {
         const directHomeTransit = await fetchGeneralTransit(cursor);
         if (directHomeTransit.length) return directHomeTransit;
       }
+
+      // Phase 3: the generalized door-to-door planner is authoritative for
+      // every trip direction. Legacy rail/bus planners remain fallbacks only.
+      // This prevents an inferred "inbound" direction from forcing the rider
+      // through Skyline-specific stop assumptions before we try real transit.
+      const primaryTransit = await fetchGeneralTransit(cursor);
+      if (primaryTransit.length) return primaryTransit;
+
       if (inbound) {
         const fetchAtStation = async (stationId: string) => {
           const params = {
