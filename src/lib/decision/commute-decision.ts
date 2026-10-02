@@ -31,7 +31,6 @@ function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
     normalizeEvidence({
       id: `${item.mode}-eta`,
       mode: item.mode === "drive" ? "drive" : "transit",
-    transitMode: item.transitMode,
       source,
       value: item.expectedDurationMinutes,
       unit: "minutes",
