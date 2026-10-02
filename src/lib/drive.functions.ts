@@ -52,7 +52,7 @@ export type DriveTime = {
   trafficSections: DriveTrafficSection[];
   incidents: DriveIncident[];
   /** Official HDOT lane-closure route segments intersecting this TomTom route. */
-  hdotLaneClosures: HdotLaneClosureRoute[];
+  hdotLaneClosures?: HdotLaneClosureRoute[];
   /** Ordered major roads of this drive, e.g. "Via Kualakaʻi Pkwy → H-1 East". */
   corridorLabel: string | null;
   corridorRoads: string[];
