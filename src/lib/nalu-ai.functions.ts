@@ -188,6 +188,13 @@ export const eveningPulse = createServerFn({ method: "POST" })
     const ai = await import("./nalu-ai.server");
     try {
       const [drive] = await ai.routeOptions(data.from, data.to);
+      const liveDrive = await lookupDriveTime({
+        fromLat: data.from.lat,
+        fromLon: data.from.lon,
+        toLat: data.to.lat,
+        toLon: data.to.lon,
+        forceRefresh: true,
+      });
       // Rail is supplemental evidence, not a dependency for the pulse. If the
       // GTFS/Supabase rail lookup is temporarily unavailable, the drive answer
       // should still render instead of turning the whole Pulse into an error.
@@ -249,16 +256,23 @@ export const eveningPulse = createServerFn({ method: "POST" })
         };
       }
 
-      const delay = drive?.delayMinutes ?? 0;
-      const roads = drive?.roads.filter((road): road is string => Boolean(road)).slice(0, 2) ?? [];
-      const incident = drive?.incidents?.[0] ?? null;
+      const delay = liveDrive?.delayMinutes ?? drive?.delayMinutes ?? 0;
+      const roads = (
+        liveDrive?.corridorRoads?.length
+          ? liveDrive.corridorRoads
+          : drive?.roads ?? []
+      ).filter((road): road is string => Boolean(road)).slice(0, 3);
+      const incident = liveDrive?.incidents?.[0] ?? drive?.incidents?.[0] ?? null;
+      const trafficSection = liveDrive?.trafficSections?.[0] ?? null;
       const incidentRoad = incident?.road || roads[0] || "your calculated route";
       const trafficSentence =
-        delay >= 2
-          ? `${roads.join(" and ") || "Your calculated route"} is adding about ${delay} min right now.`
-          : incident
-            ? `${incident.description || "Traffic is reported"} on ${incidentRoad} is affecting the calculated route.`
-            : "No material delay is showing on your calculated route right now.";
+        incident
+          ? `${incident.description || "Traffic is reported"} on ${incidentRoad} is affecting your calculated route.`
+          : trafficSection
+            ? `${roads[0] || "A major road"} is showing ${trafficSection.severity === "heavy" ? "heavy" : "moderate"} traffic on your route.`
+            : delay >= 2
+              ? `${roads.join(" and ") || "Your calculated route"} is adding about ${delay} min right now.`
+              : "No material traffic delay is showing on your calculated route right now.";
 
       if (!railRelevant) {
         return {
