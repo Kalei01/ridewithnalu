@@ -58,6 +58,9 @@ export async function lookupHdotLaneClosureRoutes(
     resultRecordCount: "1000",
   });
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2500);
+
   try {
     const response = await fetch(HDOT_LANE_CLOSURE_QUERY, {
       method: "POST",
@@ -66,6 +69,7 @@ export async function lookupHdotLaneClosureRoutes(
         Accept: "application/json",
       },
       body: params,
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -86,8 +90,10 @@ export async function lookupHdotLaneClosureRoutes(
         geometry: feature.geometry,
       }));
   } catch (error) {
-    console.error("[hdot] lane-closure query unavailable", error);
+    console.warn("[hdot] lane-closure query unavailable; continuing without HDOT context");
     return [];
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
