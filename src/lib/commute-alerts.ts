@@ -94,8 +94,6 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
     utterance.onend = finish;
     utterance.onerror = finish;
 
-    // Wake the car's Bluetooth audio route first so the first syllable isn't
-    // swallowed, then speak once the primer has finished.
     const primed = playAudioPrimer();
     const speak = () => {
       try {
@@ -129,3 +127,80 @@ export function clearCommuteSpeech() {
   }
 }
 
+/** Speak a silent utterance inside a user tap so iOS Safari unlocks speech. */
+export function primeSpeech() {
+  try {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const utterance = new window.SpeechSynthesisUtterance(" ");
+    utterance.volume = 0;
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // Best-effort only.
+  }
+}
+
+export const PRIMER_MS = 300;
+
+/** A soft 300ms tone that opens the Bluetooth/car audio channel before speech. */
+export function playAudioPrimer(): boolean {
+  try {
+    const ctx = audioContext();
+    if (!ctx) return false;
+    if (ctx.state === "suspended") void ctx.resume();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 988;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + PRIMER_MS / 1000);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + PRIMER_MS / 1000 + 0.02);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Keep audio alive for the whole navigation session: an inaudible oscillator
+ * stops iOS Safari suspending the audio context, and a periodic resume()
+ * works around speechSynthesis stalling mid-drive. Returns a stop function.
+ */
+export function keepNavigationAudioAlive(): () => void {
+  let osc: OscillatorNode | null = null;
+  let timer: number | null = null;
+  try {
+    const ctx = audioContext();
+    if (ctx) {
+      if (ctx.state === "suspended") void ctx.resume();
+      osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.0001;
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+    }
+    timer = window.setInterval(() => {
+      try {
+        if (ctx && ctx.state === "suspended") void ctx.resume();
+        if ("speechSynthesis" in window && !window.speechSynthesis.speaking)
+          window.speechSynthesis.resume();
+      } catch {
+        // best-effort
+      }
+    }, 10_000);
+  } catch {
+    // best-effort
+  }
+  return () => {
+    try {
+      osc?.stop();
+      osc?.disconnect();
+    } catch {
+      // already stopped
+    }
+    if (timer !== null) window.clearInterval(timer);
+  };
+}
