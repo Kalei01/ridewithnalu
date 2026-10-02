@@ -2033,6 +2033,8 @@ function Index() {
   const transitLabel = best?.legs.some((leg) => leg.mode === "rail")
     ? best.legs.some((leg) => leg.mode === "bus") ? "Rail + Bus" : "Rail"
     : best?.legs.some((leg) => leg.mode === "bus") ? "Bus" : "Transit";
+  const transitUsesRail = best?.legs.some((leg) => leg.mode === "rail") ?? false;
+  const transitUsesBus = best?.legs.some((leg) => leg.mode === "bus") ?? false;
 
   const stationCoords = browseStations;
   /* One authoritative rail-station query serves browse, setup, maps and planning. */
@@ -5359,7 +5361,7 @@ function Index() {
               )}
               <span className="min-w-0 flex-1 text-center">
                 <span className="block text-base font-black uppercase">
-                  Start {selectedMode === "drive" ? "Drive" : "Rail"}
+                  Start {selectedMode === "drive" ? "Drive" : transitLabel}
                 </span>
                 <span className="mt-0.5 block text-[10px] font-black uppercase text-primary-foreground/75">
                   Lock {selectedMode === "drive" ? "GPS & traffic" : "stops & alerts"}
@@ -5556,7 +5558,7 @@ function Index() {
               onClick={() => chooseMode("rail")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              <TrainFront /> {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
+              {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />} {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
               {!commitment && verdict === "rail" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}
@@ -5581,7 +5583,7 @@ function Index() {
           {selectedMode === "rail" && (
             <div className="mt-6">
               <div className="flex items-baseline justify-between gap-3">
-                <h3 className="text-xl font-bold text-foreground">Rail itinerary</h3>
+                <h3 className="text-xl font-bold text-foreground">{transitLabel} itinerary</h3>
                 {itineraryRange && (
                   <p className="text-sm font-semibold text-muted-foreground">
                     {itineraryRange.low}–{itineraryRange.high} min
@@ -5599,7 +5601,7 @@ function Index() {
                 />
               ) : (
                 <p className="mt-5 text-sm text-muted-foreground">
-                  {optionsLoading ? "Building your trip…" : "No rail trip available."}
+                  {optionsLoading ? "Building your trip…" : "No transit trip available."}
                 </p>
               )}
             </div>
