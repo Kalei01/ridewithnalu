@@ -14,14 +14,26 @@ const schema = z.object({
 });
 
 export type HdotLaneClosureRoute = {
-  attributes: Record<string, unknown>;
-  geometry: unknown;
+  routeId?: string | number | null;
+  routeName?: string | null;
+  direction?: string | null;
+  island?: string | null;
+  route?: string | null;
+  startMile?: string | number | null;
+  endMile?: string | number | null;
 };
 
 type ArcGisResponse = {
   features?: Array<{
-    attributes?: Record<string, unknown>;
-    geometry?: unknown;
+    attributes?: {
+      ROUTEID?: string | number | null;
+      RouteName?: string | null;
+      RouteDirn?: string | null;
+      Island?: string | null;
+      Route?: string | null;
+      BMP?: string | number | null;
+      EMP?: string | number | null;
+    };
   }>;
   error?: { message?: string };
 };
@@ -44,7 +56,7 @@ export async function lookupHdotLaneClosureRoutes(
     f: "json",
     where: "1=1",
     outFields: "ROUTEID,BMP,EMP,RouteDirn,Island,Route,dirn,RouteName",
-    returnGeometry: "true",
+    returnGeometry: "false",
     outSR: "4326",
     inSR: "4326",
     geometry: JSON.stringify({
@@ -53,8 +65,6 @@ export async function lookupHdotLaneClosureRoutes(
     }),
     geometryType: "esriGeometryPolyline",
     spatialRel: "esriSpatialRelIntersects",
-    returnZ: "false",
-    returnM: "false",
     resultRecordCount: "1000",
   });
 
@@ -84,12 +94,17 @@ export async function lookupHdotLaneClosureRoutes(
     }
 
     return (payload.features ?? [])
-      .filter((feature) => feature.attributes && feature.geometry)
-      .map((feature) => ({
-        attributes: feature.attributes as Record<string, unknown>,
-        geometry: feature.geometry,
+      .filter((feature) => feature.attributes)
+      .map(({ attributes }) => ({
+        routeId: attributes?.ROUTEID ?? null,
+        routeName: attributes?.RouteName ?? null,
+        direction: attributes?.RouteDirn ?? null,
+        island: attributes?.Island ?? null,
+        route: attributes?.Route ?? null,
+        startMile: attributes?.BMP ?? null,
+        endMile: attributes?.EMP ?? null,
       }));
-  } catch (error) {
+  } catch {
     console.warn("[hdot] lane-closure query unavailable; continuing without HDOT context");
     return [];
   } finally {
