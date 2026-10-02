@@ -310,7 +310,7 @@ export const rushOutlook = createServerFn({ method: "POST" })
     const ai = await import("./nalu-ai.server");
     try {
       const [now] = await ai.routeOptions(data.from, data.to);
-      const [later] = await ai.routeOptions(data.from, data.to, { departAt: ai.hstIso(30) });
+      const [later] = await ai.routeOptions(data.from, data.to, { departAt: ai.futureIso(30) });
       if (!now || !later) return { warn: false as const };
       const building = later.minutes - now.minutes;
       const aboveUsual = now.delayMinutes;
