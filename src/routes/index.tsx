@@ -3242,6 +3242,7 @@ function Index() {
         uncertaintyMinutes: estimate.uncertaintyMinutes,
         trafficDelayMinutes: estimate.trafficDelayMinutes,
         majorIncident: estimate.majorIncident,
+        eligible: estimate.mode === "drive" ? driveAvailable : undefined,
         railWaitMinutes: estimate.railWaitMinutes,
         busWaitMinutes: estimate.busWaitMinutes,
         transferMinutes: estimate.transferMinutes,
