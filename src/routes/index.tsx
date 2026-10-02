@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { reverseGeocode, searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { RouteCorridor } from "@/components/commute/RouteCorridor";
+import { HdotRoadworkNotice } from "@/components/commute/HdotRoadworkNotice";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
@@ -5214,6 +5215,9 @@ function Index() {
             </div>
           )}
           {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
+          {verdict === "drive" && drive?.hdotLaneClosures?.length > 0 && (
+            <HdotRoadworkNotice closures={drive.hdotLaneClosures} />
+          )}
           {configured && (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
             <p className="mt-4 text-lg font-medium text-muted-foreground">
               {verdict === "same"
