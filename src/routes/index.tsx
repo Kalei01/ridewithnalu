@@ -1791,7 +1791,7 @@ function Index() {
       planMode,
       planMode === "arrive-by" ? arriveByTarget : null,
     ],
-    enabled: hydrated && railConfigured,
+    enabled: hydrated &&\n      tripDirection.from.lat !== null && tripDirection.from.lon !== null &&\n      tripDirection.to.lat !== null && tripDirection.to.lon !== null,
     staleTime: 60_000,
     queryFn: async () => {
       let selectedInboundStation = arrivalStationId;
