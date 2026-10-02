@@ -1974,7 +1974,7 @@ function Index() {
         // transit miss. Keep the privacy-safe diagnostic path intact.
         try {
           const { data: diagnostic, error: diagnosticError } = await supabase.rpc(
-            "diagnose_transit_general" as never,
+            "diagnose_transit_general" as any,
             {
               p_origin_lat: tripDirection.from.lat as number,
               p_origin_lon: tripDirection.from.lon as number,
