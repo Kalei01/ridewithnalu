@@ -38,5 +38,5 @@ function createTripId(input: Omit<CanonicalTrip, "id">): string {
   const raw = [input.requestedAt, input.origin.latitude, input.origin.longitude, input.destination.latitude, input.destination.longitude, input.constraint.type, input.constraint.type === "now" ? "" : input.constraint.timestamp, routeSignature].join("|");
   let hash = 0;
   for (let index = 0; index < raw.length; index += 1) hash = (hash * 31 + raw.charCodeAt(index)) | 0;
-  return "trip-" + Math.abs(hash).toString(36);
+  return "trip-" + input.requestedAt + "-" + Math.abs(hash).toString(36);
 }
