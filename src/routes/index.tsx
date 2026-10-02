@@ -109,6 +109,7 @@ import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-dire
 import { createClientRateWindow } from "@/lib/client-rate-limit";
 import { decideArrival, type DecisionState } from "@/lib/decision/commute-decision";
 import { createNaluVerdict } from "@/lib/intelligence/verdict-engine";
+import { naluHeroVerdictLine } from "@/lib/nalu-voice";
 import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
@@ -3301,6 +3302,23 @@ function Index() {
       ? "uncertain"
       : activeDecision?.state ?? "uncertain");
   const verdict: UiDecisionState = canonicalVerdict as UiDecisionState;
+  const naluHeroTrafficLevel: "light" | "moderate" | "heavy" | "severe" =
+    driveTripEstimate.majorIncident || (driveTripEstimate.trafficDelayMinutes ?? 0) >= 20
+      ? "severe"
+      : (driveTripEstimate.trafficDelayMinutes ?? 0) >= 10
+        ? "heavy"
+        : (driveTripEstimate.trafficDelayMinutes ?? 0) >= 5
+          ? "moderate"
+          : "light";
+  const naluHeroLine = configured && !optionsLoading && !driveLoading && (verdict === "drive" || verdict === "transit" || verdict === "same")
+    ? naluHeroVerdictLine({
+        decision: verdict === "drive" ? "drive" : verdict === "transit" ? "rail" : "toss_up",
+        timeDifferenceMinutes: activeDecision.differenceMinutes ?? undefined,
+        trafficLevel: naluHeroTrafficLevel,
+        trafficDelayMinutes: driveTripEstimate.trafficDelayMinutes,
+        majorIncident: driveTripEstimate.majorIncident,
+      }, now)
+    : "";
   const gap = !commitment && !arriveByActive && (verdict === "transit" || verdict === "drive")
     ? activeDecision?.differenceMinutes ?? null : null;
   const incidentDecides = verdict === "transit" && activeDecision.primary.kind === "major_incident";
@@ -5235,6 +5253,7 @@ function Index() {
               )}
             </div>
           )}
+          {naluHeroLine && <p className="mt-3 max-w-[42rem] text-sm font-medium leading-6 text-muted-foreground">{naluHeroLine}</p>}
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
             low: driveRange?.low, high: driveRange?.high }} transit={{ label: transitLabel, minutes: transitTripEstimate.expectedDurationMinutes,
             low: transitRange?.low, high: transitRange?.high }} />}
