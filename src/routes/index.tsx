@@ -5855,8 +5855,8 @@ function RailTripBreakdown({
               ? leg.mode === "walk"
                 ? `Walk to ${stationName || (leg.mode === "bus" ? "the stop" : "the station")}${leg.mode === "bus" ? "" : " Station"}`
                 : stationName
-                  ? `To ${stationName} Station`
-                  : "To the station"
+                  ? `To ${stationName}${leg.mode === "bus" ? "" : " Station"}`
+                  : leg.mode === "bus" ? "To the stop" : "To the station"
               : leg.kind === "rail"
                 ? "Skyline"
                 : leg.kind === "connect"
@@ -5878,7 +5878,9 @@ function RailTripBreakdown({
                 ? "home"
                 : "destination"
               : leg.kind === "access"
-                ? `${stationName || titleCase(leg.to) || "station"} Station platform`
+                ? leg.mode === "bus"
+                  ? `${stationName || titleCase(leg.to) || "stop"}`
+                  : `${stationName || titleCase(leg.to) || "station"} Station platform`
                 : titleCase(leg.to);
           const liveArrival =
             leg.mode === "bus"
