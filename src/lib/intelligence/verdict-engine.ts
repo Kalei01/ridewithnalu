@@ -1,1 +1,112 @@
-import type { NaluDecision, DecisionReason, MobilityMode } from "./types";\nimport type { CanonicalTrip } from "./trip-model";\nimport { decideDriveVsTransit, type DecisionModeEstimate } from "./drive-transit-decision";\n\nexport type VerdictEngineInput = {\n  trip: CanonicalTrip;\n  estimates: DecisionModeEstimate[];\n  previousMode?: "drive" | "rail" | null;\n  now?: number;\n  tossUpMinutes?: number;\n  switchMarginMinutes?: number;\n};\n\n/**\n * Central Nalu verdict: turns normalized route evidence into the provider-neutral\n * decision contract. UI surfaces should consume this result instead of recreating\n * drive-vs-rail reasoning independently.\n */\nexport function createNaluVerdict(input: VerdictEngineInput): NaluDecision {\n  const drive = input.estimates.find((item) => item.mode === "drive");\n  const rail = input.estimates.find((item) => item.mode === "rail");\n  if (!drive || !rail) {\n    return {\n      selectedMode: null, alternatives: [], reasons: [{ text: "A complete drive-versus-rail comparison is not available yet" }],\n      warnings: ["One or more travel options are missing."], freshness: [], confidence: "low",\n    };\n  }\n\n  const decision = decideDriveVsTransit(drive, rail, input.previousMode ?? null, {\n    tossUpMinutes: input.tossUpMinutes, switchMarginMinutes: input.switchMarginMinutes,\n  });\n  const routeByMode = new Map(input.trip.routes.map((route) => [route.mode, route]));\n  const selectedRoute = decision.state === "drive" || decision.state === "rail" ? routeByMode.get(decision.state) : undefined;\n  const alternatives = input.trip.routes\n    .filter((route) => route.id !== selectedRoute?.id)\n    .map((route) => ({ mode: route.mode as MobilityMode, arrivalTime: route.arrivalTime, durationMinutes: route.durationMinutes }));\n\n  const reasons: DecisionReason[] = [{ text: decision.primary.text }];\n  if (decision.supporting) reasons.push({ text: decision.supporting.text });\n  const warnings: string[] = [];\n  for (const estimate of input.estimates) {\n    if (estimate.availability !== "available") warnings.push(`${estimate.mode === "drive" ? "Drive" : "Rail"} is ${estimate.availability.replaceAll("-", " ")}.`);\n    if (estimate.quality === "stale") warnings.push(`${estimate.mode === "drive" ? "Traffic" : "Transit"} information may be out of date.`);\n  }\n\n  return {\n    selectedMode: decision.state === "drive" || decision.state === "rail" ? decision.state : null,\n    alternatives,\n    departureTime: selectedRoute?.departureTime ?? undefined,\n    arrivalTime: selectedRoute?.arrivalTime ?? undefined,\n    reasons, warnings, freshness: [],\n    confidence: decision.confidence === "moderate" ? "medium" : decision.confidence,\n  };\n}
+import type { NaluDecision, DecisionReason, MobilityMode, EvidenceFreshness } from "./types";
+import type { CanonicalTrip } from "./trip-model";
+import { decideDriveVsTransit, type DecisionModeEstimate } from "./drive-transit-decision";
+
+export type VerdictEngineInput = {
+  trip: CanonicalTrip;
+  estimates: DecisionModeEstimate[];
+  previousMode?: "drive" | "rail" | null;
+  now?: number;
+  tossUpMinutes?: number;
+  switchMarginMinutes?: number;
+};
+
+function toFreshness(trip: CanonicalTrip): EvidenceFreshness[] {
+  return trip.routes.flatMap((route) =>
+    route.segments
+      .filter((segment) => segment.observedAt !== null)
+      .map((segment) => ({
+        observedAt: new Date(segment.observedAt! * 1000).toISOString(),
+        source: segment.source,
+      })),
+  );
+}
+
+/**
+ * Central Nalu verdict: turns normalized route evidence into the provider-neutral
+ * decision contract. UI surfaces should consume this result instead of recreating
+ * drive-vs-rail reasoning independently.
+ */
+export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
+  const drive = input.estimates.find((item) => item.mode === "drive");
+  const rail = input.estimates.find((item) => item.mode === "rail");
+  const freshness = toFreshness(input.trip);
+
+  if (!drive || !rail) {
+    return {
+      selectedMode: null,
+      alternatives: input.trip.routes.map((route) => route.mode),
+      reasons: [{
+        text: "A complete drive-versus-rail comparison is not available yet",
+        evidence: ["missing-mode-data"],
+      }],
+      warnings: ["One or more travel options are missing."],
+      freshness,
+      confidence: "low",
+    };
+  }
+
+  const decision = decideDriveVsTransit(
+    drive,
+    rail,
+    input.previousMode ?? null,
+    {
+      tossUpMinutes: input.tossUpMinutes,
+      switchMarginMinutes: input.switchMarginMinutes,
+    },
+  );
+
+  const routeByMode = new Map(input.trip.routes.map((route) => [route.mode, route]));
+  const selectedRoute =
+    decision.state === "drive" || decision.state === "rail"
+      ? routeByMode.get(decision.state)
+      : undefined;
+
+  const alternatives = input.trip.routes
+    .filter((route) => route.id !== selectedRoute?.id)
+    .map((route) => route.mode);
+
+  const reasons: DecisionReason[] = [{
+    text: decision.primary.text,
+    evidence: [decision.primary.kind],
+  }];
+
+  if (decision.supporting) {
+    reasons.push({
+      text: decision.supporting.text,
+      evidence: [decision.supporting.kind],
+    });
+  }
+
+  const warnings: string[] = [];
+  for (const estimate of input.estimates) {
+    if (estimate.availability !== "available") {
+      warnings.push(
+        `${estimate.mode === "drive" ? "Drive" : "Rail"} is ${estimate.availability.replaceAll("-", " ")}.`,
+      );
+    }
+    if (estimate.quality === "stale") {
+      warnings.push(
+        `${estimate.mode === "drive" ? "Traffic" : "Transit"} information may be out of date.`,
+      );
+    }
+  }
+
+  return {
+    selectedMode:
+      decision.state === "drive" || decision.state === "rail"
+        ? decision.state
+        : null,
+    alternatives,
+    departureTime: selectedRoute?.departureTime == null
+      ? null
+      : new Date(selectedRoute.departureTime * 1000).toISOString(),
+    arrivalTime: selectedRoute?.arrivalTime == null
+      ? null
+      : new Date(selectedRoute.arrivalTime * 1000).toISOString(),
+    reasons,
+    warnings,
+    freshness,
+    confidence: decision.confidence === "moderate" ? "medium" : decision.confidence,
+  };
+}
