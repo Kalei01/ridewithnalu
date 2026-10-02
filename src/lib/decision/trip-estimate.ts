@@ -1,7 +1,7 @@
 import type { DestinationAccess } from "../destination-access";
 import { FRESHNESS_POLICIES } from "../intelligence/freshness-policy";
 
-export type EstimateMode = "drive" | "rail";
+export type EstimateMode = "drive" | "transit";
 /** Actual public-transit family represented by the itinerary. Kept separate from the legacy drive-vs-rail decision mode while Phase 3 is rolled out. */
 export type TransitMode = "walk" | "bus" | "rail" | "walk+bus" | "walk+rail" | "rail+bus" | "walk+rail+bus";
 export type Availability = "available" | "service-unavailable" | "car-unavailable" | "data-error";
@@ -183,7 +183,7 @@ export function transitEstimate(input: {
         : qualityFor(input.scheduleFetchedAt, nowMs, FRESHNESS_POLICIES.transitSchedule.staleAfterMs),
   };
   if (!option)
-    return unavailable("rail", input.failed ? "data-error" : "service-unavailable", source);
+    return unavailable("transit", input.failed ? "data-error" : "service-unavailable", source);
 
   let railWait = 0;
   let busWait = 0;
@@ -226,7 +226,7 @@ export function transitEstimate(input: {
   const lateAllowance = 4 + Math.min(8, transfer * 0.5);
   const latest = option.arrive_seconds + lateAllowance * 60;
   return {
-    mode: "rail",
+    mode: "transit",
     transitMode,
     transitLabel,
     availability: "available",
