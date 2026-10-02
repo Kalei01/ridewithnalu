@@ -53,7 +53,7 @@ export function createMorningPulseVerdict(input: MorningPulseVerdictInput): Morn
   const drive: DecisionModeEstimate = {
     mode: "drive",
     availability: input.drive ? "available" : "data-error",
-    quality: input.drive ? "current" : "unavailable",
+    quality: input.drive ? "good" : "unavailable",
     expectedMinutes: input.drive?.minutes ?? null,
     leaveTime: input.drive ? requestedAt : null,
     arrivalTime: driveArrival,
