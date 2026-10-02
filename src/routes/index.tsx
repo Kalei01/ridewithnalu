@@ -3044,10 +3044,10 @@ function Index() {
       requestedAt: nowSeconds,
       selectedRouteId: null,
       routes: [driveTripEstimate, railTripEstimate].map((estimate) => ({
-        id: \`${estimate.mode}-route\`,
+        id: `${estimate.mode}-route`,
         mode: estimate.mode,
         segments: [{
-          id: \`${estimate.mode}-estimate\`,
+          id: `${estimate.mode}-estimate`,
           mode: estimate.mode,
           origin,
           destination,
@@ -3134,7 +3134,7 @@ function Index() {
         ? "uncertain"
         : activeDecision?.state ?? "uncertain");
   const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
-    ? decision.differenceMinutes : null;
+    ? activeDecision?.differenceMinutes ?? null : null;
   const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
   const currentDecisionSnapshot: DecisionSnapshot = {
     key: decisionKey,
