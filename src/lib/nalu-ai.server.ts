@@ -157,7 +157,10 @@ function distancePointToSegmentMeters(point: Pt, a: Pt, b: Pt): number {
 function distancePointToPolylineMeters(point: Pt, polyline: Pt[]): number {
   let best = Number.POSITIVE_INFINITY;
   for (let i = 1; i < polyline.length; i += 1) {
-    best = Math.min(best, distancePointToSegmentMeters(point, polyline[i - 1], polyline[i]));
+    const start = polyline[i - 1];
+    const end = polyline[i];
+    if (!start || !end) continue;
+    best = Math.min(best, distancePointToSegmentMeters(point, start, end));
   }
   return best;
 }
@@ -185,11 +188,15 @@ function incidentCoordinates(value: unknown): Pt[] {
 async function trafficIncidentsForRoute(routePoints: Pt[], key: string): Promise<RouteTrafficIncident[]> {
   if (routePoints.length < 2) return [];
   const lats = routePoints.map((p) => p.lat), lons = routePoints.map((p) => p.lon);
-  const top = OAHU.topLeft.split(",").map(Number), bottom = OAHU.btmRight.split(",").map(Number);
-  const minLat = Math.max(bottom[0], Math.min(...lats) - 0.004);
-  const maxLat = Math.min(top[0], Math.max(...lats) + 0.004);
-  const minLon = Math.max(top[1], Math.min(...lons) - 0.006);
-  const maxLon = Math.min(bottom[1], Math.max(...lons) + 0.006);
+  const top = OAHU.topLeft.split(",").map(Number);
+  const bottom = OAHU.btmRight.split(",").map(Number);
+  const [topLat, topLon] = top;
+  const [bottomLat, bottomLon] = bottom;
+  if (![topLat, topLon, bottomLat, bottomLon].every(Number.isFinite)) return [];
+  const minLat = Math.max(bottomLat!, Math.min(...lats) - 0.004);
+  const maxLat = Math.min(topLat!, Math.max(...lats) + 0.004);
+  const minLon = Math.max(topLon!, Math.min(...lons) - 0.006);
+  const maxLon = Math.min(bottomLon!, Math.max(...lons) + 0.006);
   if (minLat >= maxLat || minLon >= maxLon) return [];
 
   const params = new URLSearchParams({
@@ -499,7 +506,9 @@ export async function bestRailBetween(fromPoint: Pt, toPoint: Pt, afterSeconds: 
 
   if (originIndex !== null && destIndex !== null && originIndex > destIndex) {
     for (let index = originIndex - 1; index > destIndex; index -= 1) {
-      const candidate = await stationByName(SKYLINE_STATIONS[index]);
+      const stationName = SKYLINE_STATIONS[index];
+      if (!stationName) continue;
+      const candidate = await stationByName(stationName);
       if (candidate && !candidates.some((existing) => existing.stopId === candidate.stopId)) {
         candidates.push(candidate);
       }
