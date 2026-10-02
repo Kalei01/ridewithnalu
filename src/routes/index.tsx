@@ -104,14 +104,13 @@ import { latestRailArrival } from "@/lib/leave-by";
 import { skylineFallbackHeadwayMinutes } from "@/lib/rail/skyline-fallback";
 import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } from "@/lib/drive/planner";
 import { carAvailableForDrive } from "@/lib/car-state";
-import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-direction";
+import { resolveTripDirection } from "@/lib/trip-direction";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
 import { decideArrival, type DecisionState } from "@/lib/decision/commute-decision";
 import { createNaluVerdict } from "@/lib/intelligence/verdict-engine";
 import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
-import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
 import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
@@ -303,13 +302,6 @@ function optionIdentity(option: Option) {
   return `${option.leave_by_seconds}:${option.depart_seconds}:${option.arrive_seconds}:${option.total_minutes}:${option.legs.map((leg) => `${leg.mode}:${leg.route_short ?? ""}:${leg.from_stop_id ?? leg.from ?? ""}:${leg.to_stop_id ?? leg.to ?? ""}`).join("|")}`;
 }
 
-function mergeTransitOptions(...groups: Option[][]): Option[] {
-  const unique = new Map<string, Option>();
-  for (const option of groups.flat()) unique.set(optionIdentity(option), option);
-  return Array.from(unique.values())
-    .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
-    .slice(0, 8);
-}
 
 const STORAGE_KEY = "nalu-setup-v3";
 const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
