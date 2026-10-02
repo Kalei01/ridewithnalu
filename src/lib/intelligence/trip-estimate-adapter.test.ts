@@ -42,7 +42,7 @@ describe("commute estimate → canonical trip adapter", () => {
       selectedMode: "transit",
     });
     expect(trip.routes.map((route) => route.mode)).toEqual(["drive", "transit"]);
-    expect(trip.selectedRouteId).toBe("rail-route");
+    expect(trip.selectedRouteId).toBe("transit-route");
     expect(trip.constraint).toEqual({ type: "arrive-by", timestamp: 1_200 });
   });
 });
