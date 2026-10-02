@@ -17,6 +17,8 @@ export type EstimateSource = {
 /** Drive duration is the canonical road ETA; parking/walking access is tracked separately. */
 export type TripEstimate = {
   mode: EstimateMode;
+  /** Human-facing transit family label, e.g. Bus or Rail + Bus. */
+  transitLabel?: string;
   availability: Availability;
   leaveTime: number | null;
   arrivalTime: number | null;
@@ -198,12 +200,20 @@ export function transitEstimate(input: {
   }
   const initialWait = Math.max(0, (option.leave_by_seconds - nowSeconds) / 60);
   const expected = Math.max(0, (option.arrive_seconds - nowSeconds) / 60);
+  const hasRail = option.legs.some((leg) => leg.mode === "rail");
+  const hasBus = option.legs.some((leg) => leg.mode === "bus");
+  const transitLabel =
+    hasRail && hasBus ? "Rail + Bus" :
+    hasRail ? "Skyline" :
+    hasBus ? "Bus" :
+    "Transit";
   // Scheduled bus connections are less certain than a rail-only trip. This is a
   // bounded display range, not a claim of live vehicle prediction.
   const lateAllowance = 4 + Math.min(8, transfer * 0.5);
   const latest = option.arrive_seconds + lateAllowance * 60;
   return {
     mode: "rail",
+    transitLabel,
     availability: "available",
     leaveTime: option.leave_by_seconds,
     arrivalTime: option.arrive_seconds,
