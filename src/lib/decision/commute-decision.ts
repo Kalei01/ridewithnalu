@@ -110,7 +110,7 @@ export function decideArrival(
 ): ArrivalDecision {
   return decideDriveVsTransitArrival(
     toDecisionEstimate(drive),
-    toDecisionEstimate(rail),
+    toDecisionEstimate(transit),
     targetSeconds,
   );
 }
