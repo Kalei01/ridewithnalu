@@ -126,10 +126,10 @@ function normalizeRoute(value: string | null | undefined): string | null {
 function normalizeDirection(value: string | null | undefined): string | null {
   if (!value) return null;
   const lower = value.trim().toLowerCase();
-  if (lower === "eb" || lower.includes("eastbound")) return "eastbound";
-  if (lower === "wb" || lower.includes("westbound")) return "westbound";
-  if (lower === "nb" || lower.includes("northbound")) return "northbound";
-  if (lower === "sb" || lower.includes("southbound")) return "southbound";
+  if (lower === "eb" || lower === "e" || lower.includes("eastbound")) return "eastbound";
+  if (lower === "wb" || lower === "w" || lower.includes("westbound")) return "westbound";
+  if (lower === "nb" || lower === "n" || lower.includes("northbound")) return "northbound";
+  if (lower === "sb" || lower === "s" || lower.includes("southbound")) return "southbound";
   return null;
 }
 
@@ -150,11 +150,13 @@ function parseHdotOahuRoadwork(html: string): HdotScheduledClosure[] {
   const sections = [...text.matchAll(sectionRe)];
 
   for (let i = 0; i < sections.length; i++) {
-    const title = sections[i][1].trim();
+    const section = sections[i];
+    if (!section) continue;
+    const title = (section[1] ?? "").trim();
     const route = normalizeRoute(title);
     if (!route) continue;
 
-    const bodyStart = (sections[i].index ?? 0) + sections[i][0].length;
+    const bodyStart = (section.index ?? 0) + section[0].length;
     const bodyEnd = sections[i + 1]?.index ?? text.length;
     const body = text.slice(bodyStart, bodyEnd);
 
@@ -224,7 +226,7 @@ export async function lookupHdotScheduledClosures(
 
     const html = await response.text();
     const scheduled = parseHdotOahuRoadwork(html);
-    const routeKeysOnPath = new Set(spatialClosures.flatMap(routeKeys));
+    const routeKeysOnPath = new Set(spatialClosures.flatMap((closure) => Array.from(routeKeys(closure))));
 
     return scheduled
       .filter((item) => {
