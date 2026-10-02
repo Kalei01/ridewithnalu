@@ -8,10 +8,10 @@ import {
 const at = (hour: number, minute = 0) => (hour * 60 + minute) * 60;
 
 function mode(
-  partial: Partial<DecisionModeEstimate> & Pick<DecisionModeEstimate, "mode" | "expectedMinutes">,
+  partial: { mode: DecisionModeEstimate["mode"]; expectedMinutes: number } &
+    Partial<Omit<DecisionModeEstimate, "mode" | "expectedMinutes">>,
 ): DecisionModeEstimate {
   return {
-    mode: partial.mode,
     availability: "available",
     quality: "good",
     expectedMinutes: partial.expectedMinutes,
