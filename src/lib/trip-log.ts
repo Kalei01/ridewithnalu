@@ -15,8 +15,13 @@ const PENDING = "nalu-trip-pending-v1";
 function read(): TripLogEntry[] {
   try {
     const raw = window.localStorage.getItem(KEY);
-    const list = raw ? (JSON.parse(raw) as Array<TripLogEntry & { mode?: "drive" | "rail" | "transit" }>) : [];
-    return Array.isArray(list) ? list.map((entry) => ({ ...entry, mode: entry.mode === "rail" ? "transit" : entry.mode })) as TripLogEntry[] : [];
+    const list = raw ? (JSON.parse(raw) as Array<Omit<TripLogEntry, "mode"> & { mode?: "drive" | "rail" | "transit" }>) : [];
+    return Array.isArray(list)
+      ? list.map((entry) => {
+          const mode = entry.mode === "rail" ? "transit" : entry.mode;
+          return { ...entry, mode } as TripLogEntry;
+        })
+      : [];
   } catch {
     return [];
   }
