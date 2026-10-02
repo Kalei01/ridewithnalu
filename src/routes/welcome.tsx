@@ -94,21 +94,21 @@ export const Route = createFileRoute("/welcome")({
       {
         name: "description",
         content:
-          "Nalu helps Oʻahu commuters compare driving, Skyline rail, and TheBus and decide when to leave.",
+          "Nalu checks current traffic, transit, roadwork, incidents, and conditions to help Oʻahu commuters decide how to get there and when to leave.",
       },
       { name: "robots", content: "index,follow,max-image-preview:large" },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "Nalu | Your Oʻahu commute, simplified" },
       {
         property: "og:description",
-        content: "Compare driving, Skyline rail, and TheBus for your Oʻahu commute.",
+        content: "Check current traffic and transit, compare your options, and know when to leave.",
       },
       { property: "og:url", content: SITE_URL + "/welcome" },
       { property: "og:site_name", content: "Nalu" },
       { name: "twitter:title", content: "Nalu | Your Oʻahu commute, simplified" },
       {
         name: "twitter:description",
-        content: "Compare driving, Skyline rail, and TheBus for your Oʻahu commute and plan when to leave.",
+        content: "Check current traffic and transit, compare your options, and know when to leave.",
       },
     ],
     links: [{ rel: "canonical", href: SITE_URL + "/welcome" }],
@@ -123,21 +123,21 @@ export const Route = createFileRoute("/welcome")({
               "@id": SITE_URL + "/#website",
               name: "Nalu",
               url: SITE_URL,
-              description: "An Oʻahu commute app that helps commuters compare driving, Skyline rail, and TheBus.",
+              description: "An Oʻahu commute decision app that helps commuters compare driving and transit and plan when to leave.",
             },
             {
               "@type": "Organization",
               "@id": SITE_URL + "/#organization",
               name: "Nalu",
               url: SITE_URL,
-              description: "Nalu is an Oʻahu-focused commute decision tool.",
+              description: "Nalu is an Oʻahu-focused commute decision tool that brings current commute information into one decision.",
             },
             {
               "@type": "SoftwareApplication",
               "@id": SITE_URL + "/#app",
               name: "Nalu",
               url: SITE_URL,
-              description: "Nalu helps Oʻahu commuters compare driving, Skyline rail, and TheBus and plan when to leave.",
+              description: "Nalu helps Oʻahu commuters compare driving and transit, check current commute conditions, and plan when to leave.",
               applicationCategory: "TravelApplication",
               operatingSystem: "Web",
               publisher: { "@id": SITE_URL + "/#organization" },
@@ -199,12 +199,12 @@ function WelcomePage() {
 
         <section className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[1.1fr_.9fr] lg:gap-16">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Rail or drive?</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Your commute. Figured out.</p>
             <h1 className="mt-4 max-w-2xl text-5xl font-black leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
-              Your Oʻahu commute, <span className="text-[var(--nalu-platinum-2)]">simplified.</span>
+              Your Oʻahu commute, <span className="text-[var(--nalu-platinum-2)]">figured out.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-              Nalu brings your commute information together and tells you whether driving or transit makes more sense — and when you should leave.
+              Nalu checks current traffic, transit, roadwork, incidents, and conditions to help you decide how to get there — and when to leave.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -213,7 +213,7 @@ function WelcomePage() {
                 onClick={markWelcomeSeen}
                 className="liquid-primary-action inline-flex min-h-12 items-center justify-center rounded-2xl px-6 text-sm font-bold"
               >
-                Continue free
+                Start planning
               </Link>
               <a
                 href="#account"
@@ -222,7 +222,7 @@ function WelcomePage() {
                 Create a free account
               </a>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">No payment required. You can use Nalu as a guest.</p>
+            <p className="mt-3 text-xs text-muted-foreground">Start as a guest. No payment required.</p>
           </div>
 
           <div className="space-y-4">
@@ -230,7 +230,7 @@ function WelcomePage() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Nalu says</p>
-                  <p className="mt-2 text-3xl font-black tracking-tight">What should you take today?</p>
+                  <p className="mt-2 text-3xl font-black tracking-tight">Here’s your commute.</p>
                 </div>
                 <HonuMark />
               </div>
@@ -242,7 +242,7 @@ function WelcomePage() {
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                   <p className="text-xs text-muted-foreground">Transit</p>
-                  <p className="mt-2 text-xl font-bold">Skyline + TheBus</p>
+                  <p className="mt-2 text-xl font-bold">Current transit options</p>
                   <p className="mt-1 text-xs text-muted-foreground">Current trip options</p>
                 </div>
               </div>
@@ -255,7 +255,7 @@ function WelcomePage() {
             <div className="grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground">
               <div className="rounded-xl border border-white/8 bg-white/[0.025] px-2 py-3">Live conditions</div>
               <div className="rounded-xl border border-white/8 bg-white/[0.025] px-2 py-3">Saved places</div>
-              <div className="rounded-xl border border-white/8 bg-white/[0.025] px-2 py-3">Arrive on time</div>
+              <div className="rounded-xl border border-white/8 bg-white/[0.025] px-2 py-3">Know when to leave</div>
             </div>
           </div>
         </section>
@@ -268,35 +268,35 @@ function WelcomePage() {
                 You don’t have to figure out the commute yourself.
               </h2>
               <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-                Your trip isn’t always just Home to Work. Tell Nalu what you need to do, when you need to be there, or where you need to stop. Nalu helps turn the whole thing into a plan.
+                Pick a destination, set an arrival time if you need one, and Nalu brings the important commute information together for you.
               </p>
             </div>
 
-            <div className="liquid-titanium-slab rounded-[24px] p-4 sm:p-5" aria-label="Ask Nalu product preview">
+            <div className="liquid-titanium-slab rounded-[24px] p-4 sm:p-5" aria-label="Plan your trip product preview">
               <div className="flex items-center gap-3">
                 <div className="flex size-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
                   <Sparkles className="size-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Ask Nalu</p>
-                  <p className="text-sm font-semibold">Tell Nalu what you’re trying to do.</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Plan your trip</p>
+                  <p className="text-sm font-semibold">Start with where you’re going.</p>
                 </div>
               </div>
 
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
                 <p className="text-xs text-muted-foreground">You</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">
-                  “Drop my son off first, then I need to be downtown by 8.”
+                  “I need to be downtown by 8.”
                 </p>
               </div>
 
               <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/[0.07] p-4">
                 <p className="text-xs font-semibold text-primary">Nalu</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">I’ll work out the route and timing.</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">I’ll compare the current options and work out when to leave.</p>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] text-muted-foreground">
-                  <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Stops</span>
+                  <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Traffic</span>
                   <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Timing</span>
-                  <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Rail or drive</span>
+                  <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Timing</span>
                 </div>
               </div>
             </div>
@@ -309,7 +309,7 @@ function WelcomePage() {
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">See Nalu in action</p>
               <h2 id="see-nalu-live" className="mt-2 text-2xl font-black tracking-tight">One live commute view. Less guesswork.</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-                Tap a destination and Nalu opens your commute view with current traffic, transit options, timing, and the rail-or-drive recommendation in one place.
+                Tap a destination and Nalu opens your commute view with current traffic, transit options, roadwork, timing, and the drive-or-transit decision in one place.
               </p>
               <p className="mt-3 text-xs text-muted-foreground">The example below is a product preview, not live trip data.</p>
             </div>
@@ -338,7 +338,7 @@ function WelcomePage() {
                 <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
                   <p className="text-[11px] text-muted-foreground">Transit</p>
                   <p className="mt-1 text-sm font-bold">55 min</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">Skyline + TheBus</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Current transit options</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
                   <p className="text-[11px] text-muted-foreground">Leave by</p>
@@ -354,9 +354,9 @@ function WelcomePage() {
           <div className="grid gap-6 lg:grid-cols-[.85fr_1.15fr] lg:items-center">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Need directions?</p>
-              <h2 id="turn-by-turn" className="mt-2 text-2xl font-black tracking-tight">Nalu can take you there.</h2>
+              <h2 id="turn-by-turn" className="mt-2 text-2xl font-black tracking-tight">Going by car? Nalu can take you there.</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-                If you choose to drive, Nalu can guide you with turn-by-turn navigation, live traffic updates, and rerouting when conditions change.
+                If you choose to drive, Nalu can continue with turn-by-turn directions, live traffic updates, and rerouting when conditions change.
               </p>
               <p className="mt-3 text-xs text-muted-foreground">Navigation is available when you choose to drive.</p>
             </div>
@@ -366,12 +366,28 @@ function WelcomePage() {
           </div>
         </section>
 
+        <section className="border-t border-white/10 py-10" aria-labelledby="watching-nalu">
+          <div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Nalu is watching</p>
+              <h2 id="watching-nalu" className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">The commute changes. Nalu keeps checking.</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">Nalu looks at the current information that can affect your trip, so your decision is based on what is happening now.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4"><p className="text-sm font-semibold">Traffic</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Live drive conditions and changing travel times.</p></div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4"><p className="text-sm font-semibold">Roadwork</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Planned closures and lane restrictions when available.</p></div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4"><p className="text-sm font-semibold">Transit</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Current rail, bus, and connecting trip options.</p></div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4"><p className="text-sm font-semibold">Conditions</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Weather and other available commute information.</p></div>
+            </div>
+          </div>
+        </section>
+
         <section className="grid gap-6 border-t border-white/10 py-10 lg:grid-cols-2" aria-labelledby="how-nalu-works">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">How Nalu works</p>
-            <h2 id="how-nalu-works" className="mt-2 text-2xl font-black tracking-tight">Everything you need for the commute ahead.</h2>
+            <h2 id="how-nalu-works" className="mt-2 text-2xl font-black tracking-tight">One place for the commute ahead.</h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-              Nalu brings the important pieces of your Oʻahu commute together, so you can make one decision instead of checking several apps.
+              Nalu brings the important pieces together, so you can make one commute decision instead of checking several apps.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -381,7 +397,7 @@ function WelcomePage() {
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <p className="text-sm font-semibold">Transit</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">Skyline and TheBus options can be considered alongside the rest of the trip.</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Rail, bus, walking connections, and combinations can be considered when available.</p>
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <p className="text-sm font-semibold">Arrive By</p>
@@ -400,7 +416,7 @@ function WelcomePage() {
           <div className="mt-6 grid gap-3">
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <summary className="cursor-pointer text-sm font-semibold">Does Nalu replace Google Maps or Apple Maps?</summary>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">No. Nalu is built around the specific Oʻahu commute decision: whether driving or transit makes sense for your trip and when you should leave.</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">No. Nalu is focused on the Oʻahu commute decision: whether driving or transit makes sense for your trip and when you should leave.</p>
             </details>
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <summary className="cursor-pointer text-sm font-semibold">Does Nalu use live information?</summary>
@@ -421,7 +437,7 @@ function WelcomePage() {
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Trust & data</p>
           <h2 id="trust" className="mt-2 text-xl font-black tracking-tight">Current information. Real-world conditions can still change.</h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Traffic, transit, weather, and road conditions can change. Nalu uses the information available at planning time to help you make a commute decision, but it cannot guarantee an arrival time.
+            Traffic, transit, roadwork, incidents, weather, and other conditions can change. Nalu uses the information available at planning time to help you make a commute decision, but it cannot guarantee an arrival time.
           </p>
           <p className="mt-3 text-xs leading-5 text-muted-foreground">
             Nalu may use information from third-party traffic, transit, weather, and air-quality services. Their availability, timing, and accuracy can vary.
