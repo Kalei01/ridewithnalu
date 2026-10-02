@@ -391,8 +391,9 @@ function parseCommitment(raw: string | null): Commitment | null {
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as { mode?: "rail" | "transit" | "drive"; at?: number };
-    if (value.mode !== "rail" && value.mode !== "transit" && value.mode !== "drive") return null;
-    return { mode: value.mode === "transit" ? "transit" : value.mode, at: typeof value.at === "number" ? value.at : Date.now() };
+    const mode = value.mode === "rail" ? "transit" : value.mode;
+    if (mode !== "transit" && mode !== "drive") return null;
+    return { mode, at: typeof value.at === "number" ? value.at : Date.now() };
   } catch {
     return null;
   }
