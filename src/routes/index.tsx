@@ -1694,7 +1694,7 @@ function Index() {
       "nearby-transit-stops",
       browseUserPoint?.lat.toFixed(5),
       browseUserPoint?.lon.toFixed(5),
-      Math.floor(scheduleAfterSeconds / 60),
+      scheduleAfterSeconds,
     ],
     enabled: browseActive && Boolean(browseUserPoint),
     staleTime: 30_000,
