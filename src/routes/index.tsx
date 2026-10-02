@@ -363,18 +363,18 @@ const LOCKED_OPTION_KEY = "nalu-locked-itinerary-v1";
 const LIVE_ROUTE_CACHE_KEY = "nalu-live-route-v1";
 
 /** The mode a commuter has committed to for the trip underway. */
-type Commitment = { mode: "rail" | "drive"; at: number };
+type Commitment = { mode: "transit" | "drive"; at: number };
 function directionLabel(value: string | null) {
   if (!value) return "";
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-type UiDecisionState = "drive" | "rail" | "same" | "none" | "uncertain";
+type UiDecisionState = "drive" | "transit" | "same" | "none" | "uncertain";
 type DecisionSnapshot = {
   key: string;
-  state: "drive" | "rail" | "same";
+  state: "drive" | "transit" | "same";
   driveMinutes: number | null;
-  railMinutes: number | null;
+  transitMinutes: number | null;
   driveDelayMinutes: number | null;
   railWaitMinutes: number | null;
   busWaitMinutes: number | null;
@@ -391,8 +391,8 @@ function parseCommitment(raw: string | null): Commitment | null {
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as Partial<Commitment>;
-    if (value.mode !== "rail" && value.mode !== "drive") return null;
-    return { mode: value.mode, at: typeof value.at === "number" ? value.at : Date.now() };
+    if (value.mode !== "rail" && value.mode !== "transit" && value.mode !== "drive") return null;
+    return { mode: value.mode === "rail" ? "transit" : value.mode, at: typeof value.at === "number" ? value.at : Date.now() };
   } catch {
     return null;
   }
@@ -1023,14 +1023,14 @@ function Index() {
   const [selectedNearbyStopId, setSelectedNearbyStopId] = useState<string | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<"rail" | "drive">("rail");
+  const [selectedMode, setSelectedMode] = useState<"transit" | "drive">("transit");
   // Once the commuter is underway the chosen mode is locked: the verdict must
   // never flip a driver onto rail, or a rider onto the freeway, mid-trip.
   const [commitment, setCommitment] = useState<Commitment | null>(null);
   // The itinerary boarded, held for the duration of a locked transit trip.
   const lockedOptionRef = useRef<Option | null>(null);
   const lockedItineraryCandidate = useRef<Option | null>(null);
-  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "rail" | "same"; snapshot: DecisionSnapshot | null } | null>(null);
+  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "transit" | "same"; snapshot: DecisionSnapshot | null } | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
@@ -1086,7 +1086,7 @@ function Index() {
     if (storedCommitment) {
       setCommitment(storedCommitment);
       setSelectedMode(storedCommitment.mode);
-      if (storedCommitment.mode === "rail")
+      if (storedCommitment.mode === "transit")
         lockedOptionRef.current = parseLockedItinerary(window.localStorage.getItem(LOCKED_OPTION_KEY));
     }
     const storedMode = window.localStorage.getItem(PLAN_MODE_KEY);
@@ -1287,21 +1287,21 @@ function Index() {
   }
 
   /** Commit to a mode for the trip underway and stop the verdict changing it. */
-  function commitMode(next: "rail" | "drive") {
+  function commitMode(next: "transit" | "drive") {
     requestCommuteNotificationPermission();
     const entry: Commitment = { mode: next, at: Date.now() };
     const driveEst = driveTripEstimate.expectedDurationMinutes;
     startTripLog({
       mode: next,
       startedAt: entry.at,
-      chosenMinutes: next === "drive" ? driveEst : railMinutes,
-      otherMinutes: next === "drive" ? railMinutes : driveEst,
+      chosenMinutes: next === "drive" ? driveEst : transitMinutes,
+      otherMinutes: next === "drive" ? transitMinutes : driveEst,
     });
     track("active_trip_started", { mode: next });
     setCommitment(entry);
     setSelectedMode(next);
     // Freeze the itinerary in front of the rider, transfers included.
-    lockedOptionRef.current = next === "rail" ? lockedItineraryCandidate.current : null;
+    lockedOptionRef.current = next === "transit" ? lockedItineraryCandidate.current : null;
     window.localStorage.setItem(COMMIT_KEY, JSON.stringify(entry));
     if (lockedOptionRef.current)
       window.localStorage.setItem(LOCKED_OPTION_KEY, JSON.stringify(lockedOptionRef.current));
@@ -1340,7 +1340,7 @@ function Index() {
     window.localStorage.removeItem(PARKED_KEY);
     setSettingsOpen(false);
     setOnboardingOpen(false);
-    setSelectedMode("rail");
+    setSelectedMode("transit");
     setSelectedDeparture(null);
     setPlanMode("leave-now");
     setArriveByInput("");
@@ -1373,7 +1373,7 @@ function Index() {
     setOverride(null);
     window.localStorage.removeItem(DIRECTION_KEY);
     setSelectedDeparture(null);
-    setSelectedMode("rail");
+    setSelectedMode("transit");
     setOnboardingOpen(false);
     setSettingsOpen(false);
   }, [signedInAt]);
@@ -2033,7 +2033,7 @@ function Index() {
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null);
   useEffect(() => {
     // A locked transit trip keeps its itinerary even as fresher options arrive.
-    if (commitment?.mode === "rail") return;
+    if (commitment?.mode === "transit") return;
     setSelectedDeparture(null);
   }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds, commitment]);
   const liveBest =
@@ -2041,7 +2041,7 @@ function Index() {
   // While riding, the itinerary on screen is the one boarded — including its
   // transfers — not whatever is fastest to leave now.
   const best =
-    commitment?.mode === "rail" && lockedOptionRef.current ? lockedOptionRef.current : liveBest;
+    commitment?.mode === "transit" && lockedOptionRef.current ? lockedOptionRef.current : liveBest;
   lockedItineraryCandidate.current = liveBest ?? null;
 
   const transitLabel = best?.legs.some((leg) => leg.mode === "rail")
@@ -3141,7 +3141,7 @@ function Index() {
     feedExpired: gtfsExpiry !== null && gtfsExpiry.daysRemaining < 0,
     liveBusFetchedAt: confirmedBusArrival ? (liveBus?.fetchedAt ?? null) : null,
   });
-  const railMinutes = railTripEstimate.expectedDurationMinutes;
+  const transitMinutes = railTripEstimate.expectedDurationMinutes;
   const railRange = railTripEstimate.availability === "available" ? {
     low: Math.round(((railTripEstimate.earliestArrival as number) - nowSeconds) / 60),
     high: Math.round(((railTripEstimate.latestArrival as number) - nowSeconds) / 60),
@@ -3295,35 +3295,35 @@ function Index() {
   // Canonical decision state is Drive vs Transit. The UI still uses "rail"
   // as its transit-view key for compatibility with the existing transit panels;
   // this adapter keeps that legacy UI vocabulary out of the decision engine.
-  const canonicalVerdict = commitment?.mode === "rail" ? "transit" : commitment?.mode ??
+  const canonicalVerdict = commitment?.mode === "transit" ? "transit" : commitment?.mode ??
     (optionsLoading || driveLoading
       ? "uncertain"
       : activeDecision?.state ?? "uncertain");
-  const verdict: UiDecisionState = canonicalVerdict === "transit" ? "rail" : canonicalVerdict as UiDecisionState;
-  const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
+  const verdict: UiDecisionState = canonicalVerdict as UiDecisionState;
+  const gap = !commitment && !arriveByActive && (verdict === "transit" || verdict === "drive")
     ? activeDecision?.differenceMinutes ?? null : null;
-  const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
+  const incidentDecides = verdict === "transit" && activeDecision.primary.kind === "major_incident";
   const currentDecisionSnapshot: DecisionSnapshot = {
     key: decisionKey,
-    state: verdict === "same" ? "same" : verdict === "drive" || verdict === "rail" ? verdict : "same",
+    state: verdict === "same" ? "same" : verdict === "drive" || verdict === "transit" ? verdict : "same",
     driveMinutes: driveTripEstimate.expectedDurationMinutes,
-    railMinutes: railTripEstimate.expectedDurationMinutes,
+    transitMinutes: railTripEstimate.expectedDurationMinutes,
     driveDelayMinutes: driveTripEstimate.trafficDelayMinutes,
     railWaitMinutes: railTripEstimate.railWaitMinutes,
     busWaitMinutes: railTripEstimate.busWaitMinutes,
     majorIncident: Boolean(driveTripEstimate.majorIncident),
   };
   const decisionChanges = useMemo(() => {
-    if (commitment || !previousDecisionSnapshot || previousDecisionSnapshot.key !== decisionKey || !["drive", "rail", "same"].includes(verdict)) return [] as string[];
+    if (commitment || !previousDecisionSnapshot || previousDecisionSnapshot.key !== decisionKey || !["drive", "transit", "same"].includes(verdict)) return [] as string[];
     const changes: string[] = [];
     if (previousDecisionSnapshot.state !== currentDecisionSnapshot.state) {
-      const labels = { drive: "driving", rail: transitLabel, same: "neither option" } as const;
+      const labels = { drive: "driving", transit: transitLabel, same: "neither option" } as const;
       changes.push(`Nalu changed the recommendation from ${labels[previousDecisionSnapshot.state]} to ${labels[currentDecisionSnapshot.state]}.`);
     }
     const driveDelta = changedMinutes(currentDecisionSnapshot.driveMinutes, previousDecisionSnapshot.driveMinutes);
     if (driveDelta !== null) changes.push(`Driving is now about ${Math.abs(driveDelta)} min ${driveDelta > 0 ? "slower" : "faster"} than your last check.`);
-    const railDelta = changedMinutes(currentDecisionSnapshot.railMinutes, previousDecisionSnapshot.railMinutes);
-    if (railDelta !== null) changes.push(`${transitLabel} is now about ${Math.abs(railDelta)} min ${railDelta > 0 ? "slower" : "faster"} than your last check.`);
+    const transitDelta = changedMinutes(currentDecisionSnapshot.transitMinutes, previousDecisionSnapshot.transitMinutes);
+    if (transitDelta !== null) changes.push(`${transitLabel} is now about ${Math.abs(transitDelta)} min ${transitDelta > 0 ? "slower" : "faster"} than your last check.`);
     const trafficDelta = changedMinutes(currentDecisionSnapshot.driveDelayMinutes, previousDecisionSnapshot.driveDelayMinutes);
     if (trafficDelta !== null) changes.push(`Traffic is adding about ${Math.abs(trafficDelta)} min ${trafficDelta > 0 ? "more" : "less"} time than at your last check.`);
     const railWaitDelta = changedMinutes(currentDecisionSnapshot.railWaitMinutes, previousDecisionSnapshot.railWaitMinutes);
@@ -3333,11 +3333,11 @@ function Index() {
     if (currentDecisionSnapshot.majorIncident && !previousDecisionSnapshot.majorIncident) changes.push("A crash or major slowdown is now affecting the drive.");
     if (!currentDecisionSnapshot.majorIncident && previousDecisionSnapshot.majorIncident) changes.push("The reported crash or major slowdown is no longer affecting the comparison.");
     return changes.slice(0, 3);
-  }, [commitment, previousDecisionSnapshot, decisionKey, currentDecisionSnapshot.driveMinutes, currentDecisionSnapshot.railMinutes, currentDecisionSnapshot.driveDelayMinutes, currentDecisionSnapshot.railWaitMinutes, currentDecisionSnapshot.busWaitMinutes, currentDecisionSnapshot.majorIncident, currentDecisionSnapshot.state]);
+  }, [commitment, previousDecisionSnapshot, decisionKey, currentDecisionSnapshot.driveMinutes, currentDecisionSnapshot.transitMinutes, currentDecisionSnapshot.driveDelayMinutes, currentDecisionSnapshot.railWaitMinutes, currentDecisionSnapshot.busWaitMinutes, currentDecisionSnapshot.majorIncident, currentDecisionSnapshot.state]);
   useEffect(() => {
-    if (commitment || !["drive", "rail", "same"].includes(verdict)) return;
+    if (commitment || !["drive", "transit", "same"].includes(verdict)) return;
     const historyState =
-      verdict === "drive" || verdict === "rail" || verdict === "same"
+      verdict === "drive" || verdict === "transit" || verdict === "same"
         ? verdict
         : "same";
     decisionHistoryRef.current = {
@@ -3350,7 +3350,7 @@ function Index() {
     verdict,
     decisionKey,
     currentDecisionSnapshot.driveMinutes,
-    currentDecisionSnapshot.railMinutes,
+    currentDecisionSnapshot.transitMinutes,
     currentDecisionSnapshot.driveDelayMinutes,
     currentDecisionSnapshot.railWaitMinutes,
     currentDecisionSnapshot.busWaitMinutes,
@@ -3362,7 +3362,7 @@ function Index() {
   useEffect(() => {
     if (commitment) return;
     if (verdict === "drive") setSelectedMode("drive");
-    else if (verdict === "rail") setSelectedMode("rail");
+    else if (verdict === "transit") setSelectedMode("transit");
   }, [verdict, inbound, commitment]);
   const reasoning = commitment
     ? "Your selected trip stays locked while conditions update."
@@ -3387,7 +3387,7 @@ function Index() {
           : "Skyline has not started service yet. Nalu is checking available transit options before making the comparison."
         : verdict === "drive"
         ? "Nalu compares the full trip from where you start to where you’re going, including getting to transit, waiting for your ride, and walking at the end—not just the freeway drive."
-        : verdict === "rail"
+        : verdict === "transit"
           ? transitLabel === "Rail"
             ? "The Skyline option includes getting to the station, waiting, the train ride, and the walk to your destination."
             : "The " + transitLabel + " option includes getting to transit, waiting, transfers, and the walk to your destination."
@@ -3449,7 +3449,7 @@ function Index() {
           tone: "alert",
         });
       }
-    } else if (verdict === "rail") {
+    } else if (verdict === "transit") {
       const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
       const busWait = Math.round(railTripEstimate.busWaitMinutes ?? 0);
       if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
@@ -4894,7 +4894,7 @@ function Index() {
 
   return (
     <main
-      className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "rail" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
+      className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "transit" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
     >
       <div className="mx-auto flex w-full max-w-[680px] flex-col">
         <NaluPageNav current="commute" onBrowse={() => setPageView("browse")} />
@@ -5204,7 +5204,7 @@ function Index() {
                     : "Not enough current information"
                 : verdict === "same"
                   ? "Too close to call"
-                  : verdict === "rail"
+                  : verdict === "transit"
                     ? `Take ${transitLabel}${gap !== null ? ` · ${Math.round(Math.abs(gap))} min faster` : ""}`
                     : `Drive${gap !== null ? ` · ${Math.round(Math.abs(gap))} min faster` : ""}`}
           </h1>
@@ -5229,7 +5229,7 @@ function Index() {
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
             low: driveRange?.low, high: driveRange?.high }} transit={{ label: transitLabel, minutes: railTripEstimate.expectedDurationMinutes,
             low: railRange?.low, high: railRange?.high }} />}
-          {verdict === "rail" && best && railRange && (
+          {verdict === "transit" && best && railRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
               <div className="metric-glass">
                 <p className="text-xs text-muted-foreground">Leave by</p>
@@ -5295,7 +5295,7 @@ function Index() {
                 : activeDecision.primary.text}
             </p>
           )}
-          {configured && (verdict === "rail" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
+          {configured && (verdict === "transit" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
           {configured && !commitment && decisionSignals.length > 0 && (
             <section
               className="nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25"
@@ -5392,7 +5392,7 @@ function Index() {
           ) : (
             <Button
               type="button"
-              disabled={selectedMode === "rail" ? !best : !driveAvailable || !drive}
+              disabled={selectedMode === "transit" ? !best : !driveAvailable || !drive}
               onClick={() => {
                 // Starting a trip means "tell me everything": unlock chime and speech
                 // inside this tap (iOS Safari), unmute voice and turn every alert on.
@@ -5614,14 +5614,14 @@ function Index() {
           >
             <Button
               type="button"
-              aria-pressed={selectedMode === "rail"}
+              aria-pressed={selectedMode === "transit"}
               disabled={Boolean(commitment)}
               variant="ghost"
               onClick={() => chooseMode("rail")}
-              className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
+              className={`relative h-14 disabled:opacity-100 ${selectedMode === "transit" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
               {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />} {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
-              {!commitment && verdict === "rail" && (
+              {!commitment && verdict === "transit" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}
               {lockedMode === "rail" && <span className="mode-winner-badge">On this trip</span>}
@@ -5642,7 +5642,7 @@ function Index() {
             </Button>
           </div>
 
-          {selectedMode === "rail" && (
+          {selectedMode === "transit" && (
             <div className="mt-6">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-xl font-bold text-foreground">{transitLabel} itinerary</h3>
@@ -5727,7 +5727,7 @@ function Index() {
           )}
         </section>
 
-        {selectedMode === "rail" && options.length > 1 && (
+        {selectedMode === "transit" && options.length > 1 && (
           <section
             className="alternative-panel mb-8 min-w-0 max-w-full overflow-hidden rounded-lg p-4 sm:p-5"
             aria-labelledby="later-title"
