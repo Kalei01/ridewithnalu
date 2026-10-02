@@ -370,14 +370,21 @@ type OrbisInstruction = {
 };
 
 function normalizeOrbisInstructions(instructions: OrbisInstruction[]): Array<GuidanceInstruction & { point?: { latitude?: number; longitude?: number }; message?: string }> {
-  return instructions.map((instruction) => ({
-    routeOffsetInMeters: instruction.routeOffsetInMeters,
-    point: instruction.maneuverPoint,
-    maneuver: instruction.maneuver,
-    message: instruction.instructionMessage,
-    street: instruction.nextRoadInformation?.streetName?.text ?? instruction.previousRoadInformation?.streetName?.text,
-    roadNumbers: [...(instruction.nextRoadInformation?.roadShields ?? []), ...(instruction.previousRoadInformation?.roadShields ?? [])].map((shield) => shield.roadNumber?.text).filter(Boolean),
-  }));
+  return instructions.map((instruction) => {
+    const roadNumbers = [...(instruction.nextRoadInformation?.roadShields ?? []), ...(instruction.previousRoadInformation?.roadShields ?? [])]
+      .map((shield) => shield.roadNumber?.text)
+      .filter((value): value is string => Boolean(value));
+    const result: GuidanceInstruction & { point?: { latitude?: number; longitude?: number }; message?: string } = {
+      roadNumbers,
+    };
+    if (instruction.routeOffsetInMeters !== undefined) result.routeOffsetInMeters = instruction.routeOffsetInMeters;
+    if (instruction.maneuverPoint !== undefined) result.point = instruction.maneuverPoint;
+    if (instruction.maneuver !== undefined) result.maneuver = instruction.maneuver;
+    if (instruction.instructionMessage !== undefined) result.message = instruction.instructionMessage;
+    const street = instruction.nextRoadInformation?.streetName?.text ?? instruction.previousRoadInformation?.streetName?.text;
+    if (street !== undefined) result.street = street;
+    return result;
+  });
 }
 
 function readOrbisTrafficSections(sections: Array<{ startPathIndex?: number; endPathIndex?: number; delayDurationInSeconds?: number; delayMagnitude?: string }>, fullPath: Array<{ lat: number; lon: number }>): DriveTrafficSection[] {
