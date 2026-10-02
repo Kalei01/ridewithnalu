@@ -104,13 +104,14 @@ import { latestRailArrival } from "@/lib/leave-by";
 import { skylineFallbackHeadwayMinutes } from "@/lib/rail/skyline-fallback";
 import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } from "@/lib/drive/planner";
 import { carAvailableForDrive } from "@/lib/car-state";
-import { resolveTripDirection } from "@/lib/trip-direction";
+import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-direction";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
 import { decideArrival, type DecisionState } from "@/lib/decision/commute-decision";
 import { createNaluVerdict } from "@/lib/intelligence/verdict-engine";
 import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
+import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
 import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
@@ -302,6 +303,14 @@ function optionIdentity(option: Option) {
   return `${option.leave_by_seconds}:${option.depart_seconds}:${option.arrive_seconds}:${option.total_minutes}:${option.legs.map((leg) => `${leg.mode}:${leg.route_short ?? ""}:${leg.from_stop_id ?? leg.from ?? ""}:${leg.to_stop_id ?? leg.to ?? ""}`).join("|")}`;
 }
 
+function mergeTransitOptions(...groups: Option[][]): Option[] {
+  const unique = new Map<string, Option>();
+  for (const option of groups.flat()) unique.set(optionIdentity(option), option);
+  return Array.from(unique.values())
+    .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
+    .slice(0, 8);
+}
+
 
 const STORAGE_KEY = "nalu-setup-v3";
 const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
@@ -354,6 +363,7 @@ const LIVE_ROUTE_CACHE_KEY = "nalu-live-route-v1";
 
 /** The mode a commuter has committed to for the trip underway. */
 type Commitment = { mode: "rail" | "drive"; at: number };
+type UiDecisionState = "drive" | "rail" | "same" | "none" | "uncertain";
 type DecisionSnapshot = {
   key: string;
   state: "drive" | "rail" | "same";
@@ -1817,37 +1827,120 @@ function Index() {
       };
 
       const fetchPage = async (cursor: number): Promise<Option[]> => {
-        // Nalu's current transit architecture is door-to-door and provider-neutral.
-        // The generalized planner is the only active transit planner here.
-        // Legacy rail/bus planners remain in the repository for migration history,
-        // but they must not influence a current trip when this planner returns no
-        // itinerary. This prevents old Skyline-specific assumptions from changing
-        // the new Transit result.
-        const { data, error } = await supabase.rpc("plan_transit_general", {
-          p_origin_lat: tripDirection.from.lat as number,
-          p_origin_lon: tripDirection.from.lon as number,
-          p_dest_lat: tripDirection.to.lat as number,
-          p_dest_lon: tripDirection.to.lon as number,
-          p_after_seconds: cursor,
-          p_limit: planMode === "arrive-by" ? 8 : 4,
-        });
+        // Primary path: generalized door-to-door transit. This remains authoritative
+        // whenever it produces a usable itinerary.
+        const primaryTransit = await fetchGeneralTransit(cursor);
+        if (primaryTransit.length) return primaryTransit;
 
-        if (error) {
-          generalTransitError = error;
-          recordTransitRpcError("plan_transit_general", error);
-        } else {
-          const options = (data ?? []).map((row) => ({
-            ...row,
-            legs: row.legs as unknown as Leg[],
-          })) as Option[];
-          if (options.length) return options;
+        // Inbound Skyline trips keep the proven multi-station fallbacks. These are
+        // only reached after the generalized planner returns zero options.
+        if (inbound) {
+          const fetchAtStation = async (stationId: string): Promise<Option[]> => {
+            const params = {
+              ...inboundPlannerCoordinates(tripDirection),
+              p_station: stationId,
+              p_allow_drive:
+                stationId === arrivalStationId
+                  ? carAtStation
+                  : Boolean(
+                      setup.allowDrive &&
+                      parkedToday?.place === "station" &&
+                      parkedToday.station === stationId,
+                    ),
+              p_after_seconds: cursor,
+              p_limit: planMode === "arrive-by" ? 8 : 4,
+            };
+            const { data, error } = await supabase.rpc("plan_inbound", params);
+            if (error) {
+              recordTransitRpcError("plan_inbound", error);
+              throw error;
+            }
+            return (data ?? []).map((row) => ({
+              ...row,
+              legs: row.legs as unknown as Leg[],
+            })) as Option[];
+          };
+
+          let stations = browseStations;
+          let primaryAlreadyChecked = false;
+
+          if (!stations.length) {
+            if (selectedInboundStation) {
+              const primary = await fetchAtStation(selectedInboundStation);
+              if (primary.length) {
+                fallbackChecked = true;
+                return mergeTransitOptions(primary, primaryTransit);
+              }
+              primaryAlreadyChecked = true;
+            }
+
+            const stationResult = await supabase.rpc("rail_stations");
+            if (stationResult.error) {
+              recordTransitRpcError("rail_stations", stationResult.error);
+              throw stationResult.error;
+            }
+            stations = (stationResult.data ?? []) as RailStation[];
+          }
+
+          if (!fallbackChecked) {
+            const result = await findInboundOptions({
+              primaryStationId: primaryAlreadyChecked ? null : selectedInboundStation,
+              stations: primaryAlreadyChecked
+                ? stations.filter((station) => station.stop_id !== selectedInboundStation)
+                : stations,
+              destination: tripDirection.to as Coords,
+              fetchAtStation,
+            });
+
+            selectedInboundStation = result.stationId ?? selectedInboundStation;
+            fallbackChecked = true;
+
+            if (result.options.length) {
+              return mergeTransitOptions(result.options, primaryTransit);
+            }
+          }
+
+          // If station egress is still unavailable, try a nearby rail hub and
+          // prepend the established access leg rather than declaring transit dead.
+          if (selectedInboundStation) {
+            const hubOptions = (await hubAccessFallback({
+              origin: tripDirection.from as Coords,
+              stations: stations.filter(
+                (station) => station.stop_id !== selectedInboundStation,
+              ),
+              afterSeconds: cursor,
+              fetchFromHub: async (hub, after) => {
+                const { data, error } = await supabase.rpc("plan_inbound", {
+                  ...inboundPlannerCoordinates(tripDirection),
+                  p_dest_lat: hub.lat,
+                  p_dest_lon: hub.lon,
+                  p_station: selectedInboundStation,
+                  p_allow_drive:
+                    selectedInboundStation === arrivalStationId ? carAtStation : false,
+                  p_after_seconds: after,
+                  p_limit: planMode === "arrive-by" ? 8 : 4,
+                });
+                if (error) {
+                  recordTransitRpcError("plan_inbound_hub", error);
+                  throw error;
+                }
+                return (data ?? []).map((row) => ({
+                  ...row,
+                  legs: row.legs as unknown as Leg[],
+                }));
+              },
+            })) as Option[];
+
+            if (hubOptions.length) {
+              return mergeTransitOptions(hubOptions, primaryTransit);
+            }
+          }
         }
 
         if (generalTransitError) throw generalTransitError;
 
-        // A valid zero-row response means the current planner found no
-        // itinerary. Keep the failure diagnostic separate from route generation
-        // so diagnostics cannot silently substitute an older routing algorithm.
+        // A valid zero-row response after the targeted fallbacks is a genuine
+        // transit miss. Keep the privacy-safe diagnostic path intact.
         try {
           const { data: diagnostic, error: diagnosticError } = await supabase.rpc(
             "diagnose_transit_general",
@@ -3156,7 +3249,7 @@ function Index() {
       : optionsLoading || driveLoading
         ? "uncertain"
         : activeDecision?.state ?? "uncertain");
-  const verdict: DecisionState = canonicalVerdict === "transit" ? "rail" : canonicalVerdict;
+  const verdict: UiDecisionState = canonicalVerdict === "transit" ? "rail" : canonicalVerdict as UiDecisionState;
   const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
     ? activeDecision?.differenceMinutes ?? null : null;
   const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
