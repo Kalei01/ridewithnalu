@@ -5209,6 +5209,9 @@ function Index() {
             </span>
             <span className="text-xs font-semibold">{commitment ? "On this trip" : "Nalu says"}</span>
           </div>
+          {configured && !optionsLoading && !driveLoading && naluHeroLine && (
+            <p className="mb-4 max-w-[42rem] text-sm font-medium leading-6 text-muted-foreground">{naluHeroLine}</p>
+          )}
           <h1
             id="verdict-title"
             className="max-w-[390px] text-4xl font-bold leading-none text-foreground"
@@ -5251,11 +5254,6 @@ function Index() {
                     : `${Math.round(activeDecision.differenceMinutes)} min separates the options`}
                 </span>
               )}
-            </div>
-          )}
-          {configured && !optionsLoading && !driveLoading && naluHeroLine && (
-            <div className="mt-3 max-w-[42rem] rounded-xl border border-border/50 bg-background/30 px-3.5 py-2.5">
-              <p className="text-sm font-medium leading-6 text-muted-foreground">{naluHeroLine}</p>
             </div>
           )}
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
