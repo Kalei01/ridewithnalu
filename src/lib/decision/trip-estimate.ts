@@ -1,4 +1,5 @@
 import type { DestinationAccess } from "../destination-access";
+import { FRESHNESS_POLICIES } from "../intelligence/freshness-policy";
 
 export type EstimateMode = "drive" | "rail";
 export type Availability = "available" | "service-unavailable" | "car-unavailable" | "data-error";
@@ -56,9 +57,6 @@ export type TransitOption = {
   total_minutes: number;
   legs: TransitLeg[];
 };
-
-const DRIVE_FRESH_MS = 5 * 60_000;
-const SCHEDULE_FRESH_MS = 10 * 60_000;
 
 function qualityFor(fetchedAt: number | null, nowMs: number, maxAgeMs: number): DataQuality {
   if (fetchedAt === null) return "limited";
@@ -152,7 +150,7 @@ export function driveEstimate(input: {
       fetchedAt: drive.fetchedAt,
       quality:
         input.qualityOverride ??
-        (input.failed ? "limited" : qualityFor(drive.fetchedAt, nowMs, DRIVE_FRESH_MS)),
+        (input.failed ? "limited" : qualityFor(drive.fetchedAt, nowMs, FRESHNESS_POLICIES.driveEta.staleAfterMs)),
     },
   };
 }
@@ -176,7 +174,7 @@ export function transitEstimate(input: {
       ? "stale"
       : input.failed
         ? "limited"
-        : qualityFor(input.scheduleFetchedAt, nowMs, SCHEDULE_FRESH_MS),
+        : qualityFor(input.scheduleFetchedAt, nowMs, FRESHNESS_POLICIES.transitSchedule.staleAfterMs),
   };
   if (!option)
     return unavailable("rail", input.failed ? "data-error" : "service-unavailable", source);
