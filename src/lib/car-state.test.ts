@@ -9,7 +9,8 @@ describe("parked-car state", () => {
   it("outbound needs the car at home; return needs it at the destination", () => {
     expect(carAvailableForDrive({ place: "home" }, false)).toBe(true);
     expect(carAvailableForDrive({ place: "station" }, false)).toBe(false);
-    expect(carAvailableForDrive({ place: "destination" }, true)).toBe(true);
+    // Destination is no longer a tracked parked-car state; legacy values are non-blocking.
+    expect(carAvailableForDrive({ place: "destination" as "home" }, true)).toBe(true);
     expect(carAvailableForDrive({ place: "station" }, true)).toBe(false);
     expect(carAvailableForDrive({ place: "home" }, true)).toBe(false);
   });
