@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { CalendarCheck, HelpCircle, Sparkles, TrendingUp, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { askNalu, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
+import { askNalu, eveningPulse, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
@@ -85,6 +85,60 @@ export function MorningPulse({
       </div>
       <p className="mt-2 text-sm leading-relaxed text-foreground">
         {isLoading ? "Checking your commute…" : data?.ok ? data.value.text : data?.error}
+      </p>
+    </section>
+  );
+}
+
+export function EveningPulse({
+  home,
+  work,
+  trainsEveryMinutes,
+}: {
+  home: Place | null;
+  work: Place | null;
+  trainsEveryMinutes: number | null;
+}) {
+  const clock = useHonoluluClock();
+  const fetchPulse = useServerFn(eveningPulse);
+  const inWindow = Boolean(
+    clock && weekdays.includes(clock.weekday) && clock.hour >= 14 && clock.hour < 19,
+  );
+  const { data, isLoading } = useQuery({
+    queryKey: ["evening-pulse-v1", work?.lat, work?.lon, home?.lat, home?.lon],
+    enabled: inWindow && Boolean(home && work),
+    staleTime: 2 * 60_000,
+    retry: false,
+    queryFn: () =>
+      fetchPulse({
+        data: {
+          from: { lat: work!.lat, lon: work!.lon },
+          to: { lat: home!.lat, lon: home!.lon },
+          destinationLabel: home!.label.slice(0, 30),
+          trainsEveryMinutes,
+        },
+      }),
+  });
+  if (!inWindow || !home || !work) return null;
+  return (
+    <section aria-label="Evening Pulse" className="glass-panel mt-3 rounded-lg p-4">
+      <div className="flex items-center gap-2">
+        <Sparkles className="size-4 text-primary" />
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Evening Pulse</p>
+        {data?.ok && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="ml-auto size-8"
+            aria-label="Read Evening Pulse aloud"
+            onClick={() => speakCommuteAlert(data.value.text)}
+          >
+            <Volume2 className="size-4" />
+          </Button>
+        )}
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-foreground">
+        {isLoading ? "Checking your trip home…" : data?.ok ? data.value.text : data?.error}
       </p>
     </section>
   );
