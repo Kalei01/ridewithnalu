@@ -113,7 +113,7 @@ export const morningPulse = createServerFn({ method: "POST" })
         .slice(0, 2);
       const trafficSentence =
         delay >= 2
-          ? \`${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.\`
+          ? `${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.`
           : "Roads look normal right now.";
 
       return {
