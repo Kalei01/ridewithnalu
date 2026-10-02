@@ -1825,211 +1825,60 @@ function Index() {
       };
 
       const fetchPage = async (cursor: number): Promise<Option[]> => {
-      // A one-tap trip from the rider's live location directly to saved Home
-      // is a true door-to-door reverse trip. Prefer the generalized planner
-      // here so it can choose a walk/bus/rail itinerary without depending on
-      // the directional return-stop assumptions used by the legacy planner.
-      // Keep the legacy inbound path as a fallback so existing return trips do
-      // not lose a working itinerary if the generalized planner is unavailable.
-      if (inbound && arrivingAtSavedHome && !reverseTrip) {
-        const directHomeTransit = await fetchGeneralTransit(cursor);
-        if (directHomeTransit.length) return directHomeTransit;
-      }
-
-      // Phase 3: the generalized door-to-door planner is authoritative for
-      // every trip direction. Legacy rail/bus planners remain fallbacks only.
-      // This prevents an inferred "inbound" direction from forcing the rider
-      // through Skyline-specific stop assumptions before we try real transit.
-      const primaryTransit = await fetchGeneralTransit(cursor);
-      if (primaryTransit.length) return primaryTransit;
-
-      if (inbound) {
-        const fetchAtStation = async (stationId: string) => {
-          const params = {
-            ...inboundPlannerCoordinates(tripDirection),
-            p_station: stationId,
-            // Only use a parked car at the station where it was recorded.
-            p_allow_drive: stationId === arrivalStationId ? carAtStation : Boolean(
-              setup.allowDrive && parkedToday?.place === "station" && parkedToday.station === stationId,
-            ),
-            p_after_seconds: cursor,
-            p_limit: planMode === "arrive-by" ? 8 : 4,
-          };
-          if (import.meta.env.DEV) console.info("[transit] plan_inbound", {
-            p_dest_lat: params.p_dest_lat, p_dest_lon: params.p_dest_lon,
-            p_station: params.p_station, p_home_lat: params.p_home_lat,
-            p_home_lon: params.p_home_lon,
-          });
-          const { data, error } = await supabase.rpc("plan_inbound", params);
-          if (error) throw error;
-          return (data ?? []).map((row) => ({
-            ...row,
-            legs: row.legs as unknown as Leg[],
-          })) as Option[];
-        };
-        if (fallbackChecked)
-          return selectedInboundStation ? fetchAtStation(selectedInboundStation) : [];
-        // The primary RPC can return no rows even when another nearby station
-        // has an active rail ride and a bus/walk/parked-car egress to the door.
-        let stations = browseStations;
-        let primaryAlreadyChecked = false;
-        if (!stations.length) {
-          if (selectedInboundStation) {
-            const primary = await fetchAtStation(selectedInboundStation);
-            if (primary.length) {
-              fallbackChecked = true;
-              return mergeTransitOptions(primary, await fetchGeneralTransit(cursor));
-            }
-            primaryAlreadyChecked = true;
-          }
-          const stationResult = await supabase.rpc("rail_stations");
-          if (stationResult.error) throw stationResult.error;
-          stations = (stationResult.data ?? []) as RailStation[];
-        }
-        const result = await findInboundOptions({
-          primaryStationId: primaryAlreadyChecked ? null : selectedInboundStation,
-          stations: primaryAlreadyChecked
-            ? stations.filter((station) => station.stop_id !== selectedInboundStation)
-            : stations,
-          destination: tripDirection.to as Coords,
-          fetchAtStation,
-        });
-        selectedInboundStation = result.stationId ?? selectedInboundStation;
-        fallbackChecked = true;
-        if (result.options.length || !selectedInboundStation) {
-          return mergeTransitOptions(result.options, await fetchGeneralTransit(cursor));
-        }
-        // No direct walk/bus from the origin reaches Skyline: board at the rail
-        // hub nearest the origin with an estimated road access leg instead.
-        const homeStation = selectedInboundStation;
-        const hubOptions = (await hubAccessFallback({
-          origin: tripDirection.from as Coords,
-          stations: stations.filter((station) => station.stop_id !== homeStation),
-          afterSeconds: cursor,
-          fetchFromHub: async (hub, after) => {
-            const { data, error } = await supabase.rpc("plan_inbound", {
-              ...inboundPlannerCoordinates(tripDirection),
-              p_dest_lat: hub.lat,
-              p_dest_lon: hub.lon,
-              p_station: homeStation,
-              p_allow_drive: homeStation === arrivalStationId ? carAtStation : false,
-              p_after_seconds: after,
-              p_limit: planMode === "arrive-by" ? 8 : 4,
-            });
-            if (error) throw error;
-            return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] }));
-          },
-        })) as Option[];
-        if (hubOptions.length) {
-          return mergeTransitOptions(hubOptions, await fetchGeneralTransit(cursor));
-        }
-
-        // Transit is not synonymous with rail. If no rail-inclusive itinerary
-        // exists, search the actual origin/destination for a direct bus
-        // itinerary before declaring transit unavailable.
-        const generalOptions = await fetchGeneralTransit(cursor);
-        if (generalOptions.length) return generalOptions;
-
-        // Keep a direct-bus safety net while the generalized planner is rolling out.
-        // It uses the same real door coordinates, but a wider walking radius so a
-        // distant stop can still be offered instead of declaring transit unavailable.
-        const legacyBus = await supabase.rpc("plan_bus_direct", {
+        // Nalu's current transit architecture is door-to-door and provider-neutral.
+        // The generalized planner is the only active transit planner here.
+        // Legacy rail/bus planners remain in the repository for migration history,
+        // but they must not influence a current trip when this planner returns no
+        // itinerary. This prevents old Skyline-specific assumptions from changing
+        // the new Transit result.
+        const { data, error } = await supabase.rpc("plan_transit_general", {
           p_origin_lat: tripDirection.from.lat as number,
           p_origin_lon: tripDirection.from.lon as number,
           p_dest_lat: tripDirection.to.lat as number,
           p_dest_lon: tripDirection.to.lon as number,
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
-          p_origin_radius_m: 4000,
-          p_dest_radius_m: 3000,
         });
-        if (legacyBus.error) {
-          recordTransitRpcError("plan_bus_direct", legacyBus.error);
-          if (generalTransitError) throw generalTransitError;
-          throw legacyBus.error;
-        }
-        return (legacyBus.data ?? []).map((row) => ({
-          ...row,
-          legs: row.legs as unknown as Leg[],
-        })) as Option[];
-      }
-      const generalTransit = await supabase.rpc("plan_transit_general", {
-        p_origin_lat: setup.homeLat as number,
-        p_origin_lon: setup.homeLon as number,
-        p_dest_lat: setup.destLat as number,
-        p_dest_lon: setup.destLon as number,
-        p_after_seconds: cursor,
-        p_limit: planMode === "arrive-by" ? 8 : 4,
-        // Do not require a nearby rail station. Walking to a farther bus stop is
-        // allowed because Transit is compared against Drive door-to-door.
-        p_origin_radius_m: 4000,
-        p_dest_radius_m: 3000,
-      });
-      if (generalTransit.error) {
-        generalTransitError = generalTransit.error;
-        recordTransitRpcError("plan_transit_general", generalTransit.error);
-      }
-      const generalOptions = !generalTransit.error
-        ? (generalTransit.data ?? []).map((row) => ({
-            ...row,
-            legs: row.legs as unknown as Leg[],
-          })) as Option[]
-        : [];
 
-      let railOptions: Option[] = [];
-      try {
-        const { data, error } = await supabase.rpc("plan_outbound", {
-          p_origin_lat: setup.homeLat as number,
-          p_origin_lon: setup.homeLon as number,
-          p_station: setup.homeStopId,
-          p_dest_stop: setup.destStopId,
-          p_allow_drive: driveAvailable,
-          p_after_seconds: cursor,
-          p_limit: planMode === "arrive-by" ? 8 : 4,
-          p_dest_lat: setup.destLat as number,
-          p_dest_lon: setup.destLon as number,
-        });
-        if (!error) {
-          railOptions = (data ?? []).map((row) => ({
-            ...row,
-            legs: row.legs as unknown as Leg[],
-          })) as Option[];
+        if (error) {
+          generalTransitError = error;
+          recordTransitRpcError("plan_transit_general", error);
         } else {
-          recordTransitRpcError("plan_outbound", error);
+          const options = (data ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[];
+          if (options.length) return options;
         }
-      } catch (error) {
-        recordTransitRpcError("plan_outbound", error);
-        // A rail planner failure must not suppress a valid bus-only itinerary.
-      }
 
-      if (generalOptions.length || railOptions.length) {
-        return mergeTransitOptions(railOptions, generalOptions);
-      }
+        if (generalTransitError) throw generalTransitError;
 
-      if (generalTransitError) throw generalTransitError;
-
-      // The planner can legitimately return no rows. Before surfacing that as a
-      // generic failure, ask the database for a privacy-safe failure stage so
-      // diagnostics can distinguish schedule/data gaps from routing gaps.
-      try {
-        const { data: diagnostic, error: diagnosticError } = await supabase.rpc("diagnose_transit_general", {
-          p_origin_lat: tripDirection.from.lat as number,
-          p_origin_lon: tripDirection.from.lon as number,
-          p_dest_lat: tripDirection.to.lat as number,
-          p_dest_lon: tripDirection.to.lon as number,
-          p_after_seconds: cursor,
-        });
-        if (diagnosticError) {
-          recordTransitRpcError("diagnose_transit_general", diagnosticError);
-        } else if (typeof diagnostic === "string") {
-          debugLog("transit_no_itinerary", { stage: diagnostic });
+        // A valid zero-row response means the current planner found no
+        // itinerary. Keep the failure diagnostic separate from route generation
+        // so diagnostics cannot silently substitute an older routing algorithm.
+        try {
+          const { data: diagnostic, error: diagnosticError } = await supabase.rpc(
+            "diagnose_transit_general",
+            {
+              p_origin_lat: tripDirection.from.lat as number,
+              p_origin_lon: tripDirection.from.lon as number,
+              p_dest_lat: tripDirection.to.lat as number,
+              p_dest_lon: tripDirection.to.lon as number,
+              p_after_seconds: cursor,
+            },
+          );
+          if (diagnosticError) {
+            recordTransitRpcError("diagnose_transit_general", diagnosticError);
+          } else if (typeof diagnostic === "string") {
+            debugLog("transit_no_itinerary", { stage: diagnostic });
+          }
+        } catch (error) {
+          recordTransitRpcError("diagnose_transit_general", error);
         }
-      } catch (error) {
-        recordTransitRpcError("diagnose_transit_general", error);
-      }
 
-      throw new Error("No transit itinerary found for this origin and destination.");
+        throw new Error("No transit itinerary found for this origin and destination.");
       };
+
       if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
         return fetchPage(scheduleAfterSeconds);
       const result = await collectArriveByOptions({
