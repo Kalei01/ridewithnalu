@@ -303,6 +303,14 @@ function optionIdentity(option: Option) {
   return `${option.leave_by_seconds}:${option.depart_seconds}:${option.arrive_seconds}:${option.total_minutes}:${option.legs.map((leg) => `${leg.mode}:${leg.route_short ?? ""}:${leg.from_stop_id ?? leg.from ?? ""}:${leg.to_stop_id ?? leg.to ?? ""}`).join("|")}`;
 }
 
+function mergeTransitOptions(...groups: Option[][]): Option[] {
+  const unique = new Map<string, Option>();
+  for (const option of groups.flat()) unique.set(optionIdentity(option), option);
+  return Array.from(unique.values())
+    .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
+    .slice(0, 8);
+}
+
 const STORAGE_KEY = "nalu-setup-v3";
 const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
 const BROWSE_STATION_KEY = "nalu-browse-station-v1";
@@ -1906,28 +1914,6 @@ function Index() {
           legs: row.legs as unknown as Leg[],
         })) as Option[];
       }
-      const { data, error } = await supabase.rpc("plan_outbound", {
-        p_origin_lat: setup.homeLat as number,
-        p_origin_lon: setup.homeLon as number,
-        p_station: setup.homeStopId,
-        p_dest_stop: setup.destStopId,
-        p_allow_drive: driveAvailable,
-        p_after_seconds: cursor,
-        p_limit: planMode === "arrive-by" ? 8 : 4,
-        // Any stop within a quarter mile of the door is fair game, walk included.
-        p_dest_lat: setup.destLat as number,
-        p_dest_lon: setup.destLon as number,
-      });
-      if (error) throw error;
-      const railOptions = (data ?? []).map((row) => ({
-        ...row,
-        legs: row.legs as unknown as Leg[],
-      })) as Option[];
-      if (railOptions.length) return railOptions;
-
-      // Transit is not synonymous with rail. If no rail-inclusive itinerary
-      // exists, search the same real origin/destination for a direct bus
-      // itinerary before declaring transit unavailable.
       const generalTransit = await supabase.rpc("plan_transit_general", {
         p_origin_lat: setup.homeLat as number,
         p_origin_lon: setup.homeLon as number,
@@ -1935,35 +1921,47 @@ function Index() {
         p_dest_lon: setup.destLon as number,
         p_after_seconds: cursor,
         p_limit: planMode === "arrive-by" ? 8 : 4,
-      });
-      if (!generalTransit.error && generalTransit.data?.length) {
-        return generalTransit.data.map((row) => ({
-          ...row,
-          legs: row.legs as unknown as Leg[],
-        })) as Option[];
-      }
-
-      // Keep a direct-bus safety net while the generalized planner is rolling out.
-      // It uses the same real door coordinates, but a wider walking radius so a
-      // distant stop can still be offered instead of declaring transit unavailable.
-      const legacyBus = await supabase.rpc("plan_bus_direct", {
-        p_origin_lat: setup.homeLat as number,
-        p_origin_lon: setup.homeLon as number,
-        p_dest_lat: setup.destLat as number,
-        p_dest_lon: setup.destLon as number,
-        p_after_seconds: cursor,
-        p_limit: planMode === "arrive-by" ? 8 : 4,
+        // Do not require a nearby rail station. Walking to a farther bus stop is
+        // allowed because Transit is compared against Drive door-to-door.
         p_origin_radius_m: 4000,
         p_dest_radius_m: 3000,
       });
-      if (legacyBus.error) {
-        if (generalTransit.error) throw generalTransit.error;
-        throw legacyBus.error;
+      const generalOptions = !generalTransit.error
+        ? (generalTransit.data ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[]
+        : [];
+
+      let railOptions: Option[] = [];
+      try {
+        const { data, error } = await supabase.rpc("plan_outbound", {
+          p_origin_lat: setup.homeLat as number,
+          p_origin_lon: setup.homeLon as number,
+          p_station: setup.homeStopId,
+          p_dest_stop: setup.destStopId,
+          p_allow_drive: driveAvailable,
+          p_after_seconds: cursor,
+          p_limit: planMode === "arrive-by" ? 8 : 4,
+          p_dest_lat: setup.destLat as number,
+          p_dest_lon: setup.destLon as number,
+        });
+        if (!error) {
+          railOptions = (data ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[];
+        }
+      } catch {
+        // A rail planner failure must not suppress a valid bus-only itinerary.
       }
-      return (legacyBus.data ?? []).map((row) => ({
-        ...row,
-        legs: row.legs as unknown as Leg[],
-      })) as Option[];
+
+      if (generalOptions.length || railOptions.length) {
+        return mergeTransitOptions(railOptions, generalOptions);
+      }
+
+      if (generalTransit.error) throw generalTransit.error;
+      throw new Error("No transit itinerary found for this origin and destination.");
       };
       if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
         return fetchPage(scheduleAfterSeconds);
