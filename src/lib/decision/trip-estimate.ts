@@ -3,7 +3,7 @@ import { FRESHNESS_POLICIES } from "../intelligence/freshness-policy";
 
 export type EstimateMode = "drive" | "rail";
 /** Actual public-transit family represented by the itinerary. Kept separate from the legacy drive-vs-rail decision mode while Phase 3 is rolled out. */
-export type TransitMode = "walk" | "bus" | "rail" | "mixed";
+export type TransitMode = "walk" | "bus" | "rail" | "walk+bus" | "walk+rail" | "rail+bus" | "walk+rail+bus";
 export type Availability = "available" | "service-unavailable" | "car-unavailable" | "data-error";
 export type DataBasis = "live" | "scheduled" | "future-estimate";
 export type DataQuality = "good" | "limited" | "stale" | "unavailable";
@@ -204,24 +204,30 @@ export function transitEstimate(input: {
   }
   const initialWait = Math.max(0, (option.leave_by_seconds - nowSeconds) / 60);
   const expected = Math.max(0, (option.arrive_seconds - nowSeconds) / 60);
+  const hasWalk = option.legs.some((leg) => leg.mode === "walk");
+  const hasBus = option.legs.some((leg) => leg.mode === "bus");
+  const hasRail = option.legs.some((leg) => leg.mode === "rail");
   const transitModes = option.legs
     .map((leg) => leg.mode)
     .filter((mode): mode is "bus" | "rail" => mode === "bus" || mode === "rail");
   const transitLabel = transitModes.length
     ? transitModes.map((mode) => mode === "rail" ? "Rail" : "Bus").join(" + ")
-    : "Transit";
+    : "Walk";
+  const transitMode: TransitMode =
+    hasRail && hasBus && hasWalk ? "walk+rail+bus"
+      : hasRail && hasBus ? "rail+bus"
+        : hasRail && hasWalk ? "walk+rail"
+          : hasBus && hasWalk ? "walk+bus"
+            : hasRail ? "rail"
+              : hasBus ? "bus"
+                : "walk";
   // Scheduled bus connections are less certain than a rail-only trip. This is a
   // bounded display range, not a claim of live vehicle prediction.
   const lateAllowance = 4 + Math.min(8, transfer * 0.5);
   const latest = option.arrive_seconds + lateAllowance * 60;
   return {
     mode: "rail",
-    transitMode:
-      transitModes.length === 0
-        ? "walk"
-        : transitModes.includes("bus") && transitModes.includes("rail")
-          ? "mixed"
-          : transitModes[0],
+    transitMode,
     transitLabel,
     availability: "available",
     leaveTime: option.leave_by_seconds,
