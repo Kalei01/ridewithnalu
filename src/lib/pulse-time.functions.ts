@@ -8,8 +8,8 @@ const coordinate = z.object({
 });
 
 const inputSchema = z.object({
-  home: point,
-  work: point,
+  home: coordinate,
+  work: coordinate,
   fallbackTimeZone: z.string().min(1).max(100),
 });
 
