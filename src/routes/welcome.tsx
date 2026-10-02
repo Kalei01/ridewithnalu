@@ -22,6 +22,9 @@ const WELCOME_NAV_ROUTE = [
 
 function WelcomeNavigationPreview() {
   const route = WELCOME_NAV_ROUTE;
+  const destination = route[route.length - 1]!;
+  const livePoint = route[2]!;
+  const turnPoint = route[5]!;
   const [muted, setMuted] = useState(true);
 
   return (
@@ -54,7 +57,7 @@ function WelcomeNavigationPreview() {
                 { severity: "moderate", points: route.slice(2, 5) },
                 { severity: "heavy", points: route.slice(5, 7) },
               ]}
-              turn={{ lat: route[5].lat, lon: route[5].lon, distanceM: 2900 }}
+              turn={{ lat: turnPoint.lat, lon: turnPoint.lon, distanceM: 2900 }}
             />
           </Suspense>
         </ClientOnly>
