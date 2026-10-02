@@ -29,10 +29,10 @@ function toFreshness(trip: CanonicalTrip): EvidenceFreshness[] {
  */
 export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
   const drive = input.estimates.find((item) => item.mode === "drive");
-  const rail = input.estimates.find((item) => item.mode === "rail");
+  const transit = input.estimates.find((item) => item.mode === "transit");
   const freshness = toFreshness(input.trip);
 
-  if (!drive || !rail) {
+  if (!drive || !transit) {
     return {
       decisionState: "none",
       selectedMode: null,
@@ -53,16 +53,18 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
 
   const decision = decideDriveVsTransit(
     drive,
-    rail,
+    transit,
     input.previousMode ?? null,
     decisionOptions,
   );
 
   const routeByMode = new Map(input.trip.routes.map((route) => [route.mode, route]));
   const selectedRoute =
-    decision.state === "drive" || decision.state === "rail"
-      ? routeByMode.get(decision.state)
-      : undefined;
+    decision.state === "drive"
+      ? routeByMode.get("drive")
+      : decision.state === "transit"
+        ? input.trip.routes.find((route) => route.mode !== "drive")
+        : undefined;
 
   const alternatives = input.trip.routes
     .filter((route) => route.id !== selectedRoute?.id)
@@ -97,9 +99,11 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
   return {
     decisionState: decision.state,
     selectedMode:
-      decision.state === "drive" || decision.state === "rail"
-        ? decision.state
-        : null,
+      decision.state === "drive"
+        ? "drive"
+        : decision.state === "transit"
+          ? "rail"
+          : null,
     alternatives,
     departureTime: selectedRoute?.departureTime == null
       ? null
