@@ -5,7 +5,7 @@
  * trip-model.ts represents the concrete sequence of route segments used by
  * maps, navigation, and commute details.
  */
-export type MobilityMode = "drive" | "rail" | "bus" | "walk";
+export type MobilityMode = "drive" | "transit" | "rail" | "bus" | "walk";
 
 export type TimeConstraint =
   | { kind: "depart-at"; timestamp: string }

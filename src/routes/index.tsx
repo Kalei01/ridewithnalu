@@ -364,10 +364,15 @@ const LIVE_ROUTE_CACHE_KEY = "nalu-live-route-v1";
 
 /** The mode a commuter has committed to for the trip underway. */
 type Commitment = { mode: "rail" | "drive"; at: number };
+function directionLabel(value: string | null) {
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 type UiDecisionState = "drive" | "rail" | "same" | "none" | "uncertain";
 type DecisionSnapshot = {
   key: string;
-  state: "drive" | "transit" | "same";
+  state: "drive" | "rail" | "same";
   driveMinutes: number | null;
   railMinutes: number | null;
   driveDelayMinutes: number | null;
