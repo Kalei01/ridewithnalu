@@ -5206,8 +5206,8 @@ function Index() {
                 : verdict === "same"
                   ? "Too close to call"
                   : verdict === "transit"
-                    ? `Take ${transitLabel}${gap !== null ? ` · ${Math.round(Math.abs(gap))} min faster` : ""}`
-                    : `Drive${gap !== null ? ` · ${Math.round(Math.abs(gap))} min faster` : ""}`}
+                    ? `Take ${transitLabel}${gap !== null ? ` · ${formatDriveMinutes(Math.abs(gap))} faster` : ""}`
+                    : `Drive${gap !== null ? ` · ${formatDriveMinutes(Math.abs(gap))} faster` : ""}`}
           </h1>
           {configured && verdict !== "none" && !optionsLoading && !driveLoading && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
