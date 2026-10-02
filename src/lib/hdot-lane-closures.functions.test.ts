@@ -36,7 +36,7 @@ describe("lookupHdotLaneClosureRoutes", () => {
     });
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.attributes.RouteName).toBe("H-1 Freeway");
+    expect(result[0]?.routeName).toBe("H-1 Freeway");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const [, request] = fetchMock.mock.calls[0] ?? [];
