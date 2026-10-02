@@ -2682,6 +2682,7 @@ function Index() {
   const voiceGuide = useRef(new VoiceGuide());
   useEffect(() => {
     if (drivingCommitted) return;
+    clearCommuteSpeech();
     passedTurns.current = new Set();
     voiceGuide.current = new VoiceGuide();
     lastNavPoint.current = null;
