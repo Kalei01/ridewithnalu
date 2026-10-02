@@ -8,9 +8,9 @@ CREATE OR REPLACE FUNCTION public.plan_transit_general(
   p_dest_lon numeric,
   p_after_seconds integer DEFAULT NULL,
   p_limit integer DEFAULT 6,
-  p_origin_radius_m integer DEFAULT 1800,
-  p_dest_radius_m integer DEFAULT 1800,
-  p_transfer_radius_m integer DEFAULT 600
+  p_origin_radius_m integer DEFAULT 4000,
+  p_dest_radius_m integer DEFAULT 3000,
+  p_transfer_radius_m integer DEFAULT 800
 )
 RETURNS TABLE(
   leave_by_seconds integer,
@@ -37,14 +37,14 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
            ceil(n.distance_m / 80.47)::integer AS walk_min
     FROM nearby_stops(p_origin_lat, p_origin_lon, p_origin_radius_m) n
     ORDER BY n.distance_m
-    LIMIT 20
+    LIMIT 40
   ),
   destinations AS MATERIALIZED (
     SELECT n.stop_id, n.stop_name, n.stop_lat, n.stop_lon,
            ceil(n.distance_m / 80.47)::integer AS walk_min
     FROM nearby_stops(p_dest_lat, p_dest_lon, p_dest_radius_m) n
     ORDER BY n.distance_m
-    LIMIT 20
+    LIMIT 40
   ),
   direct AS MATERIALIZED (
     SELECT
