@@ -15,7 +15,6 @@ function mode(
   return {
     availability: "available",
     quality: "good",
-    ...overrides,
     mode: selectedMode,
     expectedMinutes,
     leaveTime: at(6),
@@ -28,6 +27,7 @@ function mode(
     railWaitMinutes: 0,
     busWaitMinutes: 0,
     transferMinutes: 0,
+    ...overrides,
   };
 }
 
