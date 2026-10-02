@@ -1910,8 +1910,8 @@ function Index() {
           p_dest_lon: tripDirection.to.lon as number,
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
-          p_origin_radius_m: 4000,
-          p_dest_radius_m: 3000,
+          p_origin_radius_m: 6000,
+          p_dest_radius_m: 4000,
         });
         if (legacyBus.error) throw legacyBus.error;
         return (legacyBus.data ?? []).map((row) => ({
@@ -1928,8 +1928,8 @@ function Index() {
         p_limit: planMode === "arrive-by" ? 8 : 4,
         // Do not require a nearby rail station. Walking to a farther bus stop is
         // allowed because Transit is compared against Drive door-to-door.
-        p_origin_radius_m: 4000,
-        p_dest_radius_m: 3000,
+        p_origin_radius_m: 6000,
+        p_dest_radius_m: 4000,
       });
       const generalOptions = !generalTransit.error
         ? (generalTransit.data ?? []).map((row) => ({
