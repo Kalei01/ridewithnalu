@@ -374,7 +374,7 @@ function normalizeOrbisInstructions(instructions: OrbisInstruction[]): Array<Gui
     const roadNumbers = [...(instruction.nextRoadInformation?.roadShields ?? []), ...(instruction.previousRoadInformation?.roadShields ?? [])]
       .map((shield) => shield.roadNumber?.text)
       .filter((value): value is string => Boolean(value));
-    const result: GuidanceInstruction = {
+    const result: GuidanceInstruction & { point?: { latitude?: number; longitude?: number }; message?: string } = {
       roadNumbers,
     };
     if (instruction.routeOffsetInMeters !== undefined) result.routeOffsetInMeters = instruction.routeOffsetInMeters;
