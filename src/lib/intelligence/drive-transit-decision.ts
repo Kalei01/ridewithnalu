@@ -94,7 +94,7 @@ export function decideDriveVsTransit(
   }
 
   if (unavailable.length === 1) {
-    const winner = unavailable[0]?.mode === "drive" ? "rail" : "drive";
+    const winner: "drive" | "transit" = unavailable[0]?.mode === "drive" ? "transit" : "drive";
     const remaining = winner === "drive" ? drive : transit;
 
     if (remaining.quality === "stale") {
@@ -146,7 +146,7 @@ export function decideDriveVsTransit(
     (transit.earliestArrival as number) <= (drive.latestArrival as number);
 
   const wideUncertainty =
-    Math.max(drive.uncertaintyMinutes ?? 0, rail.uncertaintyMinutes ?? 0) > 15;
+    Math.max(drive.uncertaintyMinutes ?? 0, transit.uncertaintyMinutes ?? 0) > 15;
   const limitedData = drive.quality === "limited" || transit.quality === "limited";
 
   if (limitedData && difference < tossUp * 2) {
@@ -191,12 +191,12 @@ export function decideDriveVsTransit(
   );
   let supporting: { kind: EvidenceKind; text: string } | null = null;
 
-  if (faster === "rail" && drive.majorIncident)
+  if (faster === "transit" && drive.majorIncident)
     supporting = evidence(
       "major_incident",
       "There's a reported crash or slowdown on the drive",
     );
-  else if (faster === "rail" && (drive.trafficDelayMinutes ?? 0) >= 5)
+  else if (faster === "transit" && (drive.trafficDelayMinutes ?? 0) >= 5)
     supporting = evidence(
       "traffic_delay",
       `Traffic is adding about ${Math.round(drive.trafficDelayMinutes as number)} min to the drive`,
@@ -218,7 +218,7 @@ export function decideDriveVsTransit(
     );
 
   if (
-    faster === "rail" &&
+    faster === "transit" &&
     drive.majorIncident &&
     (drive.trafficDelayMinutes ?? 0) >= difference
   ) {
@@ -240,7 +240,7 @@ export function decideDriveVsTransit(
  */
 export function decideDriveVsTransitArrival(
   drive: DecisionModeEstimate,
-  rail: DecisionModeEstimate,
+  transit: DecisionModeEstimate,
   targetSeconds: number,
 ): ArrivalDecision {
   const driveMargin =
@@ -256,7 +256,7 @@ export function decideDriveVsTransitArrival(
 
   if (
     drive.availability === "data-error" ||
-    rail.availability === "data-error"
+    transit.availability === "data-error"
   ) {
     return result({
       state: "uncertain",
@@ -312,7 +312,7 @@ export function decideDriveVsTransitArrival(
   }
 
   if (driveFeasible !== transitFeasible) {
-    const winner = driveFeasible ? "drive" : "rail";
+    const winner: "drive" | "transit" = driveFeasible ? "drive" : "transit";
     return result({
       state: winner,
       confidence: "moderate",
@@ -329,7 +329,7 @@ export function decideDriveVsTransitArrival(
   const transitProtected = (transit.latestArrival ?? Infinity) <= targetSeconds;
 
   if (driveProtected !== transitProtected) {
-    const winner = driveProtected ? "drive" : "rail";
+    const winner: "drive" | "transit" = driveProtected ? "drive" : "transit";
     return result({
       state: winner,
       confidence: "moderate",
@@ -360,7 +360,7 @@ export function decideDriveVsTransitArrival(
 
   if (later <= 0 && earlier <= 0 && (-later >= 5 * 60 || -earlier >= 5 * 60)) {
     return result({
-      state: "rail",
+      state: "transit",
       confidence: "moderate",
       differenceMinutes: Math.round(-earlier / 60),
       primary: evidence(
