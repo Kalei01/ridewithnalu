@@ -63,24 +63,22 @@ export const morningPulse = createServerFn({ method: "POST" })
       const driveDuration = formatDuration(driveMinutes);
       const skylineDuration = formatDuration(skylineMinutes);
 
-      if (
-        driveDuration === null ||
-        skylineDuration === null ||
-        driveMinutes === null ||
-        skylineMinutes === null ||
-        !Number.isFinite(skylineMinutes) ||
-        skylineMinutes <= 0
-      ) {
-        const missing: string[] = [];
-        if (driveDuration === null || driveMinutes === null) missing.push("Drive");
-        if (skylineDuration === null || skylineMinutes === null || skylineMinutes <= 0) {
-          missing.push("Skyline");
-        }
+      if (driveDuration === null || driveMinutes === null) {
         return {
           ok: true,
           value: {
-            text: `Morning Pulse couldn't compare both options: ${missing.join(" and ")} ETA unavailable.`,
+            text: `Morning Pulse couldn't check the drive right now: Drive ETA unavailable.`,
             faster: "unknown",
+          },
+        };
+      }
+
+      if (!railRelevant) {
+        return {
+          ok: true,
+          value: {
+            text: `Roads look normal right now. Drive is the practical option for this trip.`,
+            faster: "drive",
           },
         };
       }
@@ -153,14 +151,7 @@ export const eveningPulse = createServerFn({ method: "POST" })
         ai.nearestStation(data.from),
         ai.nearestStation(data.to),
       ]);
-      const railRelevant = Boolean(
-        originStation &&
-          destinationStation &&
-          originStation.distanceMiles !== null &&
-          destinationStation.distanceMiles !== null &&
-          originStation.distanceMiles <= PULSE_MAX_STATION_DISTANCE_MILES &&
-          destinationStation.distanceMiles <= PULSE_MAX_STATION_DISTANCE_MILES,
-      );
+      const railRelevant = isRailGeographicallyRelevant(originStation, destinationStation);
       // Only surface Skyline when both ends of this actual trip are reasonably
       // close to the rail network. This prevents Oʻahu-wide rail assumptions.
       const rail = railRelevant
@@ -193,24 +184,22 @@ export const eveningPulse = createServerFn({ method: "POST" })
       const driveDuration = formatDuration(driveMinutes);
       const skylineDuration = formatDuration(skylineMinutes);
 
-      if (
-        driveDuration === null ||
-        skylineDuration === null ||
-        driveMinutes === null ||
-        skylineMinutes === null ||
-        !Number.isFinite(skylineMinutes) ||
-        skylineMinutes <= 0
-      ) {
-        const missing: string[] = [];
-        if (driveDuration === null || driveMinutes === null) missing.push("Drive");
-        if (skylineDuration === null || skylineMinutes === null || skylineMinutes <= 0) {
-          missing.push("Skyline");
-        }
+      if (driveDuration === null || driveMinutes === null) {
         return {
           ok: true,
           value: {
-            text: `Evening Pulse couldn't compare both options: ${missing.join(" and ")} ETA unavailable.`,
+            text: `Evening Pulse couldn't check the drive right now: Drive ETA unavailable.`,
             faster: "unknown",
+          },
+        };
+      }
+
+      if (!railRelevant) {
+        return {
+          ok: true,
+          value: {
+            text: `Roads look normal right now. Drive is the practical option for this trip.`,
+            faster: "drive",
           },
         };
       }
