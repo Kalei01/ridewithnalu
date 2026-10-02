@@ -5123,8 +5123,8 @@ function Index() {
                 : verdict === "same"
                   ? "Too close to call"
                   : verdict === "rail"
-                    ? `Take Skyline${gap !== null ? ` · ${Math.abs(gap)} min faster` : ""}`
-                    : `Drive${gap !== null ? ` · ${Math.abs(gap)} min faster` : ""}`}
+                    ? `Take Skyline${gap !== null ? ` · ${Math.round(Math.abs(gap))} min faster` : ""}`
+                    : `Drive${gap !== null ? ` · ${Math.round(Math.abs(gap))} min faster` : ""}`}
           </h1>
           {configured && verdict !== "none" && !optionsLoading && !driveLoading && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -5137,9 +5137,9 @@ function Index() {
               </span>
               {activeDecision.differenceMinutes !== null && (
                 <span className="text-xs text-muted-foreground">
-                  {activeDecision.differenceMinutes === 0
+                  {Math.round(activeDecision.differenceMinutes) === 0
                     ? "Nearly identical times"
-                    : `${activeDecision.differenceMinutes} min separates the options`}
+                    : `${Math.round(activeDecision.differenceMinutes)} min separates the options`}
                 </span>
               )}
             </div>
