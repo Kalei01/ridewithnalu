@@ -120,7 +120,7 @@ export default function CommuteRouteMap({
       attributionControl: true,
       scrollWheelZoom: false,
       dragging: true,
-    }).setView([first.lat, first.lon], 10);
+    }).setView([first.lat, first.lon], 12);
 
     tileLayerRef.current = L.tileLayer(BASEMAPS.standard.url, {
       maxZoom: 19,
