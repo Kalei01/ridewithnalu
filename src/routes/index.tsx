@@ -5611,6 +5611,23 @@ function Index() {
             </div>
           )}
 
+          {selectedMode === "drive" && !inbound && driveAvailable && (
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Driving to your destination?</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Tell Nalu where you’ll leave your car for the return trip.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCarPlace("destination")}
+                className="shrink-0"
+              >
+                I’m driving & parking there
+              </Button>
+            </div>
+          )}
+
           {selectedMode === "drive" && (
             <div className="nalu-card-surface mt-6 rounded-2xl border border-border p-5">
               <div className="flex items-end justify-between gap-4">
@@ -5660,19 +5677,6 @@ function Index() {
                   <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
                 </p>
               ))}
-              {!inbound && driveAvailable && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setCarPlace("destination");
-                    chooseMode("drive");
-                  }}
-                  className="mt-5"
-                >
-                  I’m driving & parking there
-                </Button>
-              )}
               {inbound && carPlace === "destination" && (
                 <Button
                   variant="outline"
