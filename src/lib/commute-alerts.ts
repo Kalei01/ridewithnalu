@@ -1,4 +1,5 @@
 import { audioContext } from "./approach";
+import { VoicePriorityQueue, type VoicePriority } from "./voice-priority-queue";
 
 export type TrafficAlertSnapshot = {
   delayMinutes: number;
@@ -47,7 +48,7 @@ export function postCommuteNotification(title: string, body: string, tag: string
   }
 }
 
-export function speakCommuteAlert(message: string) {
+export function speakCommuteAlert(message: string, priority: VoicePriority = "info") {
   try {
     if (
       typeof window === "undefined" ||
@@ -55,26 +56,74 @@ export function speakCommuteAlert(message: string) {
       typeof window.SpeechSynthesisUtterance !== "function"
     )
       return;
-    const utterance = new window.SpeechSynthesisUtterance(message);
+
+    const request = { message, priority };
+    const decision = speechQueue.enqueue(request);
+
+    if (decision.action === "interrupt") {
+      speechGeneration += 1;
+      window.speechSynthesis.cancel();
+      speakQueuedRequest(decision.request);
+      return;
+    }
+
+    if (decision.action === "start") speakQueuedRequest(decision.request);
+  } catch {
+    // Speech is best-effort on browsers that suspend audio in the background.
+  }
+}
+
+const speechQueue = new VoicePriorityQueue();
+let speechGeneration = 0;
+
+function speakQueuedRequest(request: { message: string; priority: VoicePriority }) {
+  const generation = ++speechGeneration;
+
+  try {
+    const utterance = new window.SpeechSynthesisUtterance(request.message);
     utterance.lang = "en-US";
     utterance.rate = 0.94;
     utterance.volume = 1;
-    window.speechSynthesis.cancel();
-    // Wake the car's Bluetooth audio route first so the first syllable isn't
-    // swallowed, then speak once the primer has finished.
+
+    const finish = () => {
+      if (generation !== speechGeneration) return;
+      const next = speechQueue.finish(request);
+      if (next) speakQueuedRequest(next);
+    };
+
+    utterance.onend = finish;
+    utterance.onerror = finish;
+
     const primed = playAudioPrimer();
     const speak = () => {
       try {
+        if (generation !== speechGeneration || speechQueue.getActive() !== request) return;
         window.speechSynthesis.resume();
         window.speechSynthesis.speak(utterance);
       } catch {
-        // best-effort
+        finish();
       }
     };
     if (primed) window.setTimeout(speak, PRIMER_MS);
     else speak();
   } catch {
-    // Speech is best-effort on browsers that suspend audio in the background.
+    if (generation === speechGeneration) {
+      const next = speechQueue.finish(request);
+      if (next) speakQueuedRequest(next);
+    }
+  }
+}
+
+/** Cancel current/pending spoken alerts without affecting navigation state. */
+export function clearCommuteSpeech() {
+  try {
+    speechGeneration += 1;
+    speechQueue.clear();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  } catch {
+    // Best-effort only.
   }
 }
 

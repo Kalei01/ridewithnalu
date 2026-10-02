@@ -61,6 +61,7 @@ import {
   postCommuteNotification,
   requestCommuteNotificationPermission,
   speakCommuteAlert,
+  clearCommuteSpeech,
   primeSpeech,
   keepNavigationAudioAlive,
   type TrafficAlertSnapshot,
@@ -2587,7 +2588,7 @@ function Index() {
     return keepNavigationAudioAlive();
   }, [commitment, navMuted]);
   useEffect(() => {
-    if (rescue && !navMuted) speakCommuteAlert(rescue.spoken);
+    if (rescue && !navMuted) speakCommuteAlert(rescue.spoken, "safety");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rescue]);
   const mapboxToken = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as
@@ -2681,6 +2682,7 @@ function Index() {
   const voiceGuide = useRef(new VoiceGuide());
   useEffect(() => {
     if (drivingCommitted) return;
+    clearCommuteSpeech();
     passedTurns.current = new Set();
     voiceGuide.current = new VoiceGuide();
     lastNavPoint.current = null;
@@ -2713,7 +2715,7 @@ function Index() {
         tier: voiceGuide.current.lastTier,
         speedMps: riderSpeed,
       });
-    if (phrase && !navMuted) speakCommuteAlert(phrase);
+    if (phrase && !navMuted) speakCommuteAlert(phrase, "maneuver");
   }, [nextTurn, drivingCommitted, navMuted, riderSpeed, rerouting]);
 
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
@@ -2751,7 +2753,7 @@ function Index() {
         : `Traffic alert: reported incident on ${corridor}.`;
     if (alertPrefs.sound) {
       playChime();
-      speakCommuteAlert(message);
+      speakCommuteAlert(message, "traffic");
     }
     if (alertPrefs.haptics) navigator.vibrate?.([180, 100, 180]);
     postCommuteNotification(
