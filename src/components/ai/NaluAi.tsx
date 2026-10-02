@@ -10,6 +10,7 @@ import { isWeekday, isWithinLocalWindow } from "@/lib/intelligence/pulse-time";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
+import { naluPulseTagline } from "@/lib/nalu-voice";
 
 type Place = { lat: number; lon: number; label: string };
 
@@ -67,6 +68,7 @@ export function MorningPulse({
       }),
   });
   if (!inWindow || !home || !work) return null;
+  const naluLine = naluPulseTagline("morning");
   return (
     <section aria-label="Morning Pulse" className="glass-panel mt-3 rounded-lg p-4">
       <div className="flex items-center gap-2">
@@ -87,6 +89,7 @@ export function MorningPulse({
       <p className="mt-2 text-sm leading-relaxed text-foreground">
         {isLoading ? "Checking your commute…" : data?.ok ? data.value.text : data?.error}
       </p>
+      {data?.ok && <p className="mt-2 text-xs font-medium text-muted-foreground">{naluLine}</p>}
     </section>
   );
 }
@@ -121,6 +124,7 @@ export function EveningPulse({
       }),
   });
   if (!inWindow || !home || !work) return null;
+  const naluLine = naluPulseTagline("evening");
   const pulseText = data?.ok
     ? data.value.text.replace(
         "Roads look normal right now.",
@@ -147,6 +151,7 @@ export function EveningPulse({
       <p className="mt-2 text-sm leading-relaxed text-foreground">
         {isLoading ? "Checking your trip home…" : data?.ok ? pulseText : data?.error}
       </p>
+      {data?.ok && <p className="mt-2 text-xs font-medium text-muted-foreground">{naluLine}</p>}
     </section>
   );
 }
