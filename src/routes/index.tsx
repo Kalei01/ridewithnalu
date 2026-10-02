@@ -1411,8 +1411,7 @@ function Index() {
   const { data: browseStations = [] } = useRailStations(hydrated);
   // plan_inbound's station is the *arrival* station. The setup station is
   // nearest the selected origin, so resolve a new one for westbound trips.
-  const { data: inboundStation, isLoading: inboundStationLoading,
-    isError: inboundStationFailed } = useQuery({
+  const { data: inboundStation } = useQuery({
     queryKey: ["inbound-arrival-station", tripDirection.to.lat, tripDirection.to.lon],
     enabled: hydrated && configured && inbound && !reverseTrip,
     staleTime: 12 * 60 * 60_000,
@@ -1431,12 +1430,11 @@ function Index() {
     ? inboundStation?.stop_id ?? null : setup.homeStopId;
   const arrivalStationName = inbound && !reverseTrip
     ? inboundStation?.stop_name ?? "" : setup.homeStopName;
-  // Door-to-door transit can run from any configured coordinates. Inbound
-  // trips must not be blocked just because the destination has no nearby
-  // rail station; the generalized planner can use walking and bus service.
-  const railConfigured = configured && (inbound
-    ? true
-    : Boolean(setup.homeStopId && setup.destStopId));
+  // The generalized planner is door-to-door and must be available for every
+  // configured trip, even when the selected origin/destination has no nearby
+  // rail station. The legacy rail planner below remains optional and can fail
+  // without suppressing bus/walk transit.
+  const transitConfigured = configured;
   const browseActive = hydrated && (!configured || pageView === "browse");
   // A committed drive is what turns on live GPS on the map and the rolling
   // 2-minute traffic refresh; both stop the moment the lock is released.
@@ -1794,7 +1792,7 @@ function Index() {
       planMode,
       planMode === "arrive-by" ? arriveByTarget : null,
     ],
-    enabled: hydrated && railConfigured,
+    enabled: hydrated && transitConfigured,
     staleTime: 60_000,
     queryFn: async () => {
       let selectedInboundStation = arrivalStationId;
