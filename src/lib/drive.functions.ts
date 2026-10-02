@@ -3,6 +3,7 @@ import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
 import { incidentAffectsTrip, localRoadName } from "./traffic-incidents";
+import { lookupHdotLaneClosureRoutes, type HdotLaneClosureRoute } from "./hdot-lane-closures.functions";
 
 const TOMTOM_KEY = process.env["TOMTOM_API_KEY"] ?? atob("MzQ4RDAwQzYtODQxMi00ODVCLTk2N0MtNjE2QzA5NzU1MTA1");
 
@@ -50,6 +51,8 @@ export type DriveTime = {
   /** Congested stretches of the route, for colouring the drawn corridor. */
   trafficSections: DriveTrafficSection[];
   incidents: DriveIncident[];
+  /** Official HDOT lane-closure route segments intersecting this TomTom route. */
+  hdotLaneClosures: HdotLaneClosureRoute[];
   /** Ordered major roads of this drive, e.g. "Via Kualakaʻi Pkwy → H-1 East". */
   corridorLabel: string | null;
   corridorRoads: string[];
@@ -184,6 +187,9 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     }
 
     const fullPath = flattenOrbisPath(route);
+    const hdotLaneClosures = fullPath.length >= 2
+      ? await lookupHdotLaneClosureRoutes({ routePath: fullPath })
+      : [];
     const path = thinPath(fullPath);
     const trafficSections = readOrbisTrafficSections(route?.sections?.traffic ?? [], fullPath);
     // Current incidents are not evidence about a later departure.
@@ -218,6 +224,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       path,
       trafficSections,
       incidents,
+      hdotLaneClosures,
       corridorLabel: corridor?.label ?? null,
       corridorRoads: corridor?.roads ?? [],
       bypassedRoads,
