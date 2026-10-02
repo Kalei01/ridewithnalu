@@ -5216,7 +5216,7 @@ function Index() {
           )}
           {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
           {verdict === "drive" && (drive?.hdotLaneClosures?.length ?? 0) > 0 && (
-            <HdotRoadworkNotice closures={drive?.hdotLaneClosures ?? []} scheduledClosures={drive?.hdotScheduledClosures ?? []} />
+            <HdotRoadworkNotice scheduledClosures={drive?.hdotScheduledClosures ?? []} variant="browse" />
           )}
           {configured && (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
             <p className="mt-4 text-lg font-medium text-muted-foreground">
@@ -5627,7 +5627,7 @@ function Index() {
                 <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
               )}
               {verdict !== "drive" && (drive?.hdotLaneClosures?.length ?? 0) > 0 && (
-                <HdotRoadworkNotice closures={drive?.hdotLaneClosures ?? []} />
+                <HdotRoadworkNotice scheduledClosures={drive?.hdotScheduledClosures ?? []} variant="commute" liveDriveMinutes={drive?.trafficMinutes ?? null} delayMinutes={drive?.delayMinutes ?? null} />
               )}
               {!driveAvailable && carAwayReason && (
                 <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>
