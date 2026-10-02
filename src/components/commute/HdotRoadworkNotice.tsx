@@ -46,11 +46,11 @@ export function HdotRoadworkNotice({
     const primary = scheduled[0];
     if (!primary) return null;
     return (
-      <aside className="mt-3 rounded-xl border border-border/60 bg-background/50 px-3.5 py-3" aria-label="Planned roadwork">
+      <aside className="mt-3 rounded-xl border border-border/60 bg-background/50 px-3.5 py-3" aria-label="Scheduled roadwork">
         <div className="flex items-start gap-2.5">
           <span className="mt-0.5 text-sm" aria-hidden="true">🛠️</span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-foreground">Roadwork tonight</p>
+            <p className="text-xs font-bold text-foreground">Scheduled roadwork tonight</p>
             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
               {primary.route} {directionLabel(primary.direction)} · {primary.laneSummary}
             </p>
@@ -62,11 +62,11 @@ export function HdotRoadworkNotice({
   }
 
   return (
-    <aside className="mt-4 rounded-2xl border border-border/60 bg-background/45 px-4 py-4" aria-label="Planned roadwork on your route">
+    <aside className="mt-4 rounded-2xl border border-border/60 bg-background/45 px-4 py-4" aria-label="Scheduled roadwork on your route">
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-warning/12 text-sm" aria-hidden="true">🛠️</span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Planned roadwork on your route</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Scheduled roadwork on your route</p>
           <div className="mt-2 space-y-3">
             {scheduled.map((closure, index) => (
               <div key={closure.route + "-" + closure.location + "-" + index}>
