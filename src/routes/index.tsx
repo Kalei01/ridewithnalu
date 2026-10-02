@@ -3126,7 +3126,7 @@ function Index() {
             : null,
         }
       : {
-          state: "uncertain",
+          state: "uncertain" as DecisionState,
           confidence: "low",
           differenceMinutes: null,
           primary: {
