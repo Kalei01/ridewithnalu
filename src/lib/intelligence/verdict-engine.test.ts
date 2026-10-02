@@ -6,7 +6,7 @@ import type { DecisionModeEstimate } from "./drive-transit-decision";
 const point = { latitude: 21.31, longitude: -158.08 };
 const estimates = (driveMinutes: number, railMinutes: number): DecisionModeEstimate[] => [
   { mode: "drive", availability: "available", quality: "good", expectedMinutes: driveMinutes, leaveTime: 100, arrivalTime: 100 + driveMinutes * 60, earliestArrival: 100, latestArrival: 100 + driveMinutes * 60, uncertaintyMinutes: 2, trafficDelayMinutes: 0, majorIncident: false, railWaitMinutes: 0, busWaitMinutes: 0, transferMinutes: 0 },
-  { mode: "rail", availability: "available", quality: "good", expectedMinutes: railMinutes, leaveTime: 100, arrivalTime: 100 + railMinutes * 60, earliestArrival: 100, latestArrival: 100 + railMinutes * 60, uncertaintyMinutes: 2, trafficDelayMinutes: null, majorIncident: false, railWaitMinutes: 0, busWaitMinutes: 0, transferMinutes: 0 },
+  { mode: "transit", availability: "available", quality: "good", expectedMinutes: railMinutes, leaveTime: 100, arrivalTime: 100 + railMinutes * 60, earliestArrival: 100, latestArrival: 100 + railMinutes * 60, uncertaintyMinutes: 2, trafficDelayMinutes: null, majorIncident: false, railWaitMinutes: 0, busWaitMinutes: 0, transferMinutes: 0 },
 ];
 
 const trip: CanonicalTrip = {
