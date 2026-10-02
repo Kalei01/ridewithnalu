@@ -5216,7 +5216,7 @@ function Index() {
           )}
           {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
           {verdict === "drive" && (drive?.hdotLaneClosures?.length ?? 0) > 0 && (
-            <HdotRoadworkNotice closures={drive?.hdotLaneClosures ?? []} />
+            <HdotRoadworkNotice closures={drive?.hdotLaneClosures ?? []} scheduledClosures={drive?.hdotScheduledClosures ?? []} />
           )}
           {configured && (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
             <p className="mt-4 text-lg font-medium text-muted-foreground">
