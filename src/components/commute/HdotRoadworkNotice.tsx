@@ -5,9 +5,8 @@ type Props = {
 };
 
 function labelFor(closure: HdotLaneClosureRoute) {
-  const a = closure.attributes;
-  const routeName = typeof a.RouteName === "string" ? a.RouteName : null;
-  const direction = typeof a.RouteDirn === "string" ? a.RouteDirn : null;
+  const routeName = typeof closure.routeName === "string" ? closure.routeName : null;
+  const direction = typeof closure.direction === "string" ? closure.direction : null;
   if (routeName && direction) return `${routeName} · ${direction}`;
   return routeName ?? "State roadway";
 }
