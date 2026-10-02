@@ -3387,7 +3387,7 @@ function Index() {
       if (liveDriveMinutes != null) {
         signals.push({
           label: "Your drive",
-          value: formatLiveDriveTime(liveDriveMinutes),
+          value: formatDriveMinutes(liveDriveMinutes),
           detail: "Live route estimate",
           tone: "neutral",
         });
