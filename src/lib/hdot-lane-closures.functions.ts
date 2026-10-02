@@ -166,11 +166,11 @@ function parseHdotOahuRoadwork(html: string): HdotScheduledClosure[] {
       if (!clean) continue;
 
       const direction = normalizeDirection(clean);
-      const location = clean.split(/\s+from\s+|\s+between\s+|\s+in the vicinity of\s+/i)[0].trim();
+      const location = (clean.split(/\s+from\s+|\s+between\s+|\s+in the vicinity of\s+/i)[0] ?? clean).trim();
 
       let laneSummary = "Lane closure";
       const range = clean.match(/closure of (?:the )?(one|two|three|four|five|six|seven|eight|nine|ten)\s+to\s+(one|two|three|four|five|six|seven|eight|nine|ten) lanes?/i);
-      if (range) laneSummary = `${range[1]}–${range[2]} lanes closed`;
+      if (range) laneSummary = `${range[1] ?? "one"}–${range[2] ?? "two"} lanes closed`;
       else if (/full closure/i.test(clean)) laneSummary = "Full closure";
       else if (/single .*lane closure|single lane closure/i.test(clean)) laneSummary = "1 lane closed";
       else if (/two .*lanes? closed/i.test(clean)) laneSummary = "2 lanes closed";
