@@ -5626,7 +5626,7 @@ function Index() {
               {driveAvailable && driveRange && drive && (
                 <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
               )}
-              {verdict !== "drive" && (drive?.hdotLaneClosures?.length ?? 0) > 0 && (
+              {(drive?.hdotLaneClosures?.length ?? 0) > 0 && (
                 <HdotRoadworkNotice scheduledClosures={drive?.hdotScheduledClosures ?? []} variant="commute" liveDriveMinutes={drive?.trafficMinutes ?? null} delayMinutes={drive?.delayMinutes ?? null} />
               )}
               {!driveAvailable && carAwayReason && (
