@@ -5253,7 +5253,11 @@ function Index() {
               )}
             </div>
           )}
-          {naluHeroLine && <p className="mt-3 max-w-[42rem] text-sm font-medium leading-6 text-muted-foreground">{naluHeroLine}</p>}
+          {configured && !optionsLoading && !driveLoading && naluHeroLine && (
+            <div className="mt-3 max-w-[42rem] rounded-xl border border-border/50 bg-background/30 px-3.5 py-2.5">
+              <p className="text-sm font-medium leading-6 text-muted-foreground">{naluHeroLine}</p>
+            </div>
+          )}
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
             low: driveRange?.low, high: driveRange?.high }} transit={{ label: transitLabel, minutes: transitTripEstimate.expectedDurationMinutes,
             low: transitRange?.low, high: transitRange?.high }} />}
