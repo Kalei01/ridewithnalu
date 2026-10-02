@@ -74,7 +74,7 @@ export type DecisionReason = {
 };
 
 export type NaluDecision = {
-  decisionState: "drive" | "rail" | "same" | "none" | "uncertain";
+  decisionState: "drive" | "transit" | "same" | "none" | "uncertain";
   selectedMode: MobilityMode | null;
   alternatives: MobilityMode[];
   departureTime?: string | null;
