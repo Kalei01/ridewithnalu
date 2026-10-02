@@ -3409,6 +3409,7 @@ function Index() {
     driveTripEstimate.majorIncident,
     railTripEstimate.railWaitMinutes,
     railTripEstimate.busWaitMinutes,
+    transitLabel,
     verdict,
   ]);
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
