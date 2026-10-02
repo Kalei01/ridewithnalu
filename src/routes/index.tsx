@@ -3291,11 +3291,9 @@ function Index() {
   // as its transit-view key for compatibility with the existing transit panels;
   // this adapter keeps that legacy UI vocabulary out of the decision engine.
   const canonicalVerdict = commitment?.mode === "rail" ? "transit" : commitment?.mode ??
-    (!arriveByActive && railServiceClosed
-      ? activeDecision?.state ?? "uncertain"
-      : optionsLoading || driveLoading
-        ? "uncertain"
-        : activeDecision?.state ?? "uncertain");
+    (optionsLoading || driveLoading
+      ? "uncertain"
+      : activeDecision?.state ?? "uncertain");
   const verdict: UiDecisionState = canonicalVerdict === "transit" ? "rail" : canonicalVerdict as UiDecisionState;
   const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
     ? activeDecision?.differenceMinutes ?? null : null;
@@ -3364,16 +3362,24 @@ function Index() {
   const reasoning = commitment
     ? "Your selected trip stays locked while conditions update."
     : railClosedForEvening
-      ? "Skyline service has ended for the evening, so Nalu is comparing the remaining option."
+      ? best
+        ? `Skyline has ended for the evening. Nalu is comparing ${transitLabel} service with driving.`
+        : "Skyline has ended for the evening. Nalu is checking TheBus and other available transit options."
       : railNotRunningYet
-        ? "Skyline service has not started yet today, so Nalu is comparing the available option."
+        ? best
+          ? `Skyline has not started yet today. Nalu is comparing ${transitLabel} service with driving.`
+          : "Skyline has not started yet today. Nalu is checking available transit options."
         : activeDecision.primary.text;
 
   const whyNaluText =
     railClosedForEvening
-      ? "Skyline has finished service for the evening. Nalu is using the live driving estimate because rail is not operating right now."
+      ? best
+        ? `Skyline has finished service for the evening. Nalu is comparing the available ${transitLabel} trip with the live driving estimate.`
+        : "Skyline has finished service for the evening. Nalu is checking TheBus and other available transit options before making the comparison."
       : railNotRunningYet
-        ? "Skyline has not started service yet. Nalu is using the available option until rail service begins."
+        ? best
+          ? `Skyline has not started service yet. Nalu is comparing the available ${transitLabel} trip with the live driving estimate.`
+          : "Skyline has not started service yet. Nalu is checking available transit options before making the comparison."
         : verdict === "drive"
         ? "Nalu compares the full trip from where you start to where you’re going, including getting to transit, waiting for your ride, and walking at the end—not just the freeway drive."
         : verdict === "rail"
