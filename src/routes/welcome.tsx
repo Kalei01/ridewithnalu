@@ -94,21 +94,21 @@ export const Route = createFileRoute("/welcome")({
       {
         name: "description",
         content:
-          "Nalu checks current traffic, transit, roadwork, incidents, and conditions to help Oʻahu commuters decide how to get there and when to leave.",
+          "Nalu brings the important pieces of the Oʻahu commute together, so you know your options and when to leave.",
       },
       { name: "robots", content: "index,follow,max-image-preview:large" },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "Nalu | Your Oʻahu commute, simplified" },
       {
         property: "og:description",
-        content: "Check current traffic and transit, compare your options, and know when to leave.",
+        content: "Check current traffic and your available options, then know when to leave.",
       },
       { property: "og:url", content: SITE_URL + "/welcome" },
       { property: "og:site_name", content: "Nalu" },
       { name: "twitter:title", content: "Nalu | Your Oʻahu commute, simplified" },
       {
         name: "twitter:description",
-        content: "Check current traffic and transit, compare your options, and know when to leave.",
+        content: "Check current traffic and your available options, then know when to leave.",
       },
     ],
     links: [{ rel: "canonical", href: SITE_URL + "/welcome" }],
@@ -123,7 +123,7 @@ export const Route = createFileRoute("/welcome")({
               "@id": SITE_URL + "/#website",
               name: "Nalu",
               url: SITE_URL,
-              description: "An Oʻahu commute decision app that helps commuters compare driving and transit and plan when to leave.",
+              description: "A commute decision app that helps people compare their available options and plan when to leave.",
             },
             {
               "@type": "Organization",
@@ -137,7 +137,7 @@ export const Route = createFileRoute("/welcome")({
               "@id": SITE_URL + "/#app",
               name: "Nalu",
               url: SITE_URL,
-              description: "Nalu helps Oʻahu commuters compare driving and transit, check current commute conditions, and plan when to leave.",
+              description: "Nalu helps Oʻahu commuters compare their available options, check current commute conditions, and plan when to leave.",
               applicationCategory: "TravelApplication",
               operatingSystem: "Web",
               publisher: { "@id": SITE_URL + "/#organization" },
@@ -201,10 +201,10 @@ function WelcomePage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Your commute. Figured out.</p>
             <h1 className="mt-4 max-w-2xl text-5xl font-black leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
-              Your Oʻahu commute, <span className="text-[var(--nalu-platinum-2)]">figured out.</span>
+              Your commute, <span className="text-[var(--nalu-platinum-2)]">figured out.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-              Nalu checks current traffic, transit, roadwork, incidents, and conditions to help you decide how to get there — and when to leave.
+              Nalu brings the important pieces of your Oʻahu commute together, so you know your options and when to leave.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -241,8 +241,8 @@ function WelcomePage() {
                   <p className="mt-1 text-xs text-muted-foreground">Incidents + conditions</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs text-muted-foreground">Transit</p>
-                  <p className="mt-2 text-xl font-bold">Current transit options</p>
+                  <p className="text-xs text-muted-foreground">Your options</p>
+                  <p className="mt-2 text-xl font-bold">Bus or rail options</p>
                   <p className="mt-1 text-xs text-muted-foreground">Current trip options</p>
                 </div>
               </div>
@@ -292,7 +292,7 @@ function WelcomePage() {
 
               <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/[0.07] p-4">
                 <p className="text-xs font-semibold text-primary">Nalu</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">I’ll compare the current options and work out when to leave.</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">I’ll compare what’s available now and work out when to leave.</p>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] text-muted-foreground">
                   <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Traffic</span>
                   <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Timing</span>
@@ -336,9 +336,9 @@ function WelcomePage() {
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
-                  <p className="text-[11px] text-muted-foreground">Transit</p>
+                  <p className="text-[11px] text-muted-foreground">Your options</p>
                   <p className="mt-1 text-sm font-bold">55 min</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">Current transit options</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Bus or rail options</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
                   <p className="text-[11px] text-muted-foreground">Leave by</p>
@@ -376,7 +376,7 @@ function WelcomePage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4"><p className="text-sm font-semibold">Traffic</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Live drive conditions and changing travel times.</p></div>
               <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4"><p className="text-sm font-semibold">Roadwork</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Planned closures and lane restrictions when available.</p></div>
-              <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4"><p className="text-sm font-semibold">Transit</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Current rail, bus, and connecting trip options.</p></div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4"><p className="text-sm font-semibold">Your options</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Rail, bus, walking connections, and combinations when available.</p></div>
               <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4"><p className="text-sm font-semibold">Conditions</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Weather and other available commute information.</p></div>
             </div>
           </div>
@@ -396,8 +396,8 @@ function WelcomePage() {
               <p className="mt-1 text-xs leading-5 text-muted-foreground">Current traffic, incidents, and road conditions can affect the drive.</p>
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
-              <p className="text-sm font-semibold">Transit</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">Rail, bus, walking connections, and combinations can be considered when available.</p>
+              <p className="text-sm font-semibold">Your options</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Bus, rail, walking connections, and combinations can be considered when available.</p>
             </div>
             <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <p className="text-sm font-semibold">Arrive By</p>
@@ -416,7 +416,7 @@ function WelcomePage() {
           <div className="mt-6 grid gap-3">
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <summary className="cursor-pointer text-sm font-semibold">Does Nalu replace Google Maps or Apple Maps?</summary>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">No. Nalu is focused on the Oʻahu commute decision: whether driving or transit makes sense for your trip and when you should leave.</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">No. Nalu is focused on the commute decision: whether driving or another available option makes sense for your trip and when you should leave. It starts with Oʻahu, where we’re building around real local commute needs.</p>
             </details>
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
               <summary className="cursor-pointer text-sm font-semibold">Does Nalu use live information?</summary>
