@@ -152,7 +152,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { HOLO_FARES } from "@/lib/fares";
-import { AskNalu, BeatTheRush, MorningPulse, WeeklyDigestCard } from "@/components/ai/NaluAi";
+import { AskNalu, BeatTheRush, EveningPulse, MorningPulse, WeeklyDigestCard } from "@/components/ai/NaluAi";
 import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
 
@@ -4160,6 +4160,11 @@ function Index() {
             </p>
           )}
           <MorningPulse
+            home={browseHome}
+            work={browseWork}
+            trainsEveryMinutes={trainsEveryMinutes}
+          />
+          <EveningPulse
             home={browseHome}
             work={browseWork}
             trainsEveryMinutes={trainsEveryMinutes}
