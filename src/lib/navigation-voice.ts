@@ -400,11 +400,21 @@ export class VoiceGuide {
   next(
     next: { maneuver: Maneuver; distanceM: number },
     now = Date.now(),
-    ctx: { speedMps?: number | null; rerouting?: boolean } = {},
+    ctx: {
+      speedMps?: number | null;
+      rerouting?: boolean;
+      gpsAccuracyM?: number | null;
+      fixAgeMs?: number | null;
+    } = {},
   ): string | null {
     if (this.firstSeenAt === null) this.firstSeenAt = now;
     if (now - this.firstSeenAt < (this.opts.stabilizeMs ?? VOICE_STABILIZE_MS)) return null;
     if (ctx.rerouting) return null;
+    // Voice should not become more confident than the navigation fix itself.
+    // Keep visual navigation alive, but stay silent when GPS quality is too
+    // poor or the accepted fix is stale.
+    if (ctx.gpsAccuracyM !== null && ctx.gpsAccuracyM !== undefined && ctx.gpsAccuracyM > 40) return null;
+    if (ctx.fixAgeMs !== null && ctx.fixAgeMs !== undefined && ctx.fixAgeMs > 5_000) return null;
     const key = maneuverKey(next.maneuver);
     const current = this.state(next.maneuver);
     if (current === "passed" || current === "near_spoken") return null;
