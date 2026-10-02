@@ -202,3 +202,36 @@ describe("context-aware voice timing", () => {
     expect(guide.next(next, 2_000, { speedMps: 8 })).toMatch(/300 feet/);
   });
 });
+
+
+describe("voice suppression", () => {
+  it("stays silent while GPS accuracy is poor", () => {
+    const guide = new VoiceGuide({ stabilizeMs: 0, cooldownMs: 0 });
+    guide.sync([turn]);
+    expect(
+      guide.next({ maneuver: turn, distanceM: 200 }, 1_000, { gpsAccuracyM: 41 }),
+    ).toBeNull();
+    expect(
+      guide.next({ maneuver: turn, distanceM: 200 }, 2_000, { gpsAccuracyM: 20 }),
+    ).toMatch(/half a mile/);
+  });
+
+  it("stays silent when the accepted GPS fix is stale", () => {
+    const guide = new VoiceGuide({ stabilizeMs: 0, cooldownMs: 0 });
+    guide.sync([turn]);
+    expect(
+      guide.next({ maneuver: turn, distanceM: 200 }, 10_000, { fixAgeMs: 5_001 }),
+    ).toBeNull();
+    expect(
+      guide.next({ maneuver: turn, distanceM: 200 }, 11_000, { fixAgeMs: 1_000 }),
+    ).toMatch(/half a mile/);
+  });
+
+  it("stays silent while rerouting", () => {
+    const guide = new VoiceGuide({ stabilizeMs: 0, cooldownMs: 0 });
+    guide.sync([turn]);
+    expect(
+      guide.next({ maneuver: turn, distanceM: 200 }, 1_000, { rerouting: true }),
+    ).toBeNull();
+  });
+});
