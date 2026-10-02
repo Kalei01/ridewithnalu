@@ -345,7 +345,17 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
 }
 
 export function WeeklyDigestCard() {
-  const { data: clocks } = usePulseClocks(null, null);
+  const timezone =
+    typeof Intl !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone || "Pacific/Honolulu"
+      : "Pacific/Honolulu";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    weekday: "short",
+    hour: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const clock = { weekday: parts.find((part) => part.type === "weekday")?.value ?? "" };
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   useEffect(() => setDigest(weeklyDigest()), []);
   if (!clock || !["Fri", "Sat"].includes(clock.weekday) || !digest) return null;
