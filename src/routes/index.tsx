@@ -5664,7 +5664,10 @@ function Index() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCarPlace("destination")}
+                  onClick={() => {
+                    setCarPlace("destination");
+                    chooseMode("drive");
+                  }}
                   className="mt-5"
                 >
                   I’m driving & parking there
@@ -5672,7 +5675,8 @@ function Index() {
               )}
               {inbound && carPlace === "destination" && (
                 <Button
-                  }}
+                  variant="outline"
+                  size="sm"
                   onClick={() => setCarPlace("home")}
                   className="mt-5"
                 >
