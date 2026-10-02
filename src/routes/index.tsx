@@ -3360,8 +3360,8 @@ function Index() {
       ];
       const endpointIndexes = leg.mode === "bus" && leg.kind !== "access" ? [1] : [0, 1];
       endpointIndexes.forEach((endpointIndex) => {
-        const [name, stopId] = endpoints[endpointIndex] ?? [];
-        const point = stopPoint(name, stopId);
+        const [name, stopId] = endpoints[endpointIndex] ?? [null, null];
+        const point = stopPoint(name, stopId ?? null);
         if (!name || !point) return;
         const last = points[points.length - 1];
         if (last && distanceM(last, point) < 20) return;
@@ -3378,7 +3378,7 @@ function Index() {
     return points;
   }, [best, homePoint, destPoint, reverseTrip, tripOriginLabel, tripArrivalLabel, itineraryStopCoords, stationCoords]);
 
-  const transitMapSegments = useMemo(() => {
+  type TransitMapSegment = {\n    id: string;\n    mode: "walk" | "drive" | "bus" | "rail";\n    points: Array<{ lat: number; lon: number }>;\n  };\n\n  const transitMapSegments = useMemo<TransitMapSegment[]>(() => {
     if (!best || !homePoint || !destPoint) return [];
     const origin = reverseTrip ? destPoint : homePoint;
     const destination = reverseTrip ? homePoint : destPoint;
