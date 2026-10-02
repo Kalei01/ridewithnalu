@@ -5215,7 +5215,7 @@ function Index() {
             </div>
           )}
           {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
-          {verdict === "drive" && (drive?.hdotLaneClosures?.length ?? 0) > 0 && (
+          {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
             <HdotRoadworkNotice scheduledClosures={drive?.hdotScheduledClosures ?? []} variant="browse" />
           )}
           {configured && (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
@@ -5626,7 +5626,7 @@ function Index() {
               {driveAvailable && driveRange && drive && (
                 <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
               )}
-              {(drive?.hdotLaneClosures?.length ?? 0) > 0 && (
+              {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
                 <HdotRoadworkNotice scheduledClosures={drive?.hdotScheduledClosures ?? []} variant="commute" liveDriveMinutes={drive?.trafficMinutes ?? null} delayMinutes={drive?.delayMinutes ?? null} />
               )}
               {!driveAvailable && carAwayReason && (
