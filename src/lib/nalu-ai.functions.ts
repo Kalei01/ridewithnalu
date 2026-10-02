@@ -2,10 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createMorningPulseVerdict } from "./intelligence/morning-pulse-verdict";
 import { isRailGeographicallyRelevant } from "./intelligence/pulse-geography";
+import { localPulseClock, minutesSinceMidnight } from "./intelligence/pulse-time";
 
 const point = z.object({
   lat: z.number().min(21).max(22),
   lon: z.number().min(-158.4).max(-157.5),
+});
+
+const globalPoint = z.object({
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
 });
 
 export type AiResult<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -15,10 +21,11 @@ export const morningPulse = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
-        from: point,
-        to: point,
+        from: globalPoint,
+        to: globalPoint,
         destinationLabel: z.string().max(30),
         trainsEveryMinutes: z.number().nullable(),
+        timezone: z.string().min(1).max(100),
       })
       .parse(input),
   )
@@ -124,7 +131,7 @@ export const morningPulse = createServerFn({ method: "POST" })
             }
           : null,
         nowEpochMs: Date.now(),
-        nowSecondsSinceMidnight: ai.honoluluSeconds(),
+        nowSecondsSinceMidnight: minutesSinceMidnight(localPulseClock(new Date(), data.timezone)),
       });
 
       const reasons = verdict.reasons.map((reason) => reason.text);
@@ -298,7 +305,7 @@ export const askNalu = createServerFn({ method: "POST" })
 
 /** Beat the Rush: is congestion building faster than usual on this commute? */
 export const rushOutlook = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ from: point, to: point }).parse(input))
+  .inputValidator((input) => z.object({ from: globalPoint, to: globalPoint }).parse(input))
   .handler(async ({ data }) => {
     const ai = await import("./nalu-ai.server");
     try {
