@@ -96,10 +96,14 @@ export const morningPulse = createServerFn({ method: "POST" })
 
       const delay = drive?.delayMinutes ?? 0;
       const roads = drive?.roads.filter((road): road is string => Boolean(road)).slice(0, 2) ?? [];
+      const incident = drive?.incidents?.[0] ?? null;
+      const incidentRoad = incident?.road || roads[0] || "your calculated route";
       const trafficSentence =
         delay >= 2
-          ? `${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.`
-          : "Roads look normal right now.";
+          ? `${roads.join(" and ") || "Your calculated route"} is adding about ${delay} min right now.`
+          : incident
+            ? `${incident.description || "Traffic is reported"} on ${incidentRoad} is affecting the calculated route.`
+            : "No material delay is showing on your calculated route right now.";
 
       if (!railRelevant) {
         return {
