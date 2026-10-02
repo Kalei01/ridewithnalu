@@ -1796,6 +1796,22 @@ function Index() {
     queryFn: async () => {
       let selectedInboundStation = arrivalStationId;
       let fallbackChecked = false;
+      const fetchGeneralTransit = async (): Promise<Option[]> => {
+        const { data, error } = await supabase.rpc("plan_transit_general", {
+          p_origin_lat: tripDirection.from.lat as number,
+          p_origin_lon: tripDirection.from.lon as number,
+          p_dest_lat: tripDirection.to.lat as number,
+          p_dest_lon: tripDirection.to.lon as number,
+          p_after_seconds: cursor,
+          p_limit: planMode === "arrive-by" ? 8 : 4,
+        });
+        if (error) return [];
+        return (data ?? []).map((row) => ({
+          ...row,
+          legs: row.legs as unknown as Leg[],
+        })) as Option[];
+      };
+
       const fetchPage = async (cursor: number): Promise<Option[]> => {
       if (inbound) {
         const fetchAtStation = async (stationId: string) => {
@@ -1832,7 +1848,7 @@ function Index() {
             const primary = await fetchAtStation(selectedInboundStation);
             if (primary.length) {
               fallbackChecked = true;
-              return primary;
+              return mergeTransitOptions(primary, await fetchGeneralTransit());
             }
             primaryAlreadyChecked = true;
           }
@@ -1850,7 +1866,9 @@ function Index() {
         });
         selectedInboundStation = result.stationId ?? selectedInboundStation;
         fallbackChecked = true;
-        if (result.options.length || !selectedInboundStation) return result.options;
+        if (result.options.length || !selectedInboundStation) {
+          return mergeTransitOptions(result.options, await fetchGeneralTransit());
+        }
         // No direct walk/bus from the origin reaches Skyline: board at the rail
         // hub nearest the origin with an estimated road access leg instead.
         const homeStation = selectedInboundStation;
@@ -1872,25 +1890,15 @@ function Index() {
             return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] }));
           },
         })) as Option[];
-        if (hubOptions.length) return hubOptions;
+        if (hubOptions.length) {
+          return mergeTransitOptions(hubOptions, await fetchGeneralTransit());
+        }
 
         // Transit is not synonymous with rail. If no rail-inclusive itinerary
         // exists, search the actual origin/destination for a direct bus
         // itinerary before declaring transit unavailable.
-        const generalTransit = await supabase.rpc("plan_transit_general", {
-          p_origin_lat: tripDirection.from.lat as number,
-          p_origin_lon: tripDirection.from.lon as number,
-          p_dest_lat: tripDirection.to.lat as number,
-          p_dest_lon: tripDirection.to.lon as number,
-          p_after_seconds: cursor,
-          p_limit: planMode === "arrive-by" ? 8 : 4,
-        });
-        if (!generalTransit.error && generalTransit.data?.length) {
-          return generalTransit.data.map((row) => ({
-            ...row,
-            legs: row.legs as unknown as Leg[],
-          })) as Option[];
-        }
+        const generalOptions = await fetchGeneralTransit();
+        if (generalOptions.length) return generalOptions;
 
         // Keep a direct-bus safety net while the generalized planner is rolling out.
         // It uses the same real door coordinates, but a wider walking radius so a
@@ -1905,10 +1913,7 @@ function Index() {
           p_origin_radius_m: 4000,
           p_dest_radius_m: 3000,
         });
-        if (legacyBus.error) {
-          if (generalTransit.error) throw generalTransit.error;
-          throw legacyBus.error;
-        }
+        if (legacyBus.error) throw legacyBus.error;
         return (legacyBus.data ?? []).map((row) => ({
           ...row,
           legs: row.legs as unknown as Leg[],
