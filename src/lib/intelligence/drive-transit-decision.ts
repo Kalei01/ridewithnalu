@@ -25,6 +25,8 @@ export type DecisionModeEstimate = {
   railWaitMinutes: number;
   busWaitMinutes: number;
   transferMinutes: number;
+  /** Drive may be present as a reference route while ineligible as a user action. */
+  eligible?: boolean;
 };
 
 export type DriveTransitDecision = {
@@ -68,7 +70,9 @@ export function decideDriveVsTransit(
 ): DriveTransitDecision {
   const tossUp = config.tossUpMinutes ?? 5;
   const switchMargin = config.switchMarginMinutes ?? 3;
-  const unavailable = [drive, transit].filter((item) => item.availability !== "available");
+  const unavailable = [drive, transit].filter((item) =>
+    item.availability !== "available" || (item.mode === "drive" && item.eligible === false),
+  );
 
   if (unavailable.some((item) => item.availability === "data-error")) {
     return {
@@ -277,7 +281,7 @@ export function decideDriveVsTransitArrival(
     });
   }
 
-  const driveFeasible = driveMargin !== null && driveMargin >= 0;
+  const driveFeasible = drive.eligible !== false && driveMargin !== null && driveMargin >= 0;
   const transitFeasible = transitMargin !== null && transitMargin >= 0;
 
   if (
@@ -325,7 +329,7 @@ export function decideDriveVsTransitArrival(
     });
   }
 
-  const driveProtected = (drive.latestArrival ?? Infinity) <= targetSeconds;
+  const driveProtected = drive.eligible !== false && (drive.latestArrival ?? Infinity) <= targetSeconds;
   const transitProtected = (transit.latestArrival ?? Infinity) <= targetSeconds;
 
   if (driveProtected !== transitProtected) {
