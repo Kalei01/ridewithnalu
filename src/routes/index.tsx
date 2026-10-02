@@ -3020,7 +3020,7 @@ function Index() {
     ...(arriveByActive && (!futureDrive || !futureDriveResult?.converged || futureDriveResult.futureFailed)
       ? { qualityOverride: "limited" as const } : {}),
   });
-  const arrivalRailEstimate = transitEstimate({
+  const arrivalTransitEstimate = transitEstimate({
     option: transitPick?.option ?? null, nowSeconds, nowMs: now.getTime(),
     scheduleFetchedAt: optionsFetchedAt || null, failed: optionsFailed,
     targetArrivalSeconds: arriveByTarget,
@@ -3028,7 +3028,7 @@ function Index() {
     liveBusFetchedAt: confirmedBusArrival ? (liveBus?.fetchedAt ?? null) : null,
   });
   const arriveByComparison = arriveByTarget === null ? null
-    : decideArrival(arrivalDriveEstimate, arrivalRailEstimate, arriveByTarget);
+    : decideArrival(arrivalDriveEstimate, arrivalTransitEstimate, arriveByTarget);
 
   // In arrive-by mode the itinerary shown is the latest one that still makes it.
   const arriveByLeaveBy =
@@ -3135,21 +3135,21 @@ function Index() {
     carAvailable: driveAvailable, failed: driveFailed,
     majorIncident: Boolean(drive?.incidents[0]),
   });
-  const railTripEstimate = transitEstimate({
+  const transitTripEstimate = transitEstimate({
     option: best ?? null, nowSeconds, nowMs: now.getTime(),
     scheduleFetchedAt: optionsFetchedAt || null, failed: optionsFailed,
     feedExpired: gtfsExpiry !== null && gtfsExpiry.daysRemaining < 0,
     liveBusFetchedAt: confirmedBusArrival ? (liveBus?.fetchedAt ?? null) : null,
   });
-  const transitMinutes = railTripEstimate.expectedDurationMinutes;
-  const railRange = railTripEstimate.availability === "available" ? {
-    low: Math.round(((railTripEstimate.earliestArrival as number) - nowSeconds) / 60),
-    high: Math.round(((railTripEstimate.latestArrival as number) - nowSeconds) / 60),
+  const transitMinutes = transitTripEstimate.expectedDurationMinutes;
+  const transitRange = transitTripEstimate.availability === "available" ? {
+    low: Math.round(((transitTripEstimate.earliestArrival as number) - nowSeconds) / 60),
+    high: Math.round(((transitTripEstimate.latestArrival as number) - nowSeconds) / 60),
   } : null;
   const itineraryRange = arriveByActive && best ? {
     low: Math.max(0, best.total_minutes - 1),
-    high: Math.round(best.total_minutes + (railTripEstimate.uncertaintyMinutes ?? 0)),
-  } : railRange;
+    high: Math.round(best.total_minutes + (transitTripEstimate.uncertaintyMinutes ?? 0)),
+  } : transitRange;
   const driveArrival = drive
     ? arrivalRange(nowSeconds,
         { low: drive.lowMinutes, expected: drive.trafficMinutes, high: drive.highMinutes },
@@ -3166,8 +3166,8 @@ function Index() {
     low: Math.round(((driveTripEstimate.earliestArrival as number) - nowSeconds) / 60),
     high: Math.round(((driveTripEstimate.latestArrival as number) - nowSeconds) / 60),
   } : null;
-  const railWindow = best && railTripEstimate.earliestArrival !== null && railTripEstimate.latestArrival !== null
-    ? `${clockFromSeconds(railTripEstimate.earliestArrival)} – ${clockFromSeconds(railTripEstimate.latestArrival)}`
+  const transitWindow = best && transitTripEstimate.earliestArrival !== null && transitTripEstimate.latestArrival !== null
+    ? `${clockFromSeconds(transitTripEstimate.earliestArrival)} – ${clockFromSeconds(transitTripEstimate.latestArrival)}`
     : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
   const decisionKey = `${planMode}:${inbound}:${setup.homeLat}:${setup.homeLon}:${setup.destLat}:${setup.destLon}`;
@@ -3196,7 +3196,7 @@ function Index() {
       constraint,
       requestedAt: nowSeconds,
       selectedRouteId: null,
-      routes: [driveTripEstimate, railTripEstimate].map((estimate) => ({
+      routes: [driveTripEstimate, transitTripEstimate].map((estimate) => ({
         id: `${estimate.mode}-route`,
         mode: estimate.mode,
         segments: [{
@@ -3227,13 +3227,13 @@ function Index() {
     });
   }, [
     setup.homeLat, setup.homeLon, setup.destLat, setup.destLon,
-    arriveByTarget, nowSeconds, driveTripEstimate, railTripEstimate,
+    arriveByTarget, nowSeconds, driveTripEstimate, transitTripEstimate,
   ]);
 
   const centralVerdict = useMemo(
     () => centralTrip === null ? null : createNaluVerdict({
       trip: centralTrip,
-      estimates: [driveTripEstimate, railTripEstimate].map((estimate) => ({
+      estimates: [driveTripEstimate, transitTripEstimate].map((estimate) => ({
         mode: estimate.mode === "drive" ? "drive" : "transit",
         transitMode: estimate.transitMode,
         label: estimate.transitLabel,
@@ -3255,7 +3255,7 @@ function Index() {
       previousMode: previousVerdict,
       tossUpMinutes: TOSS_UP_MIN,
     }),
-    [centralTrip, driveTripEstimate, railTripEstimate, previousVerdict],
+    [centralTrip, driveTripEstimate, transitTripEstimate, previousVerdict],
   );
 
   const activeDecision = arriveByActive && arriveByComparison
@@ -3267,8 +3267,8 @@ function Index() {
             centralVerdict.confidence === "medium" ? "moderate" : centralVerdict.confidence ?? "low",
           differenceMinutes:
             driveTripEstimate.expectedDurationMinutes !== null &&
-            railTripEstimate.expectedDurationMinutes !== null
-              ? Math.abs(driveTripEstimate.expectedDurationMinutes - railTripEstimate.expectedDurationMinutes)
+            transitTripEstimate.expectedDurationMinutes !== null
+              ? Math.abs(driveTripEstimate.expectedDurationMinutes - transitTripEstimate.expectedDurationMinutes)
               : null,
           primary: {
             kind: centralVerdict.reasons[0]?.evidence?.[0] as import("@/lib/intelligence/drive-transit-decision").EvidenceKind ?? "data_quality",
@@ -3307,10 +3307,10 @@ function Index() {
     key: decisionKey,
     state: verdict === "same" ? "same" : verdict === "drive" || verdict === "transit" ? verdict : "same",
     driveMinutes: driveTripEstimate.expectedDurationMinutes,
-    transitMinutes: railTripEstimate.expectedDurationMinutes,
+    transitMinutes: transitTripEstimate.expectedDurationMinutes,
     driveDelayMinutes: driveTripEstimate.trafficDelayMinutes,
-    railWaitMinutes: railTripEstimate.railWaitMinutes,
-    busWaitMinutes: railTripEstimate.busWaitMinutes,
+    railWaitMinutes: transitTripEstimate.railWaitMinutes,
+    busWaitMinutes: transitTripEstimate.busWaitMinutes,
     majorIncident: Boolean(driveTripEstimate.majorIncident),
   };
   const decisionChanges = useMemo(() => {
@@ -3450,8 +3450,8 @@ function Index() {
         });
       }
     } else if (verdict === "transit") {
-      const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
-      const busWait = Math.round(railTripEstimate.busWaitMinutes ?? 0);
+      const railWait = Math.round(transitTripEstimate.railWaitMinutes ?? 0);
+      const busWait = Math.round(transitTripEstimate.busWaitMinutes ?? 0);
       if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
       if (busWait >= 5) signals.push({ label: "Bus wait", value: `${busWait} min`, tone: busWait >= 10 ? "alert" : "neutral" });
       if (roadwork) {
@@ -3489,7 +3489,7 @@ function Index() {
           tone: "alert",
         });
       }
-      const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
+      const railWait = Math.round(transitTripEstimate.railWaitMinutes ?? 0);
       if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: "neutral" });
     }
 
@@ -3499,8 +3499,8 @@ function Index() {
     driveTripEstimate.expectedDurationMinutes,
     driveTripEstimate.trafficDelayMinutes,
     driveTripEstimate.majorIncident,
-    railTripEstimate.railWaitMinutes,
-    railTripEstimate.busWaitMinutes,
+    transitTripEstimate.railWaitMinutes,
+    transitTripEstimate.busWaitMinutes,
     transitLabel,
     verdict,
   ]);
@@ -5227,9 +5227,9 @@ function Index() {
             </div>
           )}
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
-            low: driveRange?.low, high: driveRange?.high }} transit={{ label: transitLabel, minutes: railTripEstimate.expectedDurationMinutes,
-            low: railRange?.low, high: railRange?.high }} />}
-          {verdict === "transit" && best && railRange && (
+            low: driveRange?.low, high: driveRange?.high }} transit={{ label: transitLabel, minutes: transitTripEstimate.expectedDurationMinutes,
+            low: transitRange?.low, high: transitRange?.high }} />}
+          {verdict === "transit" && best && transitRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
               <div className="metric-glass">
                 <p className="text-xs text-muted-foreground">Leave by</p>
@@ -5246,13 +5246,13 @@ function Index() {
               <div className="metric-glass">
                 <p className="text-xs text-muted-foreground">{arriveByActive ? "Trip" : "From now"}</p>
                 <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
-                  {arriveByActive ? formatDriveMinutes(best.total_minutes) : railTripEstimate.expectedDurationMinutes !== null ? formatDriveMinutes(railTripEstimate.expectedDurationMinutes) : "—"}
+                  {arriveByActive ? formatDriveMinutes(best.total_minutes) : transitTripEstimate.expectedDurationMinutes !== null ? formatDriveMinutes(transitTripEstimate.expectedDurationMinutes) : "—"}
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
                 </p>
               </div>
-              {railWindow && (
+              {transitWindow && (
                 <p className="col-span-3 text-sm font-semibold tabular-nums text-muted-foreground">
-                  Arrive {railWindow}
+                  Arrive {transitWindow}
                 </p>
               )}
             </div>
@@ -5318,7 +5318,7 @@ function Index() {
                 </div>
                 <div className="mt-3 border-t border-border/50 pt-3 text-xs text-muted-foreground">
                   <p>{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
-                  <p className="mt-1">{sourceFreshnessLabel(railTripEstimate.source, now.getTime())}</p>
+                  <p className="mt-1">{sourceFreshnessLabel(transitTripEstimate.source, now.getTime())}</p>
                 </div>
               </div>
             </section>
@@ -5336,7 +5336,7 @@ function Index() {
                   <p key={change} className="mt-2 text-sm leading-6 text-muted-foreground">{change}</p>
                 ))}
                 {whyNaluText && <p className="mt-2 text-sm leading-6 text-muted-foreground">{whyNaluText}</p>}
-                {verdict === "same" && <p className="mt-2 text-sm leading-6 text-muted-foreground">Driving is about {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit is about {formatDriveMinutes(railTripEstimate.expectedDurationMinutes ?? 0)}.</p>}
+                {verdict === "same" && <p className="mt-2 text-sm leading-6 text-muted-foreground">Driving is about {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit is about {formatDriveMinutes(transitTripEstimate.expectedDurationMinutes ?? 0)}.</p>}
                 {verdict === "uncertain" && <p className="mt-2 text-sm leading-6 text-muted-foreground">{activeDecision.primary.text}.</p>}
               </div>
             </details>
@@ -5620,7 +5620,7 @@ function Index() {
               onClick={() => chooseMode("rail")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "transit" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />} {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
+              {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />} {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : transitTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(transitTripEstimate.expectedDurationMinutes)}` : ""}
               {!commitment && verdict === "transit" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}
