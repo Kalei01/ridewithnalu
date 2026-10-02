@@ -26,16 +26,30 @@ export const morningPulse = createServerFn({ method: "POST" })
     const ai = await import("./nalu-ai.server");
     try {
       const [drive] = await ai.routeOptions(data.from, data.to);
-      const [originStation, destinationStation] = await Promise.all([
-        ai.nearestStation(data.from),
-        ai.nearestStation(data.to),
-      ]);
+      // Rail is supplemental evidence, not a dependency for the pulse. If the
+      // GTFS/Supabase rail lookup is temporarily unavailable, the drive answer
+      // should still render instead of turning the whole Pulse into an error.
+      let originStation: Awaited<ReturnType<typeof ai.nearestStation>> = null;
+      let destinationStation: Awaited<ReturnType<typeof ai.nearestStation>> = null;
+      try {
+        [originStation, destinationStation] = await Promise.all([
+          ai.nearestStation(data.from),
+          ai.nearestStation(data.to),
+        ]);
+      } catch (error) {
+        console.warn("[ai] pulse rail proximity lookup failed", error);
+      }
       const railRelevant = isRailGeographicallyRelevant(originStation, destinationStation);
       // Only surface Skyline when both ends of this actual trip are reasonably
       // close to the rail network. This prevents Oʻahu-wide rail assumptions.
-      const rail = railRelevant
-        ? await ai.bestRailBetween(data.from, data.to, ai.honoluluSeconds())
-        : null;
+      let rail = null;
+      if (railRelevant) {
+        try {
+          rail = await ai.bestRailBetween(data.from, data.to, ai.honoluluSeconds());
+        } catch (error) {
+          console.warn("[ai] pulse rail trip lookup failed", error);
+        }
+      }
       const railTrip = rail?.trips.find((trip) => {
         const total = Number(trip.total_minutes);
         const scheduled = (Number(trip.arrive_seconds) - Number(trip.depart_seconds)) / 60;
@@ -145,16 +159,30 @@ export const eveningPulse = createServerFn({ method: "POST" })
     const ai = await import("./nalu-ai.server");
     try {
       const [drive] = await ai.routeOptions(data.from, data.to);
-      const [originStation, destinationStation] = await Promise.all([
-        ai.nearestStation(data.from),
-        ai.nearestStation(data.to),
-      ]);
+      // Rail is supplemental evidence, not a dependency for the pulse. If the
+      // GTFS/Supabase rail lookup is temporarily unavailable, the drive answer
+      // should still render instead of turning the whole Pulse into an error.
+      let originStation: Awaited<ReturnType<typeof ai.nearestStation>> = null;
+      let destinationStation: Awaited<ReturnType<typeof ai.nearestStation>> = null;
+      try {
+        [originStation, destinationStation] = await Promise.all([
+          ai.nearestStation(data.from),
+          ai.nearestStation(data.to),
+        ]);
+      } catch (error) {
+        console.warn("[ai] pulse rail proximity lookup failed", error);
+      }
       const railRelevant = isRailGeographicallyRelevant(originStation, destinationStation);
       // Only surface Skyline when both ends of this actual trip are reasonably
       // close to the rail network. This prevents Oʻahu-wide rail assumptions.
-      const rail = railRelevant
-        ? await ai.bestRailBetween(data.from, data.to, ai.honoluluSeconds())
-        : null;
+      let rail = null;
+      if (railRelevant) {
+        try {
+          rail = await ai.bestRailBetween(data.from, data.to, ai.honoluluSeconds());
+        } catch (error) {
+          console.warn("[ai] pulse rail trip lookup failed", error);
+        }
+      }
       const railTrip = rail?.trips.find((trip) => {
         const total = Number(trip.total_minutes);
         const scheduled = (Number(trip.arrive_seconds) - Number(trip.depart_seconds)) / 60;
