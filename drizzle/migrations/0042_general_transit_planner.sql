@@ -149,7 +149,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
       dep_sec - origin_walk_min * 60 AS leave_sec,
       dep_sec,
       arr_sec + dest_walk_min * 60 AS door_sec,
-      trip_id AS rail_trip,
+      CASE WHEN route_type = 1 THEN trip_id ELSE NULL END AS rail_trip,
       origin_name,
       dest_name,
       origin_stop,
