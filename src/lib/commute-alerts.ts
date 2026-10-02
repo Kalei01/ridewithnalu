@@ -1,4 +1,5 @@
 import { audioContext } from "./approach";
+import { VoicePriorityQueue, type VoicePriority } from "./voice-priority-queue";
 
 export type TrafficAlertSnapshot = {
   delayMinutes: number;
@@ -47,7 +48,7 @@ export function postCommuteNotification(title: string, body: string, tag: string
   }
 }
 
-export function speakCommuteAlert(message: string) {
+export function speakCommuteAlert(message: string, priority: VoicePriority = "info") {
   try {
     if (
       typeof window === "undefined" ||
@@ -55,103 +56,76 @@ export function speakCommuteAlert(message: string) {
       typeof window.SpeechSynthesisUtterance !== "function"
     )
       return;
-    const utterance = new window.SpeechSynthesisUtterance(message);
-    utterance.lang = "en-US";
-    utterance.rate = 0.94;
-    utterance.volume = 1;
-    window.speechSynthesis.cancel();
-    // Wake the car's Bluetooth audio route first so the first syllable isn't
-    // swallowed, then speak once the primer has finished.
-    const primed = playAudioPrimer();
-    const speak = () => {
-      try {
-        window.speechSynthesis.resume();
-        window.speechSynthesis.speak(utterance);
-      } catch {
-        // best-effort
-      }
-    };
-    if (primed) window.setTimeout(speak, PRIMER_MS);
-    else speak();
+
+    const request = { message, priority };
+    const decision = speechQueue.enqueue(request);
+
+    if (decision.action === "interrupt") {
+      speechGeneration += 1;
+      window.speechSynthesis.cancel();
+      speakQueuedRequest(decision.request);
+      return;
+    }
+
+    if (decision.action === "start") speakQueuedRequest(decision.request);
   } catch {
     // Speech is best-effort on browsers that suspend audio in the background.
   }
 }
 
-/** Speak a silent utterance inside a user tap so iOS Safari unlocks speech. */
-export function primeSpeech() {
+const speechQueue = new VoicePriorityQueue();
+let speechGeneration = 0;
+
+function speakQueuedRequest(request: { message: string; priority: VoicePriority }) {
+  const generation = ++speechGeneration;
+
   try {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const utterance = new window.SpeechSynthesisUtterance(" ");
-    utterance.volume = 0;
-    window.speechSynthesis.speak(utterance);
+    const utterance = new window.SpeechSynthesisUtterance(request.message);
+    utterance.lang = "en-US";
+    utterance.rate = 0.94;
+    utterance.volume = 1;
+
+    const finish = () => {
+      if (generation !== speechGeneration) return;
+      const next = speechQueue.finish(request);
+      if (next) speakQueuedRequest(next);
+    };
+
+    utterance.onend = finish;
+    utterance.onerror = finish;
+
+    // Wake the car's Bluetooth audio route first so the first syllable isn't
+    // swallowed, then speak once the primer has finished.
+    const primed = playAudioPrimer();
+    const speak = () => {
+      try {
+        if (generation !== speechGeneration || speechQueue.getActive() !== request) return;
+        window.speechSynthesis.resume();
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        finish();
+      }
+    };
+    if (primed) window.setTimeout(speak, PRIMER_MS);
+    else speak();
+  } catch {
+    if (generation === speechGeneration) {
+      const next = speechQueue.finish(request);
+      if (next) speakQueuedRequest(next);
+    }
+  }
+}
+
+/** Cancel current/pending spoken alerts without affecting navigation state. */
+export function clearCommuteSpeech() {
+  try {
+    speechGeneration += 1;
+    speechQueue.clear();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
   } catch {
     // Best-effort only.
   }
 }
 
-export const PRIMER_MS = 300;
-
-/** A soft 300ms tone that opens the Bluetooth/car audio channel before speech. */
-export function playAudioPrimer(): boolean {
-  try {
-    const ctx = audioContext();
-    if (!ctx) return false;
-    if (ctx.state === "suspended") void ctx.resume();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 988;
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + PRIMER_MS / 1000);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + PRIMER_MS / 1000 + 0.02);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Keep audio alive for the whole navigation session: an inaudible oscillator
- * stops iOS Safari suspending the audio context, and a periodic resume()
- * works around speechSynthesis stalling mid-drive. Returns a stop function.
- */
-export function keepNavigationAudioAlive(): () => void {
-  let osc: OscillatorNode | null = null;
-  let timer: number | null = null;
-  try {
-    const ctx = audioContext();
-    if (ctx) {
-      if (ctx.state === "suspended") void ctx.resume();
-      osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      gain.gain.value = 0.0001;
-      osc.connect(gain).connect(ctx.destination);
-      osc.start();
-    }
-    timer = window.setInterval(() => {
-      try {
-        if (ctx && ctx.state === "suspended") void ctx.resume();
-        if ("speechSynthesis" in window && !window.speechSynthesis.speaking)
-          window.speechSynthesis.resume();
-      } catch {
-        // best-effort
-      }
-    }, 10_000);
-  } catch {
-    // best-effort
-  }
-  return () => {
-    try {
-      osc?.stop();
-      osc?.disconnect();
-    } catch {
-      // already stopped
-    }
-    if (timer !== null) window.clearInterval(timer);
-  };
-}
