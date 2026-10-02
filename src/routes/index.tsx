@@ -1018,7 +1018,7 @@ function Index() {
   const [selectedNearbyStopId, setSelectedNearbyStopId] = useState<string | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<"transit" | "drive">("transit");
+  const [selectedMode, setSelectedMode] = useState<"rail" | "drive">("rail");
   // Once the commuter is underway the chosen mode is locked: the verdict must
   // never flip a driver onto rail, or a rider onto the freeway, mid-trip.
   const [commitment, setCommitment] = useState<Commitment | null>(null);
@@ -2028,7 +2028,7 @@ function Index() {
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null);
   useEffect(() => {
     // A locked transit trip keeps its itinerary even as fresher options arrive.
-    if (commitment?.mode === "transit") return;
+    if (commitment?.mode === "rail") return;
     setSelectedDeparture(null);
   }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds, commitment]);
   const liveBest =
@@ -2036,7 +2036,7 @@ function Index() {
   // While riding, the itinerary on screen is the one boarded — including its
   // transfers — not whatever is fastest to leave now.
   const best =
-    commitment?.mode === "transit" && lockedOptionRef.current ? lockedOptionRef.current : liveBest;
+    commitment?.mode === "rail" && lockedOptionRef.current ? lockedOptionRef.current : liveBest;
   lockedItineraryCandidate.current = liveBest ?? null;
 
   const transitLabel = best?.legs.some((leg) => leg.mode === "rail")
@@ -2238,7 +2238,7 @@ function Index() {
   // No button: whenever the current plan has a transit leg underway, follow it
   // with GPS when granted and fall back to the timetable when it is not.
   const activeTransitLeg = useMemo(() => {
-    if (!best || commitment?.mode !== "transit") return null;
+    if (!best || commitment?.mode !== "rail") return null;
     return (
       best.legs.find(
         (leg) =>
@@ -2414,7 +2414,7 @@ function Index() {
     return {
       ...result,
       key: `${activeTransitLeg.from}-${activeTransitLeg.depart_seconds}`,
-      vehicle: (activeTransitLeg.mode === "transit" ? "rail" : "bus") as "bus" | "rail",
+      vehicle: (activeTransitLeg.mode === "rail" ? "rail" : "bus") as "bus" | "rail",
     };
   }, [activeTransitLeg, legStops, riderPoint, nowSeconds]);
   useEffect(() => {
@@ -3290,17 +3290,17 @@ function Index() {
   // Canonical decision state is Drive vs Transit. The UI still uses "rail"
   // as its transit-view key for compatibility with the existing transit panels;
   // this adapter keeps that legacy UI vocabulary out of the decision engine.
-  const canonicalVerdict = commitment?.mode === "transit" ? "transit" : commitment?.mode ??
+  const canonicalVerdict = commitment?.mode === "rail" ? "transit" : commitment?.mode ??
     (optionsLoading || driveLoading
       ? "uncertain"
       : activeDecision?.state ?? "uncertain");
   const verdict: UiDecisionState = canonicalVerdict === "transit" ? "rail" : canonicalVerdict as UiDecisionState;
-  const gap = !commitment && !arriveByActive && (verdict === "transit" || verdict === "drive")
+  const gap = !commitment && !arriveByActive && (verdict === "rail" || verdict === "drive")
     ? activeDecision?.differenceMinutes ?? null : null;
-  const incidentDecides = verdict === "transit" && activeDecision.primary.kind === "major_incident";
+  const incidentDecides = verdict === "rail" && activeDecision.primary.kind === "major_incident";
   const currentDecisionSnapshot: DecisionSnapshot = {
     key: decisionKey,
-    state: verdict === "same" ? "same" : verdict === "drive" || verdict === "transit" ? verdict : "same",
+    state: verdict === "same" ? "same" : verdict === "drive" || verdict === "rail" ? verdict : "same",
     driveMinutes: driveTripEstimate.expectedDurationMinutes,
     railMinutes: railTripEstimate.expectedDurationMinutes,
     driveDelayMinutes: driveTripEstimate.trafficDelayMinutes,
@@ -3332,7 +3332,7 @@ function Index() {
   useEffect(() => {
     if (commitment || !["drive", "rail", "same"].includes(verdict)) return;
     const historyState =
-      verdict === "drive" || verdict === "transit" || verdict === "same"
+      verdict === "drive" || verdict === "rail" || verdict === "same"
         ? verdict
         : "same";
     decisionHistoryRef.current = {
@@ -3357,7 +3357,7 @@ function Index() {
   useEffect(() => {
     if (commitment) return;
     if (verdict === "drive") setSelectedMode("drive");
-    else if (verdict === "transit") setSelectedMode("transit");
+    else if (verdict === "rail") setSelectedMode("transit");
   }, [verdict, inbound, commitment]);
   const reasoning = commitment
     ? "Your selected trip stays locked while conditions update."
@@ -3382,7 +3382,7 @@ function Index() {
           : "Skyline has not started service yet. Nalu is checking available transit options before making the comparison."
         : verdict === "drive"
         ? "Nalu compares the full trip from where you start to where you’re going, including getting to transit, waiting for your ride, and walking at the end—not just the freeway drive."
-        : verdict === "transit"
+        : verdict === "rail"
           ? transitLabel === "Rail"
             ? "The Skyline option includes getting to the station, waiting, the train ride, and the walk to your destination."
             : "The " + transitLabel + " option includes getting to transit, waiting, transfers, and the walk to your destination."
@@ -3444,7 +3444,7 @@ function Index() {
           tone: "alert",
         });
       }
-    } else if (verdict === "transit") {
+    } else if (verdict === "rail") {
       const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
       const busWait = Math.round(railTripEstimate.busWaitMinutes ?? 0);
       if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
@@ -3673,7 +3673,7 @@ function Index() {
         if (last && distanceM(last, point) < 20) return;
         points.push({
           id: `${leg.kind}-${index}-${endpointIndex}`,
-          name: leg.mode === "transit" ? `${stationLabel(name)} Station` : titleCase(name),
+          name: leg.mode === "rail" ? `${stationLabel(name)} Station` : titleCase(name),
           ...point,
           kind: transitKind,
         });
@@ -4889,7 +4889,7 @@ function Index() {
 
   return (
     <main
-      className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "transit" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
+      className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "rail" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
     >
       <div className="mx-auto flex w-full max-w-[680px] flex-col">
         <NaluPageNav current="commute" onBrowse={() => setPageView("browse")} />
@@ -5199,7 +5199,7 @@ function Index() {
                     : "Not enough current information"
                 : verdict === "same"
                   ? "Too close to call"
-                  : verdict === "transit"
+                  : verdict === "rail"
                     ? `Take ${transitLabel}${gap !== null ? ` · ${Math.round(Math.abs(gap))} min faster` : ""}`
                     : `Drive${gap !== null ? ` · ${Math.round(Math.abs(gap))} min faster` : ""}`}
           </h1>
@@ -5224,7 +5224,7 @@ function Index() {
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
             low: driveRange?.low, high: driveRange?.high }} transit={{ label: transitLabel, minutes: railTripEstimate.expectedDurationMinutes,
             low: railRange?.low, high: railRange?.high }} />}
-          {verdict === "transit" && best && railRange && (
+          {verdict === "rail" && best && railRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
               <div className="metric-glass">
                 <p className="text-xs text-muted-foreground">Leave by</p>
@@ -5290,7 +5290,7 @@ function Index() {
                 : activeDecision.primary.text}
             </p>
           )}
-          {configured && (verdict === "transit" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
+          {configured && (verdict === "rail" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
           {configured && !commitment && decisionSignals.length > 0 && (
             <section
               className="nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25"
@@ -5616,7 +5616,7 @@ function Index() {
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "transit" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
               {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />} {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
-              {!commitment && verdict === "transit" && (
+              {!commitment && verdict === "rail" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}
               {lockedMode === "rail" && <span className="mode-winner-badge">On this trip</span>}
@@ -6011,7 +6011,7 @@ function RailTripBreakdown({
                       Ride {legMinutes ?? "—"} min
                     </p>
                   </div>
-                ) : leg.mode === "transit" ? (
+                ) : leg.mode === "rail" ? (
                   <div className="mt-2 space-y-1.5">
                     <p className="text-sm font-semibold text-foreground">
                       Board at: {transitStopName(leg, "from")} ·{" "}
