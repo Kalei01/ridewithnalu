@@ -64,6 +64,51 @@ describe("Nalu evidence normalizer", () => {
     expect(result.every((item) => item.quality === "current")).toBe(true);
   });
 
+  it("downgrades evidence with no observation timestamp to limited", () => {
+    const result = normalizeEvidence({
+      id: "drive-eta",
+      mode: "drive",
+      source: "tomtom",
+      value: 60,
+      observedAt: null,
+      expiresAt: null,
+      impact: "neutral",
+      relevance: "route",
+    }, { now });
+
+    expect(result.quality).toBe("limited");
+    expect(result.confidence).toBe(0.6);
+  });
+
+  it("reduces confidence for older but still-current evidence", () => {
+    const fresh = normalizeEvidence({
+      id: "drive-fresh",
+      mode: "drive",
+      source: "tomtom",
+      value: 60,
+      observedAt: now,
+      expiresAt: null,
+      impact: "neutral",
+      relevance: "route",
+    }, { now, staleAfterMs: 5 * 60_000 });
+
+    const aged = normalizeEvidence({
+      id: "drive-aged",
+      mode: "drive",
+      source: "tomtom",
+      value: 60,
+      observedAt: now - 4 * 60_000,
+      expiresAt: null,
+      impact: "neutral",
+      relevance: "route",
+    }, { now, staleAfterMs: 5 * 60_000 });
+
+    expect(fresh.quality).toBe("current");
+    expect(aged.quality).toBe("current");
+    expect(fresh.confidence).toBeGreaterThan(aged.confidence);
+    expect(aged.confidence).toBeGreaterThanOrEqual(0.5);
+  });
+
   it("selects route-relevant current evidence before general stale evidence", () => {
     const result = bestEvidence([
       {
