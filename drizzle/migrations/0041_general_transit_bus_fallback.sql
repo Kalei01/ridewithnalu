@@ -67,7 +67,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
   ),
   best AS (
     SELECT DISTINCT ON (door_sec)
-           leave_sec, dep_sec, door_sec,
+           leave_sec, dep_sec, arr_sec, door_sec,
            ((door_sec - leave_sec) / 60)::integer AS total_min,
            route_short_name, route_long_name, trip_headsign,
            origin_name, dest_name, origin_stop, dest_stop,
