@@ -2160,6 +2160,8 @@ function Index() {
   const [riderPoint, setRiderPoint] = useState<Coords | null>(null);
   const [riderHeading, setRiderHeading] = useState<number | null>(null);
   const [riderSpeed, setRiderSpeed] = useState<number | null>(null);
+  const [riderAccuracy, setRiderAccuracy] = useState<number | null>(null);
+  const riderFixTimestamp = useRef<number | null>(null);
   const acceptedNavFix = useRef<{ point: Coords; timestamp: number } | null>(null);
   const distanceTrend = useRef<number[]>([]);
   // High-accuracy GPS is the biggest battery cost in the app, so it runs only
@@ -2172,6 +2174,9 @@ function Index() {
     if (!trackingWanted || !navigator.geolocation) {
       setRiderPoint(null);
       setRiderHeading(null);
+      setRiderSpeed(null);
+      setRiderAccuracy(null);
+      riderFixTimestamp.current = null;
       return;
     }
     const watch = navigator.geolocation.watchPosition(
@@ -2189,6 +2194,8 @@ function Index() {
         setRiderHeading(typeof heading === "number" && !Number.isNaN(heading) ? heading : null);
         const speed = position.coords.speed;
         setRiderSpeed(typeof speed === "number" && !Number.isNaN(speed) ? speed : null);
+        setRiderAccuracy(position.coords.accuracy);
+        riderFixTimestamp.current = position.timestamp;
       },
       (error) => {
         setRiderPoint(null);
@@ -2208,6 +2215,8 @@ function Index() {
           if (!Number.isFinite(position.coords.accuracy) || position.coords.accuracy > 80) return;
           acceptedNavFix.current = { point, timestamp: position.timestamp };
           setRiderPoint(point);
+          setRiderAccuracy(position.coords.accuracy);
+          riderFixTimestamp.current = position.timestamp;
         },
         () => {},
         { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
@@ -2222,6 +2231,8 @@ function Index() {
       setRiderPoint(null);
       setRiderHeading(null);
       setRiderSpeed(null);
+      setRiderAccuracy(null);
+      riderFixTimestamp.current = null;
       acceptedNavFix.current = null;
     };
   }, [activeTransitLeg, drivingCommitted, configured, browseActive]);
@@ -2705,6 +2716,9 @@ function Index() {
     const phrase = voiceGuide.current.next(nextTurn, Date.now(), {
       speedMps: riderSpeed,
       rerouting,
+      gpsAccuracyM: riderAccuracy,
+      fixAgeMs:
+        riderFixTimestamp.current === null ? null : Math.max(0, Date.now() - riderFixTimestamp.current),
     });
     if (phrase)
       debugLog("voice", {
@@ -2716,7 +2730,7 @@ function Index() {
         speedMps: riderSpeed,
       });
     if (phrase && !navMuted) speakCommuteAlert(phrase, "maneuver");
-  }, [nextTurn, drivingCommitted, navMuted, riderSpeed, rerouting]);
+  }, [nextTurn, drivingCommitted, navMuted, riderSpeed, riderAccuracy, rerouting]);
 
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
   const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
