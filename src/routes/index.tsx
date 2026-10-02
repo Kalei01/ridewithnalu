@@ -1869,7 +1869,7 @@ function Index() {
         // Transit is not synonymous with rail. If no rail-inclusive itinerary
         // exists, search the actual origin/destination for a direct bus
         // itinerary before declaring transit unavailable.
-        const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+        const { data: busData, error: busError } = await supabase.rpc("plan_transit_general", {
           p_origin_lat: tripDirection.from.lat as number,
           p_origin_lon: tripDirection.from.lon as number,
           p_dest_lat: tripDirection.to.lat as number,
@@ -1905,7 +1905,7 @@ function Index() {
       // Transit is not synonymous with rail. If no rail-inclusive itinerary
       // exists, search the same real origin/destination for a direct bus
       // itinerary before declaring transit unavailable.
-      const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+      const { data: busData, error: busError } = await supabase.rpc("plan_transit_general", {
         p_origin_lat: setup.homeLat as number,
         p_origin_lon: setup.homeLon as number,
         p_dest_lat: setup.destLat as number,
