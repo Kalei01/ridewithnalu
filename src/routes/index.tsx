@@ -1846,7 +1846,7 @@ function Index() {
         // No direct walk/bus from the origin reaches Skyline: board at the rail
         // hub nearest the origin with an estimated road access leg instead.
         const homeStation = selectedInboundStation;
-        return (await hubAccessFallback({
+        const hubOptions = (await hubAccessFallback({
           origin: tripDirection.from as Coords,
           stations: stations.filter((station) => station.stop_id !== homeStation),
           afterSeconds: cursor,
@@ -1864,6 +1864,24 @@ function Index() {
             return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] }));
           },
         })) as Option[];
+        if (hubOptions.length) return hubOptions;
+
+        // Transit is not synonymous with rail. If no rail-inclusive itinerary
+        // exists, search the actual origin/destination for a direct bus
+        // itinerary before declaring transit unavailable.
+        const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+          p_origin_lat: tripDirection.from.lat as number,
+          p_origin_lon: tripDirection.from.lon as number,
+          p_dest_lat: tripDirection.to.lat as number,
+          p_dest_lon: tripDirection.to.lon as number,
+          p_after_seconds: cursor,
+          p_limit: planMode === "arrive-by" ? 8 : 4,
+        });
+        if (busError) throw busError;
+        return (busData ?? []).map((row) => ({
+          ...row,
+          legs: row.legs as unknown as Leg[],
+        })) as Option[];
       }
       const { data, error } = await supabase.rpc("plan_outbound", {
         p_origin_lat: setup.homeLat as number,
@@ -1878,7 +1896,25 @@ function Index() {
         p_dest_lon: setup.destLon as number,
       });
       if (error) throw error;
-      return (data ?? []).map((row) => ({
+      const railOptions = (data ?? []).map((row) => ({
+        ...row,
+        legs: row.legs as unknown as Leg[],
+      })) as Option[];
+      if (railOptions.length) return railOptions;
+
+      // Transit is not synonymous with rail. If no rail-inclusive itinerary
+      // exists, search the same real origin/destination for a direct bus
+      // itinerary before declaring transit unavailable.
+      const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+        p_origin_lat: setup.homeLat as number,
+        p_origin_lon: setup.homeLon as number,
+        p_dest_lat: setup.destLat as number,
+        p_dest_lon: setup.destLon as number,
+        p_after_seconds: cursor,
+        p_limit: planMode === "arrive-by" ? 8 : 4,
+      });
+      if (busError) throw busError;
+      return (busData ?? []).map((row) => ({
         ...row,
         legs: row.legs as unknown as Leg[],
       })) as Option[];
@@ -1912,6 +1948,10 @@ function Index() {
   const best =
     commitment?.mode === "rail" && lockedOptionRef.current ? lockedOptionRef.current : liveBest;
   lockedItineraryCandidate.current = liveBest ?? null;
+
+  const transitLabel = best?.legs.some((leg) => leg.mode === "rail")
+    ? best.legs.some((leg) => leg.mode === "bus") ? "Rail + Bus" : "Rail"
+    : best?.legs.some((leg) => leg.mode === "bus") ? "Bus" : "Transit";
 
   const stationCoords = browseStations;
   /* One authoritative rail-station query serves browse, setup, maps and planning. */
@@ -5042,7 +5082,7 @@ function Index() {
             </div>
           )}
           {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
-            low: driveRange?.low, high: driveRange?.high }} transit={{ label: "Rail", minutes: railTripEstimate.expectedDurationMinutes,
+            low: driveRange?.low, high: driveRange?.high }} transit={{ label: transitLabel, minutes: railTripEstimate.expectedDurationMinutes,
             low: railRange?.low, high: railRange?.high }} />}
           {verdict === "rail" && best && railRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
@@ -5426,7 +5466,7 @@ function Index() {
               onClick={() => chooseMode("rail")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              <TrainFront /> Rail {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
+              <TrainFront /> {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
               {!commitment && verdict === "rail" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}

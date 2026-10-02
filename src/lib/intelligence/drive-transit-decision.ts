@@ -74,7 +74,7 @@ export function decideDriveVsTransit(
       differenceMinutes: null,
       primary: evidence(
         "data_quality",
-        `${unavailable.find((item) => item.availability === "data-error")?.mode === "drive" ? "Drive time" : "Rail data"} is unavailable right now`,
+        `${unavailable.find((item) => item.availability === "data-error")?.mode === "drive" ? "Drive time" : "Transit data"} is unavailable right now`,
       ),
       supporting: null,
     };
@@ -114,7 +114,7 @@ export function decideDriveVsTransit(
       primary: evidence(
         "service_availability",
         winner === "drive"
-          ? "There isn't a rail trip you can take right now"
+          ? "There isn't a transit trip you can take right now"
           : "Your car isn't available for this trip",
       ),
       supporting: null,
