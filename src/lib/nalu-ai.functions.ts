@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createMorningPulseVerdict } from "./intelligence/morning-pulse-verdict";
 
+const PULSE_MAX_STATION_DISTANCE_MILES = 5;
+
 const point = z.object({
   lat: z.number().min(21).max(22),
   lon: z.number().min(-158.4).max(-157.5),
@@ -25,11 +27,22 @@ export const morningPulse = createServerFn({ method: "POST" })
     const ai = await import("./nalu-ai.server");
     try {
       const [drive] = await ai.routeOptions(data.from, data.to);
-      const station = await ai.nearestStation(data.from);
-      // Use the actual current time. Adding a 10-minute artificial cutoff can
-      // hide the next scheduled train and make Morning Pulse report an unavailable ETA.
-      const rail = station
-        ? await ai.railBetween(station.stopId, data.from, data.to, ai.honoluluSeconds())
+      const [originStation, destinationStation] = await Promise.all([
+        ai.nearestStation(data.from),
+        ai.nearestStation(data.to),
+      ]);
+      const railRelevant = Boolean(
+        originStation &&
+          destinationStation &&
+          originStation.distanceMiles !== null &&
+          destinationStation.distanceMiles !== null &&
+          originStation.distanceMiles <= PULSE_MAX_STATION_DISTANCE_MILES &&
+          destinationStation.distanceMiles <= PULSE_MAX_STATION_DISTANCE_MILES,
+      );
+      // Only surface Skyline when both ends of this actual trip are reasonably
+      // close to the rail network. This prevents Oʻahu-wide rail assumptions.
+      const rail = railRelevant
+        ? await ai.bestRailBetween(data.from, data.to, ai.honoluluSeconds())
         : null;
       const railTrip = rail?.trips.find((trip) => {
         const total = Number(trip.total_minutes);
@@ -125,6 +138,136 @@ export const morningPulse = createServerFn({ method: "POST" })
       };
     } catch (error) {
       console.error("[ai] morningPulse", error);
+      return { ok: false, error: ai.friendlyAiError(error) };
+    }
+  });
+
+export const eveningPulse = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        from: point,
+        to: point,
+        destinationLabel: z.string().max(30),
+        trainsEveryMinutes: z.number().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }): Promise<AiResult<{ text: string; faster: string }>> => {
+    const ai = await import("./nalu-ai.server");
+    try {
+      const [drive] = await ai.routeOptions(data.from, data.to);
+      const [originStation, destinationStation] = await Promise.all([
+        ai.nearestStation(data.from),
+        ai.nearestStation(data.to),
+      ]);
+      const railRelevant = Boolean(
+        originStation &&
+          destinationStation &&
+          originStation.distanceMiles !== null &&
+          destinationStation.distanceMiles !== null &&
+          originStation.distanceMiles <= PULSE_MAX_STATION_DISTANCE_MILES &&
+          destinationStation.distanceMiles <= PULSE_MAX_STATION_DISTANCE_MILES,
+      );
+      // Only surface Skyline when both ends of this actual trip are reasonably
+      // close to the rail network. This prevents Oʻahu-wide rail assumptions.
+      const rail = railRelevant
+        ? await ai.bestRailBetween(data.from, data.to, ai.honoluluSeconds())
+        : null;
+      const railTrip = rail?.trips.find((trip) => {
+        const total = Number(trip.total_minutes);
+        const scheduled = (Number(trip.arrive_seconds) - Number(trip.depart_seconds)) / 60;
+        return (Number.isFinite(total) && total > 0) || (Number.isFinite(scheduled) && scheduled > 0);
+      }) ?? null;
+
+      const formatDuration = (minutes: number | null) => {
+        if (minutes === null || !Number.isFinite(minutes)) return null;
+        const total = Math.max(0, Math.round(minutes));
+        if (total < 60) return `${total} min`;
+        const hours = Math.floor(total / 60);
+        const mins = total % 60;
+        return mins === 0 ? `${hours} hr` : `${hours} hr ${mins} min`;
+      };
+
+      const driveMinutes =
+        drive && Number.isFinite(Number(drive.minutes)) && Number(drive.minutes) > 0
+          ? Number(drive.minutes)
+          : null;
+      const skylineMinutes = railTrip
+        ? Number.isFinite(Number(railTrip.total_minutes)) && Number(railTrip.total_minutes) > 0
+          ? Number(railTrip.total_minutes)
+          : (Number(railTrip.arrive_seconds) - Number(railTrip.depart_seconds)) / 60
+        : null;
+      const driveDuration = formatDuration(driveMinutes);
+      const skylineDuration = formatDuration(skylineMinutes);
+
+      if (
+        driveDuration === null ||
+        skylineDuration === null ||
+        driveMinutes === null ||
+        skylineMinutes === null ||
+        !Number.isFinite(skylineMinutes) ||
+        skylineMinutes <= 0
+      ) {
+        const missing: string[] = [];
+        if (driveDuration === null || driveMinutes === null) missing.push("Drive");
+        if (skylineDuration === null || skylineMinutes === null || skylineMinutes <= 0) {
+          missing.push("Skyline");
+        }
+        return {
+          ok: true,
+          value: {
+            text: `Evening Pulse couldn't compare both options: ${missing.join(" and ")} ETA unavailable.`,
+            faster: "unknown",
+          },
+        };
+      }
+
+      const delay = drive?.delayMinutes ?? 0;
+      const { verdict } = createMorningPulseVerdict({
+        from: data.from,
+        to: data.to,
+        drive: drive
+          ? {
+              minutes: driveMinutes,
+              delayMinutes: delay,
+              roads: drive.roads,
+              incidents: drive.incidents,
+              source: "TomTom",
+            }
+          : null,
+        rail: railTrip
+          ? {
+              depart_seconds: Number(railTrip.depart_seconds),
+              arrive_seconds: Number(railTrip.arrive_seconds),
+              total_minutes: skylineMinutes,
+            }
+          : null,
+        nowEpochMs: Date.now(),
+        nowSecondsSinceMidnight: ai.honoluluSeconds(),
+      });
+
+      const reasons = verdict.reasons.map((reason) => reason.text);
+      const comparison = reasons.join(" ");
+      const faster = verdict.selectedMode ?? "unknown";
+      const roads = drive!.roads
+        
+        .filter((road): road is string => Boolean(road))
+        .slice(0, 2);
+      const trafficSentence =
+        delay >= 2
+          ? `${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.`
+          : "Roads look normal right now.";
+
+      return {
+        ok: true,
+        value: {
+          text: `${trafficSentence} ${comparison}`,
+          faster,
+        },
+      };
+    } catch (error) {
+      console.error("[ai] eveningPulse", error);
       return { ok: false, error: ai.friendlyAiError(error) };
     }
   });
