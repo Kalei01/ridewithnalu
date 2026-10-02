@@ -5354,7 +5354,7 @@ function Index() {
                   Start {selectedMode === "drive" ? "Drive" : transitLabel}
                 </span>
                 <span className="mt-0.5 block text-[10px] font-black uppercase text-primary-foreground/75">
-                  Lock {selectedMode === "drive" ? "GPS & traffic" : "stops & alerts"}
+                  {selectedMode === "drive" ? "Live navigation & traffic" : "Live stops & alerts"}
                 </span>
               </span>
               <Radio className="size-5 shrink-0" />
@@ -5518,18 +5518,20 @@ function Index() {
           </section>
         )}
 
-        <H1ConditionsCard
-          eastbound={eastboundTraffic}
-          westbound={westboundTraffic}
-          loading={eastboundTrafficLoading || westboundTrafficLoading}
-          unavailable={
-            eastboundTrafficFailed ||
-            westboundTrafficFailed ||
-            (!(eastboundTrafficLoading || westboundTrafficLoading) &&
-              (!eastboundTraffic || !westboundTraffic))
-          }
-          compact
-        />
+        {selectedMode === "drive" && (
+          <H1ConditionsCard
+            eastbound={eastboundTraffic}
+            westbound={westboundTraffic}
+            loading={eastboundTrafficLoading || westboundTrafficLoading}
+            unavailable={
+              eastboundTrafficFailed ||
+              westboundTrafficFailed ||
+              (!(eastboundTrafficLoading || westboundTrafficLoading) &&
+                (!eastboundTraffic || !westboundTraffic))
+            }
+            compact
+          />
+        )}
 
         <section className="py-6" aria-labelledby="mode-details-title">
           <h2 id="mode-details-title" className="sr-only">
@@ -5611,18 +5613,20 @@ function Index() {
                   <span className="ml-1 text-base">min</span>
                 </p>
               </div>
-              {drive?.corridorLabel ? (
-                <RouteCorridor label={drive.corridorLabel} size="compact" />
-              ) : (
-                <p className="mt-4 text-sm font-medium text-foreground">
-                  Drive straight from {tripOriginLabel} to {tripArrivalLabel}{" "}
-                  — no stop at a rail station.
-                </p>
+              {verdict !== "drive" && (
+                drive?.corridorLabel ? (
+                  <RouteCorridor label={drive.corridorLabel} size="compact" />
+                ) : (
+                  <p className="mt-4 text-sm font-medium text-foreground">
+                    Drive straight from {tripOriginLabel} to {tripArrivalLabel}{" "}
+                    — no stop at a rail station.
+                  </p>
+                )
               )}
               {driveAvailable && driveRange && drive && (
                 <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
               )}
-              {(drive?.hdotLaneClosures?.length ?? 0) > 0 && (
+              {verdict !== "drive" && (drive?.hdotLaneClosures?.length ?? 0) > 0 && (
                 <HdotRoadworkNotice closures={drive?.hdotLaneClosures ?? []} />
               )}
               {!driveAvailable && carAwayReason && (
