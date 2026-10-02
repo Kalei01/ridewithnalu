@@ -42,7 +42,7 @@ describe("Nalu Intelligence Core contracts", () => {
 
   it("allows a decision without pretending every mode has a result", () => {
     const decision: NaluDecision = {
-      decisionState: "rail",
+      decisionState: "transit",
       selectedMode: "rail",
       alternatives: ["drive"],
       departureTime: "2026-10-01T18:05:00-10:00",
