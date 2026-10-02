@@ -54,10 +54,11 @@ describe("VoicePriorityQueue", () => {
     const active = { message: "Traffic ahead", priority: "traffic" as const, enqueuedAt: 1 };
     const pending = { message: "Train approaching", priority: "transit" as const, enqueuedAt: 2 };
 
-    queue.enqueue(active);
+    const activeRequest = queue.enqueue(active);
     queue.enqueue(pending);
 
-    expect(queue.finish(active)).toEqual(pending);
+    expect(activeRequest.action).toBe("start");
+    expect(queue.finish(activeRequest.request)).toEqual(pending);
     expect(queue.getActive()).toEqual(pending);
     expect(queue.getPending()).toBeNull();
   });
