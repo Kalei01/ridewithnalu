@@ -3174,7 +3174,7 @@ function Index() {
   const previousVerdict =
     decisionHistoryRef.current?.key === decisionKey &&
     decisionHistoryRef.current.state !== "same"
-      ? (decisionHistoryRef.current.state === "rail" ? "transit" : "drive")
+      ? decisionHistoryRef.current.state
       : null;
   const previousDecisionSnapshot = decisionHistoryRef.current?.key === decisionKey
     ? decisionHistoryRef.current.snapshot : null;
