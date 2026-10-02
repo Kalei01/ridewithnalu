@@ -1834,6 +1834,37 @@ function Index() {
 
         // Inbound Skyline trips keep the proven multi-station fallbacks. These are
         // only reached after the generalized planner returns zero options.
+        if (!inbound) {
+          // Home -> Work (outbound) still needs the established Skyline planner
+          // as a fallback. The generalized planner can legitimately return zero
+          // when its door-to-door bus/rail chain cannot be formed, while the
+          // configured home station + destination stop has a valid Skyline trip.
+          try {
+            const { data, error } = await supabase.rpc("plan_outbound", {
+              p_origin_lat: tripDirection.from.lat as number,
+              p_origin_lon: tripDirection.from.lon as number,
+              p_station: setup.homeStopId,
+              p_dest_stop: setup.destStopId,
+              p_allow_drive: driveAvailable,
+              p_after_seconds: cursor,
+              p_limit: planMode === "arrive-by" ? 8 : 4,
+              p_dest_lat: tripDirection.to.lat as number,
+              p_dest_lon: tripDirection.to.lon as number,
+            });
+            if (error) {
+              recordTransitRpcError("plan_outbound", error);
+            } else {
+              const outboundOptions = (data ?? []).map((row) => ({
+                ...row,
+                legs: row.legs as unknown as Leg[],
+              })) as Option[];
+              if (outboundOptions.length) return mergeTransitOptions(outboundOptions, primaryTransit);
+            }
+          } catch (error) {
+            recordTransitRpcError("plan_outbound", error);
+          }
+        }
+
         if (inbound) {
           const fetchAtStation = async (stationId: string): Promise<Option[]> => {
             const params = {
