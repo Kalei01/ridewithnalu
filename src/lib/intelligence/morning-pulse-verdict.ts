@@ -70,7 +70,7 @@ export function createMorningPulseVerdict(input: MorningPulseVerdictInput): Morn
   const rail: DecisionModeEstimate = {
     mode: "rail",
     availability: input.rail ? "available" : "service-unavailable",
-    quality: input.rail ? "current" : "unavailable",
+          quality: input.rail ? "current" : "unavailable",
     expectedMinutes:
       input.rail && Number.isFinite(input.rail.total_minutes) && input.rail.total_minutes > 0
         ? input.rail.total_minutes
@@ -109,7 +109,7 @@ export function createMorningPulseVerdict(input: MorningPulseVerdictInput): Morn
           routeGeometry: [],
           source: input.drive?.source ?? "TomTom",
           observedAt: input.drive ? requestedAt : null,
-          quality: input.drive ? "good" : "unavailable",
+          quality: input.drive ? "current" : "unavailable",
           notes: [],
         }],
         departureTime: drive.leaveTime,
@@ -134,7 +134,7 @@ export function createMorningPulseVerdict(input: MorningPulseVerdictInput): Morn
           routeGeometry: [],
           source: "GTFS",
           observedAt: input.rail ? requestedAt : null,
-          quality: input.rail ? "good" : "unavailable",
+          quality: input.rail ? "current" : "unavailable",
           notes: [],
         }],
         departureTime: rail.leaveTime,
