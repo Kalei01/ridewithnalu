@@ -108,7 +108,7 @@ export const morningPulse = createServerFn({ method: "POST" })
       const comparison = reasons.join(" ");
       const faster = verdict.selectedMode ?? "unknown";
       const roads = drive!.roads
-        .map(familiarRoadName)
+        
         .filter((road): road is string => Boolean(road))
         .slice(0, 2);
       const trafficSentence =
