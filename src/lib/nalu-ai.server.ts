@@ -157,7 +157,10 @@ function distancePointToSegmentMeters(point: Pt, a: Pt, b: Pt): number {
 function distancePointToPolylineMeters(point: Pt, polyline: Pt[]): number {
   let best = Number.POSITIVE_INFINITY;
   for (let i = 1; i < polyline.length; i += 1) {
-    best = Math.min(best, distancePointToSegmentMeters(point, polyline[i - 1], polyline[i]));
+    const start = polyline[i - 1];
+    const end = polyline[i];
+    if (!start || !end) continue;
+    best = Math.min(best, distancePointToSegmentMeters(point, start, end));
   }
   return best;
 }
