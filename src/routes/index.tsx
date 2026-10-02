@@ -5667,7 +5667,7 @@ function Index() {
                   onClick={() => setCarPlace("destination")}
                   className="mt-5"
                 >
-                  I'm driving all the way
+                  I’m driving & parking there
                 </Button>
               )}
               {inbound && carPlace === "destination" && (
