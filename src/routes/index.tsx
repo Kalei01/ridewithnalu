@@ -396,7 +396,7 @@ const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 
 type DirectionOverride = { inbound: boolean; at: number };
 /** Where the car is today: at home, left at the station, or driven all the way. */
-type CarPlace = "home" | "station" | "destination";
+type CarPlace = "home" | "station";
 type ParkedCar = { date: string; station: string; place?: CarPlace };
 type BrowseStation = {
   stopId: string;
@@ -1452,8 +1452,7 @@ function Index() {
   // Where today's car is. With station driving enabled, an unrecorded return
   // starts with the car at the home station; an explicit same-day location wins.
   const parkedToday = parked && parked.date === honoluluDateKey(now) ? parked : null;
-  const carPlace: CarPlace =
-    parkedToday?.place ?? (reverseTrip && setup.allowDrive ? "station" : "home");
+  const carPlace: CarPlace = parkedToday?.place === "station" ? "station" : "home";
   const carAtStation = Boolean(
     setup.allowDrive &&
     carPlace === "station" &&
@@ -1476,24 +1475,7 @@ function Index() {
         ? "Your car is at home."
         : !inbound && carPlace === "station"
           ? `Your car is at ${stationLabel(setup.homeStopName)}.`
-          : !inbound && carPlace === "destination"
-            ? `Your car is at ${setup.destinationName || "your destination"}.`
-            : null;
-
-  // Do not clear a same-day parked-car record just because the current
-  // screen is outbound. The record is intentionally persistent so a car marked
-  // at the destination remains available to the return-trip logic later that day.
-  // Stale records are already excluded by parkedToday/date matching.
-
-  function setCarPlace(place: CarPlace) {
-    const entry: ParkedCar = {
-      date: honoluluDateKey(new Date()),
-      station: inbound ? arrivalStationId ?? setup.homeStopId : setup.homeStopId,
-      place,
-    };
-    setParked(entry);
-    window.localStorage.setItem(PARKED_KEY, JSON.stringify(entry));
-  }
+          : null;
 
   function rememberBrowseStation(next: BrowseStation) {
     setBrowseStation(next);
@@ -5611,23 +5593,6 @@ function Index() {
             </div>
           )}
 
-          {selectedMode === "drive" && !inbound && driveAvailable && (
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Driving to your destination?</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Tell Nalu where you’ll leave your car for the return trip.</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCarPlace("destination")}
-                className="shrink-0"
-              >
-                I’m driving & parking there
-              </Button>
-            </div>
-          )}
-
           {selectedMode === "drive" && (
             <div className="nalu-card-surface mt-6 rounded-2xl border border-border p-5">
               <div className="flex items-end justify-between gap-4">
@@ -5677,17 +5642,7 @@ function Index() {
                   <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
                 </p>
               ))}
-              {inbound && carPlace === "destination" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCarPlace("home")}
-                  className="mt-5"
-                >
-                  My car isn't here
-                </Button>
-              )}
-            </div>
+           </div>
           )}
         </section>
 
