@@ -1,0 +1,77 @@
+name: Nalu Native iOS Smoke Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - capacitor-ios
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  web-regression:
+    name: Web regression
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit tests
+        run: bun run test
+
+      - name: Production web build
+        run: bun run build
+
+  ios-native-smoke:
+    name: iOS native smoke build
+    runs-on: macos-latest
+    needs: web-regression
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build web app
+        run: bun run build
+
+      - name: Create iOS project when missing
+        shell: bash
+        run: |
+          if [ ! -d "ios" ]; then
+            bunx cap add ios
+          fi
+
+      - name: Sync Capacitor iOS project
+        run: bunx cap sync ios
+
+      - name: Build unsigned iOS Simulator target
+        run: |
+          xcodebuild             -workspace ios/App/App.xcworkspace             -scheme App             -configuration Debug             -sdk iphonesimulator             -destination 'generic/platform=iOS Simulator'             CODE_SIGNING_ALLOWED=NO             build
+
+      - name: Upload generated iOS project
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nalu-ios-native-project
+          path: ios
+          if-no-files-found: warn
+          retention-days: 7
