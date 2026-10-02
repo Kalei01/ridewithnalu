@@ -289,7 +289,7 @@ export function navigationRoadType(
     .join(" ")
     .toLowerCase();
   const freewayName =
-    /(^|\\b)(h[- ]?1|h[- ]?2|h[- ]?3|h[- ]?201|moanalua freeway|pali highway|likelike highway|kalanianaole highway)(\\b|$)/i.test(
+    /(^|\b)(h[- ]?1|h[- ]?2|h[- ]?3|h[- ]?201|moanalua freeway|pali highway|likelike highway|kalanianaole highway)(\b|$)/i.test(
       text,
     );
   if (freewayName) return "freeway";
