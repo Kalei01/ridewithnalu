@@ -44,6 +44,7 @@ export function HdotRoadworkNotice({
 
   if (variant === "browse") {
     const primary = scheduled[0];
+    if (!primary) return null;
     return (
       <aside className="mt-3 rounded-xl border border-border/60 bg-background/50 px-3.5 py-3" aria-label="Planned roadwork">
         <div className="flex items-start gap-2.5">
