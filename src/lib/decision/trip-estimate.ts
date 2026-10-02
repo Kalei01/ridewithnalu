@@ -204,7 +204,7 @@ export function transitEstimate(input: {
   const hasBus = option.legs.some((leg) => leg.mode === "bus");
   const transitLabel =
     hasRail && hasBus ? "Rail + Bus" :
-    hasRail ? "Skyline" :
+    hasRail ? "Rail" :
     hasBus ? "Bus" :
     "Transit";
   // Scheduled bus connections are less certain than a rail-only trip. This is a
