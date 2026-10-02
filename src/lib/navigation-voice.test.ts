@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   announcementFor,
+  announcementTiers,
+  FAR_ANNOUNCE_M,
+  navigationRoadType,
+  NEAR_ANNOUNCE_M,
   isUsableNavigationFix,
   matchRoutePoint,
   nextManeuver,
   routeDeviation,
   smoothBearing,
   trimRoutePath,
+  VoiceGuide,
   turnGlyph,
   type Maneuver,
 } from "./navigation-voice";
@@ -142,5 +147,58 @@ describe("destination access", () => {
     const range = arrivalRange(0, { low: 30, expected: 33, high: 38 }, access);
     expect(range.earliestSeconds).toBe((30 + 7) * 60);
     expect(range.latestSeconds).toBe((38 + 14) * 60);
+  });
+});
+
+describe("context-aware voice timing", () => {
+  it("announces freeway maneuvers earlier at speed", () => {
+    const freeway: Maneuver = {
+      ...turn,
+      road: "H-1",
+      maneuver: "MOTORWAY_EXIT_RIGHT",
+      instruction: "Take the H-1 exit right",
+    };
+    const tiers = announcementTiers(25, freeway);
+    expect(tiers[0]?.atM).toBe(1350);
+    expect(tiers[1]?.atM).toBe(700);
+    expect(tiers[2]?.atM).toBe(275);
+  });
+
+  it("shortens the freeway window in stop-and-go traffic", () => {
+    const freeway: Maneuver = { ...turn, road: "H-1", maneuver: "TURN_LEFT" };
+    const tiers = announcementTiers(5, freeway);
+    expect(tiers[0]?.atM).toBe(900);
+    expect(tiers[1]?.atM).toBe(450);
+    expect(tiers[2]?.atM).toBe(220);
+  });
+
+  it("keeps ordinary local turns in the normal window", () => {
+    const tiers = announcementTiers(12, { ...turn, road: "Kapiolani Blvd" });
+    expect(tiers[0]?.atM).toBe(FAR_ANNOUNCE_M);
+    expect(tiers[1]?.atM).toBe(NEAR_ANNOUNCE_M);
+  });
+
+  it("gives complex local maneuvers extra lead time", () => {
+    const complex: Maneuver = {
+      ...turn,
+      road: "Punahou St",
+      maneuver: "ROUNDABOUT_RIGHT",
+    };
+    const tiers = announcementTiers(10, complex);
+    expect(tiers[0]?.atM).toBe(900);
+    expect(tiers[1]?.atM).toBe(120);
+  });
+
+  it("identifies freeway context from the road instead of requiring freeway speed", () => {
+    expect(navigationRoadType({ ...turn, road: "H-1" }, 3)).toBe("freeway");
+    expect(navigationRoadType({ ...turn, road: "Bishop St" }, 3)).toBe("local");
+  });
+
+  it("does not speak while stopped and resumes when moving", () => {
+    const guide = new VoiceGuide({ stabilizeMs: 0, cooldownMs: 0 });
+    guide.sync([turn]);
+    const next = { maneuver: turn, distanceM: 80 };
+    expect(guide.next(next, 1_000, { speedMps: 0 })).toBeNull();
+    expect(guide.next(next, 2_000, { speedMps: 8 })).toMatch(/300 feet/);
   });
 });

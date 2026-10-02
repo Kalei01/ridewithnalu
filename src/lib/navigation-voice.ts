@@ -266,17 +266,65 @@ export const SAFETY_BYPASS_M = 46; // ~150 ft
 
 type Tier = { state: ManeuverVoiceState; atM: number; phrase: string };
 
-/** Announcement tiers scale with speed: freeway exits/splits get earlier notice. */
-export function announcementTiers(speedMps: number | null): Tier[] {
-  if ((speedMps ?? 0) >= FREEWAY_SPEED_MPS)
+export type NavigationRoadType = "freeway" | "local";
+
+export type NavigationManeuverContext = {
+  speedMps?: number | null;
+  roadType?: NavigationRoadType;
+};
+
+/**
+ * Keep announcement timing deterministic, but use the context we actually
+ * know: road type, current speed and maneuver complexity.
+ *
+ * Freeway exits/splits need more lead time. Slow freeway traffic gets a
+ * shorter window so Nalu does not announce a turn absurdly early while the
+ * driver is crawling. Complex local maneuvers get an earlier first cue.
+ */
+export function navigationRoadType(
+  maneuver: Maneuver,
+  speedMps: number | null = null,
+): NavigationRoadType {
+  const text = [maneuver.road ?? "", maneuver.instruction, maneuver.maneuver]
+    .join(" ")
+    .toLowerCase();
+  const freewayName =
+    /(^|\b)(h[- ]?1|h[- ]?2|h[- ]?3|h[- ]?201|moanalua freeway|pali highway|likelike highway|kalanianaole highway)(\b|$)/i.test(
+      text,
+    );
+  if (freewayName) return "freeway";
+  return (speedMps ?? 0) >= FREEWAY_SPEED_MPS ? "freeway" : "local";
+}
+
+function isComplexManeuver(maneuver: Maneuver) {
+  return /EXIT|RAMP|ROUNDABOUT|UTURN|U_TURN|FORK|MERGE|KEEP|BEAR|MOTORWAY/i.test(
+    maneuver.maneuver,
+  );
+}
+
+/** Announcement tiers scale with the maneuver context, not speed alone. */
+export function announcementTiers(
+  speedMps: number | null,
+  maneuver?: Maneuver,
+  roadType?: NavigationRoadType,
+): Tier[] {
+  const type = roadType ?? (maneuver ? navigationRoadType(maneuver, speedMps) : "local");
+  const slowFreeway = type === "freeway" && (speedMps ?? 0) < 10;
+  if (type === "freeway") {
+    const complex = maneuver ? isComplexManeuver(maneuver) : true;
+    const far = slowFreeway ? 900 : complex ? 1350 : 1200;
+    const mid = slowFreeway ? 450 : complex ? 700 : 600;
+    const near = slowFreeway ? 220 : complex ? 275 : 250;
     return [
-      { state: "far_spoken", atM: 1200, phrase: "In three quarters of a mile" },
-      { state: "mid_spoken", atM: 600, phrase: "In a third of a mile" },
-      { state: "near_spoken", atM: 250, phrase: "In 800 feet" },
+      { state: "far_spoken", atM: far, phrase: far >= 1200 ? "In three quarters of a mile" : "In half a mile" },
+      { state: "mid_spoken", atM: mid, phrase: mid >= 600 ? "In a third of a mile" : "In a quarter mile" },
+      { state: "near_spoken", atM: near, phrase: near >= 250 ? "In 800 feet" : "In 700 feet" },
     ];
+  }
+  const complex = maneuver ? isComplexManeuver(maneuver) : false;
   return [
-    { state: "far_spoken", atM: FAR_ANNOUNCE_M, phrase: "In half a mile" },
-    { state: "near_spoken", atM: NEAR_ANNOUNCE_M, phrase: "In 300 feet" },
+    { state: "far_spoken", atM: complex ? 900 : FAR_ANNOUNCE_M, phrase: complex ? "In a half mile" : "In half a mile" },
+    { state: "near_spoken", atM: complex ? 120 : NEAR_ANNOUNCE_M, phrase: complex ? "In 400 feet" : "In 300 feet" },
   ];
 }
 const ORDER: ManeuverVoiceState[] = ["unannounced", "far_spoken", "mid_spoken", "near_spoken", "passed"];
@@ -360,7 +408,11 @@ export class VoiceGuide {
     const key = maneuverKey(next.maneuver);
     const current = this.state(next.maneuver);
     if (current === "passed" || current === "near_spoken") return null;
-    const tiers = announcementTiers(ctx.speedMps ?? null);
+    const speedMps = ctx.speedMps ?? null;
+    // Do not spend a turn announcement while stopped. The maneuver remains
+    // unspoken and will be evaluated again as soon as the vehicle moves.
+    if (speedMps !== null && speedMps < 1.5) return null;
+    const tiers = announcementTiers(speedMps, next.maneuver);
     // Deepest tier whose threshold we're inside, but only if it is beyond the current state.
     let tier: Tier | null = null;
     for (const t of tiers) if (next.distanceM <= t.atM) tier = t;
