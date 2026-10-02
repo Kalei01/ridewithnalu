@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createMorningPulseVerdict } from "./intelligence/morning-pulse-verdict";
 
 const point = z.object({
   lat: z.number().min(21).max(22),
@@ -79,60 +80,38 @@ export const morningPulse = createServerFn({ method: "POST" })
         };
       }
 
-      const difference = Math.abs(driveMinutes - skylineMinutes);
-      const faster = difference <= 2 ? "similar" : driveMinutes < skylineMinutes ? "drive" : "skyline";
-      const comparison =
-        difference <= 2
-          ? `Drive and Skyline are about the same right now: ${driveDuration} vs ${skylineDuration}.`
-          : driveMinutes < skylineMinutes
-            ? `Driving is about ${difference} min faster: ${driveDuration} vs ${skylineDuration} by Skyline.`
-            : `Skyline is about ${difference} min faster: ${skylineDuration} vs ${driveDuration} driving.`;
+      const { verdict } = createMorningPulseVerdict({
+        from: data.from,
+        to: data.to,
+        drive: drive
+          ? {
+              minutes: driveMinutes,
+              delayMinutes: delay,
+              roads: drive.roads,
+              incidents: drive.incidents,
+              source: "TomTom",
+            }
+          : null,
+        rail: railTrip
+          ? {
+              depart_seconds: Number(railTrip.depart_seconds),
+              arrive_seconds: Number(railTrip.arrive_seconds),
+              total_minutes: skylineMinutes,
+            }
+          : null,
+        nowEpochMs: Date.now(),
+        nowSecondsSinceMidnight: ai.honoluluSeconds(),
+      });
 
-      const delay = Math.max(0, Math.round(drive!.delayMinutes));
-
-      // TomTom can return route IDs such as "HI-764" that are useful internally
-      // but unfamiliar to commuters. Prefer common Oahu road names and only
-      // expose route numbers when they are recognizable to local drivers.
-      const familiarRoadName = (road: string): string | null => {
-        const raw = road.trim();
-        const upper = raw.toUpperCase().replace(/\s+/g, " ");
-
-        // TomTom can return route/reference strings such as "HI-764",
-        // "H1-764", or "H-764". Those are not useful commuter-facing
-        // street names, so never surface an unrecognized route identifier.
-        const routeMatch = upper.match(/^(?:HI|H)[- ]?(\d+)(?:[- ](\d+))?$/);
-        const routeNumber = routeMatch?.[1] ?? null;
-        const qualifier = routeMatch?.[2] ?? null;
-
-        const common: Record<string, string> = {
-          "1": "H-1 Freeway",
-          "2": "H-2 Freeway",
-          "3": "H-3 Freeway",
-          "201": "Moanalua Freeway",
-          "63": "Pali Highway",
-          "83": "Kamehameha Highway",
-          "92": "Nimitz Highway",
-          "93": "Farrington Highway",
-          "99": "Kamehameha Highway",
-          "764": "Geiger Road",
-        };
-
-        if (routeNumber) {
-          // A second numeric component is a TomTom/reference-style identifier,
-          // not a commuter-friendly road name. Only expose known primary routes.
-          if (qualifier || !common[routeNumber]) return null;
-          return common[routeNumber];
-        }
-
-        return raw || null;
-      };
+      const reasons = verdict.reasons.map((reason) => reason.text);
+      const comparison = reasons.join(" ");
       const roads = drive!.roads
         .map(familiarRoadName)
         .filter((road): road is string => Boolean(road))
         .slice(0, 2);
       const trafficSentence =
         delay >= 2
-          ? `${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.`
+          ? \`${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.\`
           : "Roads look normal right now.";
 
       return {
