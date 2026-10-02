@@ -23,6 +23,16 @@ function trafficLabel(delayMinutes: number | null | undefined) {
   return "Light";
 }
 
+function formatLiveDriveTime(minutes: number) {
+  const rounded = Math.max(0, Math.round(minutes));
+  if (rounded >= 60) {
+    const hours = Math.floor(rounded / 60);
+    const mins = rounded % 60;
+    return mins ? `${hours}h ${mins}m` : `${hours}h`;
+  }
+  return `${rounded} min`;
+}
+
 export function HdotRoadworkNotice({
   scheduledClosures = [],
   variant = "commute",
@@ -73,7 +83,7 @@ export function HdotRoadworkNotice({
             <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border/60 pt-3">
               <div className="rounded-xl bg-muted/35 px-3 py-2.5">
                 <p className="text-[10px] font-medium text-muted-foreground">Your live drive time</p>
-                <p className="mt-0.5 text-base font-bold tabular-nums text-foreground">{Math.round(liveDriveMinutes)} min</p>
+                <p className="mt-0.5 text-base font-bold tabular-nums text-foreground">{formatLiveDriveTime(liveDriveMinutes)}</p>
               </div>
               <div className="rounded-xl bg-muted/35 px-3 py-2.5">
                 <p className="text-[10px] font-medium text-muted-foreground">Live traffic</p>
