@@ -3263,7 +3263,6 @@ function Index() {
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "rail") setSelectedMode("rail");
   }, [verdict, inbound, commitment]);
-  const transitLabel = railTripEstimate.transitLabel ?? "Transit";
   const reasoning = commitment
     ? "Your selected trip stays locked while conditions update."
     : railClosedForEvening
@@ -3280,7 +3279,7 @@ function Index() {
         : verdict === "drive"
         ? "Nalu compares the full trip from where you start to where you’re going, including getting to transit, waiting for your ride, and walking at the end—not just the freeway drive."
         : verdict === "rail"
-          ? transitLabel === "Skyline"
+          ? transitLabel === "Rail"
             ? "The Skyline option includes getting to the station, waiting, the train ride, and the walk to your destination."
             : "The " + transitLabel + " option includes getting to transit, waiting, transfers, and the walk to your destination."
           : verdict === "same"
