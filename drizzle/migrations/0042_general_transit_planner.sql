@@ -74,6 +74,28 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
     ORDER BY gtfs_seconds(b.arrival_time), gtfs_seconds(a.departure_time)
     LIMIT 80
   ),
+  -- Anchor transfer candidates to stops that actually feed a destination.
+  -- This prevents the candidate limit from discarding distant transfer hubs.
+  feeder_boarding AS MATERIALIZED (
+    SELECT DISTINCT
+      c.stop_id AS board_stop,
+      bs.stop_lat,
+      bs.stop_lon
+    FROM destinations dest
+    JOIN stop_times d ON d.stop_id = dest.stop_id
+    JOIN trips t2 ON t2.trip_id = d.trip_id
+    JOIN routes r2 ON r2.route_id = t2.route_id AND r2.route_type IN (1, 3)
+    JOIN stop_times c ON c.trip_id = d.trip_id AND c.stop_sequence < d.stop_sequence
+    JOIN stops bs ON bs.stop_id = c.stop_id
+    WHERE t2.service_id IN (SELECT service_id FROM active)
+      AND gtfs_seconds(c.departure_time) BETWEEN (SELECT after_sec FROM v)
+                                               AND (SELECT after_sec FROM v) + 14400
+  ),
+  transfer_points AS MATERIALIZED (
+    SELECT DISTINCT ns.stop_id
+    FROM feeder_boarding f
+    CROSS JOIN LATERAL nearby_stops(f.stop_lat, f.stop_lon, p_transfer_radius_m) ns
+  ),
   transfer_first AS MATERIALIZED (
     SELECT
       o.walk_min AS origin_walk_min,
@@ -96,11 +118,12 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
     JOIN routes r ON r.route_id = t.route_id AND r.route_type IN (1, 3)
     JOIN stop_times b ON b.trip_id = a.trip_id AND b.stop_sequence > a.stop_sequence
     JOIN stops bs ON bs.stop_id = b.stop_id
+    JOIN transfer_points tp ON tp.stop_id = b.stop_id
     WHERE t.service_id IN (SELECT service_id FROM active)
       AND gtfs_seconds(a.departure_time) >= (SELECT after_sec FROM v) + o.walk_min * 60
       AND gtfs_seconds(a.departure_time) <= (SELECT after_sec FROM v) + 10800
     ORDER BY gtfs_seconds(b.arrival_time), gtfs_seconds(a.departure_time)
-    LIMIT 80
+    LIMIT 200
   ),
   transfers AS MATERIALIZED (
     SELECT
