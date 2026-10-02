@@ -3378,7 +3378,13 @@ function Index() {
     return points;
   }, [best, homePoint, destPoint, reverseTrip, tripOriginLabel, tripArrivalLabel, itineraryStopCoords, stationCoords]);
 
-  type TransitMapSegment = {\n    id: string;\n    mode: "walk" | "drive" | "bus" | "rail";\n    points: Array<{ lat: number; lon: number }>;\n  };\n\n  const transitMapSegments = useMemo<TransitMapSegment[]>(() => {
+  type TransitMapSegment = {
+    id: string;
+    mode: "walk" | "drive" | "bus" | "rail";
+    points: Array<{ lat: number; lon: number }>;
+  };
+
+  const transitMapSegments = useMemo<TransitMapSegment[]>(() => {
     if (!best || !homePoint || !destPoint) return [];
     const origin = reverseTrip ? destPoint : homePoint;
     const destination = reverseTrip ? homePoint : destPoint;
