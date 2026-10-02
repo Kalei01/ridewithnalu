@@ -1813,6 +1813,16 @@ function Index() {
       };
 
       const fetchPage = async (cursor: number): Promise<Option[]> => {
+      // A one-tap trip from the rider's live location directly to saved Home
+      // is a true door-to-door reverse trip. Prefer the generalized planner
+      // here so it can choose a walk/bus/rail itinerary without depending on
+      // the directional return-stop assumptions used by the legacy planner.
+      // Keep the legacy inbound path as a fallback so existing return trips do
+      // not lose a working itinerary if the generalized planner is unavailable.
+      if (inbound && arrivingAtSavedHome && !reverseTrip) {
+        const directHomeTransit = await fetchGeneralTransit(cursor);
+        if (directHomeTransit.length) return directHomeTransit;
+      }
       if (inbound) {
         const fetchAtStation = async (stationId: string) => {
           const params = {
