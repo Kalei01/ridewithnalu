@@ -80,6 +80,7 @@ export const morningPulse = createServerFn({ method: "POST" })
         };
       }
 
+      const delay = drive?.delayMinutes ?? 0;
       const { verdict } = createMorningPulseVerdict({
         from: data.from,
         to: data.to,
@@ -106,7 +107,6 @@ export const morningPulse = createServerFn({ method: "POST" })
       const reasons = verdict.reasons.map((reason) => reason.text);
       const comparison = reasons.join(" ");
       const faster = verdict.selectedMode ?? "unknown";
-      const delay = drive!.delayMinutes;
       const roads = drive!.roads
         .map(familiarRoadName)
         .filter((road): road is string => Boolean(road))
