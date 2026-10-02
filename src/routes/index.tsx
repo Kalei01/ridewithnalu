@@ -3138,6 +3138,7 @@ function Index() {
       trip: centralTrip,
       estimates: [driveTripEstimate, railTripEstimate].map((estimate) => ({
         mode: estimate.mode,
+        label: estimate.transitLabel,
         availability: estimate.availability,
         quality: estimate.source.quality === "good" ? "good" : estimate.source.quality,
         expectedMinutes: estimate.expectedDurationMinutes,
@@ -3262,6 +3263,7 @@ function Index() {
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "rail") setSelectedMode("rail");
   }, [verdict, inbound, commitment]);
+  const transitLabel = railTripEstimate.transitLabel ?? "Transit";
   const reasoning = commitment
     ? "Your selected trip stays locked while conditions update."
     : railClosedForEvening
@@ -3278,7 +3280,9 @@ function Index() {
         : verdict === "drive"
         ? "Nalu compares the full trip from where you start to where you’re going, including getting to transit, waiting for your ride, and walking at the end—not just the freeway drive."
         : verdict === "rail"
-          ? "The Skyline option includes getting to the station, waiting, the train ride, any bus connection, and the walk to your destination."
+          ? transitLabel === "Skyline"
+            ? "The Skyline option includes getting to the station, waiting, the train ride, and the walk to your destination."
+            : "The " + transitLabel + " option includes getting to transit, waiting, transfers, and the walk to your destination."
           : verdict === "same"
             ? "The estimated arrival times are close enough that neither option has a clear time advantage right now."
             : activeDecision.primary.text;
@@ -3325,7 +3329,7 @@ function Index() {
     } else if (verdict === "rail") {
       const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
       const busWait = Math.round(railTripEstimate.busWaitMinutes ?? 0);
-      if (railWait >= 5) signals.push({ label: "Skyline wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
+      if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
       if (busWait >= 5) signals.push({ label: "Bus wait", value: `${busWait} min`, tone: busWait >= 10 ? "alert" : "neutral" });
       if (drive?.incidents[0] && driveTripEstimate.majorIncident) {
         signals.push({
@@ -3347,7 +3351,7 @@ function Index() {
         });
       }
       const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
-      if (railWait >= 5) signals.push({ label: "Skyline wait", value: `${railWait} min`, tone: "neutral" });
+      if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: "neutral" });
     }
 
     return signals.slice(0, 4);
