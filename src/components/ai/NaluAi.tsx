@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askNalu, eveningPulse, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
 import { pulseClocks } from "@/lib/pulse-time.functions";
-import { isWithinLocalWindow } from "@/lib/intelligence/pulse-time";
+import { isWeekday, isWithinLocalWindow } from "@/lib/intelligence/pulse-time";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
@@ -155,7 +155,7 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
   const clock = evening ? workClock : homeClock;
   const from = evening ? work : home;
   const to = evening ? home : work;
-  const active = Boolean(clock && clock.hour >= 5 && clock.hour < 19 && from && to);
+  const active = Boolean(clock && isWeekday(clock) && clock.hour >= 5 && clock.hour < 19 && from && to);
   const { data } = useQuery({
     queryKey: ["rush", from?.lat, from?.lon, to?.lat, to?.lon],
     enabled: active,
@@ -168,15 +168,10 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
       }),
   });
   if (!active || !data?.warn) return null;
-  const leaveBy = new Date(Date.now() + 10 * 60_000).toLocaleTimeString("en-US", {
-    timeZone: clock!.timezone,
-    hour: "numeric",
-    minute: "2-digit",
-  });
   return (
     <section role="status" className="mt-3 rounded-lg border border-warning/50 bg-warning/10 p-3">
       <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <TrendingUp className="size-4 text-warning" /> Beat the rush: leave before {leaveBy}
+        <TrendingUp className="size-4 text-warning" /> Beat the rush: leave now
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
         {data.delayMinutes} min slower than usual
