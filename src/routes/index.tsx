@@ -1945,7 +1945,7 @@ function Index() {
                   ...inboundPlannerCoordinates(tripDirection),
                   p_dest_lat: hub.lat,
                   p_dest_lon: hub.lon,
-                  p_station: selectedInboundStation,
+                  p_station: selectedInboundStation!,
                   p_allow_drive:
                     selectedInboundStation === arrivalStationId ? carAtStation : false,
                   p_after_seconds: after,
@@ -1974,7 +1974,7 @@ function Index() {
         // transit miss. Keep the privacy-safe diagnostic path intact.
         try {
           const { data: diagnostic, error: diagnosticError } = await supabase.rpc(
-            "diagnose_transit_general",
+            "diagnose_transit_general" as never,
             {
               p_origin_lat: tripDirection.from.lat as number,
               p_origin_lon: tripDirection.from.lon as number,
