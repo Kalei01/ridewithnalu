@@ -1804,10 +1804,6 @@ function Index() {
           p_dest_lon: tripDirection.to.lon as number,
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
-          // Keep the generalized door-to-door planner's walk radius wide enough
-          // to reach useful bus/rail stops without invoking legacy routing.
-          p_origin_radius_m: 4000,
-          p_dest_radius_m: 3000,
         });
         if (error) {
           generalTransitError = error;
@@ -1834,10 +1830,6 @@ function Index() {
           p_dest_lon: tripDirection.to.lon as number,
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
-          // Keep the generalized door-to-door planner's walk radius wide enough
-          // to reach useful bus/rail stops without invoking legacy routing.
-          p_origin_radius_m: 4000,
-          p_dest_radius_m: 3000,
         });
 
         if (error) {
