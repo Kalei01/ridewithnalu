@@ -1,7 +1,7 @@
 import type { DestinationAccess } from "../destination-access";
 import { FRESHNESS_POLICIES } from "../intelligence/freshness-policy";
 
-export type EstimateMode = "drive" | "transit";
+export type EstimateMode = "drive" | "rail";
 /** Actual public-transit family represented by the itinerary. Kept separate from the legacy drive-vs-rail decision mode while Phase 3 is rolled out. */
 export type TransitMode = "walk" | "bus" | "rail" | "walk+bus" | "walk+rail" | "rail+bus" | "walk+rail+bus";
 export type Availability = "available" | "service-unavailable" | "car-unavailable" | "data-error";
