@@ -3366,6 +3366,9 @@ function Index() {
     }> = [];
 
     const delay = Math.round(driveTripEstimate.trafficDelayMinutes ?? 0);
+    const liveDriveMinutes = driveTripEstimate.expectedDurationMinutes;
+    const roadwork = drive?.hdotScheduledClosures?.[0];
+
     if (verdict === "drive") {
       const trafficValue =
         delay >= 15
@@ -3374,12 +3377,30 @@ function Index() {
             ? `Slower · +${delay} min vs usual`
             : delay > 0
               ? `Slightly slower · +${delay} min`
-              : "Moving normally";
+              : "Moving steady";
       signals.push({
         label: "Traffic",
         value: trafficValue,
         tone: delay >= 5 ? "alert" : "neutral",
       });
+
+      if (liveDriveMinutes != null) {
+        signals.push({
+          label: "Your drive",
+          value: formatLiveDriveTime(liveDriveMinutes),
+          detail: "Live route estimate",
+          tone: "neutral",
+        });
+      }
+
+      if (roadwork) {
+        signals.push({
+          label: "Roadwork",
+          value: `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
+          detail: `${roadwork.laneSummary} · ${roadwork.location}`,
+          tone: "alert",
+        });
+      }
 
       const incident = driveTripEstimate.majorIncident ? drive?.incidents[0] : null;
       if (incident) {
@@ -3389,18 +3410,20 @@ function Index() {
           detail: incidentDetailText(incident) ?? incidentImpactText(incident),
           tone: "alert",
         });
-      } else if (drive?.corridorLabel) {
-        signals.push({
-          label: "Route",
-          value: drive.corridorLabel,
-          tone: "neutral",
-        });
       }
     } else if (verdict === "rail") {
       const railWait = Math.round(railTripEstimate.railWaitMinutes ?? 0);
       const busWait = Math.round(railTripEstimate.busWaitMinutes ?? 0);
       if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
       if (busWait >= 5) signals.push({ label: "Bus wait", value: `${busWait} min`, tone: busWait >= 10 ? "alert" : "neutral" });
+      if (roadwork) {
+        signals.push({
+          label: "Roadwork",
+          value: `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
+          detail: `${roadwork.laneSummary} · ${roadwork.location}`,
+          tone: "alert",
+        });
+      }
       if (drive?.incidents[0] && driveTripEstimate.majorIncident) {
         signals.push({
           label: "Road incident",
@@ -3411,6 +3434,14 @@ function Index() {
       }
     } else {
       if (delay >= 5) signals.push({ label: "Traffic", value: `+${delay} min vs usual`, tone: "alert" });
+      if (roadwork) {
+        signals.push({
+          label: "Roadwork",
+          value: `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
+          detail: `${roadwork.laneSummary} · ${roadwork.location}`,
+          tone: "alert",
+        });
+      }
       const incident = driveTripEstimate.majorIncident ? drive?.incidents[0] : null;
       if (incident) {
         signals.push({
@@ -3427,6 +3458,7 @@ function Index() {
     return signals.slice(0, 4);
   }, [
     drive,
+    driveTripEstimate.expectedDurationMinutes,
     driveTripEstimate.trafficDelayMinutes,
     driveTripEstimate.majorIncident,
     railTripEstimate.railWaitMinutes,
