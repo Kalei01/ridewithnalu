@@ -2174,6 +2174,9 @@ function Index() {
     if (!trackingWanted || !navigator.geolocation) {
       setRiderPoint(null);
       setRiderHeading(null);
+      setRiderSpeed(null);
+      setRiderAccuracy(null);
+      riderFixTimestamp.current = null;
       return;
     }
     const watch = navigator.geolocation.watchPosition(
@@ -2212,6 +2215,8 @@ function Index() {
           if (!Number.isFinite(position.coords.accuracy) || position.coords.accuracy > 80) return;
           acceptedNavFix.current = { point, timestamp: position.timestamp };
           setRiderPoint(point);
+          setRiderAccuracy(position.coords.accuracy);
+          riderFixTimestamp.current = position.timestamp;
         },
         () => {},
         { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
@@ -2226,6 +2231,8 @@ function Index() {
       setRiderPoint(null);
       setRiderHeading(null);
       setRiderSpeed(null);
+      setRiderAccuracy(null);
+      riderFixTimestamp.current = null;
       acceptedNavFix.current = null;
     };
   }, [activeTransitLeg, drivingCommitted, configured, browseActive]);
