@@ -1797,6 +1797,17 @@ function Index() {
     queryFn: async () => {
       let selectedInboundStation = arrivalStationId;
       let fallbackChecked = false;
+      let generalTransitError: unknown = null;
+      const recordTransitRpcError = (stage: string, error: unknown) => {
+        const e = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
+        debugLog("transit_rpc_error", {
+          stage,
+          code: typeof e?.code === "string" ? e.code : "unknown",
+          message: typeof e?.message === "string" ? e.message : "Transit RPC failed",
+          details: typeof e?.details === "string" ? e.details : null,
+          hint: typeof e?.hint === "string" ? e.hint : null,
+        });
+      };
       const fetchGeneralTransit = async (cursor: number): Promise<Option[]> => {
         const { data, error } = await supabase.rpc("plan_transit_general", {
           p_origin_lat: tripDirection.from.lat as number,
@@ -1806,7 +1817,11 @@ function Index() {
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
         });
-        if (error) return [];
+        if (error) {
+          generalTransitError = error;
+          recordTransitRpcError("plan_transit_general", error);
+          return [];
+        }
         return (data ?? []).map((row) => ({
           ...row,
           legs: row.legs as unknown as Leg[],
@@ -1924,7 +1939,11 @@ function Index() {
           p_origin_radius_m: 4000,
           p_dest_radius_m: 3000,
         });
-        if (legacyBus.error) throw legacyBus.error;
+        if (legacyBus.error) {
+          recordTransitRpcError("plan_bus_direct", legacyBus.error);
+          if (generalTransitError) throw generalTransitError;
+          throw legacyBus.error;
+        }
         return (legacyBus.data ?? []).map((row) => ({
           ...row,
           legs: row.legs as unknown as Leg[],
@@ -1942,6 +1961,10 @@ function Index() {
         p_origin_radius_m: 4000,
         p_dest_radius_m: 3000,
       });
+      if (generalTransit.error) {
+        generalTransitError = generalTransit.error;
+        recordTransitRpcError("plan_transit_general", generalTransit.error);
+      }
       const generalOptions = !generalTransit.error
         ? (generalTransit.data ?? []).map((row) => ({
             ...row,
@@ -1967,8 +1990,11 @@ function Index() {
             ...row,
             legs: row.legs as unknown as Leg[],
           })) as Option[];
+        } else {
+          recordTransitRpcError("plan_outbound", error);
         }
-      } catch {
+      } catch (error) {
+        recordTransitRpcError("plan_outbound", error);
         // A rail planner failure must not suppress a valid bus-only itinerary.
       }
 
@@ -1976,7 +2002,7 @@ function Index() {
         return mergeTransitOptions(railOptions, generalOptions);
       }
 
-      if (generalTransit.error) throw generalTransit.error;
+      if (generalTransitError) throw generalTransitError;
       throw new Error("No transit itinerary found for this origin and destination.");
       };
       if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
