@@ -176,7 +176,10 @@ function parseHdotOahuRoadwork(html: string): HdotScheduledClosure[] {
       else if (/two .*lanes? closed/i.test(clean)) laneSummary = "2 lanes closed";
       else if (/three .*lanes? closed/i.test(clean)) laneSummary = "3 lanes closed";
 
-      const scheduleMatch = clean.match(/(?:from|nightly from)\s+(.+?)(?:\s+for\s+|\.\s+Note:|$)/i);
+      // Preserve "nightly" from HDOT's source wording. Without this, a
+      // nightly 7 PM–4:30 AM closure is rendered only as a time range and can
+      // be mistaken for an all-day/current closure on a morning commute.
+      const scheduleMatch = clean.match(/((?:nightly\s+)?from\s+.+?)(?:\s+for\s+|\.\s+Note:|$)/i);
       const schedule = scheduleMatch?.[1]?.trim() || "See HDOT weekly schedule";
       const workMatch = clean.match(/\sfor\s+(.+?)(?:\.\s+Note:|$)/i);
 
