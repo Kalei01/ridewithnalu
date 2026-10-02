@@ -68,20 +68,26 @@ describe("normalized trip estimates", () => {
   });
 
   it("labels direct bus and mixed transit itineraries by their actual modes", () => {
-    expect(rail(40, 0, [
+    const directBus = rail(40, 0, [
       { mode: "walk", depart_seconds: at(6), arrive_seconds: at(6, 5), minutes: 5 },
       { mode: "bus", depart_seconds: at(6, 6), arrive_seconds: at(6, 40), minutes: 34 },
-    ]).transitLabel).toBe("Bus");
+    ]);
+    expect(directBus.transitLabel).toBe("Bus");
+    expect(directBus.transitMode).toBe("walk+bus");
 
-    expect(rail(50, 0, [
+    const mixedRailBus = rail(50, 0, [
       { mode: "walk", depart_seconds: at(6), arrive_seconds: at(6, 3), minutes: 3 },
       { mode: "rail", depart_seconds: at(6, 4), arrive_seconds: at(6, 35), minutes: 31 },
       { mode: "bus", depart_seconds: at(6, 40), arrive_seconds: at(6, 50), minutes: 10 },
-    ]).transitLabel).toBe("Rail + Bus");
+    ]);
+    expect(mixedRailBus.transitLabel).toBe("Rail + Bus");
+    expect(mixedRailBus.transitMode).toBe("walk+rail+bus");
 
-    expect(rail(35, 0, [
+    const directRail = rail(35, 0, [
       { mode: "rail", depart_seconds: at(6), arrive_seconds: at(6, 35), minutes: 35 },
-    ]).transitLabel).toBe("Rail");
+    ]);
+    expect(directRail.transitLabel).toBe("Rail");
+    expect(directRail.transitMode).toBe("rail");
     expect(rail(55, 0, [
       { mode: "bus", depart_seconds: at(6), arrive_seconds: at(6, 25), minutes: 25 },
       { mode: "walk", depart_seconds: at(6, 25), arrive_seconds: at(6, 28), minutes: 3 },
