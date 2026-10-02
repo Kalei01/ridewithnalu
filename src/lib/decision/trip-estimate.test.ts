@@ -140,18 +140,18 @@ describe("expected-outcome decision", () => {
   it("selects clearly faster driving", () =>
     expect(decideTrip(drive(30), rail(60)).state).toBe("drive"));
   it("selects clearly faster transit", () =>
-    expect(decideTrip(drive(55), rail(48)).state).toBe("rail"));
+    expect(decideTrip(drive(55), rail(48)).state).toBe("transit"));
   it("calls overlapping arrival ranges a toss-up", () => {
     expect(decideTrip(drive(42, 40, 48), rail(55)).state).toBe("drive");
   });
   it("does not flip modes for a small ETA fluctuation", () => {
-    const item = decideTrip(drive(37, 36, 38), rail(50), "rail", {
+    const item = decideTrip(drive(37, 36, 38), rail(50), "transit", {
       tossUpMinutes: 5,
       switchMarginMinutes: 3,
     });
     expect(item.state).toBe("drive");
     expect(item.differenceMinutes).toBe(13);
-    expect(decideTrip(drive(40, 39, 41), rail(60), "rail").state).toBe("drive");
+    expect(decideTrip(drive(40, 39, 41), rail(60), "transit").state).toBe("drive");
   });
   it("uses an incident and delay only when grounded in a transit win", () => {
     const item = driveEstimate({
@@ -170,7 +170,7 @@ describe("expected-outcome decision", () => {
       majorIncident: true,
     });
     const decision = decideTrip(item, rail(48));
-    expect(decision.state).toBe("rail");
+    expect(decision.state).toBe("transit");
     expect(decision.primary.kind).toBe("major_incident");
   });
   it("explains a large transit connection wait", () => {
@@ -205,7 +205,7 @@ describe("expected-outcome decision", () => {
       nowMs,
       scheduleFetchedAt: nowMs,
     });
-    expect(decideTrip(noCar, rail(50)).state).toBe("rail");
+    expect(decideTrip(noCar, rail(50)).state).toBe("transit");
     expect(decideTrip(drive(35), noService).state).toBe("drive");
     expect(decideTrip(noCar, noService).state).toBe("none");
   });
@@ -242,7 +242,7 @@ describe("arrival-first decision", () => {
     const lateRail = { ...rail(90), arrivalTime: at(7, 40), latestArrival: at(7, 45) };
     const onTimeRail = { ...rail(75), arrivalTime: at(7, 15), latestArrival: at(7, 25) };
     expect(decideArrival(onTimeDrive, lateRail, at(7, 30)).state).toBe("drive");
-    expect(decideArrival(lateDrive, onTimeRail, at(7, 30)).state).toBe("rail");
+    expect(decideArrival(lateDrive, onTimeRail, at(7, 30)).state).toBe("transit");
     expect(decideArrival(lateDrive, lateRail, at(7, 30)).state).toBe("none");
   });
   it("does not claim a reliable arrival verdict from stale or weak future traffic", () => {
