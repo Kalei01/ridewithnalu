@@ -119,14 +119,17 @@ export async function lookupHdotLaneClosureRoutes(
 
 function stripHtml(value: string) {
   return value
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
+    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+    .replace(/<(?:br|p|div|li|h[1-6]|ol|ul|section|article)[^>]*>/gi, "\\n")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&#8217;|&#x2019;/gi, "’")
     .replace(/&#8211;|&#x2013;/gi, "–")
-    .replace(/\s+/g, " ")
+    .replace(/\\r/g, "")
+    .replace(/[ \\t]+/g, " ")
+    .replace(/\\n\\s*\\n+/g, "\\n")
     .trim();
 }
 
@@ -171,29 +174,33 @@ function extractWork(text: string) {
  */
 export function parseHdotOahuRoadwork(html: string): HdotScheduledClosure[] {
   const text = stripHtml(html);
-  const sections = text.split(/—\s*([^—]+?)\s*—/g);
   const out: HdotScheduledClosure[] = [];
+  const sectionPattern = /(?:^|\\n)\\s*—\\s*([^—\\n]+?)\\s*—\\s*([\\s\\S]*?)(?=\\n\\s*—\\s*[^—\\n]+?\\s*—|$)/g;
 
-  for (let index = 1; index < sections.length; index += 2) {
-    const sectionTitle = sections[index]?.trim() ?? "";
-    const sectionBody = sections[index + 1] ?? "";
+  for (const match of text.matchAll(sectionPattern)) {
+    const sectionTitle = match[1]?.trim() ?? "";
+    const sectionBody = match[2] ?? "";
     const route = normalizeRoute(sectionTitle) ?? sectionTitle;
-    const entries = sectionBody.split(/\s+(?=\d+\)\s)/g);
+    if (!route) continue;
 
-    for (const entry of entries) {
-      if (!/^\d+\)\s/.test(entry.trim())) continue;
-      const clean = entry.replace(/^\d+\)\s*/, "").trim();
+    const entries = sectionBody.split(/(?=\\d+\\)\\s)/g);
+    for (const rawEntry of entries) {
+      const clean = rawEntry.replace(/^\\s*\\d+\\)\\s*/, "").trim();
+      if (!clean) continue;
+
       const direction = normalizeDirection(clean);
-      const location = clean.split(/\s+(?=[A-Z][A-Z/ &'’-]+\s*\()/)[0]?.trim() || clean.slice(0, 60);
-      const scheduleMatch = clean.match(/(?:from|on|nightly from|24-hours? a day|24-hours? a day, 7-days? a week)(.+?)(?: for |\. Note:|\. All |$)/i);
-      const schedule = scheduleMatch?.[1]?.trim().replace(/\s+/g, " ") || "See HDOT weekly schedule";
+      const locationMatch = clean.match(/^(.+?)(?:\\s+from\\s+|\\s+between\\s+|\\s+in the |\\s+possible |\\s+closure |\\s+two |\\s+three |\\s+single |\\s+alternating |\\s+roving )/i);
+      const location = (locationMatch?.[1] ?? clean.split(/\\s+\\(/)[0] ?? clean.slice(0, 80)).trim();
+
+      const scheduleMatch = clean.match(/(?:from|nightly from|on|24-hours? a day,? 7-days? a week)(.+?)(?:\\s+for\\s+the |\\s+for\\s+|\\.\\s+Note:|\\.\\s+All |$)/i);
+      const schedule = scheduleMatch?.[0]?.replace(/^from\\s+/i, "").trim() || "See HDOT weekly schedule";
 
       out.push({
         route,
         direction,
-        location: location.replace(/\s+\(.*$/, "").trim(),
+        location,
         laneSummary: laneSummary(clean),
-        schedule,
+        schedule: schedule.replace(/\\s+/g, " "),
         work: extractWork(clean),
       });
     }
