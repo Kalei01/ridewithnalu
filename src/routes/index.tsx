@@ -395,7 +395,7 @@ function parseCommitment(raw: string | null): Commitment | null {
 const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 
 type DirectionOverride = { inbound: boolean; at: number };
-/** Where the car is today: at home, left at the station, or driven all the way. */
+/** Where the car is today for park-and-ride trips: at home or left at a station. */
 type CarPlace = "home" | "station";
 type ParkedCar = { date: string; station: string; place?: CarPlace };
 type BrowseStation = {
