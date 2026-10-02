@@ -204,9 +204,7 @@ export function transitEstimate(input: {
     .map((leg) => leg.mode)
     .filter((mode): mode is "bus" | "rail" => mode === "bus" || mode === "rail");
   const transitLabel = transitModes.length
-    ? transitModes.filter((mode, index) => index === 0 || mode !== transitModes[index - 1])
-        .map((mode) => mode === "rail" ? "Rail" : "Bus")
-        .join(" + ")
+    ? transitModes.map((mode) => mode === "rail" ? "Rail" : "Bus").join(" + ")
     : "Transit";
   // Scheduled bus connections are less certain than a rail-only trip. This is a
   // bounded display range, not a claim of live vehicle prediction.
