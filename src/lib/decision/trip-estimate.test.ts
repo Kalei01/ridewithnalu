@@ -234,7 +234,7 @@ describe("arrival-first decision", () => {
     const decision = decideArrival(driving, transit, at(7, 30));
     expect(decision.state).toBe("same");
     expect(decision.driveMarginMinutes).toBe(4);
-    expect(decision.railMarginMinutes).toBe(13);
+    expect(decision.transitMarginMinutes).toBe(13);
   });
   it("handles only drive, only transit, and neither feasible", () => {
     const lateDrive = { ...drive(50), arrivalTime: at(7, 40), latestArrival: at(7, 45) };
