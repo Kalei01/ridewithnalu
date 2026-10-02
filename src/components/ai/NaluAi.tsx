@@ -5,36 +5,37 @@ import { CalendarCheck, HelpCircle, Sparkles, TrendingUp, Volume2 } from "lucide
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askNalu, eveningPulse, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
+import { pulseClocks } from "@/lib/pulse-time.functions";
+import { isWithinLocalWindow } from "@/lib/intelligence/pulse-time";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
 
 type Place = { lat: number; lon: number; label: string };
 
-function honoluluNow() {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Pacific/Honolulu",
-    weekday: "short",
-    hour: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(new Date());
-  return {
-    weekday: parts.find((p) => p.type === "weekday")?.value ?? "",
-    hour: Number(parts.find((p) => p.type === "hour")?.value ?? 0),
-  };
-}
+function usePulseClocks(home: Place | null, work: Place | null) {
+  const fetchClocks = useServerFn(pulseClocks);
+  const fallbackTimeZone =
+    typeof Intl !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone || "Pacific/Honolulu"
+      : "Pacific/Honolulu";
 
-function useHonoluluClock() {
-  const [now, setNow] = useState<ReturnType<typeof honoluluNow> | null>(null);
-  useEffect(() => {
-    setNow(honoluluNow());
-    const t = window.setInterval(() => setNow(honoluluNow()), 5 * 60_000);
-    return () => window.clearInterval(t);
-  }, []);
-  return now;
+  return useQuery({
+    queryKey: ["pulse-clocks-v1", home?.lat, home?.lon, work?.lat, work?.lon],
+    enabled: Boolean(home && work),
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
+    retry: false,
+    queryFn: () =>
+      fetchClocks({
+        data: {
+          home: { lat: home!.lat, lon: home!.lon },
+          work: { lat: work!.lat, lon: work!.lon },
+          fallbackTimeZone,
+        },
+      }),
+  });
 }
-
-const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 export function MorningPulse({
   home,
@@ -45,7 +46,8 @@ export function MorningPulse({
   work: Place | null;
   trainsEveryMinutes: number | null;
 }) {
-  const clock = useHonoluluClock();
+  const { data: clocks } = usePulseClocks(home, work);
+  const clock = clocks?.home ?? null;
   const fetchPulse = useServerFn(morningPulse);
   const inWindow = Boolean(
     clock && weekdays.includes(clock.weekday) && clock.hour >= 6 && clock.hour < 8,
@@ -99,7 +101,8 @@ export function EveningPulse({
   work: Place | null;
   trainsEveryMinutes: number | null;
 }) {
-  const clock = useHonoluluClock();
+  const { data: clocks } = usePulseClocks(home, work);
+  const clock = clocks?.work ?? null;
   const fetchPulse = useServerFn(eveningPulse);
   const inWindow = Boolean(
     clock && weekdays.includes(clock.weekday) && clock.hour >= 14 && clock.hour < 19,
@@ -145,10 +148,13 @@ export function EveningPulse({
 }
 
 export function BeatTheRush({ home, work }: { home: Place | null; work: Place | null }) {
-  const clock = useHonoluluClock();
+  const { data: clocks } = usePulseClocks(home, work);
+  const homeClock = clocks?.home ?? null;
+  const workClock = clocks?.work ?? null;
   const fetchRush = useServerFn(rushOutlook);
   // Evening returns home; otherwise head to work.
-  const evening = (clock?.hour ?? 0) >= 13;
+  const evening = (workClock?.hour ?? homeClock?.hour ?? 0) >= 13;
+  const clock = evening ? workClock : homeClock;
   const from = evening ? work : home;
   const to = evening ? home : work;
   const active = Boolean(clock && clock.hour >= 5 && clock.hour < 19 && from && to);
@@ -346,7 +352,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
 }
 
 export function WeeklyDigestCard() {
-  const clock = useHonoluluClock();
+  const { data: clocks } = usePulseClocks(null, null);
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   useEffect(() => setDigest(weeklyDigest()), []);
   if (!clock || !["Fri", "Sat"].includes(clock.weekday) || !digest) return null;
