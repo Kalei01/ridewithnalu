@@ -1846,7 +1846,7 @@ function Index() {
         // No direct walk/bus from the origin reaches Skyline: board at the rail
         // hub nearest the origin with an estimated road access leg instead.
         const homeStation = selectedInboundStation;
-        return (await hubAccessFallback({
+        const hubOptions = (await hubAccessFallback({
           origin: tripDirection.from as Coords,
           stations: stations.filter((station) => station.stop_id !== homeStation),
           afterSeconds: cursor,
@@ -1864,6 +1864,24 @@ function Index() {
             return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] }));
           },
         })) as Option[];
+        if (hubOptions.length) return hubOptions;
+
+        // Transit is not synonymous with rail. If no rail-inclusive itinerary
+        // exists, search the actual origin/destination for a direct bus
+        // itinerary before declaring transit unavailable.
+        const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+          p_origin_lat: tripDirection.from.lat as number,
+          p_origin_lon: tripDirection.from.lon as number,
+          p_dest_lat: tripDirection.to.lat as number,
+          p_dest_lon: tripDirection.to.lon as number,
+          p_after_seconds: cursor,
+          p_limit: planMode === "arrive-by" ? 8 : 4,
+        });
+        if (busError) throw busError;
+        return (busData ?? []).map((row) => ({
+          ...row,
+          legs: row.legs as unknown as Leg[],
+        })) as Option[];
       }
       const { data, error } = await supabase.rpc("plan_outbound", {
         p_origin_lat: setup.homeLat as number,
@@ -1878,7 +1896,25 @@ function Index() {
         p_dest_lon: setup.destLon as number,
       });
       if (error) throw error;
-      return (data ?? []).map((row) => ({
+      const railOptions = (data ?? []).map((row) => ({
+        ...row,
+        legs: row.legs as unknown as Leg[],
+      })) as Option[];
+      if (railOptions.length) return railOptions;
+
+      // Transit is not synonymous with rail. If no rail-inclusive itinerary
+      // exists, search the same real origin/destination for a direct bus
+      // itinerary before declaring transit unavailable.
+      const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+        p_origin_lat: setup.homeLat as number,
+        p_origin_lon: setup.homeLon as number,
+        p_dest_lat: setup.destLat as number,
+        p_dest_lon: setup.destLon as number,
+        p_after_seconds: cursor,
+        p_limit: planMode === "arrive-by" ? 8 : 4,
+      });
+      if (busError) throw busError;
+      return (busData ?? []).map((row) => ({
         ...row,
         legs: row.legs as unknown as Leg[],
       })) as Option[];
