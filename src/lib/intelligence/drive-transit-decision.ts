@@ -9,6 +9,7 @@ export type DecisionAvailability =
 
 export type DecisionModeEstimate = {
   mode: DecisionMode;
+  label?: string;
   availability: DecisionAvailability;
   quality: DecisionQuality;
   expectedMinutes: number | null;
@@ -184,7 +185,7 @@ export function decideDriveVsTransit(
 
   let primary = evidence(
     "time_advantage",
-    `${faster === "drive" ? "Drive" : "Rail"} gets you there about ${difference} min sooner`,
+    `${faster === "drive" ? "Drive" : (rail.label ?? "Transit")} gets you there about ${difference} min sooner`,
   );
   let supporting: { kind: EvidenceKind; text: string } | null = null;
 
@@ -316,7 +317,7 @@ export function decideDriveVsTransitArrival(
       differenceMinutes: null,
       primary: evidence(
         "arrival_margin",
-        `${winner === "drive" ? "Drive" : "Rail"} is the option that can get you there on time`,
+        `${winner === "drive" ? "Drive" : (rail.label ?? "Transit")} is the option that can get you there on time`,
       ),
       supporting: null,
     });
@@ -333,7 +334,7 @@ export function decideDriveVsTransitArrival(
       differenceMinutes: null,
       primary: evidence(
         "arrival_margin",
-        `${winner === "drive" ? "Drive" : "Rail"} still gets you there on time if things run a little late`,
+        `${winner === "drive" ? "Drive" : (rail.label ?? "Transit")} still gets you there on time if things run a little late`,
       ),
       supporting: null,
     });
@@ -362,7 +363,7 @@ export function decideDriveVsTransitArrival(
       differenceMinutes: Math.round(-earlier / 60),
       primary: evidence(
         "arrival_margin",
-        "You can leave later and still get there no later by rail",
+        `You can leave later and still get there no later by ${(rail.label ?? "transit").toLowerCase()}`,
       ),
       supporting: null,
     });
