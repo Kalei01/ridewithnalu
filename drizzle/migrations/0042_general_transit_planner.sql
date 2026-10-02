@@ -87,14 +87,15 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
       gtfs_seconds(a.departure_time) AS first_dep_sec,
       gtfs_seconds(b.arrival_time) AS first_arr_sec,
       b.stop_id AS first_stop_id,
-      b.stop_name AS first_stop_name,
-      b.stop_lat AS first_stop_lat,
-      b.stop_lon AS first_stop_lon
+      bs.stop_name AS first_stop_name,
+      bs.stop_lat AS first_stop_lat,
+      bs.stop_lon AS first_stop_lon
     FROM origins o
     JOIN stop_times a ON a.stop_id = o.stop_id
     JOIN trips t ON t.trip_id = a.trip_id
     JOIN routes r ON r.route_id = t.route_id AND r.route_type IN (1, 3)
     JOIN stop_times b ON b.trip_id = a.trip_id AND b.stop_sequence > a.stop_sequence
+    JOIN stops bs ON bs.stop_id = b.stop_id
     WHERE t.service_id IN (SELECT service_id FROM active)
       AND gtfs_seconds(a.departure_time) >= (SELECT after_sec FROM v) + o.walk_min * 60
       AND gtfs_seconds(a.departure_time) <= (SELECT after_sec FROM v) + 10800
