@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { reverseGeocode, searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { RouteCorridor } from "@/components/commute/RouteCorridor";
+import { HdotRoadworkNotice } from "@/components/commute/HdotRoadworkNotice";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
@@ -5214,6 +5215,9 @@ function Index() {
             </div>
           )}
           {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
+          {verdict === "drive" && (drive?.hdotLaneClosures?.length ?? 0) > 0 && (
+            <HdotRoadworkNotice closures={drive?.hdotLaneClosures ?? []} />
+          )}
           {configured && (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
             <p className="mt-4 text-lg font-medium text-muted-foreground">
               {verdict === "same"
@@ -5618,6 +5622,9 @@ function Index() {
               {driveAvailable && driveRange && drive && (
                 <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
               )}
+              {(drive?.hdotLaneClosures?.length ?? 0) > 0 && (
+                <HdotRoadworkNotice closures={drive?.hdotLaneClosures ?? []} />
+              )}
               {!driveAvailable && carAwayReason && (
                 <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>
               )}
@@ -5815,7 +5822,7 @@ function RailTripBreakdown({
           const label =
             leg.kind === "access"
               ? leg.mode === "walk"
-                ? `Walk to ${stationName || (leg.mode === "bus" ? "the stop" : "the station")}${leg.mode === "bus" ? "" : " Station"}`
+                ? `Walk to ${stationName || "the station"} Station`
                 : stationName
                   ? `To ${stationName}${leg.mode === "bus" ? "" : " Station"}`
                   : leg.mode === "bus" ? "To the stop" : "To the station"
