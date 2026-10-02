@@ -2003,6 +2003,27 @@ function Index() {
       }
 
       if (generalTransitError) throw generalTransitError;
+
+      // The planner can legitimately return no rows. Before surfacing that as a
+      // generic failure, ask the database for a privacy-safe failure stage so
+      // diagnostics can distinguish schedule/data gaps from routing gaps.
+      try {
+        const { data: diagnostic, error: diagnosticError } = await supabase.rpc("diagnose_transit_general", {
+          p_origin_lat: tripDirection.from.lat as number,
+          p_origin_lon: tripDirection.from.lon as number,
+          p_dest_lat: tripDirection.to.lat as number,
+          p_dest_lon: tripDirection.to.lon as number,
+          p_after_seconds: cursor,
+        });
+        if (diagnosticError) {
+          recordTransitRpcError("diagnose_transit_general", diagnosticError);
+        } else if (typeof diagnostic === "string") {
+          debugLog("transit_no_itinerary", { stage: diagnostic });
+        }
+      } catch (error) {
+        recordTransitRpcError("diagnose_transit_general", error);
+      }
+
       throw new Error("No transit itinerary found for this origin and destination.");
       };
       if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
