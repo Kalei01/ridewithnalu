@@ -36,12 +36,13 @@ describe("Nalu Intelligence Core contracts", () => {
       incidents: [],
     };
 
-    expect(snapshot.transit[0].scheduled).toBe(true);
-    expect(snapshot.transit[0].liveObservation).toBe(false);
+    expect(snapshot.transit[0]!.scheduled).toBe(true);
+    expect(snapshot.transit[0]!.liveObservation).toBe(false);
   });
 
   it("allows a decision without pretending every mode has a result", () => {
     const decision: NaluDecision = {
+      decisionState: "rail",
       selectedMode: "rail",
       alternatives: ["drive"],
       departureTime: "2026-10-01T18:05:00-10:00",

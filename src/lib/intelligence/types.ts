@@ -1,30 +1,18 @@
 /**
  * Nalu Intelligence Core — provider-neutral contracts.
  *
- * This file intentionally contains contracts only. Existing routing, transit,
- * weather, incident, and AI implementations remain the source adapters until
- * each capability is migrated and regression-tested.
+ * Existing providers remain adapters. The canonical trip/route model in
+ * trip-model.ts represents the concrete sequence of route segments used by
+ * maps, navigation, and commute details.
  */
-
 export type MobilityMode = "drive" | "rail" | "bus" | "walk";
 
 export type TimeConstraint =
-  | {
-      kind: "depart-at";
-      timestamp: string;
-    }
-  | {
-      kind: "arrive-by";
-      timestamp: string;
-    }
-  | {
-      kind: "now";
-    };
+  | { kind: "depart-at"; timestamp: string }
+  | { kind: "arrive-by"; timestamp: string }
+  | { kind: "now" };
 
-export type GeoPoint = {
-  lat: number;
-  lon: number;
-};
+export type GeoPoint = { lat: number; lon: number };
 
 export type TripRequest = {
   origin: GeoPoint;
@@ -32,16 +20,12 @@ export type TripRequest = {
   timeConstraint: TimeConstraint;
   availableModes: MobilityMode[];
   requestedAt: string;
-  userConstraints?: {
-    avoidModes?: MobilityMode[];
-  };
+  userConstraints?: { avoidModes?: MobilityMode[] };
 };
 
 export type EvidenceFreshness = {
   observedAt: string;
-  /** Provider/source that produced the observation. */
   source: string;
-  /** Optional age in seconds when the source supplies an observation time. */
   ageSeconds?: number;
 };
 
@@ -86,11 +70,11 @@ export type MobilitySnapshot = {
 
 export type DecisionReason = {
   text: string;
-  /** Evidence identifiers are optional until source IDs are available. */
   evidence?: string[];
 };
 
 export type NaluDecision = {
+  decisionState: "drive" | "rail" | "same" | "none" | "uncertain";
   selectedMode: MobilityMode | null;
   alternatives: MobilityMode[];
   departureTime?: string | null;
@@ -98,9 +82,5 @@ export type NaluDecision = {
   reasons: DecisionReason[];
   warnings: string[];
   freshness: EvidenceFreshness[];
-  /**
-   * Confidence is only present when Nalu has enough evidence to justify it.
-   * The core must never manufacture confidence from an arbitrary ETA range.
-   */
   confidence?: "high" | "medium" | "low";
 };

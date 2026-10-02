@@ -22,6 +22,9 @@ const WELCOME_NAV_ROUTE = [
 
 function WelcomeNavigationPreview() {
   const route = WELCOME_NAV_ROUTE;
+  const destination = route[route.length - 1]!;
+  const livePoint = route[2]!;
+  const turnPoint = route[5]!;
   const [muted, setMuted] = useState(true);
 
   return (
@@ -42,8 +45,8 @@ function WelcomeNavigationPreview() {
           <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading navigation preview" />}>
             <LiveNavMap
               lines={[{ id: "welcome-drive", mode: "drive", points: route }]}
-              destination={route[route.length - 1]}
-              livePoint={route[2]}
+              destination={destination}
+              livePoint={livePoint}
               speedMps={18}
               bearing={86}
               maneuver={{ glyph: "straight", distanceText: "1.8 mi", road: "H-1 East toward Honolulu" }}
@@ -54,7 +57,7 @@ function WelcomeNavigationPreview() {
                 { severity: "moderate", points: route.slice(2, 5) },
                 { severity: "heavy", points: route.slice(5, 7) },
               ]}
-              turn={{ lat: route[5].lat, lon: route[5].lon, distanceM: 2900 }}
+              turn={{ lat: turnPoint.lat, lon: turnPoint.lon, distanceM: 2900 }}
             />
           </Suspense>
         </ClientOnly>
