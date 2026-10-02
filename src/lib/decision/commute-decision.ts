@@ -46,7 +46,7 @@ function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
   if (item.trafficDelayMinutes !== null) {
     evidence.push(normalizeEvidence({
       id: `${item.mode}-traffic-delay`,
-      mode: item.mode,
+      mode: item.mode === "drive" ? "drive" : "transit",
       source,
       value: item.trafficDelayMinutes,
       unit: "minutes",
@@ -67,7 +67,7 @@ function toDecisionEstimate(item: TripEstimate): DecisionModeEstimate {
   const traffic = evidence.find((entry) => entry.id.endsWith("-traffic-delay"));
 
   return {
-    mode: item.mode,
+    mode: item.mode === "drive" ? "drive" : "transit",
     availability: item.availability,
     quality: eta?.quality === "stale" ? "stale" : item.source.quality,
     expectedMinutes: item.expectedDurationMinutes,
@@ -100,6 +100,8 @@ export function decideTrip(
 
 export type ArrivalDecision = TripDecision & {
   driveMarginMinutes: number | null;
+  transitMarginMinutes: number | null;
+  /** @deprecated Compatibility alias for older UI consumers. */
   railMarginMinutes: number | null;
 };
 
@@ -108,9 +110,13 @@ export function decideArrival(
   transit: TripEstimate,
   targetSeconds: number,
 ): ArrivalDecision {
-  return decideDriveVsTransitArrival(
+  const result = decideDriveVsTransitArrival(
     toDecisionEstimate(drive),
     toDecisionEstimate(transit),
     targetSeconds,
   );
+  return {
+    ...result,
+    railMarginMinutes: result.transitMarginMinutes,
+  };
 }
