@@ -35,7 +35,7 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
   // A missing transit itinerary must not block a valid live drive verdict.
   // This is especially important after rail service ends or when no usable
   // transit itinerary can be formed.
-  if (!transit && drive?.availability === "available" && drive.expectedMinutes !== null) {
+  if (transit?.availability !== "available" && drive?.availability === "available" && drive.expectedMinutes !== null) {
     const routeByMode = new Map(input.trip.routes.map((route) => [route.mode, route]));
     const selectedRoute = routeByMode.get("drive");
     return {
