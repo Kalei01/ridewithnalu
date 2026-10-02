@@ -117,95 +117,62 @@ export async function lookupHdotLaneClosureRoutes(
   }
 }
 
-function stripHtml(value: string) {
-  return value
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<(?:br|p|div|li|h[1-6]|ol|ul|section|article)[^>]*>/gi, "\n")
+function parseHdotOahuRoadwork(html: string): HdotScheduledClosure[] {
+  const text = html
+    .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
+    .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&#8217;|&#x2019;/gi, "’")
     .replace(/&#8211;|&#x2013;/gi, "–")
-    .replace(/\r/g, "")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n\s*\n+/g, "\n")
+    .replace(/\\s+/g, " ")
     .trim();
-}
 
-function normalizeRoute(value: string | null | undefined) {
-  if (!value) return null;
-  const match = value.toUpperCase().replace(/–/g, "-").match(/\bH-?\s?(\d{1,3})\b/);
-  return match ? `H-${match[1]}` : null;
-}
-
-function normalizeDirection(value: string) {
-  const lower = value.trim().toLowerCase();
-  if (lower === "eb" || lower.includes("eastbound")) return "eastbound";
-  if (lower === "wb" || lower.includes("westbound")) return "westbound";
-  if (lower === "nb" || lower.includes("northbound")) return "northbound";
-  if (lower === "sb" || lower.includes("southbound")) return "southbound";
-  return null;
-}
-
-function laneSummary(text: string) {
-  const lower = text.toLowerCase();
-  const range = lower.match(/(one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:to|-|–)\s*(one|two|three|four|five|six|seven|eight|nine|ten)\s+lanes?\s+closed/);
-  if (range) return `${range[1]}–${range[2]} lanes closed`;
-
-  const count = lower.match(/(one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:left|right|)\s*lanes?\s+closed/);
-  if (count) return `${count[1]} lane${count[1] === "one" ? "" : "s"} closed`;
-
-  if (/full closure|closure of .*freeway/.test(lower)) return "Full closure";
-  if (/shoulder closure/.test(lower)) return "Shoulder closure";
-  if (/single .*lane closure|single lane closure/.test(lower)) return "1 lane closed";
-  return "Lane closure";
-}
-
-function extractWork(text: string) {
-  const match = text.match(/for (?:the )?(.+?)(?:\.| Note:|$)/i);
-  return match?.[1]?.trim() || null;
-}
-
-/**
- * Parses the human-readable weekly HDOT page. The page is intentionally used
- * as the schedule source because the ArcGIS layer does not carry dates,
- * times, or lane counts.
- */
-export function parseHdotOahuRoadwork(html: string): HdotScheduledClosure[] {
-  const text = stripHtml(html);
   const out: HdotScheduledClosure[] = [];
-  const sectionPattern = /(?:^|\n)\s*—\s*([^—\n]+?)\s*—\s*([\s\S]*?)(?=\n\s*—\s*[^—\n]+?\s*—|$)/g;
+  const sectionRe = /—\\s*([^—]+?)\\s*—/g;
+  const sections = [...text.matchAll(sectionRe)];
 
-  for (const match of text.matchAll(sectionPattern)) {
-    const sectionTitle = match[1]?.trim() ?? "";
-    const sectionBody = match[2] ?? "";
-    const route = normalizeRoute(sectionTitle) ?? sectionTitle;
-    if (!route) continue;
+  for (let i = 0; i < sections.length; i++) {
+    const title = sections[i][1].trim();
+    const routeMatch = title.match(/\\bH-?\\s*(\\d{1,3})\\b/i);
+    if (!routeMatch) continue;
+    const route = `H-${routeMatch[1]}`;
+    const bodyStart = (sections[i].index ?? 0) + sections[i][0].length;
+    const bodyEnd = sections[i + 1]?.index ?? text.length;
+    const body = text.slice(bodyStart, bodyEnd);
 
-    const entries = sectionBody.split(/(?=\d+\)\s)/g);
-    for (const rawEntry of entries) {
-      const clean = rawEntry.replace(/^\s*\d+\)\s*/, "").trim();
+    const entries = body.split(/(?=\\b\\d+\\)\\s)/g);
+    for (const raw of entries) {
+      const clean = raw.replace(/^\\s*\\d+\\)\\s*/, "").trim();
       if (!clean) continue;
 
-      const direction = normalizeDirection(clean);
-      const locationMatch = clean.match(/^(.+?)(?:\s+from\s+|\s+between\s+|\s+in the |\s+possible |\s+closure |\s+two |\s+three |\s+single |\s+alternating |\s+roving )/i);
-      const location = (locationMatch?.[1] ?? clean.split(/\s+\(/)[0] ?? clean.slice(0, 80)).trim();
+      const directionMatch = clean.match(/\\b(eastbound|westbound|northbound|southbound)\\b/i);
+      const direction = directionMatch ? directionMatch[1].toLowerCase() : null;
+      const location = clean.split(/\\s+from\\s+|\\s+between\\s+|\\s+in the vicinity of\\s+/i)[0].trim();
 
-      const scheduleMatch = clean.match(/(?:from|nightly from|on|24-hours? a day,? 7-days? a week)(.+?)(?:\s+for\s+the |\s+for\s+|\.\s+Note:|\.\s+All |$)/i);
-      const schedule = scheduleMatch?.[0]?.replace(/^from\s+/i, "").trim() || "See HDOT weekly schedule";
+      let laneSummary = "Lane closure";
+      const range = clean.match(/closure of (?:the )?(one|two|three|four|five|six|seven|eight|nine|ten)\\s+to\\s+(one|two|three|four|five|six|seven|eight|nine|ten) lanes?/i);
+      if (range) laneSummary = `${range[1]}–${range[2]} lanes closed`;
+      else if (/full closure/i.test(clean)) laneSummary = "Full closure";
+      else if (/single .*lane closure|single lane closure/i.test(clean)) laneSummary = "1 lane closed";
+      else if (/two .*lanes? closed/i.test(clean)) laneSummary = "2 lanes closed";
+      else if (/three .*lanes? closed/i.test(clean)) laneSummary = "3 lanes closed";
+
+      const scheduleMatch = clean.match(/(?:from|nightly from)\\s+(.+?)(?:\\s+for\\s+|\\.\\s+Note:|$)/i);
+      const schedule = scheduleMatch?.[1]?.trim() || "See HDOT weekly schedule";
+      const workMatch = clean.match(/\\sfor\\s+(.+?)(?:\\.\\s+Note:|$)/i);
 
       out.push({
         route,
         direction,
         location,
-        laneSummary: laneSummary(clean),
-        schedule: schedule.replace(/\s+/g, " "),
-        work: extractWork(clean),
+        laneSummary,
+        schedule,
+        work: workMatch?.[1]?.trim() || null,
       });
     }
   }
-
   return out;
 }
 
