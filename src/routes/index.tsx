@@ -1335,7 +1335,7 @@ function Index() {
     window.localStorage.removeItem(PARKED_KEY);
     setSettingsOpen(false);
     setOnboardingOpen(false);
-    setSelectedMode("transit");
+    setSelectedMode("rail");
     setSelectedDeparture(null);
     setPlanMode("leave-now");
     setArriveByInput("");
@@ -1368,7 +1368,7 @@ function Index() {
     setOverride(null);
     window.localStorage.removeItem(DIRECTION_KEY);
     setSelectedDeparture(null);
-    setSelectedMode("transit");
+    setSelectedMode("rail");
     setOnboardingOpen(false);
     setSettingsOpen(false);
   }, [signedInAt]);
@@ -3357,7 +3357,7 @@ function Index() {
   useEffect(() => {
     if (commitment) return;
     if (verdict === "drive") setSelectedMode("drive");
-    else if (verdict === "rail") setSelectedMode("transit");
+    else if (verdict === "rail") setSelectedMode("rail");
   }, [verdict, inbound, commitment]);
   const reasoning = commitment
     ? "Your selected trip stays locked while conditions update."
@@ -5387,7 +5387,7 @@ function Index() {
           ) : (
             <Button
               type="button"
-              disabled={selectedMode === "transit" ? !best : !driveAvailable || !drive}
+              disabled={selectedMode === "rail" ? !best : !driveAvailable || !drive}
               onClick={() => {
                 // Starting a trip means "tell me everything": unlock chime and speech
                 // inside this tap (iOS Safari), unmute voice and turn every alert on.
@@ -5609,11 +5609,11 @@ function Index() {
           >
             <Button
               type="button"
-              aria-pressed={selectedMode === "transit"}
+              aria-pressed={selectedMode === "rail"}
               disabled={Boolean(commitment)}
               variant="ghost"
               onClick={() => chooseMode("rail")}
-              className={`relative h-14 disabled:opacity-100 ${selectedMode === "transit" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
+              className={`relative h-14 disabled:opacity-100 ${selectedMode === "rail" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
               {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />} {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : railTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(railTripEstimate.expectedDurationMinutes)}` : ""}
               {!commitment && verdict === "rail" && (
@@ -5637,7 +5637,7 @@ function Index() {
             </Button>
           </div>
 
-          {selectedMode === "transit" && (
+          {selectedMode === "rail" && (
             <div className="mt-6">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-xl font-bold text-foreground">{transitLabel} itinerary</h3>
@@ -5722,7 +5722,7 @@ function Index() {
           )}
         </section>
 
-        {selectedMode === "transit" && options.length > 1 && (
+        {selectedMode === "rail" && options.length > 1 && (
           <section
             className="alternative-panel mb-8 min-w-0 max-w-full overflow-hidden rounded-lg p-4 sm:p-5"
             aria-labelledby="later-title"
