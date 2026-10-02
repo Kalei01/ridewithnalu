@@ -56,7 +56,7 @@ const EVENING_LINES = [
 
 const TRAFFIC_LINES = [
   "Traffic no joke right now.",
-  "H-1 is not cooperating this morning.",
+  "The freeway is not cooperating this morning.",
   "The roads are getting pretty packed.",
   "Traffic is stacking up.",
   "Things are slowing down out there.",
@@ -223,6 +223,30 @@ export function naluCommuteLine(
       : "";
   }
 
+  return "";
+}
+
+export function naluHeroVerdictLine(
+  context: NaluCommuteContext & { majorIncident?: boolean; trafficDelayMinutes?: number | null } = {},
+  date = new Date(),
+): string {
+  const difference = context.timeDifferenceMinutes ?? null;
+  const trafficDelay = context.trafficDelayMinutes ?? 0;
+
+  // Give a close call its own neutral voice instead of pretending there is a winner.
+  if (context.decision === "toss_up" || (difference !== null && difference <= 5)) {
+    return pickContextual(TOSS_UP_LINES, context, date);
+  }
+
+  // When the drive is clearly affected, a little levity can reduce commute tension
+  // without changing the factual verdict. Major incidents use the same human tone;
+  // safety-critical wording remains in the underlying alert/roadwork UI.
+  if (context.trafficLevel === "heavy" || context.trafficLevel === "severe" || trafficDelay >= 10 || context.majorIncident) {
+    return pickContextual(TRAFFIC_LINES, context, date);
+  }
+
+  if (context.decision === "rail") return pickContextual(RAIL_LINES, context, date);
+  if (context.decision === "drive") return pickContextual(DRIVE_LINES, context, date);
   return "";
 }
 
