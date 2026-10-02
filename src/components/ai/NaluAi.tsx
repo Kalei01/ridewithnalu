@@ -10,7 +10,7 @@ import { isWeekday, isWithinLocalWindow } from "@/lib/intelligence/pulse-time";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
 import { weeklyDigest, type WeeklyDigest } from "@/lib/trip-log";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
-import { naluPulseTagline } from "@/lib/nalu-voice";
+import { naluCommuteLine, naluPulseTagline } from "@/lib/nalu-voice";
 
 type Place = { lat: number; lon: number; label: string };
 
@@ -179,6 +179,7 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
       }),
   });
   if (!active || !data?.warn) return null;
+  const naluLine = naluCommuteLine("rush");
   return (
     <section role="status" className="mt-3 rounded-lg border border-warning/50 bg-warning/10 p-3">
       <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -189,6 +190,7 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
         {data.roads?.length ? ` on ${data.roads.join(", ")}` : ""}, and it's building —{" "}
         {data.nowMinutes} min now vs {data.laterMinutes} min in 30 min.
       </p>
+      <p className="mt-2 text-xs font-medium text-muted-foreground">{naluLine}</p>
     </section>
   );
 }
@@ -340,6 +342,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
           <div className="rounded-xl border border-white/10 bg-surface-raised/80 p-4 text-sm" aria-live="polite">
             <p className="font-semibold text-foreground">{answer.value.recommendation}</p>
             <p className="mt-1 text-primary">Leave by {answer.value.leaveBy}</p>
+            <p className="mt-2 text-xs font-medium text-muted-foreground">Nalu checked the details. Here’s the move.</p>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
               {answer.value.steps.map((s, i) => (
                 <li key={i}>{s}</li>
