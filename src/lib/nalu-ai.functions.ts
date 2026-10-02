@@ -73,17 +73,23 @@ export const morningPulse = createServerFn({ method: "POST" })
         };
       }
 
+      const delay = drive?.delayMinutes ?? 0;
+      const roads = drive?.roads.filter((road): road is string => Boolean(road)).slice(0, 2) ?? [];
+      const trafficSentence =
+        delay >= 2
+          ? `${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.`
+          : "Roads look normal right now.";
+
       if (!railRelevant) {
         return {
           ok: true,
           value: {
-            text: `Roads look normal right now. Drive is the practical option for this trip.`,
+            text: `${trafficSentence} Drive is the practical option for this trip.`,
             faster: "drive",
           },
         };
       }
 
-      const delay = drive?.delayMinutes ?? 0;
       const { verdict } = createMorningPulseVerdict({
         from: data.from,
         to: data.to,
@@ -110,14 +116,6 @@ export const morningPulse = createServerFn({ method: "POST" })
       const reasons = verdict.reasons.map((reason) => reason.text);
       const comparison = reasons.join(" ");
       const faster = verdict.selectedMode ?? "unknown";
-      const roads = drive!.roads
-        
-        .filter((road): road is string => Boolean(road))
-        .slice(0, 2);
-      const trafficSentence =
-        delay >= 2
-          ? `${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.`
-          : "Roads look normal right now.";
 
       return {
         ok: true,
@@ -194,17 +192,23 @@ export const eveningPulse = createServerFn({ method: "POST" })
         };
       }
 
+      const delay = drive?.delayMinutes ?? 0;
+      const roads = drive?.roads.filter((road): road is string => Boolean(road)).slice(0, 2) ?? [];
+      const trafficSentence =
+        delay >= 2
+          ? `${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.`
+          : "Roads look normal right now.";
+
       if (!railRelevant) {
         return {
           ok: true,
           value: {
-            text: `Roads look normal right now. Drive is the practical option for this trip.`,
+            text: `${trafficSentence} Drive is the practical option for this trip.`,
             faster: "drive",
           },
         };
       }
 
-      const delay = drive?.delayMinutes ?? 0;
       const { verdict } = createMorningPulseVerdict({
         from: data.from,
         to: data.to,
@@ -231,14 +235,6 @@ export const eveningPulse = createServerFn({ method: "POST" })
       const reasons = verdict.reasons.map((reason) => reason.text);
       const comparison = reasons.join(" ");
       const faster = verdict.selectedMode ?? "unknown";
-      const roads = drive!.roads
-        
-        .filter((road): road is string => Boolean(road))
-        .slice(0, 2);
-      const trafficSentence =
-        delay >= 2
-          ? `${roads.join(" and ") || "Your route"} is adding about ${delay} min right now.`
-          : "Roads look normal right now.";
 
       return {
         ok: true,
