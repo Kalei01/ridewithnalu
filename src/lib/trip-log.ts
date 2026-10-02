@@ -1,6 +1,6 @@
 /** On-device commute log for the weekly digest. Stores durations only — never GPS. */
 export type TripLogEntry = {
-  mode: "drive" | "rail";
+  mode: "drive" | "transit";
   startedAt: number;
   endedAt: number;
   /** Predicted minutes for the chosen mode at start. */
@@ -15,8 +15,8 @@ const PENDING = "nalu-trip-pending-v1";
 function read(): TripLogEntry[] {
   try {
     const raw = window.localStorage.getItem(KEY);
-    const list = raw ? (JSON.parse(raw) as TripLogEntry[]) : [];
-    return Array.isArray(list) ? list : [];
+    const list = raw ? (JSON.parse(raw) as Array<TripLogEntry & { mode?: "drive" | "rail" | "transit" }>) : [];
+    return Array.isArray(list) ? list.map((entry) => ({ ...entry, mode: entry.mode === "rail" ? "transit" : entry.mode })) as TripLogEntry[] : [];
   } catch {
     return [];
   }
@@ -49,7 +49,7 @@ export function finishTripLog() {
 export type WeeklyDigest = {
   trips: number;
   driveTrips: number;
-  railTrips: number;
+  transitTrips: number;
   minutesSaved: number;
   averageMinutes: number;
 };
@@ -66,7 +66,7 @@ export function weeklyDigest(now = Date.now()): WeeklyDigest | null {
   return {
     trips: week.length,
     driveTrips: week.filter((t) => t.mode === "drive").length,
-    railTrips: week.filter((t) => t.mode === "rail").length,
+    transitTrips: week.filter((t) => t.mode === "transit").length,
     minutesSaved: Math.round(saved),
     averageMinutes: Math.round(total / week.length),
   };
