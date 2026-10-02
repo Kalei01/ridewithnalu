@@ -295,7 +295,7 @@ function WelcomePage() {
                 <p className="mt-1 text-sm font-semibold text-foreground">I’ll compare what’s available now and work out when to leave.</p>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] text-muted-foreground">
                   <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Traffic</span>
-                  <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Timing</span>
+                  <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Options</span>
                   <span className="rounded-lg border border-white/8 bg-white/[0.025] px-2 py-2">Timing</span>
                 </div>
               </div>
