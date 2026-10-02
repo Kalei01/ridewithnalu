@@ -49,9 +49,7 @@ export function MorningPulse({
   const { data: clocks } = usePulseClocks(home, work);
   const clock = clocks?.home ?? null;
   const fetchPulse = useServerFn(morningPulse);
-  const inWindow = Boolean(
-    clock && weekdays.includes(clock.weekday) && clock.hour >= 6 && clock.hour < 8,
-  );
+  const inWindow = Boolean(clock && isWithinLocalWindow(clock, 6 * 60, 8 * 60));
   const { data, isLoading } = useQuery({
     queryKey: ["morning-pulse-v2", home?.lat, home?.lon, work?.lat, work?.lon],
     enabled: inWindow && Boolean(home && work),
@@ -64,6 +62,7 @@ export function MorningPulse({
           to: { lat: work!.lat, lon: work!.lon },
           destinationLabel: work!.label.slice(0, 30),
           trainsEveryMinutes,
+          timezone: clock!.timezone,
         },
       }),
   });
@@ -104,9 +103,7 @@ export function EveningPulse({
   const { data: clocks } = usePulseClocks(home, work);
   const clock = clocks?.work ?? null;
   const fetchPulse = useServerFn(eveningPulse);
-  const inWindow = Boolean(
-    clock && weekdays.includes(clock.weekday) && clock.hour >= 14 && clock.hour < 19,
-  );
+  const inWindow = Boolean(clock && isWithinLocalWindow(clock, 14 * 60, 19 * 60));
   const { data, isLoading } = useQuery({
     queryKey: ["evening-pulse-v1", work?.lat, work?.lon, home?.lat, home?.lon],
     enabled: inWindow && Boolean(home && work),
@@ -119,6 +116,7 @@ export function EveningPulse({
           to: { lat: home!.lat, lon: home!.lon },
           destinationLabel: home!.label.slice(0, 30),
           trainsEveryMinutes,
+          timezone: clock!.timezone,
         },
       }),
   });
@@ -171,7 +169,7 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
   });
   if (!active || !data?.warn) return null;
   const leaveBy = new Date(Date.now() + 10 * 60_000).toLocaleTimeString("en-US", {
-    timeZone: "Pacific/Honolulu",
+    timeZone: clock!.timezone,
     hour: "numeric",
     minute: "2-digit",
   });
