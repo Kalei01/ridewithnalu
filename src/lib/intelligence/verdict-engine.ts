@@ -1,4 +1,4 @@
-import type { NaluDecision, DecisionReason, MobilityMode, EvidenceFreshness } from "./types";
+import type { NaluDecision, DecisionReason, EvidenceFreshness } from "./types";
 import type { CanonicalTrip } from "./trip-model";
 import { decideDriveVsTransit, type DecisionModeEstimate } from "./drive-transit-decision";
 
@@ -46,14 +46,15 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
     };
   }
 
+  const decisionOptions: { tossUpMinutes?: number; switchMarginMinutes?: number } = {};
+  if (input.tossUpMinutes !== undefined) decisionOptions.tossUpMinutes = input.tossUpMinutes;
+  if (input.switchMarginMinutes !== undefined) decisionOptions.switchMarginMinutes = input.switchMarginMinutes;
+
   const decision = decideDriveVsTransit(
     drive,
     rail,
     input.previousMode ?? null,
-    {
-      tossUpMinutes: input.tossUpMinutes,
-      switchMarginMinutes: input.switchMarginMinutes,
-    },
+    decisionOptions,
   );
 
   const routeByMode = new Map(input.trip.routes.map((route) => [route.mode, route]));
