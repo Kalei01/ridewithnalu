@@ -10,7 +10,7 @@ describe("parked-car state", () => {
     expect(carAvailableForDrive({ place: "home" }, false)).toBe(true);
     expect(carAvailableForDrive({ place: "station" }, false)).toBe(false);
     // Destination is no longer a tracked parked-car state; legacy values are non-blocking.
-    expect(carAvailableForDrive({ place: "destination" as "home" }, true)).toBe(true);
+    expect(carAvailableForDrive({ place: "destination" } as unknown as { place?: "home" | "station" }, true)).toBe(true);
     expect(carAvailableForDrive({ place: "station" }, true)).toBe(false);
     expect(carAvailableForDrive({ place: "home" }, true)).toBe(false);
   });
