@@ -1869,7 +1869,7 @@ function Index() {
         // Transit is not synonymous with rail. If no rail-inclusive itinerary
         // exists, search the actual origin/destination for a direct bus
         // itinerary before declaring transit unavailable.
-        const { data: busData, error: busError } = await supabase.rpc("plan_transit_general", {
+        const generalTransit = await supabase.rpc("plan_transit_general", {
           p_origin_lat: tripDirection.from.lat as number,
           p_origin_lon: tripDirection.from.lon as number,
           p_dest_lat: tripDirection.to.lat as number,
@@ -1877,8 +1877,31 @@ function Index() {
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
         });
-        if (busError) throw busError;
-        return (busData ?? []).map((row) => ({
+        if (!generalTransit.error && generalTransit.data?.length) {
+          return generalTransit.data.map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[];
+        }
+
+        // Keep a direct-bus safety net while the generalized planner is rolling out.
+        // It uses the same real door coordinates, but a wider walking radius so a
+        // distant stop can still be offered instead of declaring transit unavailable.
+        const legacyBus = await supabase.rpc("plan_bus_direct", {
+          p_origin_lat: tripDirection.from.lat as number,
+          p_origin_lon: tripDirection.from.lon as number,
+          p_dest_lat: tripDirection.to.lat as number,
+          p_dest_lon: tripDirection.to.lon as number,
+          p_after_seconds: cursor,
+          p_limit: planMode === "arrive-by" ? 8 : 4,
+          p_origin_radius_m: 4000,
+          p_dest_radius_m: 3000,
+        });
+        if (legacyBus.error) {
+          if (generalTransit.error) throw generalTransit.error;
+          throw legacyBus.error;
+        }
+        return (legacyBus.data ?? []).map((row) => ({
           ...row,
           legs: row.legs as unknown as Leg[],
         })) as Option[];
@@ -1905,7 +1928,7 @@ function Index() {
       // Transit is not synonymous with rail. If no rail-inclusive itinerary
       // exists, search the same real origin/destination for a direct bus
       // itinerary before declaring transit unavailable.
-      const { data: busData, error: busError } = await supabase.rpc("plan_transit_general", {
+      const generalTransit = await supabase.rpc("plan_transit_general", {
         p_origin_lat: setup.homeLat as number,
         p_origin_lon: setup.homeLon as number,
         p_dest_lat: setup.destLat as number,
@@ -1913,8 +1936,31 @@ function Index() {
         p_after_seconds: cursor,
         p_limit: planMode === "arrive-by" ? 8 : 4,
       });
-      if (busError) throw busError;
-      return (busData ?? []).map((row) => ({
+      if (!generalTransit.error && generalTransit.data?.length) {
+        return generalTransit.data.map((row) => ({
+          ...row,
+          legs: row.legs as unknown as Leg[],
+        })) as Option[];
+      }
+
+      // Keep a direct-bus safety net while the generalized planner is rolling out.
+      // It uses the same real door coordinates, but a wider walking radius so a
+      // distant stop can still be offered instead of declaring transit unavailable.
+      const legacyBus = await supabase.rpc("plan_bus_direct", {
+        p_origin_lat: setup.homeLat as number,
+        p_origin_lon: setup.homeLon as number,
+        p_dest_lat: setup.destLat as number,
+        p_dest_lon: setup.destLon as number,
+        p_after_seconds: cursor,
+        p_limit: planMode === "arrive-by" ? 8 : 4,
+        p_origin_radius_m: 4000,
+        p_dest_radius_m: 3000,
+      });
+      if (legacyBus.error) {
+        if (generalTransit.error) throw generalTransit.error;
+        throw legacyBus.error;
+      }
+      return (legacyBus.data ?? []).map((row) => ({
         ...row,
         legs: row.legs as unknown as Leg[],
       })) as Option[];
