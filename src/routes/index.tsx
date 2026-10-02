@@ -3304,17 +3304,17 @@ function Index() {
     if (commitment || !previousDecisionSnapshot || previousDecisionSnapshot.key !== decisionKey || !["drive", "rail", "same"].includes(verdict)) return [] as string[];
     const changes: string[] = [];
     if (previousDecisionSnapshot.state !== currentDecisionSnapshot.state) {
-      const labels = { drive: "driving", rail: "Skyline", same: "neither option" } as const;
+      const labels = { drive: "driving", rail: transitLabel, same: "neither option" } as const;
       changes.push(`Nalu changed the recommendation from ${labels[previousDecisionSnapshot.state]} to ${labels[currentDecisionSnapshot.state]}.`);
     }
     const driveDelta = changedMinutes(currentDecisionSnapshot.driveMinutes, previousDecisionSnapshot.driveMinutes);
     if (driveDelta !== null) changes.push(`Driving is now about ${Math.abs(driveDelta)} min ${driveDelta > 0 ? "slower" : "faster"} than your last check.`);
     const railDelta = changedMinutes(currentDecisionSnapshot.railMinutes, previousDecisionSnapshot.railMinutes);
-    if (railDelta !== null) changes.push(`Skyline is now about ${Math.abs(railDelta)} min ${railDelta > 0 ? "slower" : "faster"} than your last check.`);
+    if (railDelta !== null) changes.push(`${transitLabel} is now about ${Math.abs(railDelta)} min ${railDelta > 0 ? "slower" : "faster"} than your last check.`);
     const trafficDelta = changedMinutes(currentDecisionSnapshot.driveDelayMinutes, previousDecisionSnapshot.driveDelayMinutes);
     if (trafficDelta !== null) changes.push(`Traffic is adding about ${Math.abs(trafficDelta)} min ${trafficDelta > 0 ? "more" : "less"} time than at your last check.`);
     const railWaitDelta = changedMinutes(currentDecisionSnapshot.railWaitMinutes, previousDecisionSnapshot.railWaitMinutes);
-    if (railWaitDelta !== null) changes.push(`The next train wait is about ${Math.abs(railWaitDelta)} min ${railWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`);
+    if (railWaitDelta !== null) changes.push(`${transitLabel === "Rail" ? "The next train" : "Your transit"} wait is about ${Math.abs(railWaitDelta)} min ${railWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`);
     const busWaitDelta = changedMinutes(currentDecisionSnapshot.busWaitMinutes, previousDecisionSnapshot.busWaitMinutes);
     if (busWaitDelta !== null) changes.push(`Your bus wait is about ${Math.abs(busWaitDelta)} min ${busWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`);
     if (currentDecisionSnapshot.majorIncident && !previousDecisionSnapshot.majorIncident) changes.push("A crash or major slowdown is now affecting the drive.");
@@ -5838,7 +5838,7 @@ function RailTripBreakdown({
 
   return (
     <>
-      <ol className="mt-7" aria-label="Rail trip breakdown">
+      <ol className="mt-7" aria-label="Transit trip breakdown">
         {rows.map((leg, index) => {
           const Icon = modeIcon(leg.mode);
           const previous = rows[index - 1];
@@ -5853,7 +5853,7 @@ function RailTripBreakdown({
           const label =
             leg.kind === "access"
               ? leg.mode === "walk"
-                ? `Walk to ${stationName || "the station"} Station`
+                ? `Walk to ${stationName || (leg.mode === "bus" ? "the stop" : "the station")}${leg.mode === "bus" ? "" : " Station"}`
                 : stationName
                   ? `To ${stationName} Station`
                   : "To the station"
