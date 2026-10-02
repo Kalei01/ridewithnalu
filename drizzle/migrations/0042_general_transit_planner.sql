@@ -128,7 +128,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
       gtfs_seconds(c.departure_time) AS second_dep_sec,
       gtfs_seconds(d.arrival_time) AS second_arr_sec,
       d.stop_id AS dest_stop_id,
-      d.stop_name AS dest_stop_name,
+      ds.stop_name AS dest_stop_name,
       dest.walk_min AS dest_walk_min
     FROM transfer_first f
     CROSS JOIN LATERAL nearby_stops(f.first_stop_lat, f.first_stop_lon, p_transfer_radius_m) s
@@ -136,6 +136,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
     JOIN trips t2 ON t2.trip_id = c.trip_id AND t2.trip_id <> f.first_trip_id
     JOIN routes r2 ON r2.route_id = t2.route_id AND r2.route_type IN (1, 3)
     JOIN stop_times d ON d.trip_id = c.trip_id AND d.stop_sequence > c.stop_sequence
+    JOIN stops ds ON ds.stop_id = d.stop_id
     JOIN destinations dest ON dest.stop_id = d.stop_id
     WHERE t2.service_id IN (SELECT service_id FROM active)
       AND gtfs_seconds(c.departure_time) >= f.first_arr_sec + ceil(s.distance_m / 80.47)::integer * 60 + 60
