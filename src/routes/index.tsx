@@ -1973,8 +1973,12 @@ function Index() {
         // A valid zero-row response after the targeted fallbacks is a genuine
         // transit miss. Keep the privacy-safe diagnostic path intact.
         try {
-          const { data: diagnostic, error: diagnosticError } = await supabase.rpc(
-            "diagnose_transit_general" as any,
+          const diagnoseTransitGeneral = supabase.rpc as unknown as (
+            functionName: string,
+            args: Record<string, number>,
+          ) => Promise<{ data: string | null; error: unknown }>;
+          const { data: diagnostic, error: diagnosticError } = await diagnoseTransitGeneral(
+            "diagnose_transit_general",
             {
               p_origin_lat: tripDirection.from.lat as number,
               p_origin_lon: tripDirection.from.lon as number,
