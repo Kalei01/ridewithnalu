@@ -5672,7 +5672,9 @@ function Index() {
               )}
               {inbound && carPlace === "destination" && (
                 <Button
-                  variant="outline"
+                  onClick={() => {
+                    setCarPlace("destination");
+                  }}
                   size="sm"
                   onClick={() => setCarPlace("home")}
                   className="mt-5"
