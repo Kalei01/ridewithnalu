@@ -1318,7 +1318,7 @@ function Index() {
   }
 
   /** An active trip stays on its committed mode until it is ended. */
-  function chooseMode(next: "rail" | "drive") {
+  function chooseMode(next: "transit" | "drive") {
     if (commitment) return;
     setSelectedMode(next);
   }
@@ -2243,7 +2243,7 @@ function Index() {
   // No button: whenever the current plan has a transit leg underway, follow it
   // with GPS when granted and fall back to the timetable when it is not.
   const activeTransitLeg = useMemo(() => {
-    if (!best || commitment?.mode !== "rail") return null;
+    if (!best || commitment?.mode !== "transit") return null;
     return (
       best.legs.find(
         (leg) =>
@@ -5456,7 +5456,7 @@ function Index() {
               fullscreen={headingUpNav}
               overlay={
                 <NavBottomCard
-                  mode={lockedMode === "drive" ? "drive" : "rail"}
+                  mode={lockedMode === "drive" ? "drive" : "transit"}
                   delayMinutes={lockedMode === "drive" ? (navBasis?.delayMinutes ?? null) : null}
                   steps={
                     lockedMode === "drive"
@@ -5617,14 +5617,14 @@ function Index() {
               aria-pressed={selectedMode === "transit"}
               disabled={Boolean(commitment)}
               variant="ghost"
-              onClick={() => chooseMode("rail")}
+              onClick={() => chooseMode("transit")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "transit" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
               {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />} {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : transitTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(transitTripEstimate.expectedDurationMinutes)}` : ""}
               {!commitment && verdict === "transit" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}
-              {lockedMode === "rail" && <span className="mode-winner-badge">On this trip</span>}
+              {lockedMode === "transit" && <span className="mode-winner-badge">On this trip</span>}
             </Button>
             <Button
               type="button"
