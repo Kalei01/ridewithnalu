@@ -1951,6 +1951,32 @@ function Index() {
           }
         }
 
+        // Final transit rescue: if the rail/general planner cannot form an
+        // itinerary, search TheBus directly from the actual origin to stops near
+        // the actual destination. This keeps transit useful after Skyline service
+        // ends and for riders who do not have access to a car.
+        try {
+          const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+            p_origin_lat: tripDirection.from.lat as number,
+            p_origin_lon: tripDirection.from.lon as number,
+            p_dest_lat: tripDirection.to.lat as number,
+            p_dest_lon: tripDirection.to.lon as number,
+            p_after_seconds: cursor,
+            p_limit: planMode === "arrive-by" ? 8 : 4,
+          });
+          if (busError) {
+            recordTransitRpcError("plan_bus_direct", busError);
+          } else {
+            const busOptions = (busData ?? []).map((row) => ({
+              ...row,
+              legs: row.legs as unknown as Leg[],
+            })) as Option[];
+            if (busOptions.length) return mergeTransitOptions(busOptions, primaryTransit);
+          }
+        } catch (error) {
+          recordTransitRpcError("plan_bus_direct", error);
+        }
+
         if (generalTransitError) throw generalTransitError;
 
         // A valid zero-row response after the targeted fallbacks is a genuine
