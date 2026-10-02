@@ -1431,8 +1431,11 @@ function Index() {
     ? inboundStation?.stop_id ?? null : setup.homeStopId;
   const arrivalStationName = inbound && !reverseTrip
     ? inboundStation?.stop_name ?? "" : setup.homeStopName;
+  // Door-to-door transit can run from any configured coordinates. Inbound
+  // trips must not be blocked just because the destination has no nearby
+  // rail station; the generalized planner can use walking and bus service.
   const railConfigured = configured && (inbound
-    ? Boolean(arrivalStationId || browseStations.length)
+    ? true
     : Boolean(setup.homeStopId && setup.destStopId));
   const browseActive = hydrated && (!configured || pageView === "browse");
   // A committed drive is what turns on live GPS on the map and the rolling
@@ -1987,9 +1990,10 @@ function Index() {
       return result.options;
     },
   });
-  const optionsLoading = planLoading || inboundStationLoading;
-  const optionsFailed = planFailed ||
-    (inboundStationFailed && browseStations.length === 0 && options.length === 0);
+  // The arrival-station lookup is auxiliary for inbound rail planning. It must
+  // never make a valid door-to-door transit search appear unavailable.
+  const optionsLoading = planLoading;
+  const optionsFailed = planFailed;
 
   // Options arrive in earliest-door-arrival order. A slightly later trip is
   // available by choice, but is never silently preferred.
