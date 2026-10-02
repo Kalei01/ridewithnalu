@@ -392,7 +392,7 @@ function parseCommitment(raw: string | null): Commitment | null {
   try {
     const value = JSON.parse(raw) as Partial<Commitment>;
     if (value.mode !== "rail" && value.mode !== "transit" && value.mode !== "drive") return null;
-    return { mode: value.mode === "rail" ? "transit" : value.mode, at: typeof value.at === "number" ? value.at : Date.now() };
+    return { mode: value.mode === "transit" ? "transit" : value.mode, at: typeof value.at === "number" ? value.at : Date.now() };
   } catch {
     return null;
   }
@@ -7814,7 +7814,7 @@ function NavBottomCard({
   steps,
   onEnd,
 }: {
-  mode: "drive" | "rail";
+  mode: "drive" | "transit";
   delayMinutes: number | null;
   steps: string[];
   onEnd: () => void;
