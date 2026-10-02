@@ -10,7 +10,7 @@ export type DecisionAvailability =
 
 export type DecisionModeEstimate = {
   mode: DecisionMode;
-  transitMode?: TransitDecisionMode;
+  transitMode?: TransitDecisionMode | undefined;
   label?: string | undefined;
   availability: DecisionAvailability;
   quality: DecisionQuality;
