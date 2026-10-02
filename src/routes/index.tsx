@@ -5356,8 +5356,12 @@ function Index() {
             >
               {selectedMode === "drive" ? (
                 <Navigation className="size-6 shrink-0" />
-              ) : (
+              ) : transitUsesRail ? (
                 <TrainFront className="size-6 shrink-0" />
+              ) : transitUsesBus ? (
+                <Bus className="size-6 shrink-0" />
+              ) : (
+                <Footprints className="size-6 shrink-0" />
               )}
               <span className="min-w-0 flex-1 text-center">
                 <span className="block text-base font-black uppercase">
