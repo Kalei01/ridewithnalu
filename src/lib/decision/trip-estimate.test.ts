@@ -67,6 +67,23 @@ describe("normalized trip estimates", () => {
     expect(item.waitMinutes).toBe(20);
   });
 
+  it("labels direct bus and mixed transit itineraries by their actual modes", () => {
+    expect(rail(40, 0, [
+      { mode: "walk", depart_seconds: at(6), arrive_seconds: at(6, 5), minutes: 5 },
+      { mode: "bus", depart_seconds: at(6, 6), arrive_seconds: at(6, 40), minutes: 34 },
+    ]).transitLabel).toBe("Bus");
+
+    expect(rail(50, 0, [
+      { mode: "walk", depart_seconds: at(6), arrive_seconds: at(6, 3), minutes: 3 },
+      { mode: "rail", depart_seconds: at(6, 4), arrive_seconds: at(6, 35), minutes: 31 },
+      { mode: "bus", depart_seconds: at(6, 40), arrive_seconds: at(6, 50), minutes: 10 },
+    ]).transitLabel).toBe("Rail + Bus");
+
+    expect(rail(35, 0, [
+      { mode: "rail", depart_seconds: at(6), arrive_seconds: at(6, 35), minutes: 35 },
+    ]).transitLabel).toBe("Skyline");
+  });
+
   it("keeps walking and bus/rail transfer waits as evidence without double-counting", () => {
     const item = rail(55, 0, [
       { mode: "walk", depart_seconds: at(6), arrive_seconds: at(6, 10), minutes: 10 },
