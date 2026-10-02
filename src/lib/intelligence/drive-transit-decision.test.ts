@@ -35,7 +35,7 @@ describe("Nalu Intelligence Core drive-vs-transit reasoning", () => {
   it("preserves a clear drive decision", () => {
     const result = decideDriveVsTransit(
       mode({ mode: "drive", expectedMinutes: 30 }),
-      mode({ mode: "rail", expectedMinutes: 60 }),
+      mode({ mode: "transit", expectedMinutes: 60 }),
     );
     expect(result.state).toBe("drive");
     expect(result.differenceMinutes).toBe(30);
@@ -49,16 +49,16 @@ describe("Nalu Intelligence Core drive-vs-transit reasoning", () => {
         trafficDelayMinutes: 22,
         majorIncident: true,
       }),
-      mode({ mode: "rail", expectedMinutes: 48 }),
+      mode({ mode: "transit", expectedMinutes: 48 }),
     );
-    expect(result.state).toBe("rail");
+    expect(result.state).toBe("transit");
     expect(result.primary.kind).toBe("major_incident");
   });
 
   it("keeps close choices as a toss-up", () => {
     const result = decideDriveVsTransit(
       mode({ mode: "drive", expectedMinutes: 42 }),
-      mode({ mode: "rail", expectedMinutes: 45 }),
+      mode({ mode: "transit", expectedMinutes: 45 }),
     );
     expect(result.state).toBe("same");
   });
@@ -66,17 +66,17 @@ describe("Nalu Intelligence Core drive-vs-transit reasoning", () => {
   it("preserves the previous call when a new result is within the switch margin", () => {
     const result = decideDriveVsTransit(
       mode({ mode: "drive", expectedMinutes: 40 }),
-      mode({ mode: "rail", expectedMinutes: 46 }),
+      mode({ mode: "transit", expectedMinutes: 46 }),
       "rail",
     );
-    expect(result.state).toBe("rail");
+    expect(result.state).toBe("transit");
     expect(result.confidence).toBe("low");
   });
 
   it("does not make a stale source look reliable", () => {
     const result = decideDriveVsTransit(
       mode({ mode: "drive", expectedMinutes: 35, quality: "stale" }),
-      mode({ mode: "rail", expectedMinutes: 55 }),
+      mode({ mode: "transit", expectedMinutes: 55 }),
     );
     expect(result.state).toBe("uncertain");
     expect(result.confidence).toBe("low");
@@ -91,14 +91,14 @@ describe("Nalu Intelligence Core drive-vs-transit reasoning", () => {
         latestArrival: at(7, 45),
       }),
       mode({
-        mode: "rail",
+        mode: "transit",
         expectedMinutes: 35,
         arrivalTime: at(7, 15),
         latestArrival: at(7, 25),
       }),
       at(7, 30),
     );
-    expect(result.state).toBe("rail");
+    expect(result.state).toBe("transit");
     expect(result.driveMarginMinutes).toBe(-10);
     expect(result.railMarginMinutes).toBe(15);
   });
@@ -106,8 +106,8 @@ describe("Nalu Intelligence Core drive-vs-transit reasoning", () => {
   it("preserves service availability reasoning", () => {
     const result = decideDriveVsTransit(
       mode({ mode: "drive", expectedMinutes: 35, availability: "car-unavailable" }),
-      mode({ mode: "rail", expectedMinutes: 50 }),
+      mode({ mode: "transit", expectedMinutes: 50 }),
     );
-    expect(result.state).toBe("rail");
+    expect(result.state).toBe("transit");
   });
 });
