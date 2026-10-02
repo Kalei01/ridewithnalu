@@ -45,8 +45,8 @@ function WelcomeNavigationPreview() {
           <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" aria-label="Loading navigation preview" />}>
             <LiveNavMap
               lines={[{ id: "welcome-drive", mode: "drive", points: route }]}
-              destination={route[route.length - 1]}
-              livePoint={route[2]}
+              destination={destination}
+              livePoint={livePoint}
               speedMps={18}
               bearing={86}
               maneuver={{ glyph: "straight", distanceText: "1.8 mi", road: "H-1 East toward Honolulu" }}
