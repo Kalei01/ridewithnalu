@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createMorningPulseVerdict } from "./intelligence/morning-pulse-verdict";
-
-const PULSE_MAX_STATION_DISTANCE_MILES = 5;
+import { isRailGeographicallyRelevant } from "./intelligence/pulse-geography";
 
 const point = z.object({
   lat: z.number().min(21).max(22),
@@ -31,14 +30,7 @@ export const morningPulse = createServerFn({ method: "POST" })
         ai.nearestStation(data.from),
         ai.nearestStation(data.to),
       ]);
-      const railRelevant = Boolean(
-        originStation &&
-          destinationStation &&
-          originStation.distanceMiles !== null &&
-          destinationStation.distanceMiles !== null &&
-          originStation.distanceMiles <= PULSE_MAX_STATION_DISTANCE_MILES &&
-          destinationStation.distanceMiles <= PULSE_MAX_STATION_DISTANCE_MILES,
-      );
+      const railRelevant = isRailGeographicallyRelevant(originStation, destinationStation);
       // Only surface Skyline when both ends of this actual trip are reasonably
       // close to the rail network. This prevents Oʻahu-wide rail assumptions.
       const rail = railRelevant
