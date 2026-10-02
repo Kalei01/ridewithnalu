@@ -32,34 +32,6 @@ export function createNaluVerdict(input: VerdictEngineInput): NaluDecision {
   const transit = input.estimates.find((item) => item.mode === "transit");
   const freshness = toFreshness(input.trip);
 
-  // A missing transit itinerary must not block a valid live drive verdict.
-  // This is especially important after rail service ends or when no usable
-  // transit itinerary can be formed.
-  if (transit?.availability !== "available" && drive?.availability === "available" && drive.expectedMinutes !== null) {
-    const routeByMode = new Map(input.trip.routes.map((route) => [route.mode, route]));
-    const selectedRoute = routeByMode.get("drive");
-    return {
-      decisionState: "drive",
-      selectedMode: "drive",
-      alternatives: input.trip.routes
-        .filter((route) => route.id !== selectedRoute?.id)
-        .map((route) => route.mode),
-      departureTime: selectedRoute?.departureTime == null
-        ? null
-        : new Date(selectedRoute.departureTime * 1000).toISOString(),
-      arrivalTime: selectedRoute?.arrivalTime == null
-        ? null
-        : new Date(selectedRoute.arrivalTime * 1000).toISOString(),
-      reasons: [{
-        text: "Drive is available, but Nalu could not find a usable transit trip right now",
-        evidence: ["missing-mode-data"],
-      }],
-      warnings: ["Transit is currently unavailable or no usable itinerary was found."],
-      freshness,
-      confidence: drive.quality === "current" || drive.quality === "good" ? "high" : "medium",
-    };
-  }
-
   if (!drive || !transit) {
     return {
       decisionState: "none",
