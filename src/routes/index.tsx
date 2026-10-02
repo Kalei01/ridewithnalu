@@ -3125,7 +3125,16 @@ function Index() {
               }
             : null,
         }
-      : null;
+      : {
+          state: "uncertain",
+          confidence: "low",
+          differenceMinutes: null,
+          primary: {
+            kind: "data_quality",
+            text: "Nalu is waiting for enough route information",
+          },
+          supporting: null,
+        };
 
   const verdict: DecisionState = commitment?.mode ??
     (!arriveByActive && railServiceClosed
