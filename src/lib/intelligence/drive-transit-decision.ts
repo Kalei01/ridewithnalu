@@ -88,11 +88,17 @@ export function decideDriveVsTransit(
   }
 
   if (unavailable.length === 2) {
+    const driveReferenceOnly = drive.eligible === false && transit.availability !== "available";
     return {
       state: "none",
       confidence: "low",
       differenceMinutes: null,
-      primary: evidence("service_availability", "Neither option is available right now"),
+      primary: evidence(
+        "service_availability",
+        driveReferenceOnly
+          ? "No usable transit trip is available right now; Drive is shown as a reference because your car isn't available"
+          : "Neither option is available right now",
+      ),
       supporting: null,
     };
   }
