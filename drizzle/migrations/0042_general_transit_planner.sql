@@ -8,9 +8,9 @@ CREATE OR REPLACE FUNCTION public.plan_transit_general(
   p_dest_lon numeric,
   p_after_seconds integer DEFAULT NULL,
   p_limit integer DEFAULT 6,
-  p_origin_radius_m integer DEFAULT 4000,
-  p_dest_radius_m integer DEFAULT 3000,
-  p_transfer_radius_m integer DEFAULT 800
+  p_origin_radius_m integer DEFAULT 6000,
+  p_dest_radius_m integer DEFAULT 4000,
+  p_transfer_radius_m integer DEFAULT 1200
 )
 RETURNS TABLE(
   leave_by_seconds integer,
