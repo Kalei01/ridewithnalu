@@ -1,4 +1,5 @@
-export type DecisionMode = "drive" | "rail";
+export type DecisionMode = "drive" | "transit";
+export type TransitDecisionMode = "walk" | "bus" | "rail" | "walk+bus" | "walk+rail" | "rail+bus" | "walk+rail+bus";
 
 export type DecisionQuality = "good" | "limited" | "stale" | "unavailable";
 export type DecisionAvailability =
@@ -9,6 +10,7 @@ export type DecisionAvailability =
 
 export type DecisionModeEstimate = {
   mode: DecisionMode;
+  transitMode?: TransitDecisionMode;
   label?: string | undefined;
   availability: DecisionAvailability;
   quality: DecisionQuality;
@@ -26,7 +28,7 @@ export type DecisionModeEstimate = {
 };
 
 export type DriveTransitDecision = {
-  state: "drive" | "rail" | "same" | "none" | "uncertain";
+  state: "drive" | "transit" | "same" | "none" | "uncertain";
   confidence: "high" | "moderate" | "low";
   differenceMinutes: number | null;
   primary: { kind: EvidenceKind; text: string };
@@ -46,7 +48,7 @@ export type EvidenceKind =
 
 export type ArrivalDecision = DriveTransitDecision & {
   driveMarginMinutes: number | null;
-  railMarginMinutes: number | null;
+  transitMarginMinutes: number | null;
 };
 
 const evidence = (kind: EvidenceKind, text: string) => ({ kind, text });
@@ -60,13 +62,13 @@ const evidence = (kind: EvidenceKind, text: string) => ({ kind, text });
  */
 export function decideDriveVsTransit(
   drive: DecisionModeEstimate,
-  rail: DecisionModeEstimate,
-  previous: "drive" | "rail" | null = null,
+  transit: DecisionModeEstimate,
+  previous: "drive" | "transit" | null = null,
   config: { tossUpMinutes?: number; switchMarginMinutes?: number } = {},
 ): DriveTransitDecision {
   const tossUp = config.tossUpMinutes ?? 5;
   const switchMargin = config.switchMarginMinutes ?? 3;
-  const unavailable = [drive, rail].filter((item) => item.availability !== "available");
+  const unavailable = [drive, transit].filter((item) => item.availability !== "available");
 
   if (unavailable.some((item) => item.availability === "data-error")) {
     return {
@@ -93,7 +95,7 @@ export function decideDriveVsTransit(
 
   if (unavailable.length === 1) {
     const winner = unavailable[0]?.mode === "drive" ? "rail" : "drive";
-    const remaining = winner === "drive" ? drive : rail;
+    const remaining = winner === "drive" ? drive : transit;
 
     if (remaining.quality === "stale") {
       return {
@@ -122,7 +124,7 @@ export function decideDriveVsTransit(
     };
   }
 
-  if (drive.quality === "stale" || rail.quality === "stale") {
+  if (drive.quality === "stale" || transit.quality === "stale") {
     return {
       state: "uncertain",
       confidence: "low",
@@ -136,16 +138,16 @@ export function decideDriveVsTransit(
   }
 
   const driveMinutes = drive.expectedMinutes as number;
-  const railMinutes = rail.expectedMinutes as number;
-  const difference = Math.round(Math.abs(driveMinutes - railMinutes));
-  const faster: "drive" | "rail" = driveMinutes < railMinutes ? "drive" : "rail";
+  const transitMinutes = transit.expectedMinutes as number;
+  const difference = Math.round(Math.abs(driveMinutes - transitMinutes));
+  const faster: "drive" | "transit" = driveMinutes < transitMinutes ? "drive" : "transit";
   const intervalsOverlap =
-    (drive.earliestArrival as number) <= (rail.latestArrival as number) &&
-    (rail.earliestArrival as number) <= (drive.latestArrival as number);
+    (drive.earliestArrival as number) <= (transit.latestArrival as number) &&
+    (transit.earliestArrival as number) <= (drive.latestArrival as number);
 
   const wideUncertainty =
     Math.max(drive.uncertaintyMinutes ?? 0, rail.uncertaintyMinutes ?? 0) > 15;
-  const limitedData = drive.quality === "limited" || rail.quality === "limited";
+  const limitedData = drive.quality === "limited" || transit.quality === "limited";
 
   if (limitedData && difference < tossUp * 2) {
     return {
@@ -185,7 +187,7 @@ export function decideDriveVsTransit(
 
   let primary = evidence(
     "time_advantage",
-    `${faster === "drive" ? "Drive" : (rail.label ?? "Transit")} gets you there about ${difference} min sooner`,
+    `${faster === "drive" ? "Drive" : (transit.label ?? "Transit")} gets you there about ${difference} min sooner`,
   );
   let supporting: { kind: EvidenceKind; text: string } | null = null;
 
@@ -199,20 +201,20 @@ export function decideDriveVsTransit(
       "traffic_delay",
       `Traffic is adding about ${Math.round(drive.trafficDelayMinutes as number)} min to the drive`,
     );
-  else if (faster === "drive" && rail.transferMinutes >= 8)
+  else if (faster === "drive" && transit.transferMinutes >= 8)
     supporting = evidence(
       "transfer_wait",
-      `Changing rides adds about ${Math.round(rail.transferMinutes)} min`,
+      `Changing rides adds about ${Math.round(transit.transferMinutes)} min`,
     );
-  else if (faster === "drive" && rail.busWaitMinutes >= 10)
+  else if (faster === "drive" && transit.busWaitMinutes >= 10)
     supporting = evidence(
       "bus_wait",
-      `The bus is adding about ${Math.round(rail.busWaitMinutes)} min of waiting`,
+      `The bus is adding about ${Math.round(transit.busWaitMinutes)} min of waiting`,
     );
-  else if (faster === "drive" && rail.railWaitMinutes >= 10)
+  else if (faster === "drive" && transit.railWaitMinutes >= 10)
     supporting = evidence(
       "rail_wait",
-      `The next train is adding about ${Math.round(rail.railWaitMinutes)} min`,
+      `The next train is adding about ${Math.round(transit.railWaitMinutes)} min`,
     );
 
   if (
@@ -243,13 +245,13 @@ export function decideDriveVsTransitArrival(
 ): ArrivalDecision {
   const driveMargin =
     drive.arrivalTime === null ? null : (targetSeconds - drive.arrivalTime) / 60;
-  const railMargin =
-    rail.arrivalTime === null ? null : (targetSeconds - rail.arrivalTime) / 60;
+  const transitMargin =
+    transit.arrivalTime === null ? null : (targetSeconds - transit.arrivalTime) / 60;
 
   const result = (decision: DriveTransitDecision): ArrivalDecision => ({
     ...decision,
     driveMarginMinutes: driveMargin,
-    railMarginMinutes: railMargin,
+    transitMarginMinutes: transitMargin,
   });
 
   if (
@@ -265,7 +267,7 @@ export function decideDriveVsTransitArrival(
     });
   }
 
-  if (drive.quality === "stale" || rail.quality === "stale") {
+  if (drive.quality === "stale" || transit.quality === "stale") {
     return result({
       state: "uncertain",
       confidence: "low",
@@ -276,13 +278,13 @@ export function decideDriveVsTransitArrival(
   }
 
   const driveFeasible = driveMargin !== null && driveMargin >= 0;
-  const railFeasible = railMargin !== null && railMargin >= 0;
+  const transitFeasible = transitMargin !== null && transitMargin >= 0;
 
   if (
-    (drive.quality === "limited" || rail.quality === "limited") &&
+    (drive.quality === "limited" || transit.quality === "limited") &&
     (driveMargin === null ||
-      railMargin === null ||
-      Math.abs(driveMargin - railMargin) < 10)
+      transitMargin === null ||
+      Math.abs(driveMargin - transitMargin) < 10)
   ) {
     return result({
       state: "uncertain",
@@ -296,7 +298,7 @@ export function decideDriveVsTransitArrival(
     });
   }
 
-  if (!driveFeasible && !railFeasible) {
+  if (!driveFeasible && !transitFeasible) {
     return result({
       state: "none",
       confidence: "low",
@@ -309,7 +311,7 @@ export function decideDriveVsTransitArrival(
     });
   }
 
-  if (driveFeasible !== railFeasible) {
+  if (driveFeasible !== transitFeasible) {
     const winner = driveFeasible ? "drive" : "rail";
     return result({
       state: winner,
@@ -317,16 +319,16 @@ export function decideDriveVsTransitArrival(
       differenceMinutes: null,
       primary: evidence(
         "arrival_margin",
-        `${winner === "drive" ? "Drive" : (rail.label ?? "Transit")} is the option that can get you there on time`,
+        `${winner === "drive" ? "Drive" : (transit.label ?? "Transit")} is the option that can get you there on time`,
       ),
       supporting: null,
     });
   }
 
   const driveProtected = (drive.latestArrival ?? Infinity) <= targetSeconds;
-  const railProtected = (rail.latestArrival ?? Infinity) <= targetSeconds;
+  const transitProtected = (transit.latestArrival ?? Infinity) <= targetSeconds;
 
-  if (driveProtected !== railProtected) {
+  if (driveProtected !== transitProtected) {
     const winner = driveProtected ? "drive" : "rail";
     return result({
       state: winner,
@@ -334,14 +336,14 @@ export function decideDriveVsTransitArrival(
       differenceMinutes: null,
       primary: evidence(
         "arrival_margin",
-        `${winner === "drive" ? "Drive" : (rail.label ?? "Transit")} still gets you there on time if things run a little late`,
+        `${winner === "drive" ? "Drive" : (transit.label ?? "Transit")} still gets you there on time if things run a little late`,
       ),
       supporting: null,
     });
   }
 
-  const later = (drive.leaveTime as number) - (rail.leaveTime as number);
-  const earlier = (rail.arrivalTime as number) - (drive.arrivalTime as number);
+  const later = (drive.leaveTime as number) - (transit.leaveTime as number);
+  const earlier = (transit.arrivalTime as number) - (drive.arrivalTime as number);
 
   if (later >= 0 && earlier >= 0 && (later >= 5 * 60 || earlier >= 5 * 60)) {
     return result({
@@ -363,7 +365,7 @@ export function decideDriveVsTransitArrival(
       differenceMinutes: Math.round(-earlier / 60),
       primary: evidence(
         "arrival_margin",
-        `You can leave later and still get there no later by ${(rail.label ?? "transit").toLowerCase()}`,
+        `You can leave later and still get there no later by ${(transit.label ?? "transit").toLowerCase()}`,
       ),
       supporting: null,
     });
@@ -371,7 +373,7 @@ export function decideDriveVsTransitArrival(
 
   return result({
     state: "same",
-    confidence: driveProtected && railProtected ? "moderate" : "low",
+    confidence: driveProtected && transitProtected ? "moderate" : "low",
     differenceMinutes: Math.round(Math.abs(earlier) / 60),
     primary: evidence(
       "arrival_margin",
