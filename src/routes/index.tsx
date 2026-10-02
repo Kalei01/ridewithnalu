@@ -5822,7 +5822,7 @@ function RailTripBreakdown({
           const label =
             leg.kind === "access"
               ? leg.mode === "walk"
-                ? `Walk to ${stationName || (leg.mode === "bus" ? "the stop" : "the station")}${leg.mode === "bus" ? "" : " Station"}`
+                ? `Walk to ${stationName || "the station"} Station`
                 : stationName
                   ? `To ${stationName}${leg.mode === "bus" ? "" : " Station"}`
                   : leg.mode === "bus" ? "To the stop" : "To the station"
