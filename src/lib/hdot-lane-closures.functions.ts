@@ -137,11 +137,11 @@ function normalizeRoute(value: string | null | undefined) {
 }
 
 function normalizeDirection(value: string) {
-  const lower = value.toLowerCase();
-  if (lower.includes("eastbound")) return "eastbound";
-  if (lower.includes("westbound")) return "westbound";
-  if (lower.includes("northbound")) return "northbound";
-  if (lower.includes("southbound")) return "southbound";
+  const lower = value.trim().toLowerCase();
+  if (lower === "eb" || lower.includes("eastbound")) return "eastbound";
+  if (lower === "wb" || lower.includes("westbound")) return "westbound";
+  if (lower === "nb" || lower.includes("northbound")) return "northbound";
+  if (lower === "sb" || lower.includes("southbound")) return "southbound";
   return null;
 }
 
