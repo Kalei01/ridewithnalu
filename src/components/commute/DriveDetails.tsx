@@ -2,6 +2,12 @@ import type { ReactNode } from "react";
 
 type DriveDetailsProps = {
   content: ReactNode;
+  /** Legacy presentation props retained for route compatibility during cleanup. */
+  tripOriginLabel?: string;
+  tripArrivalLabel?: string;
+  driveMinutes?: number | null;
+  driveLoading?: boolean;
+  driveAvailable?: boolean;
 };
 
 /** Presentation-only shell. The route owns the complete card content so the DOM stays identical to the pre-refactor version. */
