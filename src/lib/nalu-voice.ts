@@ -132,16 +132,13 @@ const RAIL_LINES = [
 const DRIVE_LINES = [
   "Driving is coming out ahead on time.",
   "The car is giving you the shorter trip right now.",
-  "The road option is looking good today.",
-  "Driving has the better number on this one.",
-  "The drive is coming out ahead.",
-  "The car has a solid time advantage here.",
-  "Driving is looking straightforward for this trip.",
-  "The numbers are giving the car the edge.",
-  "The road trip is holding up well today.",
+  "Driving is looking good for this trip.",
+  "The drive has the better time on this one.",
+  "The car is ahead on time.",
+  "Driving looks pretty straightforward today.",
+  "The road option is coming out ahead.",
   "Driving is the shorter option right now.",
-  "The car is ahead on time. Pretty simple.",
-  "The drive has the better clock on this one.",
+  "The car has the better clock today.",
 ];
 
 const TOSS_UP_LINES = [
