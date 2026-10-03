@@ -55,7 +55,7 @@ describe("generateSmartNaluInsight", () => {
     expect(
       generateSmartNaluInsight({
         driveMinutes: 55,
-        transitMinutes: 58,
+        transitMinutes: 65,
         selectedMode: "drive",
         weather: [{ precipPercent: 60, shortForecast: "Rain showers" }],
       }),
@@ -65,8 +65,8 @@ describe("generateSmartNaluInsight", () => {
   it("uses Oʻahu road names in incident-aware copy", () => {
     expect(
       generateSmartNaluInsight({
-        driveMinutes: 70,
-        transitMinutes: 78,
+        driveMinutes: 60,
+        transitMinutes: 75,
         selectedMode: "drive",
         incidents: [
           {
