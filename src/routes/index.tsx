@@ -110,7 +110,11 @@ import { naluHeroVerdictLine } from "@/lib/nalu-voice";
 import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
-import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
+import {
+  filterTransferSanityOptions,
+  findInboundOptions,
+  hubAccessFallback,
+} from "@/lib/rail/inbound-fallback";
 import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictCard } from "@/components/commute/VerdictCard";
@@ -328,7 +332,8 @@ function optionIdentity(option: Option) {
 
 function mergeTransitOptions(...groups: Option[][]): Option[] {
   const unique = new Map<string, Option>();
-  for (const option of groups.flat()) unique.set(optionIdentity(option), option);
+  const saneOptions = filterTransferSanityOptions(groups.flat());
+  for (const option of saneOptions) unique.set(optionIdentity(option), option);
   return Array.from(unique.values())
     .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
     .slice(0, 8);
