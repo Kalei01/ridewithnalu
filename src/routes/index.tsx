@@ -118,8 +118,7 @@ import {
 } from "@/lib/rail/inbound-fallback";
 import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
-import { VerdictCard } from "@/components/commute/VerdictCard";
-import { DecisionBars } from "@/components/commute/DecisionBars";
+import { VerdictDomain } from "@/components/commute/VerdictDomain";
 import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
 import { AccountSection } from "@/components/account/AccountSection";
 import {
