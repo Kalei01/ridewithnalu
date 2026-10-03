@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { LogIn, X } from "lucide-react";
-import { signInWithSocial } from "@/lib/social-sign-in";
+import { appleSignInAvailable, signInWithSocial } from "@/lib/social-sign-in";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
@@ -33,29 +33,32 @@ export function SignInBanner() {
   return (
     <div className="mt-2 flex items-start gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 backdrop-blur-md">
       <p className="flex-1 text-xs leading-snug text-muted-foreground">
-        Sign in with Google or Apple to sync your saved places and alerts across devices.
+        Sign in with {appleSignInAvailable ? "Google or Apple" : "Google"} to sync your saved places and alerts
+        across devices.
       </p>
       <Button
         size="sm"
         variant="outline"
-        className="h-7 shrink-0 px-2 text-xs"
+        className="h-9 shrink-0 px-2 text-xs"
         onClick={() => void signInWithSocial("google")}
       >
         <LogIn className="size-3.5" /> Google
       </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-7 shrink-0 px-2 text-xs"
-        onClick={() => void signInWithSocial("apple")}
-      >
-        Apple
-      </Button>
+      {appleSignInAvailable && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 shrink-0 px-2 text-xs"
+          onClick={() => void signInWithSocial("apple")}
+        >
+          Apple
+        </Button>
+      )}
       <Button
         size="icon"
         variant="ghost"
         aria-label="Dismiss sign-in suggestion"
-        className="size-7 shrink-0 text-muted-foreground"
+        className="size-9 shrink-0 text-muted-foreground"
         onClick={dismiss}
       >
         <X className="size-4" />

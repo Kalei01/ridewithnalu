@@ -389,19 +389,19 @@ function WelcomePage() {
           <h2 id="faq" className="mt-2 text-2xl font-black tracking-tight">What is Nalu?</h2>
           <div className="mt-6 grid gap-3">
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
-              <summary className="cursor-pointer text-sm font-semibold">Does Nalu replace Google Maps or Apple Maps?</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center py-2 text-sm font-semibold">Does Nalu replace Google Maps or Apple Maps?</summary>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">No. Nalu is focused on the commute decision: whether driving or another available option makes sense for your trip and when you should leave. It starts with Oʻahu, where we’re building around real local commute needs.</p>
             </details>
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
-              <summary className="cursor-pointer text-sm font-semibold">Does Nalu use live information?</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center py-2 text-sm font-semibold">Does Nalu use live information?</summary>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">Nalu combines available current information for traffic, incidents, transit, weather, and other commute conditions. Availability and freshness can vary by source and location.</p>
             </details>
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
-              <summary className="cursor-pointer text-sm font-semibold">Can Nalu tell me when to leave for work?</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center py-2 text-sm font-semibold">Can Nalu tell me when to leave for work?</summary>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">Yes. Arrive By planning uses the time you need to arrive to tell you when you should leave.</p>
             </details>
             <details className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
-              <summary className="cursor-pointer text-sm font-semibold">How accurate are Nalu's commute estimates?</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center py-2 text-sm font-semibold">How accurate are Nalu's commute estimates?</summary>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">Estimates depend on the underlying traffic, transit, weather, and incident information available at the time. Real-world conditions can change, so Nalu does not guarantee an arrival time.</p>
             </details>
           </div>

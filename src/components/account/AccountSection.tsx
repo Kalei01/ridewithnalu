@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { signInWithSocial } from "@/lib/social-sign-in";
+import { appleSignInAvailable, signInWithSocial } from "@/lib/social-sign-in";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -140,11 +140,13 @@ export function AccountSection({ compact = false }: { compact?: boolean }) {
           <Button variant="outline" disabled={socialPending} onClick={() => void social("google")}>
             <LogIn /> Continue with Google
           </Button>
-          <Button variant="outline" disabled={socialPending} onClick={() => void social("apple")}>
-            <LogIn /> Continue with Apple
-          </Button>
+          {appleSignInAvailable && (
+            <Button variant="outline" disabled={socialPending} onClick={() => void social("apple")}>
+              <LogIn /> Continue with Apple
+            </Button>
+          )}
           <details open={!compact} className="border-t border-border pt-3">
-            <summary className="cursor-pointer text-sm font-medium">Use email instead</summary>
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Use email instead</summary>
             <div className="mt-3 grid gap-2">
               <Label htmlFor="account-email">Email</Label>
               <Input

@@ -3346,6 +3346,9 @@ function Index() {
       .filter((moment) => moment.outdoorMinutes > 5)
       .sort((a, b) => b.outdoorMinutes - a.outdoorMinutes)[0];
 
+    // Heat and humidity barely change across one trip: say each reading once,
+    // on the first stretch outside, instead of on every leg.
+    const heatSaid = new Set<string>();
     for (const moment of moments) {
       const reading = readings.get(moment.id);
       if (!reading) continue;
@@ -3353,7 +3356,11 @@ function Index() {
       const rain = rainLine(moment, reading);
       if (rain) lines.push({ text: rain, tone: "rain", source: "NWS" });
       const heat = heatLine(moment, reading);
-      if (heat) lines.push(heat);
+      const heatKey = heat?.text.replace(/^[^·]*·\s*/, "");
+      if (heat && heatKey && !heatSaid.has(heatKey)) {
+        heatSaid.add(heatKey);
+        lines.push(heat);
+      }
       if (airMoment && moment.id === airMoment.id) {
         const air = airLine(weather.air?.category ?? 0);
         if (air) lines.push(air);
@@ -4319,7 +4326,7 @@ function Index() {
                 aria-label="Refresh commute conditions"
                 onClick={() => void refresh()}
                 disabled={refreshing}
-                className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
               >
                 <RefreshCw />
               </Button>
@@ -4334,7 +4341,7 @@ function Index() {
                 size="icon"
                 aria-label="Open settings"
                 onClick={() => setSettingsOpen(true)}
-                className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
               >
                 <Settings className="size-5" />
               </Button>
@@ -6502,7 +6509,7 @@ function ShortcutGrid({
                 type="button"
                 onClick={() => setQuickEdit(slot)}
                 aria-label={`Change ${label} address`}
-                className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+                className="absolute right-0 top-0 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground"
               >
                 <Pencil className="size-3.5" />
               </button>
@@ -6523,7 +6530,7 @@ function ShortcutGrid({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 gap-1.5 text-xs text-muted-foreground"
+          className="h-11 gap-1.5 text-xs text-muted-foreground"
           onClick={() => setEditing((value) => !value)}
         >
           {editing ? <Check className="size-3.5" /> : <Pencil className="size-3.5" />}
@@ -6663,7 +6670,7 @@ function SettingsGroup({
         </span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
-      <div className="border-t border-border px-4 py-4">{children}</div>
+      <div className="min-w-0 border-t border-border px-4 py-4">{children}</div>
     </details>
   );
 }
@@ -6981,8 +6988,9 @@ function SetupDialog({
             }
             defaultOpen={firstRun}
           >
-            <div className="grid gap-5">
-              <div className="grid gap-2">
+            {/* grid-cols-1 = minmax(0, 1fr): long addresses truncate instead of widening the sheet. */}
+            <div className="grid min-w-0 grid-cols-1 gap-5">
+              <div className="grid min-w-0 grid-cols-1 gap-2">
                 <Label>From</Label>
                 <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2">
@@ -7009,7 +7017,7 @@ function SetupDialog({
                 )}
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid min-w-0 grid-cols-1 gap-2">
                 <Label htmlFor="destination">To</Label>
                 {draft.destinationName ? (
                   <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
