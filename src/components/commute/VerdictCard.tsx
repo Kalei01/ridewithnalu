@@ -1,16 +1,42 @@
 import { Check } from "lucide-react";
+import { naluHeroVerdictLine } from "@/lib/nalu-voice";
+
+function getHeroPersonality(headline: string): string {
+  const normalized = headline.toLowerCase();
+  const decision = normalized.startsWith("drive")
+    ? "drive"
+    : normalized.startsWith("rail")
+      ? "rail"
+      : normalized.includes("close") || normalized.includes("toss")
+        ? "toss_up"
+        : null;
+
+  if (!decision) return "";
+
+  const match = headline.match(/(\d+)\s*min(?:ute)?s?\s*faster/i);
+  const difference = match ? Number(match[1]) : undefined;
+
+  return naluHeroVerdictLine({
+    decision,
+    timeDifferenceMinutes: difference,
+  });
+}
 
 export function VerdictCard({
   headline,
   metrics,
   reason,
   children,
+  personality,
 }: {
   headline: string;
   metrics?: Array<{ label: string; value: string; accent?: boolean }>;
   reason?: string | null;
   children?: React.ReactNode;
+  personality?: string | null;
 }) {
+  const heroPersonality = personality ?? getHeroPersonality(headline);
+
   return (
     <section
       className="verdict-lift liquid-titanium-slab -mx-2 mt-5 px-5 py-7 sm:px-6"
@@ -22,6 +48,12 @@ export function VerdictCard({
         </span>
         <span className="text-xs font-bold uppercase tracking-[0.08em]">Nalu says</span>
       </div>
+
+      {heroPersonality && (
+        <p className="mb-3 max-w-[42rem] text-sm font-medium leading-6 text-muted-foreground">
+          {heroPersonality}
+        </p>
+      )}
 
       <h1
         id="verdict-title"
