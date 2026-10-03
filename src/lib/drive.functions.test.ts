@@ -13,7 +13,7 @@ describe("drive routing availability", () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
     expect(await lookupDriveTime(data)).toBeNull();
-    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("returns unavailable when TomTom rejects the route", async () => {
