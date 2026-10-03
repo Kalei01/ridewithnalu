@@ -84,13 +84,7 @@ export function H1ConditionsCard({
     { label: "Westbound", data: westbound },
   ];
 
-  const Incident = ({
-    direction,
-    data,
-  }: {
-    direction: string;
-    data: DriveTime;
-  }) => {
+  const Incident = ({ direction, data }: { direction: string; data: DriveTime }) => {
     const incident = data.incidents[0];
     if (!incident) return null;
     const condition = standaloneIncidentCondition(incident);
@@ -105,7 +99,9 @@ export function H1ConditionsCard({
       <div className="mt-3 rounded-xl border border-border bg-background/50 p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">{direction} · {condition}</p>
+            <p className="text-sm font-bold text-foreground">
+              {direction} · {condition}
+            </p>
             <p className="mt-0.5 text-xs font-semibold text-muted-foreground">{road}</p>
           </div>
           <span className="shrink-0 rounded-full bg-warning/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-warning">
@@ -137,14 +133,21 @@ export function H1ConditionsCard({
           <span className="font-semibold text-foreground">H-1 live</span>
           <span className="ml-auto flex flex-wrap justify-end gap-2">
             {loading ? (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Checking traffic…</span>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                Checking traffic…
+              </span>
             ) : unavailable ? (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Not available</span>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                Not available
+              </span>
             ) : (
               rows.map(({ label, data }) => {
                 const status = data ? trafficStatus(data.delayMinutes, data.incidents[0]) : null;
                 return (
-                  <span key={label} className={`rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${status?.className ?? "text-muted-foreground"}`}>
+                  <span
+                    key={label}
+                    className={`rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${status?.className ?? "text-muted-foreground"}`}
+                  >
                     {label} · {status?.label ?? "—"}
                   </span>
                 );
@@ -155,7 +158,9 @@ export function H1ConditionsCard({
         </summary>
         {!loading && !unavailable && (
           <div className="border-t border-border px-4 pb-4">
-            {rows.map(({ label, data }) => data ? <Incident key={label} direction={label} data={data} /> : null)}
+            {rows.map(({ label, data }) =>
+              data ? <Incident key={label} direction={label} data={data} /> : null,
+            )}
             <p className="mt-3 text-[10px] text-muted-foreground">
               Traffic: TomTom · General road alert — not a trip-specific ETA.
             </p>
@@ -166,13 +171,22 @@ export function H1ConditionsCard({
   }
 
   return (
-    <section className="verdict-lift mt-7 rounded-lg border border-border p-5" aria-labelledby="h1-conditions-title">
+    <section
+      className="verdict-lift mt-7 rounded-lg border border-border p-5"
+      aria-labelledby="h1-conditions-title"
+    >
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="h1-conditions-title" className="text-lg font-semibold">H-1 conditions</h2>
+        <h2 id="h1-conditions-title" className="text-lg font-semibold">
+          H-1 conditions
+        </h2>
         <span className="shrink-0 text-[10px] text-muted-foreground">TomTom</span>
       </div>
       {loading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
-      {unavailable && <p className="mt-4 text-sm text-muted-foreground">Live traffic is not available right now.</p>}
+      {unavailable && (
+        <p className="mt-4 text-sm text-muted-foreground">
+          Live traffic is not available right now.
+        </p>
+      )}
       {!loading && !unavailable && (
         <div className="mt-3 divide-y divide-border">
           {rows.map(({ label, data }) => {
@@ -181,7 +195,9 @@ export function H1ConditionsCard({
               <div key={label} className="py-3">
                 <div className="grid min-h-9 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-4">
                   <span className="min-w-0 text-sm text-foreground">H-1 {label}</span>
-                  <span className={`min-w-28 text-center text-sm font-semibold tabular-nums ${status?.className ?? "text-muted-foreground"}`}>
+                  <span
+                    className={`min-w-28 text-center text-sm font-semibold tabular-nums ${status?.className ?? "text-muted-foreground"}`}
+                  >
                     {status?.label ?? "—"}
                   </span>
                 </div>

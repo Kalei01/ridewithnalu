@@ -96,7 +96,11 @@ import {
 } from "@/lib/saved-places";
 import { latestRailArrival as latestTransitArrival } from "@/lib/leave-by";
 import { skylineFallbackHeadwayMinutes } from "@/lib/rail/skyline-fallback";
-import { honoluluSecondsToIso, planDriveArrivalWithRange, solveFutureDrive } from "@/lib/drive/planner";
+import {
+  honoluluSecondsToIso,
+  planDriveArrivalWithRange,
+  solveFutureDrive,
+} from "@/lib/drive/planner";
 import { carAvailableForDrive } from "@/lib/car-state";
 import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-direction";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
@@ -113,7 +117,11 @@ import { VerdictCard } from "@/components/commute/VerdictCard";
 import { DecisionBars } from "@/components/commute/DecisionBars";
 import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
 import { AccountSection } from "@/components/account/AccountSection";
-import { AccountButton, AccountDialog, type PlacesSyncStatus } from "@/components/account/AccountDialog";
+import {
+  AccountButton,
+  AccountDialog,
+  type PlacesSyncStatus,
+} from "@/components/account/AccountDialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { arrivalRange, destinationAccess } from "@/lib/destination-access";
@@ -148,7 +156,13 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { HOLO_FARES } from "@/lib/fares";
-import { AskNalu, BeatTheRush, EveningPulse, MorningPulse, WeeklyDigestCard } from "@/components/ai/NaluAi";
+import {
+  AskNalu,
+  BeatTheRush,
+  EveningPulse,
+  MorningPulse,
+  WeeklyDigestCard,
+} from "@/components/ai/NaluAi";
 import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
 import {
@@ -181,19 +195,20 @@ const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
 
-
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Nalu | Rail or drive on Oʻahu?" },
       {
         name: "description",
-        content: "Rail or drive? Compare Skyline, TheBus, and traffic for your Oʻahu commute. Nalu helps you choose and arrive on time.",
+        content:
+          "Rail or drive? Compare Skyline, TheBus, and traffic for your Oʻahu commute. Nalu helps you choose and arrive on time.",
       },
       { property: "og:title", content: "Nalu | Rail or drive on Oʻahu?" },
       {
         property: "og:description",
-        content: "Compare Skyline, TheBus, and driving for your Oʻahu commute. Know what to take and when to leave.",
+        content:
+          "Compare Skyline, TheBus, and driving for your Oʻahu commute. Know what to take and when to leave.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Nalu" },
@@ -204,25 +219,34 @@ export const Route = createFileRoute("/")({
       { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Nalu | Rail or drive on Oʻahu?" },
-      { name: "twitter:description", content: "A clear commute choice for Skyline, TheBus, and driving on Oʻahu." },
+      {
+        name: "twitter:description",
+        content: "A clear commute choice for Skyline, TheBus, and driving on Oʻahu.",
+      },
       { name: "twitter:image", content: "https://ridewithnalu.lovable.app/social-card.png" },
     ],
     links: [{ rel: "canonical", href: "https://ridewithnalu.lovable.app/" }],
-    scripts: [{
-      type: "application/ld+json",
-      children: JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        name: "Nalu",
-        url: "https://ridewithnalu.lovable.app/",
-        image: "https://ridewithnalu.lovable.app/social-card.png",
-        description: "Nalu compares rail, bus, and driving for Oʻahu commutes.",
-        applicationCategory: "TravelApplication",
-        operatingSystem: "Web",
-        areaServed: { "@type": "Place", name: "Oʻahu, Hawaiʻi" },
-        featureList: ["Skyline and TheBus trip planning", "Drive and transit comparison", "Arrive By planning"],
-      }),
-    }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "Nalu",
+          url: "https://ridewithnalu.lovable.app/",
+          image: "https://ridewithnalu.lovable.app/social-card.png",
+          description: "Nalu compares rail, bus, and driving for Oʻahu commutes.",
+          applicationCategory: "TravelApplication",
+          operatingSystem: "Web",
+          areaServed: { "@type": "Place", name: "Oʻahu, Hawaiʻi" },
+          featureList: [
+            "Skyline and TheBus trip planning",
+            "Drive and transit comparison",
+            "Arrive By planning",
+          ],
+        }),
+      },
+    ],
   }),
   component: Index,
 });
@@ -309,7 +333,6 @@ function mergeTransitOptions(...groups: Option[][]): Option[] {
     .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
     .slice(0, 8);
 }
-
 
 const STORAGE_KEY = "nalu-setup-v3";
 const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
@@ -463,7 +486,6 @@ type OutdoorMoment = {
   label?: string | null;
 };
 
-
 /** Rain is worth a word above 40%, or above 50% when the rider is driving. */
 function rainLine(moment: OutdoorMoment, reading: MomentConditions): string | null {
   const chance = reading.precipPercent;
@@ -525,8 +547,6 @@ function heatLine(moment: OutdoorMoment, reading: MomentConditions): WeatherLine
   return null;
 }
 
-
-
 function readJson<T>(key: string): T | null {
   try {
     const raw = window.localStorage.getItem(key);
@@ -554,7 +574,6 @@ const emptySetup: Setup = {
   allowDrive: false,
 };
 
-
 /** First name from the signed-in profile: full name, then given name, then username. */
 function profileFirstName(
   user: { user_metadata?: Record<string, unknown>; email?: string | null } | null,
@@ -571,9 +590,6 @@ function profileFirstName(
   if (email) return email.split("@")[0];
   return undefined;
 }
-
-
-
 
 function nearbyServiceLabel(stop: NearbyStop) {
   const arrival = stop.arrivals[0];
@@ -606,7 +622,6 @@ function vehicleName(leg: Leg) {
   return `${verb} to ${to}`;
 }
 
-
 function modeIcon(mode: Leg["mode"]) {
   if (mode === "rail") return TrainFront;
   if (mode === "bus") return Bus;
@@ -614,13 +629,16 @@ function modeIcon(mode: Leg["mode"]) {
   return Footprints;
 }
 
-
 function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
   if (source.quality === "unavailable") {
-    return source.basis === "live" ? "Live traffic · Not available" : "Transit schedule · Not available";
+    return source.basis === "live"
+      ? "Live traffic · Not available"
+      : "Transit schedule · Not available";
   }
   if (source.fetchedAt === null) {
-    return source.basis === "live" ? "Live traffic · Update time unknown" : "Transit schedule · Update time unknown";
+    return source.basis === "live"
+      ? "Live traffic · Update time unknown"
+      : "Transit schedule · Update time unknown";
   }
 
   const ageSeconds = Math.max(0, Math.round((nowMs - source.fetchedAt) / 1000));
@@ -631,28 +649,52 @@ function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
         ? `${ageSeconds} sec ago`
         : `${Math.round(ageSeconds / 60)} min ago`;
 
-  let label = source.basis === "live"
-    ? "Live traffic"
-    : source.name.includes("TheBus")
-      ? "Bus schedule"
-      : "Train schedule";
+  let label =
+    source.basis === "live"
+      ? "Live traffic"
+      : source.name.includes("TheBus")
+        ? "Bus schedule"
+        : "Train schedule";
 
   if (source.basis === "future-estimate") label = "Future traffic estimate";
 
   return `${label} · Updated ${age}${source.quality === "stale" ? " · Stale" : ""}`;
 }
 
-
-
-function NaluPageNav({ current, onBrowse }: { current: "browse" | "commute"; onBrowse: () => void }) {
-  const itemClass = "flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors";
+function NaluPageNav({
+  current,
+  onBrowse,
+}: {
+  current: "browse" | "commute";
+  onBrowse: () => void;
+}) {
+  const itemClass =
+    "flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors";
   const activeClass = "bg-recommended text-recommended-foreground shadow-sm";
   const inactiveClass = "text-muted-foreground hover:bg-background/60 hover:text-foreground";
   return (
-    <nav className="mt-4 flex items-center gap-1 rounded-full border border-border/70 bg-surface-raised/70 p-1 backdrop-blur-md" aria-label="Nalu pages">
-      <Link to="/welcome" className={itemClass + " " + inactiveClass} aria-label="Nalu landing page"><House className="size-3.5" />Nalu</Link>
-      <button type="button" onClick={onBrowse} className={itemClass + " " + (current === "browse" ? activeClass : inactiveClass)} aria-current={current === "browse" ? "page" : undefined}><MapPin className="size-3.5" />Browse</button>
-          </nav>
+    <nav
+      className="mt-4 flex items-center gap-1 rounded-full border border-border/70 bg-surface-raised/70 p-1 backdrop-blur-md"
+      aria-label="Nalu pages"
+    >
+      <Link
+        to="/welcome"
+        className={itemClass + " " + inactiveClass}
+        aria-label="Nalu landing page"
+      >
+        <House className="size-3.5" />
+        Nalu
+      </Link>
+      <button
+        type="button"
+        onClick={onBrowse}
+        className={itemClass + " " + (current === "browse" ? activeClass : inactiveClass)}
+        aria-current={current === "browse" ? "page" : undefined}
+      >
+        <MapPin className="size-3.5" />
+        Browse
+      </button>
+    </nav>
   );
 }
 
@@ -714,7 +756,11 @@ function Index() {
   // The itinerary boarded, held for the duration of a locked transit trip.
   const lockedOptionRef = useRef<Option | null>(null);
   const lockedItineraryCandidate = useRef<Option | null>(null);
-  const decisionHistoryRef = useRef<{ key: string; state: "drive" | "transit" | "same"; snapshot: DecisionSnapshot | null } | null>(null);
+  const decisionHistoryRef = useRef<{
+    key: string;
+    state: "drive" | "transit" | "same";
+    snapshot: DecisionSnapshot | null;
+  } | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [planMode, setPlanMode] = useState<PlanMode>("leave-now");
   const [arriveByInput, setArriveByInput] = useState("");
@@ -771,7 +817,9 @@ function Index() {
       setCommitment(storedCommitment);
       setSelectedMode(storedCommitment.mode);
       if (storedCommitment.mode === "transit")
-        lockedOptionRef.current = parseLockedItinerary(window.localStorage.getItem(LOCKED_OPTION_KEY));
+        lockedOptionRef.current = parseLockedItinerary(
+          window.localStorage.getItem(LOCKED_OPTION_KEY),
+        );
     }
     const storedMode = window.localStorage.getItem(PLAN_MODE_KEY);
     if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
@@ -851,7 +899,8 @@ function Index() {
           }),
         ]);
         if (cancelled) return;
-        if (writes.some((result) => result.error)) throw new Error("Could not save account preferences");
+        if (writes.some((result) => result.error))
+          throw new Error("Could not save account preferences");
         syncedUserRef.current = user.id;
         setSyncReadyUser(user.id);
         setPlacesSyncStatus("synced");
@@ -892,7 +941,10 @@ function Index() {
         }
       })();
     }, 500);
-    return () => { cancelled = true; window.clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [user?.id, syncReadyUser, savedPlaces, alertPrefs, planMode, arriveByInput, setup]);
 
   // Track whether the browser has blocked location so the app can offer
@@ -1118,10 +1170,10 @@ function Index() {
       return data[0];
     },
   });
-  const arrivalStationId = inbound && !reverseTrip
-    ? inboundStation?.stop_id ?? null : setup.homeStopId;
-  const arrivalStationName = inbound && !reverseTrip
-    ? inboundStation?.stop_name ?? "" : setup.homeStopName;
+  const arrivalStationId =
+    inbound && !reverseTrip ? (inboundStation?.stop_id ?? null) : setup.homeStopId;
+  const arrivalStationName =
+    inbound && !reverseTrip ? (inboundStation?.stop_name ?? "") : setup.homeStopName;
   // The generalized planner is door-to-door and must be available for every
   // configured trip, even when the selected origin/destination has no nearby
   // rail station. The legacy rail planner below remains optional and can fail
@@ -1138,7 +1190,9 @@ function Index() {
   if (online) lastOnlineScheduleSeconds.current = afterSeconds;
   // Keep schedule query keys on their last successful minute while offline,
   // so React Query continues showing the cached itinerary and nearby arrivals.
-  const scheduleAfterSeconds = online ? afterSeconds : lastOnlineScheduleSeconds.current ?? afterSeconds;
+  const scheduleAfterSeconds = online
+    ? afterSeconds
+    : (lastOnlineScheduleSeconds.current ?? afterSeconds);
   // Where today's car is. With station driving enabled, an unrecorded return
   // starts with the car at the home station; an explicit same-day location wins.
   const parkedToday = parked && parked.date === honoluluDateKey(now) ? parked : null;
@@ -1319,7 +1373,9 @@ function Index() {
     browseUserPoint && browseStation && distanceM(browseUserPoint, browseStation) > 2414,
   );
   const browseWalkMinutes =
-    browseUserPoint && browseStation ? walkingEstimate(browseUserPoint, browseStation).minutes : null;
+    browseUserPoint && browseStation
+      ? walkingEstimate(browseUserPoint, browseStation).minutes
+      : null;
   const trainsEveryMinutes = useMemo(() => {
     const gaps = browseDirections
       .map((d) =>
@@ -1343,7 +1399,8 @@ function Index() {
       browseUserPoint?.lon.toFixed(3),
       Math.floor(scheduleAfterSeconds / 300),
     ],
-    enabled: browseActive && Boolean(browseStation && browseUserPoint) && (browseWalkMinutes ?? 0) > 18,
+    enabled:
+      browseActive && Boolean(browseStation && browseUserPoint) && (browseWalkMinutes ?? 0) > 18,
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("feeder_bus_to_station", {
@@ -1443,8 +1500,12 @@ function Index() {
       if (rateTimer !== undefined) window.clearTimeout(rateTimer);
     };
   }, [planMode, arriveByTarget]);
-  const { data: options = [], isLoading: planLoading, isError: planFailed,
-    dataUpdatedAt: optionsFetchedAt } = useQuery({
+  const {
+    data: options = [],
+    isLoading: planLoading,
+    isError: planFailed,
+    dataUpdatedAt: optionsFetchedAt,
+  } = useQuery({
     queryKey: [
       "trip",
       inbound ? "inbound" : "outbound",
@@ -1458,7 +1519,7 @@ function Index() {
       setup.allowDrive,
       carAtStation,
       driveAvailable,
-         scheduleAfterSeconds,
+      scheduleAfterSeconds,
       planMode,
       planMode === "arrive-by" ? arriveByTarget : null,
     ],
@@ -1530,7 +1591,8 @@ function Index() {
                 ...row,
                 legs: row.legs as unknown as Leg[],
               })) as Option[];
-              if (outboundOptions.length) return mergeTransitOptions(outboundOptions, primaryTransit);
+              if (outboundOptions.length)
+                return mergeTransitOptions(outboundOptions, primaryTransit);
             }
           } catch (error) {
             recordTransitRpcError("plan_outbound", error);
@@ -1608,9 +1670,7 @@ function Index() {
           if (selectedInboundStation) {
             const hubOptions = (await hubAccessFallback({
               origin: tripDirection.from as Coords,
-              stations: stations.filter(
-                (station) => station.stop_id !== selectedInboundStation,
-              ),
+              stations: stations.filter((station) => station.stop_id !== selectedInboundStation),
               afterSeconds: cursor,
               fetchFromHub: async (hub, after) => {
                 const { data, error } = await supabase.rpc("plan_inbound", {
@@ -1618,8 +1678,7 @@ function Index() {
                   p_dest_lat: hub.lat,
                   p_dest_lon: hub.lon,
                   p_station: selectedInboundStation!,
-                  p_allow_drive:
-                    selectedInboundStation === arrivalStationId ? carAtStation : false,
+                  p_allow_drive: selectedInboundStation === arrivalStationId ? carAtStation : false,
                   p_after_seconds: after,
                   p_limit: planMode === "arrive-by" ? 8 : 4,
                 });
@@ -1700,9 +1759,12 @@ function Index() {
       if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
         return fetchPage(scheduleAfterSeconds);
       const result = await collectArriveByOptions({
-        nowSeconds: scheduleAfterSeconds, targetSeconds: arriveByTarget, fetchPage,
+        nowSeconds: scheduleAfterSeconds,
+        targetSeconds: arriveByTarget,
+        fetchPage,
       });
-      if (!result.complete) throw new Error("Arrival timetable search reached its safe page limit.");
+      if (!result.complete)
+        throw new Error("Arrival timetable search reached its safe page limit.");
       return result.options;
     },
   });
@@ -1729,8 +1791,12 @@ function Index() {
   lockedItineraryCandidate.current = liveBest ?? null;
 
   const transitLabel = best?.legs.some((leg) => leg.mode === "rail")
-    ? best.legs.some((leg) => leg.mode === "bus") ? "Rail + Bus" : "Rail"
-    : best?.legs.some((leg) => leg.mode === "bus") ? "Bus" : "Transit";
+    ? best.legs.some((leg) => leg.mode === "bus")
+      ? "Rail + Bus"
+      : "Rail"
+    : best?.legs.some((leg) => leg.mode === "bus")
+      ? "Bus"
+      : "Transit";
   const transitUsesRail = best?.legs.some((leg) => leg.mode === "rail") ?? false;
   const transitUsesBus = best?.legs.some((leg) => leg.mode === "bus") ?? false;
 
@@ -1918,10 +1984,15 @@ function Index() {
     retry: false,
     queryFn: () => fetchBusArrivals({ data: busTarget as BusStopTarget }),
   });
-  const confirmedBusArrival = plannedBusLeg && liveBus
-    ? matchLiveArrival(liveBus, plannedBusLeg.route_short, plannedBusLeg.headsign,
-        plannedBusLeg.depart_seconds)
-    : null;
+  const confirmedBusArrival =
+    plannedBusLeg && liveBus
+      ? matchLiveArrival(
+          liveBus,
+          plannedBusLeg.route_short,
+          plannedBusLeg.headsign,
+          plannedBusLeg.depart_seconds,
+        )
+      : null;
 
   // --- Automatic "approaching your stop" tracking -------------------------
   // No button: whenever the current plan has a transit leg underway, follow it
@@ -2154,7 +2225,9 @@ function Index() {
   const driveFrom = tripDirection.from;
   const driveTo = tripDirection.to;
   const rawFetchDriveTime = useServerFn(driveTime);
-  const fetchDriveTime = async (input: Parameters<typeof rawFetchDriveTime>[0]): Promise<DriveTime> => {
+  const fetchDriveTime = async (
+    input: Parameters<typeof rawFetchDriveTime>[0],
+  ): Promise<DriveTime> => {
     const result = await rawFetchDriveTime(input);
     if (!result) throw new Error("Drive routing temporarily unavailable");
     return result;
@@ -2539,7 +2612,9 @@ function Index() {
       rerouting,
       gpsAccuracyM: riderAccuracy,
       fixAgeMs:
-        riderFixTimestamp.current === null ? null : Math.max(0, Date.now() - riderFixTimestamp.current),
+        riderFixTimestamp.current === null
+          ? null
+          : Math.max(0, Date.now() - riderFixTimestamp.current),
     });
     if (phrase)
       debugLog("voice", {
@@ -2613,10 +2688,14 @@ function Index() {
   );
   const gtfsExpiry = useDataExpiry();
   const driveAccess = destinationAccess(driveTo, arrivingHome ? "home" : null);
-  const futureCandidateSeconds = arriveByActive && settledTrafficTarget === arriveByTarget && drive
-    ? arriveByTarget - (drive.highMinutes + driveAccess.highMin) * 60 : null;
-  const futureDepartureIso = futureCandidateSeconds !== null && !arriveByPassed && futureCandidateSeconds > nowSeconds
-    ? honoluluSecondsToIso(futureCandidateSeconds, now) : null;
+  const futureCandidateSeconds =
+    arriveByActive && settledTrafficTarget === arriveByTarget && drive
+      ? arriveByTarget - (drive.highMinutes + driveAccess.highMin) * 60
+      : null;
+  const futureDepartureIso =
+    futureCandidateSeconds !== null && !arriveByPassed && futureCandidateSeconds > nowSeconds
+      ? honoluluSecondsToIso(futureCandidateSeconds, now)
+      : null;
   const { data: futureDriveResult } = useQuery({
     queryKey: [
       "drive-future",
@@ -2679,40 +2758,58 @@ function Index() {
       ? `Drive time: TomTom future estimate for a ${clockFromSeconds(futureDriveResult?.candidateSeconds ?? nowSeconds)} departure${futureDriveResult?.converged ? "" : " (approximate)"}`
       : arriveByActive && drive
         ? "Drive time: current TomTom traffic used as a fallback; future conditions may differ"
-      : drive?.trafficBasis === "live"
-        ? "Drive time: TomTom live traffic"
-        : "Drive time: TomTom";
+        : drive?.trafficBasis === "live"
+          ? "Drive time: TomTom live traffic"
+          : "Drive time: TomTom";
 
   const drivePlan = useMemo(
     () =>
       arriveByTarget === null || !arriveByDrive || !driveAvailable
         ? null
-        : planDriveArrivalWithRange(
-            arriveByTarget,
-            arriveByDrive,
-            driveAccess,
-            nowSeconds,
-            { estimated: Boolean(futureDrive), converged: futureDriveResult?.converged,
-              iterations: futureDriveResult?.iterations, futureFailed: futureDriveResult?.futureFailed },
-          ),
-    [arriveByTarget, arriveByDrive, driveAvailable, driveAccess, nowSeconds, futureDrive, futureDriveResult],
+        : planDriveArrivalWithRange(arriveByTarget, arriveByDrive, driveAccess, nowSeconds, {
+            estimated: Boolean(futureDrive),
+            converged: futureDriveResult?.converged,
+            iterations: futureDriveResult?.iterations,
+            futureFailed: futureDriveResult?.futureFailed,
+          }),
+    [
+      arriveByTarget,
+      arriveByDrive,
+      driveAvailable,
+      driveAccess,
+      nowSeconds,
+      futureDrive,
+      futureDriveResult,
+    ],
   );
   const arrivalDriveEstimate = driveEstimate({
-    drive: arriveByDrive ?? null, access: driveAccess, nowSeconds, nowMs: now.getTime(),
-    leaveAtSeconds: drivePlan?.leaveBySeconds ?? nowSeconds, carAvailable: driveAvailable,
-    failed: driveFailed, targetArrivalSeconds: arriveByTarget,
-    ...(arriveByActive && (!futureDrive || !futureDriveResult?.converged || futureDriveResult.futureFailed)
-      ? { qualityOverride: "limited" as const } : {}),
+    drive: arriveByDrive ?? null,
+    access: driveAccess,
+    nowSeconds,
+    nowMs: now.getTime(),
+    leaveAtSeconds: drivePlan?.leaveBySeconds ?? nowSeconds,
+    carAvailable: driveAvailable,
+    failed: driveFailed,
+    targetArrivalSeconds: arriveByTarget,
+    ...(arriveByActive &&
+    (!futureDrive || !futureDriveResult?.converged || futureDriveResult.futureFailed)
+      ? { qualityOverride: "limited" as const }
+      : {}),
   });
   const arrivalTransitEstimate = transitEstimate({
-    option: transitPick?.option ?? null, nowSeconds, nowMs: now.getTime(),
-    scheduleFetchedAt: optionsFetchedAt || null, failed: optionsFailed,
+    option: transitPick?.option ?? null,
+    nowSeconds,
+    nowMs: now.getTime(),
+    scheduleFetchedAt: optionsFetchedAt || null,
+    failed: optionsFailed,
     targetArrivalSeconds: arriveByTarget,
     feedExpired: gtfsExpiry !== null && gtfsExpiry.daysRemaining < 0,
     liveBusFetchedAt: confirmedBusArrival ? (liveBus?.fetchedAt ?? null) : null,
   });
-  const arriveByComparison = arriveByTarget === null ? null
-    : decideArrival(arrivalDriveEstimate, arrivalTransitEstimate, arriveByTarget);
+  const arriveByComparison =
+    arriveByTarget === null
+      ? null
+      : decideArrival(arrivalDriveEstimate, arrivalTransitEstimate, arriveByTarget);
 
   // In arrive-by mode the itinerary shown is the latest one that still makes it.
   const arriveByLeaveBy =
@@ -2804,40 +2901,51 @@ function Index() {
   const todayHours = railHours.find((row) => row.dow === honoluluIsoDow(now));
   const railServiceClosed = Boolean(
     todayHours &&
-      (nowSeconds >= Number(todayHours.last_seconds) ||
-        nowSeconds < Number(todayHours.first_seconds)),
+    (nowSeconds >= Number(todayHours.last_seconds) ||
+      nowSeconds < Number(todayHours.first_seconds)),
   );
-  const railClosedForEvening = Boolean(
-    todayHours && nowSeconds >= Number(todayHours.last_seconds),
-  );
-  const railNotRunningYet = Boolean(
-    todayHours && nowSeconds < Number(todayHours.first_seconds),
-  );
+  const railClosedForEvening = Boolean(todayHours && nowSeconds >= Number(todayHours.last_seconds));
+  const railNotRunningYet = Boolean(todayHours && nowSeconds < Number(todayHours.first_seconds));
   // Rail total carries a safety buffer, and a range for transfers that slip.
   const driveTripEstimate = driveEstimate({
-    drive: drive ?? null, access: driveAccess, nowSeconds, nowMs: now.getTime(),
-    carAvailable: driveAvailable, failed: driveFailed,
+    drive: drive ?? null,
+    access: driveAccess,
+    nowSeconds,
+    nowMs: now.getTime(),
+    carAvailable: driveAvailable,
+    failed: driveFailed,
     majorIncident: Boolean(drive?.incidents[0]),
   });
   const transitTripEstimate = transitEstimate({
-    option: best ?? null, nowSeconds, nowMs: now.getTime(),
-    scheduleFetchedAt: optionsFetchedAt || null, failed: optionsFailed,
+    option: best ?? null,
+    nowSeconds,
+    nowMs: now.getTime(),
+    scheduleFetchedAt: optionsFetchedAt || null,
+    failed: optionsFailed,
     feedExpired: gtfsExpiry !== null && gtfsExpiry.daysRemaining < 0,
     liveBusFetchedAt: confirmedBusArrival ? (liveBus?.fetchedAt ?? null) : null,
   });
   const transitMinutes = transitTripEstimate.expectedDurationMinutes;
-  const transitRange = transitTripEstimate.availability === "available" ? {
-    low: Math.round(((transitTripEstimate.earliestArrival as number) - nowSeconds) / 60),
-    high: Math.round(((transitTripEstimate.latestArrival as number) - nowSeconds) / 60),
-  } : null;
-  const itineraryRange = arriveByActive && best ? {
-    low: Math.max(0, best.total_minutes - 1),
-    high: Math.round(best.total_minutes + (transitTripEstimate.uncertaintyMinutes ?? 0)),
-  } : transitRange;
+  const transitRange =
+    transitTripEstimate.availability === "available"
+      ? {
+          low: Math.round(((transitTripEstimate.earliestArrival as number) - nowSeconds) / 60),
+          high: Math.round(((transitTripEstimate.latestArrival as number) - nowSeconds) / 60),
+        }
+      : null;
+  const itineraryRange =
+    arriveByActive && best
+      ? {
+          low: Math.max(0, best.total_minutes - 1),
+          high: Math.round(best.total_minutes + (transitTripEstimate.uncertaintyMinutes ?? 0)),
+        }
+      : transitRange;
   const driveArrival = drive
-    ? arrivalRange(nowSeconds,
+    ? arrivalRange(
+        nowSeconds,
         { low: drive.lowMinutes, expected: drive.trafficMinutes, high: drive.highMinutes },
-        driveAccess)
+        driveAccess,
+      )
     : null;
   const driveBufferNote =
     driveAccess.highMin > 0
@@ -2846,33 +2954,42 @@ function Index() {
   const driveWindow = driveArrival
     ? `${clockFromSeconds(driveArrival.earliestSeconds)} – ${clockFromSeconds(driveArrival.latestSeconds)}`
     : null;
-  const driveRange = driveTripEstimate.availability === "available" ? {
-    low: Math.round(((driveTripEstimate.earliestArrival as number) - nowSeconds) / 60),
-    high: Math.round(((driveTripEstimate.latestArrival as number) - nowSeconds) / 60),
-  } : null;
-  const transitWindow = best && transitTripEstimate.earliestArrival !== null && transitTripEstimate.latestArrival !== null
-    ? `${clockFromSeconds(transitTripEstimate.earliestArrival)} – ${clockFromSeconds(transitTripEstimate.latestArrival)}`
-    : null;
+  const driveRange =
+    driveTripEstimate.availability === "available"
+      ? {
+          low: Math.round(((driveTripEstimate.earliestArrival as number) - nowSeconds) / 60),
+          high: Math.round(((driveTripEstimate.latestArrival as number) - nowSeconds) / 60),
+        }
+      : null;
+  const transitWindow =
+    best &&
+    transitTripEstimate.earliestArrival !== null &&
+    transitTripEstimate.latestArrival !== null
+      ? `${clockFromSeconds(transitTripEstimate.earliestArrival)} – ${clockFromSeconds(transitTripEstimate.latestArrival)}`
+      : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
   const decisionKey = `${planMode}:${inbound}:${setup.homeLat}:${setup.homeLon}:${setup.destLat}:${setup.destLon}`;
   const previousVerdict =
-    decisionHistoryRef.current?.key === decisionKey &&
-    decisionHistoryRef.current.state !== "same"
+    decisionHistoryRef.current?.key === decisionKey && decisionHistoryRef.current.state !== "same"
       ? decisionHistoryRef.current.state
       : null;
-  const previousDecisionSnapshot = decisionHistoryRef.current?.key === decisionKey
-    ? decisionHistoryRef.current.snapshot : null;
+  const previousDecisionSnapshot =
+    decisionHistoryRef.current?.key === decisionKey ? decisionHistoryRef.current.snapshot : null;
   const centralTrip = useMemo(() => {
     if (
-      setup.homeLat === null || setup.homeLon === null ||
-      setup.destLat === null || setup.destLon === null
-    ) return null;
+      setup.homeLat === null ||
+      setup.homeLon === null ||
+      setup.destLat === null ||
+      setup.destLon === null
+    )
+      return null;
 
     const origin = { latitude: setup.homeLat, longitude: setup.homeLon };
     const destination = { latitude: setup.destLat, longitude: setup.destLon };
-    const constraint = arriveByTarget !== null
-      ? { type: "arrive-by" as const, timestamp: arriveByTarget }
-      : { type: "now" as const };
+    const constraint =
+      arriveByTarget !== null
+        ? { type: "arrive-by" as const, timestamp: arriveByTarget }
+        : { type: "now" as const };
 
     return createCanonicalTrip({
       origin,
@@ -2883,24 +3000,31 @@ function Index() {
       routes: [driveTripEstimate, transitTripEstimate].map((estimate) => ({
         id: `${estimate.mode}-route`,
         mode: estimate.mode,
-        segments: [{
-          id: `${estimate.mode}-estimate`,
-          mode: estimate.mode,
-          origin,
-          destination,
-          departureTime: estimate.leaveTime,
-          arrivalTime: estimate.arrivalTime,
-          durationMinutes: estimate.expectedDurationMinutes,
-          distanceMeters: null,
-          routeGeometry: [],
-          source: estimate.source.name,
-          observedAt: estimate.source.fetchedAt === null ? null : estimate.source.fetchedAt / 1000,
-          quality:
-            estimate.source.quality === "good" ? "current" :
-            estimate.source.quality === "limited" ? "limited" :
-            estimate.source.quality === "stale" ? "stale" : "unavailable",
-          notes: [],
-        }],
+        segments: [
+          {
+            id: `${estimate.mode}-estimate`,
+            mode: estimate.mode,
+            origin,
+            destination,
+            departureTime: estimate.leaveTime,
+            arrivalTime: estimate.arrivalTime,
+            durationMinutes: estimate.expectedDurationMinutes,
+            distanceMeters: null,
+            routeGeometry: [],
+            source: estimate.source.name,
+            observedAt:
+              estimate.source.fetchedAt === null ? null : estimate.source.fetchedAt / 1000,
+            quality:
+              estimate.source.quality === "good"
+                ? "current"
+                : estimate.source.quality === "limited"
+                  ? "limited"
+                  : estimate.source.quality === "stale"
+                    ? "stale"
+                    : "unavailable",
+            notes: [],
+          },
+        ],
         departureTime: estimate.leaveTime,
         arrivalTime: estimate.arrivalTime,
         durationMinutes: estimate.expectedDurationMinutes,
@@ -2910,79 +3034,101 @@ function Index() {
       })),
     });
   }, [
-    setup.homeLat, setup.homeLon, setup.destLat, setup.destLon,
-    arriveByTarget, nowSeconds, driveTripEstimate, transitTripEstimate,
+    setup.homeLat,
+    setup.homeLon,
+    setup.destLat,
+    setup.destLon,
+    arriveByTarget,
+    nowSeconds,
+    driveTripEstimate,
+    transitTripEstimate,
   ]);
 
   const centralVerdict = useMemo(
-    () => centralTrip === null ? null : createNaluVerdict({
-      trip: centralTrip,
-      estimates: [driveTripEstimate, transitTripEstimate].map((estimate) => ({
-        mode: estimate.mode === "drive" ? "drive" : "transit",
-        transitMode: estimate.transitMode,
-        label: estimate.transitLabel,
-        availability: estimate.availability,
-        quality: estimate.source.quality === "good" ? "good" : estimate.source.quality,
-        expectedMinutes: estimate.expectedDurationMinutes,
-        leaveTime: estimate.leaveTime,
-        arrivalTime: estimate.arrivalTime,
-        earliestArrival: estimate.earliestArrival,
-        latestArrival: estimate.latestArrival,
-        uncertaintyMinutes: estimate.uncertaintyMinutes,
-        trafficDelayMinutes: estimate.trafficDelayMinutes,
-        majorIncident: estimate.majorIncident,
-        eligible: estimate.mode === "drive" ? driveAvailable : undefined,
-        railWaitMinutes: estimate.railWaitMinutes,
-        busWaitMinutes: estimate.busWaitMinutes,
-        transferMinutes: estimate.transferMinutes,
-      })),
-      previousMode: previousVerdict,
-      tossUpMinutes: TOSS_UP_MIN,
-    }),
+    () =>
+      centralTrip === null
+        ? null
+        : createNaluVerdict({
+            trip: centralTrip,
+            estimates: [driveTripEstimate, transitTripEstimate].map((estimate) => ({
+              mode: estimate.mode === "drive" ? "drive" : "transit",
+              transitMode: estimate.transitMode,
+              label: estimate.transitLabel,
+              availability: estimate.availability,
+              quality: estimate.source.quality === "good" ? "good" : estimate.source.quality,
+              expectedMinutes: estimate.expectedDurationMinutes,
+              leaveTime: estimate.leaveTime,
+              arrivalTime: estimate.arrivalTime,
+              earliestArrival: estimate.earliestArrival,
+              latestArrival: estimate.latestArrival,
+              uncertaintyMinutes: estimate.uncertaintyMinutes,
+              trafficDelayMinutes: estimate.trafficDelayMinutes,
+              majorIncident: estimate.majorIncident,
+              eligible: estimate.mode === "drive" ? driveAvailable : undefined,
+              railWaitMinutes: estimate.railWaitMinutes,
+              busWaitMinutes: estimate.busWaitMinutes,
+              transferMinutes: estimate.transferMinutes,
+            })),
+            previousMode: previousVerdict,
+            tossUpMinutes: TOSS_UP_MIN,
+          }),
     [centralTrip, driveTripEstimate, transitTripEstimate, previousVerdict],
   );
 
-  const activeDecision = arriveByActive && arriveByComparison
-    ? arriveByComparison
-    : centralVerdict
-      ? {
-          state: centralVerdict.decisionState as DecisionState,
-          confidence:
-            centralVerdict.confidence === "medium" ? "moderate" : centralVerdict.confidence ?? "low",
-          differenceMinutes:
-            driveTripEstimate.expectedDurationMinutes !== null &&
-            transitTripEstimate.expectedDurationMinutes !== null
-              ? Math.abs(driveTripEstimate.expectedDurationMinutes - transitTripEstimate.expectedDurationMinutes)
+  const activeDecision =
+    arriveByActive && arriveByComparison
+      ? arriveByComparison
+      : centralVerdict
+        ? {
+            state: centralVerdict.decisionState as DecisionState,
+            confidence:
+              centralVerdict.confidence === "medium"
+                ? "moderate"
+                : (centralVerdict.confidence ?? "low"),
+            differenceMinutes:
+              driveTripEstimate.expectedDurationMinutes !== null &&
+              transitTripEstimate.expectedDurationMinutes !== null
+                ? Math.abs(
+                    driveTripEstimate.expectedDurationMinutes -
+                      transitTripEstimate.expectedDurationMinutes,
+                  )
+                : null,
+            primary: {
+              kind:
+                (centralVerdict.reasons[0]
+                  ?.evidence?.[0] as import("@/lib/intelligence/drive-transit-decision").EvidenceKind) ??
+                "data_quality",
+              text: centralVerdict.reasons[0]?.text ?? "Nalu could not establish a clear advantage",
+            },
+            supporting: centralVerdict.reasons[1]
+              ? {
+                  kind:
+                    (centralVerdict.reasons[1]
+                      .evidence?.[0] as import("@/lib/intelligence/drive-transit-decision").EvidenceKind) ??
+                    "data_quality",
+                  text: centralVerdict.reasons[1].text,
+                }
               : null,
-          primary: {
-            kind: centralVerdict.reasons[0]?.evidence?.[0] as import("@/lib/intelligence/drive-transit-decision").EvidenceKind ?? "data_quality",
-            text: centralVerdict.reasons[0]?.text ?? "Nalu could not establish a clear advantage",
-          },
-          supporting: centralVerdict.reasons[1]
-            ? {
-                kind: centralVerdict.reasons[1].evidence?.[0] as import("@/lib/intelligence/drive-transit-decision").EvidenceKind ?? "data_quality",
-                text: centralVerdict.reasons[1].text,
-              }
-            : null,
-        }
-      : {
-          state: "uncertain" as DecisionState,
-          confidence: "low",
-          differenceMinutes: null,
-          primary: {
-            kind: "data_quality",
-            text: "Nalu is waiting for enough route information",
-          },
-          supporting: null,
-        };
+          }
+        : {
+            state: "uncertain" as DecisionState,
+            confidence: "low",
+            differenceMinutes: null,
+            primary: {
+              kind: "data_quality",
+              text: "Nalu is waiting for enough route information",
+            },
+            supporting: null,
+          };
 
   // Canonical decision state is Drive vs Transit. The UI still uses "rail"
   // as its transit-view key for compatibility with the existing transit panels;
   // this adapter keeps that legacy UI vocabulary out of the decision engine.
-  const canonicalVerdict = commitment?.mode === "transit" ? "transit" : commitment?.mode ??
-    (optionsLoading || driveLoading
-      ? "uncertain"
-      : activeDecision?.state ?? "uncertain");
+  const canonicalVerdict =
+    commitment?.mode === "transit"
+      ? "transit"
+      : (commitment?.mode ??
+        (optionsLoading || driveLoading ? "uncertain" : (activeDecision?.state ?? "uncertain")));
   const verdict: UiDecisionState = canonicalVerdict as UiDecisionState;
   const naluHeroTrafficLevel: "light" | "moderate" | "heavy" | "severe" =
     driveTripEstimate.majorIncident || (driveTripEstimate.trafficDelayMinutes ?? 0) >= 20
@@ -2992,21 +3138,31 @@ function Index() {
         : (driveTripEstimate.trafficDelayMinutes ?? 0) >= 5
           ? "moderate"
           : "light";
-  const naluHeroLine = configured && !optionsLoading && !driveLoading && (verdict === "drive" || verdict === "transit" || verdict === "same")
-    ? naluHeroVerdictLine({
-        decision: verdict === "drive" ? "drive" : verdict === "transit" ? "rail" : "toss_up",
-        timeDifferenceMinutes: activeDecision.differenceMinutes ?? undefined,
-        trafficLevel: naluHeroTrafficLevel,
-        trafficDelayMinutes: driveTripEstimate.trafficDelayMinutes,
-        majorIncident: driveTripEstimate.majorIncident,
-      }, now)
-    : "";
-  const gap = !commitment && !arriveByActive && (verdict === "transit" || verdict === "drive")
-    ? activeDecision?.differenceMinutes ?? null : null;
+  const naluHeroLine =
+    configured &&
+    !optionsLoading &&
+    !driveLoading &&
+    (verdict === "drive" || verdict === "transit" || verdict === "same")
+      ? naluHeroVerdictLine(
+          {
+            decision: verdict === "drive" ? "drive" : verdict === "transit" ? "rail" : "toss_up",
+            timeDifferenceMinutes: activeDecision.differenceMinutes ?? undefined,
+            trafficLevel: naluHeroTrafficLevel,
+            trafficDelayMinutes: driveTripEstimate.trafficDelayMinutes,
+            majorIncident: driveTripEstimate.majorIncident,
+          },
+          now,
+        )
+      : "";
+  const gap =
+    !commitment && !arriveByActive && (verdict === "transit" || verdict === "drive")
+      ? (activeDecision?.differenceMinutes ?? null)
+      : null;
   const incidentDecides = verdict === "transit" && activeDecision.primary.kind === "major_incident";
   const currentDecisionSnapshot: DecisionSnapshot = {
     key: decisionKey,
-    state: verdict === "same" ? "same" : verdict === "drive" || verdict === "transit" ? verdict : "same",
+    state:
+      verdict === "same" ? "same" : verdict === "drive" || verdict === "transit" ? verdict : "same",
     driveMinutes: driveTripEstimate.expectedDurationMinutes,
     transitMinutes: transitTripEstimate.expectedDurationMinutes,
     driveDelayMinutes: driveTripEstimate.trafficDelayMinutes,
@@ -3015,32 +3171,81 @@ function Index() {
     majorIncident: Boolean(driveTripEstimate.majorIncident),
   };
   const decisionChanges = useMemo(() => {
-    if (commitment || !previousDecisionSnapshot || previousDecisionSnapshot.key !== decisionKey || !["drive", "transit", "same"].includes(verdict)) return [] as string[];
+    if (
+      commitment ||
+      !previousDecisionSnapshot ||
+      previousDecisionSnapshot.key !== decisionKey ||
+      !["drive", "transit", "same"].includes(verdict)
+    )
+      return [] as string[];
     const changes: string[] = [];
     if (previousDecisionSnapshot.state !== currentDecisionSnapshot.state) {
       const labels = { drive: "driving", transit: transitLabel, same: "neither option" } as const;
-      changes.push(`Nalu changed the recommendation from ${labels[previousDecisionSnapshot.state]} to ${labels[currentDecisionSnapshot.state]}.`);
+      changes.push(
+        `Nalu changed the recommendation from ${labels[previousDecisionSnapshot.state]} to ${labels[currentDecisionSnapshot.state]}.`,
+      );
     }
-    const driveDelta = changedMinutes(currentDecisionSnapshot.driveMinutes, previousDecisionSnapshot.driveMinutes);
-    if (driveDelta !== null) changes.push(`Driving is now about ${Math.abs(driveDelta)} min ${driveDelta > 0 ? "slower" : "faster"} than your last check.`);
-    const transitDelta = changedMinutes(currentDecisionSnapshot.transitMinutes, previousDecisionSnapshot.transitMinutes);
-    if (transitDelta !== null) changes.push(`${transitLabel} is now about ${Math.abs(transitDelta)} min ${transitDelta > 0 ? "slower" : "faster"} than your last check.`);
-    const trafficDelta = changedMinutes(currentDecisionSnapshot.driveDelayMinutes, previousDecisionSnapshot.driveDelayMinutes);
-    if (trafficDelta !== null) changes.push(`Traffic is adding about ${Math.abs(trafficDelta)} min ${trafficDelta > 0 ? "more" : "less"} time than at your last check.`);
-    const railWaitDelta = changedMinutes(currentDecisionSnapshot.railWaitMinutes, previousDecisionSnapshot.railWaitMinutes);
-    if (railWaitDelta !== null) changes.push(`${transitLabel === "Rail" ? "The next train" : "Your transit"} wait is about ${Math.abs(railWaitDelta)} min ${railWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`);
-    const busWaitDelta = changedMinutes(currentDecisionSnapshot.busWaitMinutes, previousDecisionSnapshot.busWaitMinutes);
-    if (busWaitDelta !== null) changes.push(`Your bus wait is about ${Math.abs(busWaitDelta)} min ${busWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`);
-    if (currentDecisionSnapshot.majorIncident && !previousDecisionSnapshot.majorIncident) changes.push("A crash or major slowdown is now affecting the drive.");
-    if (!currentDecisionSnapshot.majorIncident && previousDecisionSnapshot.majorIncident) changes.push("The reported crash or major slowdown is no longer affecting the comparison.");
+    const driveDelta = changedMinutes(
+      currentDecisionSnapshot.driveMinutes,
+      previousDecisionSnapshot.driveMinutes,
+    );
+    if (driveDelta !== null)
+      changes.push(
+        `Driving is now about ${Math.abs(driveDelta)} min ${driveDelta > 0 ? "slower" : "faster"} than your last check.`,
+      );
+    const transitDelta = changedMinutes(
+      currentDecisionSnapshot.transitMinutes,
+      previousDecisionSnapshot.transitMinutes,
+    );
+    if (transitDelta !== null)
+      changes.push(
+        `${transitLabel} is now about ${Math.abs(transitDelta)} min ${transitDelta > 0 ? "slower" : "faster"} than your last check.`,
+      );
+    const trafficDelta = changedMinutes(
+      currentDecisionSnapshot.driveDelayMinutes,
+      previousDecisionSnapshot.driveDelayMinutes,
+    );
+    if (trafficDelta !== null)
+      changes.push(
+        `Traffic is adding about ${Math.abs(trafficDelta)} min ${trafficDelta > 0 ? "more" : "less"} time than at your last check.`,
+      );
+    const railWaitDelta = changedMinutes(
+      currentDecisionSnapshot.railWaitMinutes,
+      previousDecisionSnapshot.railWaitMinutes,
+    );
+    if (railWaitDelta !== null)
+      changes.push(
+        `${transitLabel === "Rail" ? "The next train" : "Your transit"} wait is about ${Math.abs(railWaitDelta)} min ${railWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`,
+      );
+    const busWaitDelta = changedMinutes(
+      currentDecisionSnapshot.busWaitMinutes,
+      previousDecisionSnapshot.busWaitMinutes,
+    );
+    if (busWaitDelta !== null)
+      changes.push(
+        `Your bus wait is about ${Math.abs(busWaitDelta)} min ${busWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`,
+      );
+    if (currentDecisionSnapshot.majorIncident && !previousDecisionSnapshot.majorIncident)
+      changes.push("A crash or major slowdown is now affecting the drive.");
+    if (!currentDecisionSnapshot.majorIncident && previousDecisionSnapshot.majorIncident)
+      changes.push("The reported crash or major slowdown is no longer affecting the comparison.");
     return changes.slice(0, 3);
-  }, [commitment, previousDecisionSnapshot, decisionKey, currentDecisionSnapshot.driveMinutes, currentDecisionSnapshot.transitMinutes, currentDecisionSnapshot.driveDelayMinutes, currentDecisionSnapshot.railWaitMinutes, currentDecisionSnapshot.busWaitMinutes, currentDecisionSnapshot.majorIncident, currentDecisionSnapshot.state]);
+  }, [
+    commitment,
+    previousDecisionSnapshot,
+    decisionKey,
+    currentDecisionSnapshot.driveMinutes,
+    currentDecisionSnapshot.transitMinutes,
+    currentDecisionSnapshot.driveDelayMinutes,
+    currentDecisionSnapshot.railWaitMinutes,
+    currentDecisionSnapshot.busWaitMinutes,
+    currentDecisionSnapshot.majorIncident,
+    currentDecisionSnapshot.state,
+  ]);
   useEffect(() => {
     if (commitment || !["drive", "transit", "same"].includes(verdict)) return;
     const historyState =
-      verdict === "drive" || verdict === "transit" || verdict === "same"
-        ? verdict
-        : "same";
+      verdict === "drive" || verdict === "transit" || verdict === "same" ? verdict : "same";
     decisionHistoryRef.current = {
       key: decisionKey,
       state: historyState,
@@ -3077,21 +3282,22 @@ function Index() {
           : "Skyline has not started yet today. Nalu is checking available transit options."
         : activeDecision.primary.text;
 
-  const whyNaluText =
-    railClosedForEvening
+  const whyNaluText = railClosedForEvening
+    ? best
+      ? `Skyline has finished service for the evening. Nalu is comparing the available ${transitLabel} trip with the live driving estimate.`
+      : "Skyline has finished service for the evening. Nalu is checking TheBus and other available transit options before making the comparison."
+    : railNotRunningYet
       ? best
-        ? `Skyline has finished service for the evening. Nalu is comparing the available ${transitLabel} trip with the live driving estimate.`
-        : "Skyline has finished service for the evening. Nalu is checking TheBus and other available transit options before making the comparison."
-      : railNotRunningYet
-        ? best
-          ? `Skyline has not started service yet. Nalu is comparing the available ${transitLabel} trip with the live driving estimate.`
-          : "Skyline has not started service yet. Nalu is checking available transit options before making the comparison."
-        : verdict === "drive"
+        ? `Skyline has not started service yet. Nalu is comparing the available ${transitLabel} trip with the live driving estimate.`
+        : "Skyline has not started service yet. Nalu is checking available transit options before making the comparison."
+      : verdict === "drive"
         ? "Nalu compares the full trip from where you start to where you’re going, including getting to transit, waiting for your ride, and walking at the end—not just the freeway drive."
         : verdict === "transit"
           ? transitLabel === "Rail"
             ? "The Skyline option includes getting to the station, waiting, the train ride, and the walk to your destination."
-            : "The " + transitLabel + " option includes getting to transit, waiting, transfers, and the walk to your destination."
+            : "The " +
+              transitLabel +
+              " option includes getting to transit, waiting, transfers, and the walk to your destination."
           : verdict === "same"
             ? "The estimated arrival times are close enough that neither option has a clear time advantage right now."
             : activeDecision.primary.text;
@@ -3135,7 +3341,8 @@ function Index() {
       if (roadwork) {
         signals.push({
           label: "Roadwork",
-          value: `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
+          value:
+            `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
           detail: `${roadwork.laneSummary} · ${roadwork.location}`,
           tone: "alert",
         });
@@ -3153,12 +3360,23 @@ function Index() {
     } else if (verdict === "transit") {
       const railWait = Math.round(transitTripEstimate.railWaitMinutes ?? 0);
       const busWait = Math.round(transitTripEstimate.busWaitMinutes ?? 0);
-      if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: railWait >= 10 ? "alert" : "neutral" });
-      if (busWait >= 5) signals.push({ label: "Bus wait", value: `${busWait} min`, tone: busWait >= 10 ? "alert" : "neutral" });
+      if (railWait >= 5)
+        signals.push({
+          label: transitLabel + " wait",
+          value: `${railWait} min`,
+          tone: railWait >= 10 ? "alert" : "neutral",
+        });
+      if (busWait >= 5)
+        signals.push({
+          label: "Bus wait",
+          value: `${busWait} min`,
+          tone: busWait >= 10 ? "alert" : "neutral",
+        });
       if (roadwork) {
         signals.push({
           label: "Roadwork",
-          value: `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
+          value:
+            `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
           detail: `${roadwork.laneSummary} · ${roadwork.location}`,
           tone: "alert",
         });
@@ -3172,11 +3390,13 @@ function Index() {
         });
       }
     } else {
-      if (delay >= 5) signals.push({ label: "Traffic", value: `+${delay} min vs usual`, tone: "alert" });
+      if (delay >= 5)
+        signals.push({ label: "Traffic", value: `+${delay} min vs usual`, tone: "alert" });
       if (roadwork) {
         signals.push({
           label: "Roadwork",
-          value: `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
+          value:
+            `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
           detail: `${roadwork.laneSummary} · ${roadwork.location}`,
           tone: "alert",
         });
@@ -3191,7 +3411,8 @@ function Index() {
         });
       }
       const railWait = Math.round(transitTripEstimate.railWaitMinutes ?? 0);
-      if (railWait >= 5) signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: "neutral" });
+      if (railWait >= 5)
+        signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: "neutral" });
     }
 
     return signals.slice(0, 4);
@@ -3206,9 +3427,11 @@ function Index() {
     verdict,
   ]);
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
-  const tripOriginLabel = reverseTrip ? destinationLabel
+  const tripOriginLabel = reverseTrip
+    ? destinationLabel
     : departingFromSavedHome || (!savedHome && !inbound)
-      ? "Home" : "Current location";
+      ? "Home"
+      : "Current location";
   const tripArrivalLabel = arrivingHome ? "Home" : destinationLabel;
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
   const plannedInboundAccess = inbound && best?.legs[0]?.kind === "access" ? best.legs[0] : null;
@@ -3346,9 +3569,10 @@ function Index() {
           // For a bus leg, mark only the alighting stop. The boarding stop is
           // already represented by the preceding origin/rail/transfer point
           // when applicable. Access buses still need a boarding marker.
-          const stopsToMark = leg.kind === "access"
-            ? [sequencePoints[0], sequencePoints[sequencePoints.length - 1]]
-            : [sequencePoints[sequencePoints.length - 1]];
+          const stopsToMark =
+            leg.kind === "access"
+              ? [sequencePoints[0], sequencePoints[sequencePoints.length - 1]]
+              : [sequencePoints[sequencePoints.length - 1]];
           stopsToMark.forEach((stop, stopIndex) => {
             if (!stop) return;
             const point = { lat: stop.lat, lon: stop.lon };
@@ -3388,7 +3612,16 @@ function Index() {
 
     points.push({ id: "end", name: destinationName, ...destination, kind: "end" });
     return points;
-  }, [best, homePoint, destPoint, reverseTrip, tripOriginLabel, tripArrivalLabel, itineraryStopCoords, stationCoords]);
+  }, [
+    best,
+    homePoint,
+    destPoint,
+    reverseTrip,
+    tripOriginLabel,
+    tripArrivalLabel,
+    itineraryStopCoords,
+    stationCoords,
+  ]);
 
   type TransitMapSegment = {
     id: string;
@@ -3457,7 +3690,15 @@ function Index() {
       if (!from || !to) return [];
       return [{ id: `leg-${legIndex}`, mode: leg.mode, points: [from, to] }];
     });
-  }, [best, homePoint, destPoint, reverseTrip, itineraryLegSequences, itineraryStopCoords, railLine]);
+  }, [
+    best,
+    homePoint,
+    destPoint,
+    reverseTrip,
+    itineraryLegSequences,
+    itineraryStopCoords,
+    railLine,
+  ]);
 
   // Drive view: straight door-to-door, no rail station or transit stops.
   const driveMapPoints = useMemo(() => {
@@ -3763,12 +4004,15 @@ function Index() {
     setMapStopActionBusy(true);
     try {
       const { data, error } = await supabase.rpc("nearest_stop", {
-        p_lat: stop.lat, p_lon: stop.lon, p_rail_only: true,
+        p_lat: stop.lat,
+        p_lon: stop.lon,
+        p_rail_only: true,
       });
       if (error || !data?.[0]) throw new Error("Could not find a rail station near this stop.");
       const next = {
         ...setup,
-        homeLat: stop.lat, homeLon: stop.lon,
+        homeLat: stop.lat,
+        homeLon: stop.lon,
         homeStopId: data[0].stop_id,
         homeStopName: data[0].stop_name ?? "",
       };
@@ -3795,16 +4039,21 @@ function Index() {
       saveSetup({
         ...emptySetup,
         allowDrive: true,
-        homeLat: browseUserPoint.lat, homeLon: browseUserPoint.lon,
-        homeStopId: rail.stop_id, homeStopName: rail.stop_name ?? "",
+        homeLat: browseUserPoint.lat,
+        homeLon: browseUserPoint.lon,
+        homeStopId: rail.stop_id,
+        homeStopName: rail.stop_name ?? "",
         destinationName: stop.stopName,
         destinationAddress: stop.stopName,
-        destLat: stop.lat, destLon: stop.lon,
+        destLat: stop.lat,
+        destLon: stop.lon,
         // The tapped icon is the rider's exact destination stop, not a
         // similarly named stop chosen by a nearest-stop lookup.
-        destStopId: stop.stopId, destStopName: stop.stopName,
+        destStopId: stop.stopId,
+        destStopName: stop.stopName,
         destStopWalkM: 0,
-        destReturnStopId: back?.stop_id ?? "", destReturnStopName: back?.stop_name ?? "",
+        destReturnStopId: back?.stop_id ?? "",
+        destReturnStopName: back?.stop_name ?? "",
         destReturnWalkM: Number(back?.distance_m ?? 0),
       });
     } catch (error) {
@@ -3947,31 +4196,53 @@ function Index() {
 
   const setupDialog = (
     <>
-    <AccountDialog
-      open={accountOpen}
-      onClose={() => { setAccountOpen(false); setRestoreSlot(null); }}
-      restoreLabel={restoreSlot ? shortcutLabel(savedPlaces, restoreSlot) : null}
-      restored={Boolean(restoreSlot && resolveShortcut(savedPlaces, restoreSlot))}
-      syncStatus={placesSyncStatus}
-      onRetry={() => { syncedUserRef.current = null; setSyncReadyUser(null); setSyncRetry((value) => value + 1); }}
-      placeLabels={savedPlaces.map((place) => place.label)}
-      onSearch={() => { setAccountOpen(false); setQuickPlaceSlot(restoreSlot); setRestoreSlot(null); }}
-      onStart={() => { const slot = restoreSlot; setAccountOpen(false); setRestoreSlot(null); if (slot) void quickStartSavedPlace(slot); }}
-    />
-    <QuickPlaceDialog slot={quickPlaceSlot} places={savedPlaces}
-      onClose={() => setQuickPlaceSlot(null)}
-      onSave={(next) => { persistPlaces(next); setQuickPlaceSlot(null); }} />
-    <SetupDialog
-      open={onboardingOpen || settingsOpen}
-      firstRun={onboardingOpen}
-      setup={mapSetupDraft ?? setup}
-      onClose={closeSetup}
-      onSave={saveSetup}
-      alertPrefs={alertPrefs}
-      onAlertPrefsChange={saveAlertPrefs}
-      savedPlaces={savedPlaces}
-      onPlacesChange={persistPlaces}
-    />
+      <AccountDialog
+        open={accountOpen}
+        onClose={() => {
+          setAccountOpen(false);
+          setRestoreSlot(null);
+        }}
+        restoreLabel={restoreSlot ? shortcutLabel(savedPlaces, restoreSlot) : null}
+        restored={Boolean(restoreSlot && resolveShortcut(savedPlaces, restoreSlot))}
+        syncStatus={placesSyncStatus}
+        onRetry={() => {
+          syncedUserRef.current = null;
+          setSyncReadyUser(null);
+          setSyncRetry((value) => value + 1);
+        }}
+        placeLabels={savedPlaces.map((place) => place.label)}
+        onSearch={() => {
+          setAccountOpen(false);
+          setQuickPlaceSlot(restoreSlot);
+          setRestoreSlot(null);
+        }}
+        onStart={() => {
+          const slot = restoreSlot;
+          setAccountOpen(false);
+          setRestoreSlot(null);
+          if (slot) void quickStartSavedPlace(slot);
+        }}
+      />
+      <QuickPlaceDialog
+        slot={quickPlaceSlot}
+        places={savedPlaces}
+        onClose={() => setQuickPlaceSlot(null)}
+        onSave={(next) => {
+          persistPlaces(next);
+          setQuickPlaceSlot(null);
+        }}
+      />
+      <SetupDialog
+        open={onboardingOpen || settingsOpen}
+        firstRun={onboardingOpen}
+        setup={mapSetupDraft ?? setup}
+        onClose={closeSetup}
+        onSave={saveSetup}
+        alertPrefs={alertPrefs}
+        onAlertPrefsChange={saveAlertPrefs}
+        savedPlaces={savedPlaces}
+        onPlacesChange={persistPlaces}
+      />
     </>
   );
 
@@ -4022,7 +4293,12 @@ function Index() {
               >
                 <RefreshCw />
               </Button>
-              <AccountButton onClick={() => { setRestoreSlot(null); setAccountOpen(true); }} />
+              <AccountButton
+                onClick={() => {
+                  setRestoreSlot(null);
+                  setAccountOpen(true);
+                }}
+              />
               <Button
                 variant="ghost"
                 size="icon"
@@ -4035,10 +4311,7 @@ function Index() {
             </div>
           </header>
 
-          <NaluPageNav
-            current="browse"
-            onBrowse={() => setPageView("browse")}
-          />
+          <NaluPageNav current="browse" onBrowse={() => setPageView("browse")} />
 
           {findByKind(savedPlaces, "home") && routineDestination && (
             <button
@@ -4057,8 +4330,12 @@ function Index() {
 
           <DataExpiryNotice />
           {!online && (
-            <p role="status" className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground">
-              You’re offline. Available schedules stay visible; live arrivals will refresh when you reconnect.
+            <p
+              role="status"
+              className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground"
+            >
+              You’re offline. Available schedules stay visible; live arrivals will refresh when you
+              reconnect.
             </p>
           )}
           <MorningPulse
@@ -4153,7 +4430,10 @@ function Index() {
                       arrivals: stop.arrivals.slice(0, 3).map((arrival) => ({
                         label: stop.routeType === 1 ? "Skyline" : arrival.route_short_name || "Bus",
                         time: clockFromSeconds(arrival.departure_seconds),
-                        minutesAway: Math.max(0, Math.ceil((arrival.departure_seconds - nowSeconds) / 60)),
+                        minutesAway: Math.max(
+                          0,
+                          Math.ceil((arrival.departure_seconds - nowSeconds) / 60),
+                        ),
                       })),
                     }))}
                     selectedStopId={selectedNearbyStop?.stopId ?? null}
@@ -4195,236 +4475,241 @@ function Index() {
               <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
             </button>
           ) : (
-          <section
-            className="glass-panel mt-4 rounded-lg p-4"
-            aria-labelledby="browse-station-title"
-          >
-            <div className="flex items-center gap-3">
-              <TrainFront className="size-6 shrink-0 text-primary" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Closest Skyline station
-                </p>
-                <h2
-                  id="browse-station-title"
-                  className="truncate text-xl font-semibold text-foreground"
-                >
-                  {browseStation
-                    ? `${stationLabel(browseStation.stopName)} Station`
-                    : "Finding your station…"}
-                </h2>
-                {browseStation && <LandmarkHint name={browseStation.stopName} />}
+            <section
+              className="glass-panel mt-4 rounded-lg p-4"
+              aria-labelledby="browse-station-title"
+            >
+              <div className="flex items-center gap-3">
+                <TrainFront className="size-6 shrink-0 text-primary" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">
+                    Closest Skyline station
+                  </p>
+                  <h2
+                    id="browse-station-title"
+                    className="truncate text-xl font-semibold text-foreground"
+                  >
+                    {browseStation
+                      ? `${stationLabel(browseStation.stopName)} Station`
+                      : "Finding your station…"}
+                  </h2>
+                  {browseStation && <LandmarkHint name={browseStation.stopName} />}
+                </div>
+                {browseFar && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Collapse station card"
+                    onClick={() => setStationExpanded(false)}
+                  >
+                    <ChevronDown className="size-4 rotate-180" />
+                  </Button>
+                )}
               </div>
-              {browseFar && (
+              {browseStation && (
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
+                  {stationParking && (
+                    <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
+                      {stationParking.status === "limited"
+                        ? "Limited parking"
+                        : "Park & Ride available"}
+                      {stationParking.note ? ` · ${stationParking.note}` : ""}
+                    </span>
+                  )}
+                  {trainsEveryMinutes && (
+                    <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                      Trains every {trainsEveryMinutes} min
+                    </span>
+                  )}
+                </div>
+              )}
+              {browseStation && browseUserPoint && (
+                <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-foreground">
+                  {browseWalkMinutes !== null && browseWalkMinutes <= 18 && (
+                    <span className="browse-eta-chip">
+                      Walk {browseWalkMinutes} min ·{" "}
+                      {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
+                    </span>
+                  )}
+                  {browseWalkMinutes !== null &&
+                    browseWalkMinutes > 18 &&
+                    feederBuses.slice(0, 2).map((bus) => (
+                      <span key={bus.route_short_name} className="browse-eta-chip">
+                        <Bus className="mr-1 inline size-3.5" />
+                        Take TheBus {bus.route_short_name} · {bus.ride_minutes} min ride · leaves{" "}
+                        {clockFromSeconds(bus.depart_seconds)}
+                      </span>
+                    ))}
+                  <span className="browse-eta-chip">
+                    Drive about{" "}
+                    {Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min
+                  </span>
+                </div>
+              )}
+              {browseStation && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  HOLO fare {HOLO_FARES.singleRide} includes free transfers between TheBus and
+                  Skyline for {HOLO_FARES.transferWindowHours} hours.
+                </p>
+              )}
+              {browseLocationDenied && browseStation && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Location unavailable · showing a data-derived West Oahu station
+                </p>
+              )}
+              {browseLocationDenied && locationDenied && (
                 <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Collapse station card"
-                  onClick={() => setStationExpanded(false)}
+                  variant="link"
+                  onClick={() => setSettingsOpen(true)}
+                  className="mt-1 h-auto px-0 text-xs text-muted-foreground"
                 >
-                  <ChevronDown className="size-4 rotate-180" />
+                  Location blocked · see how to allow it
                 </Button>
               )}
-            </div>
-            {browseStation && (
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
-                {stationParking && (
-                  <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
-                    {stationParking.status === "limited"
-                      ? "Limited parking"
-                      : "Park & Ride available"}
-                    {stationParking.note ? ` · ${stationParking.note}` : ""}
-                  </span>
-                )}
-                {trainsEveryMinutes && (
-                  <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
-                    Trains every {trainsEveryMinutes} min
-                  </span>
-                )}
-              </div>
-            )}
-            {browseStation && browseUserPoint && (
-              <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-foreground">
-                {browseWalkMinutes !== null && browseWalkMinutes <= 18 && (
-                  <span className="browse-eta-chip">
-                    Walk {browseWalkMinutes} min ·{" "}
-                    {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
-                  </span>
-                )}
-                {browseWalkMinutes !== null &&
-                  browseWalkMinutes > 18 &&
-                  feederBuses.slice(0, 2).map((bus) => (
-                    <span key={bus.route_short_name} className="browse-eta-chip">
-                      <Bus className="mr-1 inline size-3.5" />
-                      Take TheBus {bus.route_short_name} · {bus.ride_minutes} min ride · leaves{" "}
-                      {clockFromSeconds(bus.depart_seconds)}
-                    </span>
+              <Select
+                value={browseStation?.stopId ?? ""}
+                onValueChange={(stopId) => {
+                  const station = browseStations.find((item) => item.stop_id === stopId);
+                  if (!station) return;
+                  rememberBrowseStation({
+                    stopId: station.stop_id,
+                    stopName: station.stop_name ?? "",
+                    lat: Number(station.stop_lat),
+                    lon: Number(station.stop_lon),
+                    ...(browseStation?.userLat !== undefined
+                      ? { userLat: browseStation.userLat }
+                      : {}),
+                    ...(browseStation?.userLon !== undefined
+                      ? { userLon: browseStation.userLon }
+                      : {}),
+                  });
+                }}
+              >
+                <SelectTrigger
+                  className="mt-4 h-12 w-full bg-background"
+                  aria-label="Choose Skyline station"
+                >
+                  <SelectValue placeholder="Choose a station" />
+                </SelectTrigger>
+                <SelectContent>
+                  {browseStations.map((station) => (
+                    <SelectItem key={station.stop_id} value={station.stop_id}>
+                      {stationLabel(station.stop_name)}
+                    </SelectItem>
                   ))}
-                <span className="browse-eta-chip">
-                  Drive about{" "}
-                  {Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min
-                </span>
-              </div>
-            )}
-            {browseStation && (
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                HOLO fare {HOLO_FARES.singleRide} includes free transfers between TheBus and
-                Skyline for {HOLO_FARES.transferWindowHours} hours.
-              </p>
-            )}
-            {browseLocationDenied && browseStation && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Location unavailable · showing a data-derived West Oahu station
-              </p>
-            )}
-            {browseLocationDenied && locationDenied && (
-              <Button
-                variant="link"
-                onClick={() => setSettingsOpen(true)}
-                className="mt-1 h-auto px-0 text-xs text-muted-foreground"
-              >
-                Location blocked · see how to allow it
-              </Button>
-            )}
-            <Select
-              value={browseStation?.stopId ?? ""}
-              onValueChange={(stopId) => {
-                const station = browseStations.find((item) => item.stop_id === stopId);
-                if (!station) return;
-                rememberBrowseStation({
-                  stopId: station.stop_id,
-                  stopName: station.stop_name ?? "",
-                  lat: Number(station.stop_lat),
-                  lon: Number(station.stop_lon),
-                  ...(browseStation?.userLat !== undefined
-                    ? { userLat: browseStation.userLat }
-                    : {}),
-                  ...(browseStation?.userLon !== undefined
-                    ? { userLon: browseStation.userLon }
-                    : {}),
-                });
-              }}
-            >
-              <SelectTrigger
-                className="mt-4 h-12 w-full bg-background"
-                aria-label="Choose Skyline station"
-              >
-                <SelectValue placeholder="Choose a station" />
-              </SelectTrigger>
-              <SelectContent>
-                {browseStations.map((station) => (
-                  <SelectItem key={station.stop_id} value={station.stop_id}>
-                    {stationLabel(station.stop_name)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                </SelectContent>
+              </Select>
 
-            {browseStation && (
-              <div
-                className={`mt-4 grid grid-cols-2 gap-3 ${refreshing ? "animate-in fade-in duration-300" : ""}`}
-                aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
-              >
-                {browseDeparturesLoading && (
-                  <p className="text-sm text-muted-foreground">Loading departures…</p>
-                )}
-                {browseDeparturesFailed && (
-                  <p className="col-span-2 text-sm text-warning">Rail departure times are not available right now.</p>
-                )}
-                {!browseDeparturesLoading && !browseDeparturesFailed && browseDirections.length === 0 && (
-                  <p className="col-span-2 text-sm text-muted-foreground">
-                    No rail departures are scheduled from this station right now.
-                  </p>
-                )}
-                {browseDirections.map((direction) => {
-                  const first = direction[0];
-                  const second = direction[1];
-                  const towardDowntown =
-                    first?.terminus_lon !== null &&
-                    first?.terminus_lon !== undefined &&
-                    first.terminus_lon > browseStation.lon;
-                  const directionName = towardDowntown ? "Downtown Honolulu" : "Kapolei";
-                  const endpoint =
-                    terminusLabel(first?.direction_terminus) ||
-                    stationLabel(first?.trip_headsign) ||
-                    "the end of the line";
-                  const secondsAway = (first?.departure_seconds ?? 0) - nowSeconds;
-                  const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
-                  const nowDeparture = secondsAway >= -30 && secondsAway < 60;
-                  const soon = secondsAway >= 60 && secondsAway < 20 * 60;
-                  const walk = browseUserPoint
-                    ? walkingEstimate(browseUserPoint, browseStation)
-                    : null;
-                  const walkState = walk
-                    ? walk.minutes + 2 <= minutesAway
-                      ? "ok"
-                      : walk.minutes <= minutesAway
-                        ? "tight"
-                        : "miss"
-                    : null;
-                  return (
-                    <article
-                      key={`${first?.route_id}-${first?.direction_id ?? "x"}`}
-                      className="browse-departure-card nalu-card-surface min-w-0 rounded-lg p-3"
-                    >
-                      <h3 className="text-sm font-semibold text-foreground">
-                        {towardDowntown ? "Eastbound" : "Westbound"}
-                      </h3>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        to {directionName} · {endpoint}
+              {browseStation && (
+                <div
+                  className={`mt-4 grid grid-cols-2 gap-3 ${refreshing ? "animate-in fade-in duration-300" : ""}`}
+                  aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
+                >
+                  {browseDeparturesLoading && (
+                    <p className="text-sm text-muted-foreground">Loading departures…</p>
+                  )}
+                  {browseDeparturesFailed && (
+                    <p className="col-span-2 text-sm text-warning">
+                      Rail departure times are not available right now.
+                    </p>
+                  )}
+                  {!browseDeparturesLoading &&
+                    !browseDeparturesFailed &&
+                    browseDirections.length === 0 && (
+                      <p className="col-span-2 text-sm text-muted-foreground">
+                        No rail departures are scheduled from this station right now.
                       </p>
-                      {first && (
-                        <div className="mt-3">
-                          <p className="text-2xl font-semibold tabular-nums text-primary">
-                            {nowDeparture ? (
-                              <>
-                                Now{" "}
-                                <span className="block text-xs font-normal text-muted-foreground">
-                                  · {clockFromSeconds(first.departure_seconds)}
-                                </span>
-                              </>
-                            ) : soon ? (
-                              <>
-                                in {minutesAway} min{" "}
-                                <span className="block text-xs font-normal text-muted-foreground">
-                                  · {clockFromSeconds(first.departure_seconds)}
-                                </span>
-                              </>
-                            ) : (
-                              clockFromSeconds(first.departure_seconds)
+                    )}
+                  {browseDirections.map((direction) => {
+                    const first = direction[0];
+                    const second = direction[1];
+                    const towardDowntown =
+                      first?.terminus_lon !== null &&
+                      first?.terminus_lon !== undefined &&
+                      first.terminus_lon > browseStation.lon;
+                    const directionName = towardDowntown ? "Downtown Honolulu" : "Kapolei";
+                    const endpoint =
+                      terminusLabel(first?.direction_terminus) ||
+                      stationLabel(first?.trip_headsign) ||
+                      "the end of the line";
+                    const secondsAway = (first?.departure_seconds ?? 0) - nowSeconds;
+                    const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
+                    const nowDeparture = secondsAway >= -30 && secondsAway < 60;
+                    const soon = secondsAway >= 60 && secondsAway < 20 * 60;
+                    const walk = browseUserPoint
+                      ? walkingEstimate(browseUserPoint, browseStation)
+                      : null;
+                    const walkState = walk
+                      ? walk.minutes + 2 <= minutesAway
+                        ? "ok"
+                        : walk.minutes <= minutesAway
+                          ? "tight"
+                          : "miss"
+                      : null;
+                    return (
+                      <article
+                        key={`${first?.route_id}-${first?.direction_id ?? "x"}`}
+                        className="browse-departure-card nalu-card-surface min-w-0 rounded-lg p-3"
+                      >
+                        <h3 className="text-sm font-semibold text-foreground">
+                          {towardDowntown ? "Eastbound" : "Westbound"}
+                        </h3>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          to {directionName} · {endpoint}
+                        </p>
+                        {first && (
+                          <div className="mt-3">
+                            <p className="text-2xl font-semibold tabular-nums text-primary">
+                              {nowDeparture ? (
+                                <>
+                                  Now{" "}
+                                  <span className="block text-xs font-normal text-muted-foreground">
+                                    · {clockFromSeconds(first.departure_seconds)}
+                                  </span>
+                                </>
+                              ) : soon ? (
+                                <>
+                                  in {minutesAway} min{" "}
+                                  <span className="block text-xs font-normal text-muted-foreground">
+                                    · {clockFromSeconds(first.departure_seconds)}
+                                  </span>
+                                </>
+                              ) : (
+                                clockFromSeconds(first.departure_seconds)
+                              )}
+                            </p>
+                            {walk && walkState && walk.minutes <= 18 && (
+                              <p
+                                className={`mt-2 text-xs font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}
+                              >
+                                {walk.minutes} min walk
+                                {walkState === "tight"
+                                  ? " · Tight"
+                                  : walkState === "miss"
+                                    ? " · You'll miss this one."
+                                    : ""}
+                              </p>
                             )}
-                          </p>
-                          {walk && walkState && walk.minutes <= 18 && (
-                            <p
-                              className={`mt-2 text-xs font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}
-                            >
-                              {walk.minutes} min walk
-                              {walkState === "tight"
-                                ? " · Tight"
-                                : walkState === "miss"
-                                  ? " · You'll miss this one."
-                                  : ""}
-                            </p>
-                          )}
-                          {second && (
-                            <p className="mt-1.5 text-xs text-muted-foreground">
-                              Miss it? Next train at {clockFromSeconds(second.departure_seconds)}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-            <p className="mt-3 text-[10px] text-muted-foreground">
-              TheBus / DTS
-              {h1HasMeaningfulDelay ? " · H-1 is delayed, so Skyline may be especially useful" : ""}
-            </p>
-          </section>
+                            {second && (
+                              <p className="mt-1.5 text-xs text-muted-foreground">
+                                Miss it? Next train at {clockFromSeconds(second.departure_seconds)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="mt-3 text-[10px] text-muted-foreground">
+                TheBus / DTS
+                {h1HasMeaningfulDelay
+                  ? " · H-1 is delayed, so Skyline may be especially useful"
+                  : ""}
+              </p>
+            </section>
           )}
-
 
           <AskNalu origin={browseUserPoint} />
 
@@ -4652,23 +4937,32 @@ function Index() {
             <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
           </div>
           <div className="flex items-center gap-1">
-          <AccountButton onClick={() => { setRestoreSlot(null); setAccountOpen(true); }} />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Open settings"
-            onClick={() => setSettingsOpen(true)}
-            className="rounded-full text-muted-foreground hover:text-foreground"
-          >
-            <Settings className="size-5" />
-          </Button>
+            <AccountButton
+              onClick={() => {
+                setRestoreSlot(null);
+                setAccountOpen(true);
+              }}
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Open settings"
+              onClick={() => setSettingsOpen(true)}
+              className="rounded-full text-muted-foreground hover:text-foreground"
+            >
+              <Settings className="size-5" />
+            </Button>
           </div>
         </header>
 
         <DataExpiryNotice />
         {!online && (
-          <p role="status" className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground">
-            You’re offline. Your trip stays visible; live traffic and arrivals will refresh when you reconnect.
+          <p
+            role="status"
+            className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground"
+          >
+            You’re offline. Your trip stays visible; live traffic and arrivals will refresh when you
+            reconnect.
           </p>
         )}
 
@@ -4767,17 +5061,25 @@ function Index() {
                     ) : railClosedForEvening ? (
                       <p className="mt-2 text-sm text-warning">
                         Rail is closed for the evening. Today's service ended at{" "}
-                        {todayHours ? clockFromSeconds(todayHours.last_seconds) : "the scheduled end time"}.
+                        {todayHours
+                          ? clockFromSeconds(todayHours.last_seconds)
+                          : "the scheduled end time"}
+                        .
                       </p>
                     ) : railNotRunningYet ? (
                       <p className="mt-2 text-sm text-muted-foreground">
                         Rail is not running yet. Today's service starts at{" "}
-                        {todayHours ? clockFromSeconds(todayHours.first_seconds) : "the scheduled start time"}.
+                        {todayHours
+                          ? clockFromSeconds(todayHours.first_seconds)
+                          : "the scheduled start time"}
+                        .
                       </p>
                     ) : optionsLoading ? (
                       <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
                     ) : optionsFailed ? (
-                      <p className="mt-2 text-sm text-warning">Rail information is not available right now.</p>
+                      <p className="mt-2 text-sm text-warning">
+                        Rail information is not available right now.
+                      </p>
                     ) : transitPick?.earliestOption ? (
                       <p className="mt-2 text-sm text-warning">
                         {arriveByPassed
@@ -4826,13 +5128,15 @@ function Index() {
                     )}
                     {drivePlan?.feasible && !arriveByPassed ? (
                       <div className="mt-2">
-                      <p className="text-lg font-bold tabular-nums text-foreground">
-                        Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
-                        <span className="ml-2 text-sm font-medium text-muted-foreground">
-                          · arrive around {clockFromSeconds(drivePlan.arriveSeconds)}
-                        </span>
-                      </p>
-                      {!drivePlan.protected && <p className="mt-1 text-xs text-warning">Traffic could make you late.</p>}
+                        <p className="text-lg font-bold tabular-nums text-foreground">
+                          Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
+                          <span className="ml-2 text-sm font-medium text-muted-foreground">
+                            · arrive around {clockFromSeconds(drivePlan.arriveSeconds)}
+                          </span>
+                        </p>
+                        {!drivePlan.protected && (
+                          <p className="mt-1 text-xs text-warning">Traffic could make you late.</p>
+                        )}
                       </div>
                     ) : drivePlan ? (
                       <p className="mt-2 text-sm text-warning">
@@ -4863,13 +5167,23 @@ function Index() {
 
                   {arriveByComparison && (
                     <div className="space-y-1 text-sm text-muted-foreground">
-                      <p className="font-semibold text-foreground">{arriveByComparison.primary.text}</p>
-                      {arriveByComparison.driveMarginMinutes !== null && arriveByComparison.driveMarginMinutes >= 0 && (
-                        <p>Drive: about {Math.round(arriveByComparison.driveMarginMinutes)} min to spare.</p>
-                      )}
-                      {arriveByComparison.railMarginMinutes !== null && arriveByComparison.railMarginMinutes >= 0 && (
-                        <p>Rail: about {Math.round(arriveByComparison.railMarginMinutes)} min to spare.</p>
-                      )}
+                      <p className="font-semibold text-foreground">
+                        {arriveByComparison.primary.text}
+                      </p>
+                      {arriveByComparison.driveMarginMinutes !== null &&
+                        arriveByComparison.driveMarginMinutes >= 0 && (
+                          <p>
+                            Drive: about {Math.round(arriveByComparison.driveMarginMinutes)} min to
+                            spare.
+                          </p>
+                        )}
+                      {arriveByComparison.railMarginMinutes !== null &&
+                        arriveByComparison.railMarginMinutes >= 0 && (
+                          <p>
+                            Rail: about {Math.round(arriveByComparison.railMarginMinutes)} min to
+                            spare.
+                          </p>
+                        )}
                     </div>
                   )}
                   <p className="text-[10px] text-muted-foreground">
@@ -4897,10 +5211,14 @@ function Index() {
             <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
               <Check className="size-4 stroke-[3]" />
             </span>
-            <span className="text-xs font-semibold">{commitment ? "On this trip" : "Nalu says"}</span>
+            <span className="text-xs font-semibold">
+              {commitment ? "On this trip" : "Nalu says"}
+            </span>
           </div>
           {configured && !optionsLoading && !driveLoading && naluHeroLine && (
-            <p className="mb-4 max-w-[42rem] text-sm font-medium leading-6 text-muted-foreground">{naluHeroLine}</p>
+            <p className="mb-4 max-w-[42rem] text-sm font-medium leading-6 text-muted-foreground">
+              {naluHeroLine}
+            </p>
           )}
           <h1
             id="verdict-title"
@@ -4914,11 +5232,11 @@ function Index() {
                   ? optionsLoading || driveLoading
                     ? "Checking…"
                     : "Not enough current information"
-                : verdict === "same"
-                  ? "Too close to call"
-                  : verdict === "transit"
-                    ? `Take ${transitLabel}${gap !== null ? ` · ${formatDriveMinutes(Math.abs(gap))} faster` : ""}`
-                    : `Drive${gap !== null ? ` · ${formatDriveMinutes(Math.abs(gap))} faster` : ""}`}
+                  : verdict === "same"
+                    ? "Too close to call"
+                    : verdict === "transit"
+                      ? `Take ${transitLabel}${gap !== null ? ` · ${formatDriveMinutes(Math.abs(gap))} faster` : ""}`
+                      : `Drive${gap !== null ? ` · ${formatDriveMinutes(Math.abs(gap))} faster` : ""}`}
           </h1>
           {configured && verdict !== "none" && !optionsLoading && !driveLoading && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -4946,9 +5264,22 @@ function Index() {
               )}
             </div>
           )}
-          {configured && !arriveByActive && <DecisionBars drive={{ label: "Drive", minutes: driveTripEstimate.expectedDurationMinutes,
-            low: driveRange?.low, high: driveRange?.high }} transit={{ label: transitLabel, minutes: transitTripEstimate.expectedDurationMinutes,
-            low: transitRange?.low, high: transitRange?.high }} />}
+          {configured && !arriveByActive && (
+            <DecisionBars
+              drive={{
+                label: "Drive",
+                minutes: driveTripEstimate.expectedDurationMinutes,
+                low: driveRange?.low,
+                high: driveRange?.high,
+              }}
+              transit={{
+                label: transitLabel,
+                minutes: transitTripEstimate.expectedDurationMinutes,
+                low: transitRange?.low,
+                high: transitRange?.high,
+              }}
+            />
+          )}
           {verdict === "transit" && best && transitRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
               <div className="metric-glass">
@@ -4964,9 +5295,15 @@ function Index() {
                 </p>
               </div>
               <div className="metric-glass">
-                <p className="text-xs text-muted-foreground">{arriveByActive ? "Trip" : "From now"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {arriveByActive ? "Trip" : "From now"}
+                </p>
                 <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
-                  {arriveByActive ? formatDriveMinutes(best.total_minutes) : transitTripEstimate.expectedDurationMinutes !== null ? formatDriveMinutes(transitTripEstimate.expectedDurationMinutes) : "—"}
+                  {arriveByActive
+                    ? formatDriveMinutes(best.total_minutes)
+                    : transitTripEstimate.expectedDurationMinutes !== null
+                      ? formatDriveMinutes(transitTripEstimate.expectedDurationMinutes)
+                      : "—"}
                   <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
                 </p>
               </div>
@@ -5006,7 +5343,10 @@ function Index() {
           )}
           {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
           {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
-            <HdotRoadworkNotice scheduledClosures={drive?.hdotScheduledClosures ?? []} variant="browse" />
+            <HdotRoadworkNotice
+              scheduledClosures={drive?.hdotScheduledClosures ?? []}
+              variant="browse"
+            />
           )}
           {configured && (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
             <p className="mt-4 text-lg font-medium text-muted-foreground">
@@ -5015,34 +5355,65 @@ function Index() {
                 : activeDecision.primary.text}
             </p>
           )}
-          {configured && (verdict === "transit" || verdict === "drive") && reasoning && <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>}
+          {configured && (verdict === "transit" || verdict === "drive") && reasoning && (
+            <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>
+          )}
           {configured && !commitment && decisionSignals.length > 0 && (
             <section
               className="nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25"
               aria-label="What Nalu is watching"
             >
               <div className="flex items-center gap-3 px-4 py-3">
-                <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-                <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Nalu is watching</span>
-                <span className="ml-auto text-[11px] font-semibold text-muted-foreground">Live conditions</span>
+                <span
+                  className="size-1.5 shrink-0 animate-pulse rounded-full bg-primary"
+                  aria-hidden="true"
+                />
+                <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                  Nalu is watching
+                </span>
+                <span className="ml-auto text-[11px] font-semibold text-muted-foreground">
+                  Live conditions
+                </span>
               </div>
               <div className="border-t border-border/50 px-4 py-3">
                 <div className="grid gap-2 sm:grid-cols-2">
                   {decisionSignals.map((signal) => (
-                    <div key={signal.label} className="rounded-xl border border-border/50 bg-background/35 px-3 py-2.5">
-                      <p className="text-[11px] font-semibold text-muted-foreground">{signal.label}</p>
-                      <p className={signal.tone === "alert" ? "mt-0.5 text-sm font-bold leading-5 text-warning" : signal.tone === "positive" ? "mt-0.5 text-sm font-bold leading-5 text-primary" : "mt-0.5 text-sm font-bold leading-5 text-foreground"}>{signal.value}</p>
-                      {signal.detail && <p className="mt-1 text-xs leading-5 text-muted-foreground">{signal.detail}</p>}
+                    <div
+                      key={signal.label}
+                      className="rounded-xl border border-border/50 bg-background/35 px-3 py-2.5"
+                    >
+                      <p className="text-[11px] font-semibold text-muted-foreground">
+                        {signal.label}
+                      </p>
+                      <p
+                        className={
+                          signal.tone === "alert"
+                            ? "mt-0.5 text-sm font-bold leading-5 text-warning"
+                            : signal.tone === "positive"
+                              ? "mt-0.5 text-sm font-bold leading-5 text-primary"
+                              : "mt-0.5 text-sm font-bold leading-5 text-foreground"
+                        }
+                      >
+                        {signal.value}
+                      </p>
+                      {signal.detail && (
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          {signal.detail}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
                 <div className="mt-3 border-t border-border/50 pt-3 text-xs text-muted-foreground">
                   <p>{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
-                  <p className="mt-1">{sourceFreshnessLabel(transitTripEstimate.source, now.getTime())}</p>
+                  <p className="mt-1">
+                    {sourceFreshnessLabel(transitTripEstimate.source, now.getTime())}
+                  </p>
                 </div>
               </div>
             </section>
-          )}          {configured && !commitment && decisionChanges.length > 0 && (
+          )}{" "}
+          {configured && !commitment && decisionChanges.length > 0 && (
             <details className="mt-3 overflow-hidden rounded-2xl border border-border/60 bg-background/25 text-sm">
               <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-foreground marker:hidden">
                 <span className="inline-flex items-center gap-2">
@@ -5051,13 +5422,29 @@ function Index() {
                 </span>
               </summary>
               <div className="border-t border-border/50 px-4 py-4">
-                <p className="text-sm font-semibold leading-6 text-foreground">{decisionChanges[0]}</p>
+                <p className="text-sm font-semibold leading-6 text-foreground">
+                  {decisionChanges[0]}
+                </p>
                 {decisionChanges.slice(1).map((change) => (
-                  <p key={change} className="mt-2 text-sm leading-6 text-muted-foreground">{change}</p>
+                  <p key={change} className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {change}
+                  </p>
                 ))}
-                {whyNaluText && <p className="mt-2 text-sm leading-6 text-muted-foreground">{whyNaluText}</p>}
-                {verdict === "same" && <p className="mt-2 text-sm leading-6 text-muted-foreground">Driving is about {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit is about {formatDriveMinutes(transitTripEstimate.expectedDurationMinutes ?? 0)}.</p>}
-                {verdict === "uncertain" && <p className="mt-2 text-sm leading-6 text-muted-foreground">{activeDecision.primary.text}.</p>}
+                {whyNaluText && (
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{whyNaluText}</p>
+                )}
+                {verdict === "same" && (
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Driving is about{" "}
+                    {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit is
+                    about {formatDriveMinutes(transitTripEstimate.expectedDurationMinutes ?? 0)}.
+                  </p>
+                )}
+                {verdict === "uncertain" && (
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {activeDecision.primary.text}.
+                  </p>
+                )}
               </div>
             </details>
           )}
@@ -5065,92 +5452,94 @@ function Index() {
 
         {/* Keep the trip commitment action directly beneath the verdict so it
             remains visible before route and comparison details. */}
-        {configured && <section
+        {configured && (
+          <section
             className={`commitment-panel -mx-2 mt-3 rounded-2xl p-3 ${commitment ? "is-live" : ""}`}
-          aria-label={commitment ? "Active trip controls" : "Start trip"}
-        >
-          {commitment ? (
-            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-              <div className="flex min-w-0 items-center gap-3 text-center sm:text-left">
-                <span className="live-pulse" aria-hidden="true">
-                  <span />
-                </span>
-                <div>
-                  <p className="text-sm font-black uppercase text-foreground">
-                    Live navigation active
-                  </p>
-                  {liveEta ? (
-                    <p
-                      className="mt-0.5 text-sm font-bold tabular-nums text-foreground"
-                      aria-live="polite"
-                    >
-                      Arrive {clockFromSeconds(liveEta.arriveSeconds)} · {liveEta.remainingMin} min
-                      left
-                      {liveEta.meters ? ` · ${formatDistance(liveEta.meters)}` : ""}
-                      {liveEta.range ? (
-                        <span className="block text-xs font-semibold text-muted-foreground">
-                          Total trip {liveEta.range}
-                        </span>
-                      ) : null}
+            aria-label={commitment ? "Active trip controls" : "Start trip"}
+          >
+            {commitment ? (
+              <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3 text-center sm:text-left">
+                  <span className="live-pulse" aria-hidden="true">
+                    <span />
+                  </span>
+                  <div>
+                    <p className="text-sm font-black uppercase text-foreground">
+                      Live navigation active
                     </p>
-                  ) : null}
-                  <p className="mt-0.5 text-xs font-semibold text-muted-foreground">
-                    {lockedMode === "drive"
-                      ? liveEta?.live
-                        ? "Live from your GPS position · traffic every minute"
-                        : "Waiting for GPS…"
-                      : "Stops & alerts locked"}
-                  </p>
+                    {liveEta ? (
+                      <p
+                        className="mt-0.5 text-sm font-bold tabular-nums text-foreground"
+                        aria-live="polite"
+                      >
+                        Arrive {clockFromSeconds(liveEta.arriveSeconds)} · {liveEta.remainingMin}{" "}
+                        min left
+                        {liveEta.meters ? ` · ${formatDistance(liveEta.meters)}` : ""}
+                        {liveEta.range ? (
+                          <span className="block text-xs font-semibold text-muted-foreground">
+                            Total trip {liveEta.range}
+                          </span>
+                        ) : null}
+                      </p>
+                    ) : null}
+                    <p className="mt-0.5 text-xs font-semibold text-muted-foreground">
+                      {lockedMode === "drive"
+                        ? liveEta?.live
+                          ? "Live from your GPS position · traffic every minute"
+                          : "Waiting for GPS…"
+                        : "Stops & alerts locked"}
+                    </p>
+                  </div>
                 </div>
+                <HoldToEndButton
+                  onEnd={endTrip}
+                  label="End Trip"
+                  className="h-12 w-full shrink-0 px-6 sm:w-auto"
+                />
               </div>
-              <HoldToEndButton
-                onEnd={endTrip}
-                label="End Trip"
-                className="h-12 w-full shrink-0 px-6 sm:w-auto"
-              />
-            </div>
-          ) : (
-            <Button
-              type="button"
-              disabled={selectedMode === "transit" ? !best : !driveAvailable || !drive}
-              onClick={() => {
-                // Starting a trip means "tell me everything": unlock chime and speech
-                // inside this tap (iOS Safari), unmute voice and turn every alert on.
-                primeChimeAudio();
-                primeSpeech();
-                requestCommuteNotificationPermission();
-                setNavMuted(false);
-                setAlertPrefs((prev) => ({
-                  ...prev,
-                  sound: true,
-                  haptics: true,
-                  keepOnTransfer: true,
-                }));
-                commitMode(selectedMode);
-              }}
-              className="commitment-start h-auto min-h-16 w-full gap-3 px-5 py-4 text-left"
-            >
-              {selectedMode === "drive" ? (
-                <Navigation className="size-6 shrink-0" />
-              ) : transitUsesRail ? (
-                <TrainFront className="size-6 shrink-0" />
-              ) : transitUsesBus ? (
-                <Bus className="size-6 shrink-0" />
-              ) : (
-                <Footprints className="size-6 shrink-0" />
-              )}
-              <span className="min-w-0 flex-1 text-center">
-                <span className="block text-base font-black uppercase">
-                  Start {selectedMode === "drive" ? "Drive" : transitLabel}
+            ) : (
+              <Button
+                type="button"
+                disabled={selectedMode === "transit" ? !best : !driveAvailable || !drive}
+                onClick={() => {
+                  // Starting a trip means "tell me everything": unlock chime and speech
+                  // inside this tap (iOS Safari), unmute voice and turn every alert on.
+                  primeChimeAudio();
+                  primeSpeech();
+                  requestCommuteNotificationPermission();
+                  setNavMuted(false);
+                  setAlertPrefs((prev) => ({
+                    ...prev,
+                    sound: true,
+                    haptics: true,
+                    keepOnTransfer: true,
+                  }));
+                  commitMode(selectedMode);
+                }}
+                className="commitment-start h-auto min-h-16 w-full gap-3 px-5 py-4 text-left"
+              >
+                {selectedMode === "drive" ? (
+                  <Navigation className="size-6 shrink-0" />
+                ) : transitUsesRail ? (
+                  <TrainFront className="size-6 shrink-0" />
+                ) : transitUsesBus ? (
+                  <Bus className="size-6 shrink-0" />
+                ) : (
+                  <Footprints className="size-6 shrink-0" />
+                )}
+                <span className="min-w-0 flex-1 text-center">
+                  <span className="block text-base font-black uppercase">
+                    Start {selectedMode === "drive" ? "Drive" : transitLabel}
+                  </span>
+                  <span className="mt-0.5 block text-[10px] font-black uppercase text-primary-foreground/75">
+                    {selectedMode === "drive" ? "Live navigation & traffic" : "Live stops & alerts"}
+                  </span>
                 </span>
-                <span className="mt-0.5 block text-[10px] font-black uppercase text-primary-foreground/75">
-                  {selectedMode === "drive" ? "Live navigation & traffic" : "Live stops & alerts"}
-                </span>
-              </span>
-              <Radio className="size-5 shrink-0" />
-            </Button>
-          )}
-        </section>}
+                <Radio className="size-5 shrink-0" />
+              </Button>
+            )}
+          </section>
+        )}
 
         {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
           <section
@@ -5210,7 +5599,12 @@ function Index() {
                   >
                     <p className="text-sm font-semibold text-foreground">{rescue.headline}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{rescue.spoken}</p>
-                    <Button size="sm" variant="ghost" className="mt-1 h-7 px-2" onClick={() => setRescue(null)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="mt-1 h-7 px-2"
+                      onClick={() => setRescue(null)}
+                    >
                       Dismiss
                     </Button>
                   </div>
@@ -5272,7 +5666,9 @@ function Index() {
                       onToggleMute={() => setNavMuted((value) => !value)}
                       rerouting={rerouting}
                       onRouteStateChange={handleRouteStateChange}
-                      traffic={lockedMode === "drive" ? (liveDrive ?? drive)?.trafficSections ?? [] : []}
+                      traffic={
+                        lockedMode === "drive" ? ((liveDrive ?? drive)?.trafficSections ?? []) : []
+                      }
                       turn={
                         nextTurn
                           ? {
@@ -5340,7 +5736,13 @@ function Index() {
               onClick={() => chooseMode("transit")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "transit" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />} {transitLabel} {arriveByActive && best ? `· ${best.total_minutes} min` : transitTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(transitTripEstimate.expectedDurationMinutes)}` : ""}
+              {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />}{" "}
+              {transitLabel}{" "}
+              {arriveByActive && best
+                ? `· ${best.total_minutes} min`
+                : transitTripEstimate.expectedDurationMinutes !== null
+                  ? `· ${formatDriveMinutes(transitTripEstimate.expectedDurationMinutes)}`
+                  : ""}
               {!commitment && verdict === "transit" && (
                 <span className="mode-winner-badge">Faster than driving</span>
               )}
@@ -5354,7 +5756,10 @@ function Index() {
               onClick={() => chooseMode("drive")}
               className={`relative h-14 disabled:opacity-100 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
             >
-              <Car /> Drive {driveTripEstimate.expectedDurationMinutes !== null ? `· ${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes)}` : ""}
+              <Car /> Drive{" "}
+              {driveTripEstimate.expectedDurationMinutes !== null
+                ? `· ${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes)}`
+                : ""}
               {!commitment && verdict === "drive" && (
                 <span className="mode-winner-badge">Faster than transit</span>
               )}
@@ -5399,25 +5804,35 @@ function Index() {
                   </p>
                 </div>
                 <p className="text-4xl font-bold tabular-nums text-foreground">
-                  {driveAvailable ? (driveTripEstimate.expectedDurationMinutes !== null ? Math.round(driveTripEstimate.expectedDurationMinutes) : driveLoading ? "…" : "—") : "—"}
+                  {driveAvailable
+                    ? driveTripEstimate.expectedDurationMinutes !== null
+                      ? Math.round(driveTripEstimate.expectedDurationMinutes)
+                      : driveLoading
+                        ? "…"
+                        : "—"
+                    : "—"}
                   <span className="ml-1 text-base">min</span>
                 </p>
               </div>
-              {verdict !== "drive" && (
-                drive?.corridorLabel ? (
+              {verdict !== "drive" &&
+                (drive?.corridorLabel ? (
                   <RouteCorridor label={drive.corridorLabel} size="compact" />
                 ) : (
                   <p className="mt-4 text-sm font-medium text-foreground">
-                    Drive straight from {tripOriginLabel} to {tripArrivalLabel}{" "}
-                    — no stop at a rail station.
+                    Drive straight from {tripOriginLabel} to {tripArrivalLabel} — no stop at a rail
+                    station.
                   </p>
-                )
-              )}
+                ))}
               {driveAvailable && driveRange && drive && (
                 <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
               )}
               {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
-                <HdotRoadworkNotice scheduledClosures={drive?.hdotScheduledClosures ?? []} variant="commute" liveDriveMinutes={drive?.trafficMinutes ?? null} delayMinutes={drive?.delayMinutes ?? null} />
+                <HdotRoadworkNotice
+                  scheduledClosures={drive?.hdotScheduledClosures ?? []}
+                  variant="commute"
+                  liveDriveMinutes={drive?.trafficMinutes ?? null}
+                  delayMinutes={drive?.delayMinutes ?? null}
+                />
               )}
               {!driveAvailable && carAwayReason && (
                 <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>
@@ -5443,7 +5858,7 @@ function Index() {
                   <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
                 </p>
               ))}
-           </div>
+            </div>
           )}
         </section>
 
@@ -5534,9 +5949,15 @@ function Index() {
                           {primaryTransitLeg && (
                             <span className="mt-3 flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md bg-recommended/5 px-3 py-2 text-xs text-muted-foreground">
                               {isRailDeparture ? (
-                                <TrainFront className="size-4 shrink-0 text-recommended" aria-hidden="true" />
+                                <TrainFront
+                                  className="size-4 shrink-0 text-recommended"
+                                  aria-hidden="true"
+                                />
                               ) : (
-                                <Bus className="size-4 shrink-0 text-recommended" aria-hidden="true" />
+                                <Bus
+                                  className="size-4 shrink-0 text-recommended"
+                                  aria-hidden="true"
+                                />
                               )}
                               <span className="shrink-0 font-bold text-foreground">
                                 {isRailDeparture ? "Rail" : "Bus"}
@@ -5605,7 +6026,8 @@ function RailTripBreakdown({
   const rows = option.legs
     .map((leg, i) => ({ leg, i }))
     .sort((a, b) => {
-      const ta = a.leg.depart_seconds, tb = b.leg.depart_seconds;
+      const ta = a.leg.depart_seconds,
+        tb = b.leg.depart_seconds;
       return ta !== null && tb !== null && ta !== tb ? ta - tb : a.i - b.i;
     })
     .map(({ leg }) => leg);
@@ -5624,36 +6046,41 @@ function RailTripBreakdown({
               : 0;
           const legMinutes = duration(leg);
           const nextLeg = rows[index + 1];
-          const toBusStop = nextLeg?.mode === "bus" || (leg.mode === "bus" && leg.kind === "access");
+          const toBusStop =
+            nextLeg?.mode === "bus" || (leg.mode === "bus" && leg.kind === "access");
           const stationName = toBusStop ? titleCase(leg.to) : stationLabel(leg.to);
           const label =
             leg.mode === "bus" && leg.kind !== "access"
-              ? leg.route_short ? `Bus ${leg.route_short}` : "Bus"
+              ? leg.route_short
+                ? `Bus ${leg.route_short}`
+                : "Bus"
               : leg.mode === "walk" && leg.kind === "connect"
                 ? `Walk to ${toBusStop ? titleCase(leg.to) || "the next stop" : `${stationLabel(leg.to) || "the"} Station`}`
-              : leg.kind === "access"
-              ? leg.mode === "walk"
-                ? toBusStop
-                  ? `Walk to ${stationName || "the bus stop"}`
-                  : `Walk to ${stationName || "the station"} Station`
-                : stationName
-                  ? `To ${stationName}${leg.mode === "bus" ? "" : " Station"}`
-                  : leg.mode === "bus" ? "To the stop" : "To the station"
-              : leg.kind === "rail"
-                ? "Skyline"
-                : leg.kind === "connect"
-                  ? "Connecting bus"
-                  : leg.mode === "bus"
-                    ? inbound
-                      ? "Bus home"
-                      : "Connecting bus"
-                    : leg.mode === "drive"
-                      ? inbound
-                        ? "Drive home"
-                        : "Drive"
-                      : inbound
-                        ? "Walk home"
-                        : "Final walk";
+                : leg.kind === "access"
+                  ? leg.mode === "walk"
+                    ? toBusStop
+                      ? `Walk to ${stationName || "the bus stop"}`
+                      : `Walk to ${stationName || "the station"} Station`
+                    : stationName
+                      ? `To ${stationName}${leg.mode === "bus" ? "" : " Station"}`
+                      : leg.mode === "bus"
+                        ? "To the stop"
+                        : "To the station"
+                  : leg.kind === "rail"
+                    ? "Skyline"
+                    : leg.kind === "connect"
+                      ? "Connecting bus"
+                      : leg.mode === "bus"
+                        ? inbound
+                          ? "Bus home"
+                          : "Connecting bus"
+                        : leg.mode === "drive"
+                          ? inbound
+                            ? "Drive home"
+                            : "Drive"
+                          : inbound
+                            ? "Walk home"
+                            : "Final walk";
           const arrivalLabel =
             leg.kind === "egress"
               ? inbound
@@ -5734,7 +6161,8 @@ function RailTripBreakdown({
                       </p>
                     )}
                     <p className="text-sm font-semibold text-foreground">
-                      Board at: {transitStopName(leg, "from")} · {clockFromSeconds(leg.depart_seconds)}
+                      Board at: {transitStopName(leg, "from")} ·{" "}
+                      {clockFromSeconds(leg.depart_seconds)}
                     </p>
                     <LandmarkHint name={transitStopName(leg, "from")} />
                     <BusArrivalTime
@@ -6896,115 +7324,123 @@ function SetupDialog({
         <div className="grid gap-5">
           <SettingsGroup
             title={firstRun ? "Trip setup" : "Current trip"}
-            description={firstRun ? "Choose where you’re starting and going." : "Change where you’re starting or going."}
+            description={
+              firstRun
+                ? "Choose where you’re starting and going."
+                : "Change where you’re starting or going."
+            }
             defaultOpen={firstRun}
           >
             <div className="grid gap-5">
               <div className="grid gap-2">
                 <Label>From</Label>
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <LocateFixed className="size-4 shrink-0 text-primary" />
-                <p className="truncate font-medium">{originLabel}</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="shrink-0"
-                disabled={busy}
-                onClick={locateMe}
-              >
-                <LocateFixed className="size-4" /> Locate
-              </Button>
-            </div>
-            <PlacePills
-              places={savedPlaces}
-              disabled={busy}
-              onPick={(place) => void applyOrigin(place, place.label)}
-            />
-            {permissionBlocked && (
-              <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
-            )}
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <LocateFixed className="size-4 shrink-0 text-primary" />
+                    <p className="truncate font-medium">{originLabel}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={busy}
+                    onClick={locateMe}
+                  >
+                    <LocateFixed className="size-4" /> Locate
+                  </Button>
+                </div>
+                <PlacePills
+                  places={savedPlaces}
+                  disabled={busy}
+                  onPick={(place) => void applyOrigin(place, place.label)}
+                />
+                {permissionBlocked && (
+                  <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
+                )}
               </div>
 
               <div className="grid gap-2">
                 <Label htmlFor="destination">To</Label>
-            {draft.destinationName ? (
-              <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{draft.destinationName}</p>
-                  {draft.destinationAddress !== draft.destinationName && (
-                    <p className="truncate text-xs text-muted-foreground">
-                      {draft.destinationAddress}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  className="shrink-0"
-                  onClick={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      destinationName: "",
-                      destinationAddress: "",
-                      destLat: null,
-                      destLon: null,
-                      destStopId: "",
-                      destStopName: "",
-                      destStopWalkM: 0,
-                      destReturnStopId: "",
-                      destReturnStopName: "",
-                      destReturnWalkM: 0,
-                    }))
-                  }
-                >
-                  Change
-                </Button>
-              </div>
-            ) : (
-              <>
-                <PlacePills places={savedPlaces} disabled={busy} onPick={selectPlace} />
-                <Input
-                  id="destination"
-                  className="h-12 bg-surface-raised"
-                  placeholder="Search for a place or address"
-                  autoComplete="off"
-                  value={placeQuery}
-                  onChange={(event) => setPlaceQuery(event.target.value)}
-                />
-                {searching && <p className="text-sm text-muted-foreground">Searching…</p>}
-                {suggestions.length > 0 && (
-                  <ul className="divide-y divide-border overflow-hidden rounded-lg bg-surface-raised">
-                    {suggestions.map((place) => (
-                      <li key={place.id}>
-                        <button
-                          type="button"
-                          onClick={() => selectPlace(place)}
-                          disabled={busy}
-                          className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/40"
-                        >
-                          <span className="block truncate font-medium">{place.name}</span>
-                          {place.address && place.address !== place.name && (
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {place.address}
-                            </span>
-                          )}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                {draft.destinationName ? (
+                  <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{draft.destinationName}</p>
+                      {draft.destinationAddress !== draft.destinationName && (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {draft.destinationAddress}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      className="shrink-0"
+                      onClick={() =>
+                        setDraft((current) => ({
+                          ...current,
+                          destinationName: "",
+                          destinationAddress: "",
+                          destLat: null,
+                          destLon: null,
+                          destStopId: "",
+                          destStopName: "",
+                          destStopWalkM: 0,
+                          destReturnStopId: "",
+                          destReturnStopName: "",
+                          destReturnWalkM: 0,
+                        }))
+                      }
+                    >
+                      Change
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <PlacePills places={savedPlaces} disabled={busy} onPick={selectPlace} />
+                    <Input
+                      id="destination"
+                      className="h-12 bg-surface-raised"
+                      placeholder="Search for a place or address"
+                      autoComplete="off"
+                      value={placeQuery}
+                      onChange={(event) => setPlaceQuery(event.target.value)}
+                    />
+                    {searching && <p className="text-sm text-muted-foreground">Searching…</p>}
+                    {suggestions.length > 0 && (
+                      <ul className="divide-y divide-border overflow-hidden rounded-lg bg-surface-raised">
+                        {suggestions.map((place) => (
+                          <li key={place.id}>
+                            <button
+                              type="button"
+                              onClick={() => selectPlace(place)}
+                              disabled={busy}
+                              className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                            >
+                              <span className="block truncate font-medium">{place.name}</span>
+                              {place.address && place.address !== place.name && (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {place.address}
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {!searching && debouncedQuery.length >= 2 && suggestions.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No places matched. Try a different name.
+                      </p>
+                    )}
+                  </>
                 )}
-                {!searching && debouncedQuery.length >= 2 && suggestions.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    No places matched. Try a different name.
-                  </p>
-                )}
-              </>
-            )}
               </div>
 
-              <Button onClick={save} disabled={!canSave || busy} className="h-12 w-full shadow-none">
-            GO
+              <Button
+                onClick={save}
+                disabled={!canSave || busy}
+                className="h-12 w-full shadow-none"
+              >
+                GO
               </Button>
             </div>
           </SettingsGroup>
@@ -7025,152 +7461,156 @@ function SetupDialog({
               defaultOpen={false}
             >
               <section className="grid gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <Label className="text-sm">Saved places</Label>
-                {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onPlacesChange(swapHomeWork(savedPlaces))}
-                  >
-                    Swap Home &amp; Work
-                  </Button>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Save Home, Work, School, Gym or anywhere else once, then start a trip with one tap.
-              </p>
-
-              {presets.length > 0 && (
-                <div className="flex flex-wrap gap-2" aria-label="Commute presets">
-                  {presets.map((preset) => (
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-sm">Saved places</Label>
+                  {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
                     <Button
-                      key={preset.id}
-                      variant="secondary"
+                      variant="ghost"
                       size="sm"
-                      disabled={busy}
-                      onClick={() => applyPreset(preset.from, preset.to)}
+                      onClick={() => onPlacesChange(swapHomeWork(savedPlaces))}
                     >
-                      {preset.label}
+                      Swap Home &amp; Work
                     </Button>
-                  ))}
+                  )}
                 </div>
-              )}
+                <p className="text-xs text-muted-foreground">
+                  Save Home, Work, School, Gym or anywhere else once, then start a trip with one
+                  tap.
+                </p>
 
-              {savedPlaces.length > 0 && (
-                <ul className="grid gap-3">
-                  {savedPlaces.map((place) => (
-                    <li key={place.id} className="grid gap-2 rounded-lg bg-surface-raised p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
+                {presets.length > 0 && (
+                  <div className="flex flex-wrap gap-2" aria-label="Commute presets">
+                    {presets.map((preset) => (
+                      <Button
+                        key={preset.id}
+                        variant="secondary"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => applyPreset(preset.from, preset.to)}
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                {savedPlaces.length > 0 && (
+                  <ul className="grid gap-3">
+                    {savedPlaces.map((place) => (
+                      <li key={place.id} className="grid gap-2 rounded-lg bg-surface-raised p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <Input
+                              aria-label={`Label for ${place.name}`}
+                              value={place.label}
+                              onChange={(event) =>
+                                onPlacesChange(
+                                  upsertPlace(savedPlaces, { ...place, label: event.target.value }),
+                                )
+                              }
+                              className="h-9 bg-background/60 font-semibold"
+                            />
+                            <p className="mt-1 truncate text-xs text-muted-foreground">
+                              {place.name}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Remove ${place.label}`}
+                            onClick={() => onPlacesChange(removePlace(savedPlaces, place.id))}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Label
+                            htmlFor={`arrive-${place.id}`}
+                            className="text-xs text-muted-foreground"
+                          >
+                            Typical arrival
+                          </Label>
                           <Input
-                            aria-label={`Label for ${place.name}`}
-                            value={place.label}
+                            id={`arrive-${place.id}`}
+                            type="time"
+                            value={clockInputValue(place.typicalArrivalSeconds)}
                             onChange={(event) =>
                               onPlacesChange(
-                                upsertPlace(savedPlaces, { ...place, label: event.target.value }),
+                                upsertPlace(savedPlaces, {
+                                  ...place,
+                                  typicalArrivalSeconds: parseClockInput(event.target.value),
+                                }),
                               )
                             }
-                            className="h-9 bg-background/60 font-semibold"
+                            className="h-9 w-32 bg-background/60 tabular-nums"
                           />
-                          <p className="mt-1 truncate text-xs text-muted-foreground">
-                            {place.name}
-                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => applyOrigin(place)}
+                          >
+                            Start here
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => selectPlace(place)}
+                          >
+                            Go here
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Remove ${place.label}`}
-                          onClick={() => onPlacesChange(removePlace(savedPlaces, place.id))}
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Label
-                          htmlFor={`arrive-${place.id}`}
-                          className="text-xs text-muted-foreground"
-                        >
-                          Typical arrival
-                        </Label>
-                        <Input
-                          id={`arrive-${place.id}`}
-                          type="time"
-                          value={clockInputValue(place.typicalArrivalSeconds)}
-                          onChange={(event) =>
-                            onPlacesChange(
-                              upsertPlace(savedPlaces, {
-                                ...place,
-                                typicalArrivalSeconds: parseClockInput(event.target.value),
-                              }),
-                            )
-                          }
-                          className="h-9 w-32 bg-background/60 tabular-nums"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => applyOrigin(place)}
-                        >
-                          Start here
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => selectPlace(place)}
-                        >
-                          Go here
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                <Select value={saveKind} onValueChange={(value) => setSaveKind(value as PlaceKind)}>
-                  <SelectTrigger className="h-10 w-32 bg-surface-raised">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PLACE_KINDS.map((kind) => (
-                      <SelectItem key={kind} value={kind}>
-                        {kind === "custom" ? "Custom" : kindLabel(kind)}
-                      </SelectItem>
+                      </li>
                     ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="time"
-                  aria-label="Typical arrival time for the place you are saving"
-                  value={saveTime}
-                  onChange={(event) => setSaveTime(event.target.value)}
-                  className="h-10 w-32 bg-surface-raised tabular-nums"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!originPoint}
-                  onClick={() =>
-                    originPoint && savePlace(saveKind, originPoint, parseClockInput(saveTime))
-                  }
-                >
-                  Save start
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!destinationPoint}
-                  onClick={() =>
-                    destinationPoint &&
-                    savePlace(saveKind, destinationPoint, parseClockInput(saveTime))
-                  }
-                >
-                  Save destination
-                </Button>
-              </div>
+                  </ul>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                  <Select
+                    value={saveKind}
+                    onValueChange={(value) => setSaveKind(value as PlaceKind)}
+                  >
+                    <SelectTrigger className="h-10 w-32 bg-surface-raised">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PLACE_KINDS.map((kind) => (
+                        <SelectItem key={kind} value={kind}>
+                          {kind === "custom" ? "Custom" : kindLabel(kind)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="time"
+                    aria-label="Typical arrival time for the place you are saving"
+                    value={saveTime}
+                    onChange={(event) => setSaveTime(event.target.value)}
+                    className="h-10 w-32 bg-surface-raised tabular-nums"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!originPoint}
+                    onClick={() =>
+                      originPoint && savePlace(saveKind, originPoint, parseClockInput(saveTime))
+                    }
+                  >
+                    Save start
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!destinationPoint}
+                    onClick={() =>
+                      destinationPoint &&
+                      savePlace(saveKind, destinationPoint, parseClockInput(saveTime))
+                    }
+                  >
+                    Save destination
+                  </Button>
+                </div>
               </section>
             </SettingsGroup>
           )}
@@ -7309,9 +7749,9 @@ function AboutSection() {
         Privacy
       </p>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        Guest trips and saved places can remain on this device. If you choose to sign in, your profile,
-        saved places, and preferences can sync across your devices. Feedback you submit is sent to Nalu
-        for review and is processed through our feedback service provider.
+        Guest trips and saved places can remain on this device. If you choose to sign in, your
+        profile, saved places, and preferences can sync across your devices. Feedback you submit is
+        sent to Nalu for review and is processed through our feedback service provider.
       </p>
       <div className="mt-6 h-px bg-border/60" />
 

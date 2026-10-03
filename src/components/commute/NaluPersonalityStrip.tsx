@@ -44,7 +44,9 @@ export function NaluPersonalityStrip({
         N
       </span>
       <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Nalu</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          Nalu
+        </p>
         <p className="mt-0.5 text-sm font-medium leading-5 text-foreground">{line}</p>
       </div>
     </div>
@@ -63,8 +65,14 @@ export function WaveMark({ className }: { className?: string }) {
       />
       <g transform="translate(19 4)">
         <ellipse className="shell" cx="13" cy="16" rx="11" ry="8.2" />
-        <path className="detail" d="M13 8v16M4 15h18M6.5 11.5 13 16l6.5-4.5M6.5 19.5 13 16l6.5 3.5" />
-        <path className="body" d="M3 13.5 0 10.5 1.5 17 4.5 16.5ZM23 13.5l3-3-1.5 6.5-3-.5ZM8 22l-3 4.5 5-2.5ZM18 22l3 4.5-5-2.5Z" />
+        <path
+          className="detail"
+          d="M13 8v16M4 15h18M6.5 11.5 13 16l6.5-4.5M6.5 19.5 13 16l6.5 3.5"
+        />
+        <path
+          className="body"
+          d="M3 13.5 0 10.5 1.5 17 4.5 16.5ZM23 13.5l3-3-1.5 6.5-3-.5ZM8 22l-3 4.5 5-2.5ZM18 22l3 4.5-5-2.5Z"
+        />
         <path className="body" d="M10.5 23.5h5L13 27Z" />
       </g>
     </svg>
