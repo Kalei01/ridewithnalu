@@ -5,6 +5,34 @@
 
 import { generateSmartNaluInsight, type SmartNaluContext } from "@/lib/nalu-voice";
 
+
+export function WaveMark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 96 64"
+      role="img"
+      aria-label="Nalu wave mark"
+      className={className}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M8 39c8-16 16-16 24 0s16 16 24 0 16-16 24 0"
+        stroke="currentColor"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M20 48c6-9 12-9 18 0s12 9 18 0 12-9 18 0"
+        stroke="currentColor"
+        strokeWidth="4"
+        strokeLinecap="round"
+        opacity=".55"
+      />
+    </svg>
+  );
+}
+
 export type NaluDecisionState = "drive" | "transit" | "same" | "none" | "uncertain";
 
 export function NaluPersonalityStrip({
