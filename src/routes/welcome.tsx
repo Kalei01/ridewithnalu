@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
+import { naluPulseTagline } from "@/lib/nalu-voice";
 
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 
@@ -205,6 +206,9 @@ function WelcomePage() {
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
               Nalu brings the important pieces of your Oʻahu commute together, so you know your options and when to leave.
+            </p>
+            <p className="mt-3 text-sm font-medium text-foreground/90">
+              {naluPulseTagline("morning")}
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
