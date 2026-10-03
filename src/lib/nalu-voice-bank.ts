@@ -168,7 +168,7 @@ export const CLOSE_CALL_TAILS = [
   "Either one gets the job done without a huge time difference.",
   "That gap is small enough to go with your preference.",
   "No need to force a winner when it’s this close.",
-  "If you hate traffic, take transit. If you hate transfers, drive.",
+  "If you hate traffic, take transit; if you hate transfers, drive.",
 ];
 
 export const INCIDENT_TAILS = [
