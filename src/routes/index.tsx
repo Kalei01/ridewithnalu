@@ -42,6 +42,7 @@ import { CommutePageNav } from "@/components/commute/CommutePageNav";
 import { TravelModeTabs } from "@/components/commute/TravelModeTabs";
 import { TransitItinerary } from "@/components/commute/TransitItinerary";
 import { DriveDetails } from "@/components/commute/DriveDetails";
+import { AlternativeDepartures } from "@/components/commute/AlternativeDepartures";
 import { HdotRoadworkNotice } from "@/components/commute/HdotRoadworkNotice";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
@@ -5737,30 +5738,8 @@ function Index() {
                                     <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
                                   </p>
                                 ))}
-                </>
-              }
-            />
-          )}
-        </section>
-
         {selectedMode === "transit" && options.length > 1 && (
-          <section
-            className="alternative-panel mb-8 min-w-0 max-w-full overflow-hidden rounded-lg p-4 sm:p-5"
-            aria-labelledby="later-title"
-          >
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full border border-recommended/35 bg-recommended/10 text-recommended">
-                <Clock3 className="size-4" />
-              </span>
-              <div>
-                <h2 id="later-title" className="text-xl font-bold text-foreground">
-                  Alternative departures
-                </h2>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  Choose another trip.
-                </p>
-              </div>
-            </div>
+          <AlternativeDepartures>
             <ol className="mt-5 grid min-w-0 max-w-full gap-3">
               {options
                 .filter((option) => !best || optionIdentity(option) !== optionIdentity(best))
@@ -5850,6 +5829,10 @@ function Index() {
                       </Button>
                     </li>
                   );
+                })}
+            </ol>
+          </AlternativeDepartures>
+        )}            );
                 })}
             </ol>
           </section>
