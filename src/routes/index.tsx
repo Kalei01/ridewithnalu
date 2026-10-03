@@ -1950,7 +1950,114 @@ function Index() {
               }),
             );
 
-            const outboundOptions = mergeTransitOptions(...outboundGroups);
+            // Also test "park at this station, then take the bus from the
+            // station" directly. plan_outbound requires a rail ride before its
+            // bus connection, which can create the exact bad pattern we are
+            // trying to avoid: drive to East Kapolei -> rail one stop -> Route C.
+            // For a station such as Keoneae, the correct multimodal candidate can
+            // be drive -> station -> short walk -> Route C, with no rail leg.
+            const stationBusGroups = await Promise.all(
+              uniqueIds.map(async (stationId) => {
+                const station = candidateStations.find((item) => item.stop_id === stationId);
+                if (
+                  !station ||
+                  station.stop_lat === null ||
+                  station.stop_lon === null ||
+                  !Number.isFinite(Number(station.stop_lat)) ||
+                  !Number.isFinite(Number(station.stop_lon))
+                ) {
+                  return [];
+                }
+
+                try {
+                  const { data: accessData, error: accessError } = await supabase.rpc(
+                    "access_legs",
+                    {
+                      p_lat: tripDirection.from.lat as number,
+                      p_lon: tripDirection.from.lon as number,
+                      p_station: stationId,
+                      p_allow_drive: true,
+                      p_earliest: cursor,
+                      p_window_sec: 10800,
+                      p_walk_radius_m: 1250,
+                      p_board_radius_m: 800,
+                      p_station_radius_m: 400,
+                    },
+                  );
+                  if (accessError) {
+                    recordTransitRpcError(`access_legs:${stationId}`, accessError);
+                    return [];
+                  }
+
+                  const driveAccess = (accessData ?? [])
+                    .filter((row) => row.mode === "drive")
+                    .sort(
+                      (a, b) =>
+                        Number(a.arrive_seconds ?? a.leave_by_seconds + a.minutes * 60) -
+                        Number(b.arrive_seconds ?? b.leave_by_seconds + b.minutes * 60),
+                    )[0];
+
+                  if (!driveAccess) return [];
+
+                  const stationArrive = Number(
+                    driveAccess.arrive_seconds ??
+                      Number(driveAccess.leave_by_seconds) + Number(driveAccess.minutes) * 60,
+                  );
+
+                  const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+                    p_origin_lat: Number(station.stop_lat),
+                    p_origin_lon: Number(station.stop_lon),
+                    p_dest_lat: tripDirection.to.lat as number,
+                    p_dest_lon: tripDirection.to.lon as number,
+                    p_after_seconds: stationArrive,
+                    p_limit: planMode === "arrive-by" ? 8 : 4,
+                    p_origin_radius_m: 1200,
+                    p_dest_radius_m: 3000,
+                  });
+                  if (busError) {
+                    recordTransitRpcError(`plan_bus_direct:${stationId}`, busError);
+                    return [];
+                  }
+
+                  return (busData ?? []).map((row) => {
+                    const busLegs = row.legs as unknown as Leg[];
+                    const accessLeg: Leg = {
+                      kind: "access",
+                      mode: "drive",
+                      route_short: null,
+                      route_long: null,
+                      headsign: null,
+                      from: "Your location",
+                      to: station.stop_name ?? "Rail station",
+                      from_stop_id: null,
+                      to_stop_id: stationId,
+                      depart_seconds: Number(driveAccess.leave_by_seconds),
+                      arrive_seconds: stationArrive,
+                      minutes: Number(driveAccess.minutes),
+                    };
+                    const legs = [accessLeg, ...busLegs];
+                    return {
+                      leave_by_seconds: Number(row.leave_by_seconds),
+                      depart_seconds: Number(row.depart_seconds),
+                      arrive_seconds: Number(row.arrive_seconds),
+                      total_minutes: Math.max(
+                        1,
+                        Math.round(
+                          (Number(row.arrive_seconds) - Number(driveAccess.leave_by_seconds)) / 60,
+                        ),
+                      ),
+                      legs,
+                    } as Option;
+                  });
+                } catch (error) {
+                  recordTransitRpcError(`park_ride_bus:${stationId}`, error);
+                  return [];
+                }
+              }),
+            );
+
+            const stationBusOptions = mergeTransitOptions(...stationBusGroups);
+            const outboundOptions = mergeTransitOptions(...outboundGroups, stationBusOptions);
             if (outboundOptions.length) {
               return mergeTransitOptions(outboundOptions, primaryTransit);
             }
