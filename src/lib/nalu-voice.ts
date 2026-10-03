@@ -264,6 +264,9 @@ function cleanRoadName(value: string | null | undefined): string | null {
   if (!value) return null;
   const road = value.trim();
   if (!road) return null;
+  // HDOT and TomTom feeds carry internal segment IDs ("7852", "H-1_WB_16AAN",
+  // "8930_-MP"); those are never rider-facing road names.
+  if (/^\d+$/.test(road) || /[_+]/.test(road)) return null;
   return road
     .replace(/\bH1\b/gi, "H-1")
     .replace(/\bH2\b/gi, "H-2")

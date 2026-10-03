@@ -13,6 +13,28 @@ describe("generateSmartNaluInsight", () => {
     ).toContain("Driving saves 37 min over transit right now");
   });
 
+  it("never shows internal HDOT or TomTom road IDs to riders", () => {
+    for (const id of ["7852", "H-1_WB_16AAN", "H2014_EB_1", "8930_-MP", "H-1_WB_8A_+MP"]) {
+      const driveWin = generateSmartNaluInsight({
+        driveMinutes: 33,
+        transitMinutes: 74,
+        selectedMode: "drive",
+        activeRoadwork: [{ route: id }],
+      });
+      expect(driveWin).toContain("Driving saves 41 min over transit right now.");
+      expect(driveWin).not.toContain(id);
+
+      const transitWin = generateSmartNaluInsight({
+        driveMinutes: 82,
+        transitMinutes: 55,
+        selectedMode: "transit",
+        incidents: [{ road: id, description: "Lane closure", delayMinutes: 15 }],
+      });
+      expect(transitWin).toContain("Transit saves 27 min over driving right now.");
+      expect(transitWin).not.toContain(id);
+    }
+  });
+
   it("explains a decisive transit win and connects it to a road incident", () => {
     expect(
       generateSmartNaluInsight({
