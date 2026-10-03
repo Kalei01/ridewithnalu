@@ -41,6 +41,8 @@ export type TripEstimate = {
   railWaitMinutes: number;
   busWaitMinutes: number;
   transferMinutes: number;
+  /** Shortest scheduled time to make a connection (after any walk), or null with no connection. */
+  tightestConnectionMinutes?: number | null;
   walkingMinutes: number;
   trafficDelayMinutes: number | null;
   majorIncident: boolean;
@@ -200,8 +202,22 @@ export function transitEstimate(input: {
   let walking = 0;
   let previousArrival: number | null = null;
   let previousTransit = false;
+  // Connection slack: from getting off one vehicle to the next departure,
+  // minus any scheduled walk between them. Read straight from the timetable.
+  let lastTransitArrival: number | null = null;
+  let walkSinceTransit = 0;
+  let tightestConnection: number | null = null;
   for (const leg of option.legs) {
     if (leg.mode === "walk") walking += Math.max(0, leg.minutes ?? 0);
+    if (leg.mode === "walk") walkSinceTransit += Math.max(0, leg.minutes ?? 0);
+    if ((leg.mode === "bus" || leg.mode === "rail") && leg.depart_seconds !== null) {
+      if (lastTransitArrival !== null) {
+        const slack = (leg.depart_seconds - lastTransitArrival) / 60 - walkSinceTransit;
+        tightestConnection = tightestConnection === null ? slack : Math.min(tightestConnection, slack);
+      }
+      lastTransitArrival = leg.arrive_seconds;
+      walkSinceTransit = 0;
+    }
     if (previousArrival !== null && leg.depart_seconds !== null) {
       const gap = Math.max(0, (leg.depart_seconds - previousArrival) / 60);
       if (leg.mode === "rail") railWait += gap;
@@ -230,10 +246,9 @@ export function transitEstimate(input: {
             : hasRail ? "rail"
               : hasBus ? "bus"
                 : "walk";
-  // Scheduled bus connections are less certain than a rail-only trip. This is a
-  // bounded display range, not a claim of live vehicle prediction.
-  const lateAllowance = 4 + Math.min(8, transfer * 0.5);
-  const latest = option.arrive_seconds + lateAllowance * 60;
+  // The arrival is the timetable's scheduled door arrival. No made-up early/late
+  // range is added: Nalu has no measured on-time data to size one. The real,
+  // timetable-visible risk is a tight connection, reported separately.
   return {
     mode: "transit",
     transitMode,
@@ -243,9 +258,9 @@ export function transitEstimate(input: {
     arrivalTime: option.arrive_seconds,
     expectedDurationMinutes: expected,
     doorToDoorMinutes: expected,
-    earliestArrival: option.arrive_seconds - 60,
-    latestArrival: latest,
-    uncertaintyMinutes: lateAllowance,
+    earliestArrival: option.arrive_seconds,
+    latestArrival: option.arrive_seconds,
+    uncertaintyMinutes: 0,
     arrivalMarginMinutes:
       input.targetArrivalSeconds == null
         ? null
@@ -254,6 +269,7 @@ export function transitEstimate(input: {
     railWaitMinutes: railWait,
     busWaitMinutes: busWait,
     transferMinutes: transfer,
+    tightestConnectionMinutes: tightestConnection === null ? null : Math.max(0, tightestConnection),
     walkingMinutes: walking,
     trafficDelayMinutes: null,
     majorIncident: false,

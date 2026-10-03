@@ -25,6 +25,8 @@ export type DecisionModeEstimate = {
   railWaitMinutes: number;
   busWaitMinutes: number;
   transferMinutes: number;
+  /** Shortest scheduled connection, in minutes. Under TIGHT_CONNECTION_MINUTES is a real risk. */
+  tightestConnectionMinutes?: number | null | undefined;
   /** Drive may be present as a reference route while ineligible as a user action. */
   eligible?: boolean | undefined;
 };
@@ -54,6 +56,24 @@ export type ArrivalDecision = DriveTransitDecision & {
 };
 
 const evidence = (kind: EvidenceKind, text: string) => ({ kind, text });
+
+/** A scheduled transfer with less slack than this can be missed by a small delay. */
+export const TIGHT_CONNECTION_MINUTES = 3;
+
+function hasTightConnection(transit: DecisionModeEstimate): boolean {
+  return (
+    transit.tightestConnectionMinutes !== null &&
+    transit.tightestConnectionMinutes !== undefined &&
+    transit.tightestConnectionMinutes < TIGHT_CONNECTION_MINUTES
+  );
+}
+
+function tightConnectionText(transit: DecisionModeEstimate): string {
+  const slack = Math.round(transit.tightestConnectionMinutes ?? 0);
+  return slack <= 0
+    ? "One connection leaves right as you arrive, so it's easy to miss"
+    : `One connection has only ${slack} min to transfer`;
+}
 
 /**
  * Provider-neutral drive-vs-transit reasoning.
@@ -227,6 +247,9 @@ export function decideDriveVsTransit(
       `The next train is adding about ${Math.round(transit.railWaitMinutes)} min`,
     );
 
+  if (faster === "transit" && !supporting && hasTightConnection(transit))
+    supporting = evidence("transfer_wait", tightConnectionText(transit));
+
   if (
     faster === "transit" &&
     drive.majorIncident &&
@@ -336,7 +359,9 @@ export function decideDriveVsTransitArrival(
   }
 
   const driveProtected = drive.eligible !== false && (drive.latestArrival ?? Infinity) <= targetSeconds;
-  const transitProtected = (transit.latestArrival ?? Infinity) <= targetSeconds;
+  // Transit has no measured late range; its real risk is a tight transfer.
+  const transitProtected =
+    (transit.latestArrival ?? Infinity) <= targetSeconds && !hasTightConnection(transit);
 
   if (driveProtected !== transitProtected) {
     const winner: "drive" | "transit" = driveProtected ? "drive" : "transit";

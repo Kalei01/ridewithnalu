@@ -316,3 +316,33 @@ describe("Arrive By counts parking for the drive", () => {
     expect(decision.driveMarginMinutes).toBe(-5);
   });
 });
+
+describe("transit uses timetable evidence, not invented slack", () => {
+  it("arrives at the scheduled time with no made-up range", () => {
+    const item = rail(50);
+    expect(item.earliestArrival).toBe(at(6, 50));
+    expect(item.latestArrival).toBe(at(6, 50));
+    expect(item.uncertaintyMinutes).toBe(0);
+    expect(item.tightestConnectionMinutes).toBeNull();
+  });
+
+  it("measures connection slack after the walk between vehicles", () => {
+    const item = rail(55, 0, [
+      { mode: "rail", depart_seconds: at(6), arrive_seconds: at(6, 30), minutes: 30 },
+      { mode: "walk", depart_seconds: at(6, 30), arrive_seconds: at(6, 33), minutes: 3 },
+      { mode: "bus", depart_seconds: at(6, 35), arrive_seconds: at(6, 55), minutes: 20 },
+    ]);
+    expect(item.tightestConnectionMinutes).toBe(2);
+  });
+
+  it("does not treat a tight transfer as safe if things run late", () => {
+    // Both on time by 7:00. Transit has a 1 min connection; drive's late end still makes it.
+    const transit = rail(50, 0, [
+      { mode: "rail", depart_seconds: at(6), arrive_seconds: at(6, 30), minutes: 30 },
+      { mode: "bus", depart_seconds: at(6, 31), arrive_seconds: at(6, 50), minutes: 19 },
+    ]);
+    const car = drive(30, 28, 34); // door: 40 typical, latest 34 + 14 = 48 min
+    const decision = decideArrival(car, transit, at(7));
+    expect(decision.state).toBe("drive");
+  });
+});

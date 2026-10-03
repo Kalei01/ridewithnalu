@@ -1771,7 +1771,9 @@ function Index() {
           recordTransitRpcError("diagnose_transit_general", error);
         }
 
-        throw new Error("No transit itinerary found for this origin and destination.");
+        // Every planner answered and none found a trip: that is a real
+        // "no transit trip right now", not a data failure.
+        return [];
       };
 
       if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
@@ -1781,7 +1783,9 @@ function Index() {
         targetSeconds: arriveByTarget,
         fetchPage,
       });
-      if (!result.complete)
+      // Pages that all came back empty already cover every departure before the
+      // target, so they mean "no trip", not an incomplete search.
+      if (!result.complete && result.options.length > 0)
         throw new Error("Arrival timetable search reached its safe page limit.");
       return result.options;
     },
@@ -2998,8 +3002,8 @@ function Index() {
   const itineraryRange =
     arriveByActive && best
       ? {
-          low: Math.max(0, best.total_minutes - 1),
-          high: Math.round(best.total_minutes + (transitTripEstimate.uncertaintyMinutes ?? 0)),
+          low: best.total_minutes,
+          high: best.total_minutes,
         }
       : transitRange;
   const driveArrival = drive
@@ -3027,7 +3031,9 @@ function Index() {
     best &&
     transitTripEstimate.earliestArrival !== null &&
     transitTripEstimate.latestArrival !== null
-      ? `${clockFromSeconds(transitTripEstimate.earliestArrival)} – ${clockFromSeconds(transitTripEstimate.latestArrival)}`
+      ? transitTripEstimate.earliestArrival === transitTripEstimate.latestArrival
+        ? `${clockFromSeconds(transitTripEstimate.latestArrival)} (scheduled)`
+        : `${clockFromSeconds(transitTripEstimate.earliestArrival)} – ${clockFromSeconds(transitTripEstimate.latestArrival)}`
       : null;
   const leaveIn = best ? Math.round((best.leave_by_seconds - nowSeconds) / 60) : null;
   const decisionKey = `${planMode}:${inbound}:${setup.homeLat}:${setup.homeLon}:${setup.destLat}:${setup.destLon}`;
@@ -3141,6 +3147,7 @@ function Index() {
               railWaitMinutes: estimate.railWaitMinutes,
               busWaitMinutes: estimate.busWaitMinutes,
               transferMinutes: estimate.transferMinutes,
+              tightestConnectionMinutes: estimate.tightestConnectionMinutes ?? null,
             })),
             previousMode: previousVerdict,
             tossUpMinutes: TOSS_UP_MIN,
