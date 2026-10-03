@@ -48,13 +48,6 @@ import {
   incidentText,
   incidentHeadline,
   incidentDetailText,
-  mainlineClearNote,
-  standaloneIncidentCondition,
-  standaloneIncidentCause,
-  standaloneIncidentLocation,
-  standaloneIncidentImpact,
-  standaloneIncidentClearance,
-  incidentFreshness,
   trafficDelayText,
 } from "@/lib/traffic-incidents";
 import {
@@ -158,6 +151,31 @@ import { HOLO_FARES } from "@/lib/fares";
 import { AskNalu, BeatTheRush, EveningPulse, MorningPulse, WeeklyDigestCard } from "@/components/ai/NaluAi";
 import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
+import {
+  H1ConditionsCard,
+  airLine,
+  TONE_CLASS,
+  trafficStatus,
+  type WeatherLine,
+} from "@/components/commute/H1ConditionsCard";
+import { NaluPersonalityStrip, WaveMark } from "@/components/commute/NaluPersonalityStrip";
+import {
+  alohaGreeting,
+  clockFromSeconds,
+  directionLabel,
+  distanceM,
+  expandName,
+  formatDistance,
+  honoluluDateKey,
+  honoluluIsoDow,
+  honoluluParts,
+  honoluluSeconds,
+  stationLabel,
+  terminusLabel,
+  titleCase,
+  transitStopName,
+  walkingEstimate,
+} from "@/lib/commute-formatting";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 import type { NearbyMapStop } from "@/components/NearbyTransitMap";
@@ -165,71 +183,6 @@ const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
 
-function NaluPersonalityStrip({
-  loading,
-  configured,
-  period,
-  decision,
-  trafficLevel,
-}: {
-  loading: boolean;
-  configured: boolean;
-  period: "morning" | "evening";
-  decision: UiDecisionState;
-  trafficLevel: "light" | "moderate" | "heavy" | "severe";
-}) {
-  if (!configured) return null;
-
-  const line = loading
-    ? period === "evening"
-      ? "Alright, let me check the evening run."
-      : "Alright, let me check it."
-    : decision === "drive"
-      ? trafficLevel === "heavy" || trafficLevel === "severe"
-        ? "Yeah, the roads are getting busy. I checked it for you."
-        : "I checked the roads and rail. Here’s what I’m seeing."
-      : decision === "transit"
-        ? "I checked the roads and rail. Here’s what I’m seeing."
-        : decision === "same"
-          ? "I checked both. This one’s pretty close."
-          : "I’m checking the latest commute information for you.";
-
-  return (
-    <div
-      className="mt-5 flex items-start gap-3 rounded-2xl border border-border/70 bg-surface-raised/70 px-4 py-3"
-      aria-live="polite"
-      aria-label="Nalu status"
-    >
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-recommended text-recommended-foreground text-xs font-black">
-        N
-      </span>
-      <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Nalu</p>
-        <p className="mt-0.5 text-sm font-medium leading-5 text-foreground">{line}</p>
-      </div>
-    </div>
-  );
-}
-
-function WaveMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 44" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M3 32C11 21 18 21 25 31C32 41 39 41 46 31C51 24 56 24 61 29"
-        stroke="currentColor"
-        strokeWidth="2.7"
-        strokeLinecap="round"
-        opacity=".7"
-      />
-      <g transform="translate(19 4)">
-        <ellipse className="shell" cx="13" cy="16" rx="11" ry="8.2" />
-        <path className="detail" d="M13 8v16M4 15h18M6.5 11.5 13 16l6.5-4.5M6.5 19.5 13 16l6.5 3.5" />
-        <path className="body" d="M3 13.5 0 10.5 1.5 17 4.5 16.5ZM23 13.5l3-3-1.5 6.5-3-.5ZM8 22l-3 4.5 5-2.5ZM18 22l3 4.5-5-2.5Z" />
-        <path className="body" d="M10.5 23.5h5L13 27Z" />
-      </g>
-    </svg>
-  );
-}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -411,10 +364,6 @@ const LIVE_ROUTE_CACHE_KEY = "nalu-live-route-v1";
 
 /** The mode a commuter has committed to for the trip underway. */
 type Commitment = { mode: "transit" | "drive"; at: number };
-function directionLabel(value: string | null) {
-  if (!value) return "";
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
 
 type UiDecisionState = "drive" | "transit" | "same" | "none" | "uncertain";
 type DecisionSnapshot = {
@@ -516,7 +465,6 @@ type OutdoorMoment = {
   label?: string | null;
 };
 
-type WeatherLine = { text: string; tone: "rain" | "heat" | "air"; source: string };
 
 /** Rain is worth a word above 40%, or above 50% when the rider is driving. */
 function rainLine(moment: OutdoorMoment, reading: MomentConditions): string | null {
@@ -579,46 +527,7 @@ function heatLine(moment: OutdoorMoment, reading: MomentConditions): WeatherLine
   return null;
 }
 
-function airLine(category: number): WeatherLine | null {
-  if (category === 2) {
-    return {
-      text: "Air quality: Moderate · sensitive groups limit outdoor time",
-      tone: "rain",
-      source: "AirNow / EPA",
-    };
-  }
-  if (category === 3) {
-    return {
-      text: "Air quality: Poor · limit outdoor exposure if sensitive",
-      tone: "air",
-      source: "AirNow / EPA",
-    };
-  }
-  if (category >= 4) {
-    return {
-      text: "Air quality: Unhealthy · minimize time outdoors",
-      tone: "air",
-      source: "AirNow / EPA",
-    };
-  }
-  return null;
-}
 
-const TONE_CLASS: Record<WeatherLine["tone"], string> = {
-  rain: "text-alert-rain",
-  heat: "text-alert-heat",
-  air: "text-alert-air",
-};
-
-/** Straight-line metros between two points; good enough to tell "am I there yet". */
-function distanceM(a: Coords, b: Coords) {
-  const toRad = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * toRad;
-  const dLon = (b.lon - a.lon) * toRad;
-  const mid = ((a.lat + b.lat) / 2) * toRad;
-  const x = dLon * Math.cos(mid);
-  return Math.sqrt(dLat * dLat + x * x) * 6371000;
-}
 
 function readJson<T>(key: string): T | null {
   try {
@@ -647,28 +556,6 @@ const emptySetup: Setup = {
   allowDrive: false,
 };
 
-function honoluluParts(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Pacific/Honolulu",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  })
-    .format(date)
-    .split(":")
-    .map(Number);
-  return { hour: parts[0] ?? 0, minute: parts[1] ?? 0, second: parts[2] ?? 0 };
-}
-
-function honoluluSeconds(date: Date) {
-  const { hour, minute, second } = honoluluParts(date);
-  return hour * 3600 + minute * 60 + second;
-}
-
-function alohaGreeting(_date: Date, name?: string) {
-  return name ? `Aloha, ${name}` : "Aloha";
-}
 
 /** First name from the signed-in profile: full name, then given name, then username. */
 function profileFirstName(
@@ -687,99 +574,8 @@ function profileFirstName(
   return undefined;
 }
 
-function honoluluIsoDow(date: Date) {
-  const weekday = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Pacific/Honolulu",
-    weekday: "short",
-  }).format(date);
-  const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  return order.indexOf(weekday) + 1;
-}
 
-function honoluluDateKey(date: Date) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Pacific/Honolulu",
-    dateStyle: "short",
-  }).format(date);
-}
 
-function clockFromSeconds(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined) return "—";
-  const total = ((seconds % 86400) + 86400) % 86400;
-  const hour24 = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const suffix = hour24 >= 12 ? "PM" : "AM";
-  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
-  return `${hour12}:${String(minutes).padStart(2, "0")} ${suffix}`;
-}
-
-/**
- * Title case that respects the 'okina: a letter after ' or ʻ stays lowercase,
- * so KUALAKA'I reads Kualaka'i and never Kualaka'I.
- */
-function titleCase(value: string | null | undefined) {
-  if (!value) return "";
-  return expandName(value)
-    .toLowerCase()
-    .replace(
-      /(^|[\s\-/&(.])([a-z\u02bb\u2018'])/g,
-      (_match, lead: string, letter: string) => lead + letter.toUpperCase(),
-    )
-    .replace(
-      /([\u02bb\u2018'])([A-Z])/g,
-      (_match, mark: string, letter: string) => mark + letter.toLowerCase(),
-    );
-}
-
-/** GTFS ships abbreviations; spell them out for reading, database untouched. */
-const ABBREVIATIONS: Array<[RegExp, string]> = [
-  [/\bTRN\s+CTR\b/gi, "Transit Center"],
-  [/\bTRANSIT\s+CTR\b/gi, "Transit Center"],
-  [/\bCOMM\s+COLL\b/gi, "Community College"],
-  [/\bHWY\b/gi, "Highway"],
-  [/\bSTN\b/gi, "Station"],
-  [/\bINTL\b/gi, "International"],
-  [/\bOPP\b/gi, "Opposite"],
-  [/\bJCT\b/gi, "Junction"],
-  [/\bCTR\b/gi, "Center"],
-  [/\bPK\b/gi, "Park"],
-];
-
-function expandName(value: string | null | undefined) {
-  if (!value) return "";
-  let out = value;
-  for (const [pattern, replacement] of ABBREVIATIONS) out = out.replace(pattern, replacement);
-  return out;
-}
-
-/** Rail names on the Skyline screen: expanded, with the redundant suffix gone. */
-function stationLabel(value: string | null | undefined) {
-  const expanded = expandName(value)
-    .replace(/\s*\bSkyline\b\s*(Station)?\s*$/i, "")
-    .replace(/\s*\bStation\b\s*$/i, "");
-  return titleCase(expanded.trim() || expandName(value));
-}
-
-/** Full line endpoint: remove the redundant brand while retaining useful place type. */
-function terminusLabel(value: string | null | undefined) {
-  const expanded = expandName(value)
-    .replace(/\bSkyline\b\s*/gi, "")
-    .replace(/\bTransit Center Station\b/gi, "Transit Center");
-  return titleCase(expanded.trim());
-}
-
-/** US customary distance: feet under 0.1 miles, otherwise miles to one decimal. */
-function formatDistance(meters: number) {
-  const miles = meters / 1609.344;
-  if (miles < 0.1) return `${Math.round((meters * 3.28084) / 10) * 10} ft`;
-  return `${miles.toFixed(1)} miles`;
-}
-
-/** Walking estimate at 3 mph, matching the trip planner's access-leg pace. */
-function walkingEstimate(from: Coords, to: Coords) {
-  const meters = distanceM(from, to);
-  return { meters, minutes: Math.max(1, Math.ceil(meters / 80.47)) };
-}
 
 function nearbyServiceLabel(stop: NearbyStop) {
   const arrival = stop.arrivals[0];
@@ -812,14 +608,6 @@ function vehicleName(leg: Leg) {
   return `${verb} to ${to}`;
 }
 
-function transitStopName(leg: Leg, endpoint: "from" | "to") {
-  const value = leg[endpoint];
-  if (leg.mode === "rail") {
-    const station = stationLabel(value);
-    return station ? `${station} Station` : "the station";
-  }
-  return titleCase(value) || "the stop";
-}
 
 function modeIcon(mode: Leg["mode"]) {
   if (mode === "rail") return TrainFront;
@@ -828,20 +616,6 @@ function modeIcon(mode: Leg["mode"]) {
   return Footprints;
 }
 
-function trafficStatus(delayMinutes: number, incident?: DriveTime["incidents"][number]) {
-  const delay = Math.max(0, Math.round(delayMinutes));
-  if (incident) {
-    const condition = standaloneIncidentCondition(incident);
-    return {
-      label: `${condition}${incident.road ? ` · ${incident.road}` : ""}`,
-      className: "text-destructive",
-    };
-  }
-  if (delay === 0) return { label: "Clear", className: "text-primary" };
-  if (delay > 20) return { label: `Heavy traffic · +${delay} min`, className: "text-destructive" };
-  if (delay >= 10) return { label: `Slower than usual · +${delay} min`, className: "text-chart-4" };
-  return { label: `Slightly slower · +${delay} min`, className: "text-foreground" };
-}
 
 function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
   if (source.quality === "unavailable") {
@@ -871,142 +645,6 @@ function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
 }
 
 
-function H1ConditionsCard({
-  eastbound,
-  westbound,
-  loading,
-  unavailable,
-  weatherLine,
-  compact = false,
-}: {
-  eastbound: DriveTime | undefined;
-  westbound: DriveTime | undefined;
-  loading: boolean;
-  unavailable: boolean;
-  weatherLine?: WeatherLine | null;
-  compact?: boolean;
-}) {
-  const rows = [
-    { label: "Eastbound", data: eastbound },
-    { label: "Westbound", data: westbound },
-  ];
-
-  const Incident = ({
-    direction,
-    data,
-  }: {
-    direction: string;
-    data: DriveTime;
-  }) => {
-    const incident = data.incidents[0];
-    if (!incident) return null;
-    const condition = standaloneIncidentCondition(incident);
-    const road = incident.road ?? "near H-1";
-    const location = standaloneIncidentLocation(incident);
-    const cause = standaloneIncidentCause(incident);
-    const clearance = standaloneIncidentClearance(incident);
-    const freshness = incidentFreshness(data.fetchedAt);
-    const note = mainlineClearNote(incident, data.delayMinutes);
-
-    return (
-      <div className="mt-3 rounded-xl border border-border bg-background/50 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">{direction} · {condition}</p>
-            <p className="mt-0.5 text-xs font-semibold text-muted-foreground">{road}</p>
-          </div>
-          <span className="shrink-0 rounded-full bg-warning/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-warning">
-            Live alert
-          </span>
-        </div>
-        {location && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">Location:</span> {location}
-          </p>
-        )}
-        <p className="mt-1 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">Cause:</span> {cause}
-        </p>
-        <p className="mt-1 text-xs font-medium text-muted-foreground">
-          {standaloneIncidentImpact(incident, data.delayMinutes)}
-        </p>
-        {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
-        {clearance && <p className="mt-1 text-xs text-muted-foreground">{clearance}</p>}
-        <p className="mt-2 text-[10px] text-muted-foreground">{freshness}</p>
-      </div>
-    );
-  };
-
-  if (compact) {
-    return (
-      <details className="mt-4 rounded-lg border border-border bg-surface-raised/70">
-        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
-          <span className="font-semibold text-foreground">H-1 live</span>
-          <span className="ml-auto flex flex-wrap justify-end gap-2">
-            {loading ? (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Checking traffic…</span>
-            ) : unavailable ? (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Not available</span>
-            ) : (
-              rows.map(({ label, data }) => {
-                const status = data ? trafficStatus(data.delayMinutes, data.incidents[0]) : null;
-                return (
-                  <span key={label} className={`rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${status?.className ?? "text-muted-foreground"}`}>
-                    {label} · {status?.label ?? "—"}
-                  </span>
-                );
-              })
-            )}
-          </span>
-          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-        </summary>
-        {!loading && !unavailable && (
-          <div className="border-t border-border px-4 pb-4">
-            {rows.map(({ label, data }) => data ? <Incident key={label} direction={label} data={data} /> : null)}
-            <p className="mt-3 text-[10px] text-muted-foreground">
-              Traffic: TomTom · General road alert — not a trip-specific ETA.
-            </p>
-          </div>
-        )}
-      </details>
-    );
-  }
-
-  return (
-    <section className="verdict-lift mt-7 rounded-lg border border-border p-5" aria-labelledby="h1-conditions-title">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 id="h1-conditions-title" className="text-lg font-semibold">H-1 conditions</h2>
-        <span className="shrink-0 text-[10px] text-muted-foreground">TomTom</span>
-      </div>
-      {loading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
-      {unavailable && <p className="mt-4 text-sm text-muted-foreground">Live traffic is not available right now.</p>}
-      {!loading && !unavailable && (
-        <div className="mt-3 divide-y divide-border">
-          {rows.map(({ label, data }) => {
-            const status = data ? trafficStatus(data.delayMinutes, data.incidents[0]) : null;
-            return (
-              <div key={label} className="py-3">
-                <div className="grid min-h-9 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-4">
-                  <span className="min-w-0 text-sm text-foreground">H-1 {label}</span>
-                  <span className={`min-w-28 text-center text-sm font-semibold tabular-nums ${status?.className ?? "text-muted-foreground"}`}>
-                    {status?.label ?? "—"}
-                  </span>
-                </div>
-                {data && <Incident direction={label} data={data} />}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {weatherLine && (
-        <p className={`mt-4 text-xs ${TONE_CLASS[weatherLine.tone]}`}>
-          {weatherLine.text}
-          <span className="ml-1 text-[10px] text-muted-foreground">{weatherLine.source}</span>
-        </p>
-      )}
-    </section>
-  );
-}
 
 function NaluPageNav({ current, onBrowse }: { current: "browse" | "commute"; onBrowse: () => void }) {
   const itemClass = "flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors";
