@@ -5209,7 +5209,7 @@ function Index() {
         <NaluPersonalityStrip
           loading={optionsLoading || driveLoading}
           configured={configured}
-          period={now.getHours() >= 15 ? "evening" : "morning"}
+          period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
           decision={verdict}
           trafficLevel={naluHeroTrafficLevel}
         />
