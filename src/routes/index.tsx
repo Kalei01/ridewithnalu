@@ -39,6 +39,7 @@ import { reverseGeocode, searchPlaces, type PlaceSuggestion } from "@/lib/geocod
 import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { CommuteHeader } from "@/components/commute/CommuteHeader";
 import { CommutePageNav } from "@/components/commute/CommutePageNav";
+import { TravelModeTabs } from "@/components/commute/TravelModeTabs";
 import { HdotRoadworkNotice } from "@/components/commute/HdotRoadworkNotice";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
@@ -5612,49 +5613,22 @@ function Index() {
           <h2 id="mode-details-title" className="sr-only">
             Trip details
           </h2>
-          <div
-            role="group"
-            aria-label="Travel mode"
-            className="glass-panel grid grid-cols-2 gap-1 rounded-lg p-1"
-          >
-            <Button
-              type="button"
-              aria-pressed={selectedMode === "transit"}
-              disabled={Boolean(commitment)}
-              variant="ghost"
-              onClick={() => chooseMode("transit")}
-              className={`relative h-14 disabled:opacity-100 ${selectedMode === "transit" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
-            >
-              {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />}{" "}
-              {transitLabel}{" "}
-              {arriveByActive && best
-                ? `· ${best.total_minutes} min`
-                : transitTripEstimate.expectedDurationMinutes !== null
-                  ? `· ${formatDriveMinutes(transitTripEstimate.expectedDurationMinutes)}`
-                  : ""}
-              {!commitment && verdict === "transit" && (
-                <span className="mode-winner-badge">Faster than driving</span>
-              )}
-              {lockedMode === "transit" && <span className="mode-winner-badge">On this trip</span>}
-            </Button>
-            <Button
-              type="button"
-              aria-pressed={selectedMode === "drive"}
-              disabled={Boolean(commitment)}
-              variant="ghost"
-              onClick={() => chooseMode("drive")}
-              className={`relative h-14 disabled:opacity-100 ${selectedMode === "drive" ? "bg-recommended text-recommended-foreground hover:bg-recommended" : commitment ? "opacity-35" : "text-muted-foreground"}`}
-            >
-              <Car /> Drive{" "}
-              {driveTripEstimate.expectedDurationMinutes !== null
-                ? `· ${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes)}`
-                : ""}
-              {!commitment && verdict === "drive" && (
-                <span className="mode-winner-badge">Faster than transit</span>
-              )}
-              {lockedMode === "drive" && <span className="mode-winner-badge">On this trip</span>}
-            </Button>
-          </div>
+          <TravelModeTabs
+            selectedMode={selectedMode}
+            commitment={Boolean(commitment)}
+            transitLabel={transitLabel}
+            transitUsesRail={transitUsesRail}
+            transitUsesBus={transitUsesBus}
+            transitMinutes={transitTripEstimate.expectedDurationMinutes}
+            driveMinutes={driveTripEstimate.expectedDurationMinutes}
+            arriveByActive={arriveByActive}
+            bestTransitMinutes={best ? best.total_minutes : null}
+            transitWinner={verdict === "transit"}
+            driveWinner={verdict === "drive"}
+            lockedMode={lockedMode === "drive" || lockedMode === "transit" ? lockedMode : null}
+            formatMinutes={formatDriveMinutes}
+            onModeChange={chooseMode}
+          />
 
           {selectedMode === "transit" && (
             <div className="mt-6">
