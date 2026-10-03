@@ -41,6 +41,7 @@ import { CommuteHeader } from "@/components/commute/CommuteHeader";
 import { CommutePageNav } from "@/components/commute/CommutePageNav";
 import { TravelModeTabs } from "@/components/commute/TravelModeTabs";
 import { TransitItinerary } from "@/components/commute/TransitItinerary";
+import { DriveDetails } from "@/components/commute/DriveDetails";
 import { HdotRoadworkNotice } from "@/components/commute/HdotRoadworkNotice";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
@@ -5666,70 +5667,79 @@ function Index() {
           )}
 
           {selectedMode === "drive" && (
-            <div className="nalu-card-surface mt-6 rounded-2xl border border-border p-5">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <h3 className="text-xl font-bold text-foreground">Drive details</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {tripOriginLabel} to {tripArrivalLabel}
-                  </p>
-                </div>
-                <p className="text-4xl font-bold tabular-nums text-foreground">
-                  {driveAvailable
-                    ? driveTripEstimate.expectedDurationMinutes !== null
-                      ? Math.round(driveTripEstimate.expectedDurationMinutes)
-                      : driveLoading
-                        ? "…"
-                        : "—"
-                    : "—"}
-                  <span className="ml-1 text-base">min</span>
-                </p>
-              </div>
-              {verdict !== "drive" &&
-                (drive?.corridorLabel ? (
-                  <RouteCorridor label={drive.corridorLabel} size="compact" />
-                ) : (
-                  <p className="mt-4 text-sm font-medium text-foreground">
-                    Drive straight from {tripOriginLabel} to {tripArrivalLabel} — no stop at a rail
-                    station.
-                  </p>
-                ))}
-              {driveAvailable && driveRange && drive && (
-                <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
-              )}
-              {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
-                <HdotRoadworkNotice
-                  scheduledClosures={drive?.hdotScheduledClosures ?? []}
-                  variant="commute"
-                  liveDriveMinutes={drive?.trafficMinutes ?? null}
-                  delayMinutes={drive?.delayMinutes ?? null}
-                />
-              )}
-              {!driveAvailable && carAwayReason && (
-                <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>
-              )}
-              {driveAvailable && driveFailed && (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  Live traffic is not available right now.
-                </p>
-              )}
-              {driveAvailable && drive?.incidents[0] && verdict !== "drive" && !incidentDecides && (
-                <div className="mt-4 border-l-2 border-warning pl-3">
-                  <p className="text-base font-bold text-foreground">
-                    {trafficDelayText(drive.incidents[0], drive.delayMinutes)}
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-muted-foreground">
-                    {incidentImpactText(drive.incidents[0])}
-                  </p>
-                </div>
-              )}
-              {driveWeatherLines.map((line) => (
-                <p key={line.text} className={`mt-3 text-sm ${TONE_CLASS[line.tone]}`}>
-                  {line.text}
-                  <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
-                </p>
-              ))}
-            </div>
+            <DriveDetails
+              tripOriginLabel={tripOriginLabel}
+              tripArrivalLabel={tripArrivalLabel}
+              driveMinutes={driveTripEstimate.expectedDurationMinutes}
+              driveLoading={driveLoading}
+              driveAvailable={driveAvailable}
+              content={
+                <>
+                  <div className="flex items-end justify-between gap-4">
+                                  <div>
+                                    <h3 className="text-xl font-bold text-foreground">Drive details</h3>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                      {tripOriginLabel} to {tripArrivalLabel}
+                                    </p>
+                                  </div>
+                                  <p className="text-4xl font-bold tabular-nums text-foreground">
+                                    {driveAvailable
+                                      ? driveTripEstimate.expectedDurationMinutes !== null
+                                        ? Math.round(driveTripEstimate.expectedDurationMinutes)
+                                        : driveLoading
+                                          ? "…"
+                                          : "—"
+                                      : "—"}
+                                    <span className="ml-1 text-base">min</span>
+                                  </p>
+                                </div>
+                                {verdict !== "drive" &&
+                                  (drive?.corridorLabel ? (
+                                    <RouteCorridor label={drive.corridorLabel} size="compact" />
+                                  ) : (
+                                    <p className="mt-4 text-sm font-medium text-foreground">
+                                      Drive straight from {tripOriginLabel} to {tripArrivalLabel} — no stop at a rail
+                                      station.
+                                    </p>
+                                  ))}
+                                {driveAvailable && driveRange && drive && (
+                                  <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
+                                )}
+                                {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
+                                  <HdotRoadworkNotice
+                                    scheduledClosures={drive?.hdotScheduledClosures ?? []}
+                                    variant="commute"
+                                    liveDriveMinutes={drive?.trafficMinutes ?? null}
+                                    delayMinutes={drive?.delayMinutes ?? null}
+                                  />
+                                )}
+                                {!driveAvailable && carAwayReason && (
+                                  <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>
+                                )}
+                                {driveAvailable && driveFailed && (
+                                  <p className="mt-4 text-sm text-muted-foreground">
+                                    Live traffic is not available right now.
+                                  </p>
+                                )}
+                                {driveAvailable && drive?.incidents[0] && verdict !== "drive" && !incidentDecides && (
+                                  <div className="mt-4 border-l-2 border-warning pl-3">
+                                    <p className="text-base font-bold text-foreground">
+                                      {trafficDelayText(drive.incidents[0], drive.delayMinutes)}
+                                    </p>
+                                    <p className="mt-1 text-xs font-medium text-muted-foreground">
+                                      {incidentImpactText(drive.incidents[0])}
+                                    </p>
+                                  </div>
+                                )}
+                                {driveWeatherLines.map((line) => (
+                                  <p key={line.text} className={`mt-3 text-sm ${TONE_CLASS[line.tone]}`}>
+                                    {line.text}
+                                    <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
+                                  </p>
+                                ))}
+                </>
+              }
+            />
           )}
         </section>
 
