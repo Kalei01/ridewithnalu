@@ -21,18 +21,14 @@ export function NaluPersonalityStrip({
   if (!configured) return null;
 
   const line = loading
-    ? period === "evening"
-      ? "Alright, let me check the evening run."
-      : "Alright, let me check it."
-    : decision === "drive"
-      ? trafficLevel === "heavy" || trafficLevel === "severe"
-        ? "Yeah, the roads are getting busy. I checked it for you."
-        : "I checked the roads and rail. Here’s what I’m seeing."
-      : decision === "transit"
-        ? "I checked the roads and rail. Here’s what I’m seeing."
-        : decision === "same"
-          ? "I checked both. This one’s pretty close."
-          : "I’m checking the latest commute information for you.";
+    ? naluCommuteLine("normal", new Date(), { period })
+    : decision === "none" || decision === "uncertain"
+      ? "I couldn’t make a reliable call yet."
+      : naluCommuteLine("normal", new Date(), {
+          period,
+          decision: decision === "transit" ? "rail" : decision === "drive" ? "drive" : "toss_up",
+          trafficLevel,
+        });
 
   return (
     <div
