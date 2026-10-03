@@ -5208,9 +5208,6 @@ function Index() {
                   </p>
                 </div>
               )}
-            </div>
-          )}
-
         </ArriveByControls>
 
         <NaluPersonalityStrip
