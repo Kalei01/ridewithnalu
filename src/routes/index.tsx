@@ -3130,6 +3130,11 @@ function Index() {
       : (commitment?.mode ??
         (optionsLoading || driveLoading ? "uncertain" : (activeDecision?.state ?? "uncertain")));
   const verdict: UiDecisionState = canonicalVerdict as UiDecisionState;
+  const driveTrafficUnavailable = driveTripEstimate.availability === "data-error";
+  const transitStandaloneAvailable =
+    driveTrafficUnavailable &&
+    transitTripEstimate.availability === "available" &&
+    Boolean(best);
   const naluHeroTrafficLevel: "light" | "moderate" | "heavy" | "severe" =
     driveTripEstimate.majorIncident || (driveTripEstimate.trafficDelayMinutes ?? 0) >= 20
       ? "severe"
@@ -3155,11 +3160,6 @@ function Index() {
           now,
         )
       : "";
-  const driveTrafficUnavailable = driveTripEstimate.availability === "data-error";
-  const transitStandaloneAvailable =
-    driveTrafficUnavailable &&
-    transitTripEstimate.availability === "available" &&
-    Boolean(best);
   const gap =
     !commitment && !arriveByActive && (verdict === "transit" || verdict === "drive")
       ? (activeDecision?.differenceMinutes ?? null)
