@@ -5,10 +5,9 @@ import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
 import { naluPulseTagline } from "@/lib/nalu-voice";
 import welcomeNavigationImage from "@/assets/nalu-live-navigation.jpg";
+import { SITE_URL } from "@/lib/site";
 
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
-
-const SITE_URL = "https://ridewithnalu.lovable.app";
 
 const WELCOME_NAV_ROUTE = [
   { lat: 21.3335, lon: -158.055 },

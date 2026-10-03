@@ -57,26 +57,36 @@ export async function sendToSubscription(
     .insert({ token: sub.token, dedupe_key: message.dedupeKey.slice(0, 200) });
   if (dedupeError) return "skipped"; // unique violation: already delivered
 
-  const lovableKey = process.env["LOVABLE_API_KEY"];
-  const connectionKey = process.env["FIREBASE_MESSAGING_API_KEY"];
-  if (!lovableKey || !connectionKey) throw new Error("Push notifications are not configured.");
-
-  const response = await fetch(`${GATEWAY_URL}/v1/projects/_/messages:send`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "X-Connection-Api-Key": connectionKey,
-      "Content-Type": "application/json",
+  const payload = {
+    message: {
+      token: sub.token,
+      notification: { title: message.title, body: message.body },
+      data: { category: message.category, path: message.path ?? "/" },
+      webpush: { fcm_options: { link: message.path ?? "/" } },
     },
-    body: JSON.stringify({
-      message: {
-        token: sub.token,
-        notification: { title: message.title, body: message.body },
-        data: { category: message.category, path: message.path ?? "/" },
-        webpush: { fcm_options: { link: message.path ?? "/" } },
+  };
+
+  // A self-hosted deploy sends straight to Firebase with its own service
+  // account; otherwise use the hosted connector gateway.
+  const { readServiceAccount, sendFcmDirect } = await import("@/lib/fcm-direct.server");
+  const serviceAccount = readServiceAccount();
+  let response: Response;
+  if (serviceAccount) {
+    response = await sendFcmDirect(serviceAccount, payload);
+  } else {
+    const lovableKey = process.env["LOVABLE_API_KEY"];
+    const connectionKey = process.env["FIREBASE_MESSAGING_API_KEY"];
+    if (!lovableKey || !connectionKey) throw new Error("Push notifications are not configured.");
+    response = await fetch(`${GATEWAY_URL}/v1/projects/_/messages:send`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": connectionKey,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify(payload),
+    });
+  }
   if (response.ok) return "sent";
   const body = await response.text();
   console.error(`FCM send failed [${response.status}]: ${body}`);

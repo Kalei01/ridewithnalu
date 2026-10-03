@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { LogIn, X } from "lucide-react";
-import { lovable } from "@/integrations/lovable";
+import { signInWithSocial } from "@/lib/social-sign-in";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
@@ -39,9 +39,7 @@ export function SignInBanner() {
         size="sm"
         variant="outline"
         className="h-7 shrink-0 px-2 text-xs"
-        onClick={() =>
-          void lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })
-        }
+        onClick={() => void signInWithSocial("google")}
       >
         <LogIn className="size-3.5" /> Google
       </Button>
@@ -49,9 +47,7 @@ export function SignInBanner() {
         size="sm"
         variant="outline"
         className="h-7 shrink-0 px-2 text-xs"
-        onClick={() =>
-          void lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin })
-        }
+        onClick={() => void signInWithSocial("apple")}
       >
         Apple
       </Button>

@@ -200,6 +200,7 @@ import {
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 import type { NearbyMapStop } from "@/components/NearbyTransitMap";
+import { SITE_URL } from "@/lib/site";
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
@@ -221,9 +222,9 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Nalu" },
-      { property: "og:url", content: "https://ridewithnalu.lovable.app/" },
+      { property: "og:url", content: SITE_URL + "/" },
       { property: "og:locale", content: "en_US" },
-      { property: "og:image", content: "https://ridewithnalu.lovable.app/social-card.png" },
+      { property: "og:image", content: SITE_URL + "/social-card.png" },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -232,9 +233,9 @@ export const Route = createFileRoute("/")({
         name: "twitter:description",
         content: "A clear commute choice for Skyline, TheBus, and driving on Oʻahu.",
       },
-      { name: "twitter:image", content: "https://ridewithnalu.lovable.app/social-card.png" },
+      { name: "twitter:image", content: SITE_URL + "/social-card.png" },
     ],
-    links: [{ rel: "canonical", href: "https://ridewithnalu.lovable.app/" }],
+    links: [{ rel: "canonical", href: SITE_URL + "/" }],
     scripts: [
       {
         type: "application/ld+json",
@@ -242,8 +243,8 @@ export const Route = createFileRoute("/")({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
           name: "Nalu",
-          url: "https://ridewithnalu.lovable.app/",
-          image: "https://ridewithnalu.lovable.app/social-card.png",
+          url: SITE_URL + "/",
+          image: SITE_URL + "/social-card.png",
           description: "Nalu compares rail, bus, and driving for Oʻahu commutes.",
           applicationCategory: "TravelApplication",
           operatingSystem: "Web",

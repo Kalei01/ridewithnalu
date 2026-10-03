@@ -1,7 +1,6 @@
 import { LegalFooter } from "@/components/LegalFooter";
 import { Link, createFileRoute } from "@tanstack/react-router";
-
-const SITE_URL = "https://ridewithnalu.lovable.app";
+import { SITE_URL } from "@/lib/site";
 
 export const Route = createFileRoute("/oahu-commute")({
   head: () => ({

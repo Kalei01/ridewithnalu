@@ -11,7 +11,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { lovable } from "@/integrations/lovable";
+import { signInWithSocial } from "@/lib/social-sign-in";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,9 +33,7 @@ export function AccountSection({ compact = false }: { compact?: boolean }) {
     setMessage(null);
     setSocialPending(true);
     try {
-      const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: window.location.origin,
-      });
+      const result = await signInWithSocial(provider);
       if (result.error) throw result.error;
     } catch {
       setMessage(`${provider === "google" ? "Google" : "Apple"} sign-in is unavailable right now.`);
