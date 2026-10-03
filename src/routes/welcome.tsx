@@ -4,7 +4,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
 import { naluPulseTagline } from "@/lib/nalu-voice";
-import welcomeNavigationImage from "@/assets/nalu-live-navigation.webp";
+import welcomeNavigationImage from "@/assets/nalu-live-navigation.jpg";
 
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 
