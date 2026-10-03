@@ -34,11 +34,11 @@ function WelcomeNavigationPreview() {
           Navigation
         </span>
       </div>
-      <div className="relative overflow-hidden bg-black">
+      <div className="relative overflow-hidden">
         <img
           src={welcomeNavigationImage}
           alt="Nalu live turn-by-turn navigation preview"
-          className="block h-auto max-h-[585px] w-full object-contain object-top"
+          className="block h-auto w-full"
           loading="lazy"
           decoding="async"
         />
@@ -335,7 +335,7 @@ function WelcomePage() {
               </p>
               <p className="mt-3 text-xs text-muted-foreground">Navigation is available when you choose to drive.</p>
             </div>
-            <div className="liquid-titanium-slab rounded-[24px] p-2 sm:p-3" aria-label="Nalu turn-by-turn navigation preview">
+            <div className="liquid-titanium-slab mx-auto w-full max-w-[360px] rounded-[24px] p-2 sm:p-3" aria-label="Nalu turn-by-turn navigation preview">
               <WelcomeNavigationPreview />
             </div>
           </div>
