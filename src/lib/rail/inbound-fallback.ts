@@ -85,7 +85,7 @@ export function isTransferSane(option: {
 }) {
   for (let index = 0; index < option.legs.length; index += 1) {
     const rail = option.legs[index];
-    if (rail.mode !== "rail") continue;
+    if (!rail || rail.mode !== "rail") continue;
 
     const nextBus = option.legs
       .slice(index + 1)
