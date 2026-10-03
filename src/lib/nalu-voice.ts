@@ -16,7 +16,7 @@ export type NaluCommuteContext = {
   tone?: NaluCommuteTone;
   trafficLevel?: "light" | "moderate" | "heavy" | "severe";
   decision?: "rail" | "drive" | "toss_up";
-  timeDifferenceMinutes?: number;
+  timeDifferenceMinutes?: number | undefined;
   weatherImpact?: "none" | "minor" | "meaningful";
   roadworkActive?: boolean;
   roadworkScheduledLater?: boolean;
@@ -155,7 +155,7 @@ function dayIndex(date: Date): number {
 }
 
 function pick(lines: string[], date = new Date(), offset = 0): string {
-  return lines[(dayIndex(date) + offset) % lines.length];
+  return lines[(dayIndex(date) + offset) % lines.length] ?? lines[0] ?? "";
 }
 
 function pickContextual(lines: string[], context: NaluCommuteContext, date: Date): string {
