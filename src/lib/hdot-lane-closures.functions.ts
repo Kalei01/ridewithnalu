@@ -254,7 +254,7 @@ export async function lookupHdotScheduledClosures(
 }
 
 export const hdotLaneClosureRoutes = createServerFn({ method: "POST" })
-  .inputValidator((input) => schema.parse(input))
+  .validator((input) => schema.parse(input))
   .handler(async ({ data }) => {
     const spatial = await lookupHdotLaneClosureRoutes(data);
     const scheduled = await lookupHdotScheduledClosures(spatial);
