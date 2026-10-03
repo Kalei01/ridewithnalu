@@ -2037,7 +2037,7 @@ function Index() {
                     };
                     const legs = [accessLeg, ...busLegs];
                     return {
-                      leave_by_seconds: Number(row.leave_by_seconds),
+                      leave_by_seconds: Number(driveAccess.leave_by_seconds),
                       depart_seconds: Number(row.depart_seconds),
                       arrive_seconds: Number(row.arrive_seconds),
                       total_minutes: Math.max(
