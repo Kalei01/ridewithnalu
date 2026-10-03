@@ -6240,98 +6240,6 @@ type SetupDialogProps = {
 };
 
 /** Sticky, automatic alert for the stop the rider needs to get off at. */
-function ApproachBanner({
-  state,
-  stopsAway,
-  minutesToAlight,
-  nextStopName,
-  alightName,
-  vehicle,
-  live,
-  onDismiss,
-}: {
-  state: ApproachState;
-  stopsAway: number;
-  minutesToAlight: number | null;
-  nextStopName: string;
-  alightName: string;
-  vehicle: "bus" | "rail";
-  live: boolean;
-  onDismiss: () => void;
-}) {
-  const stopLabel = (name: string) =>
-    vehicle === "rail" ? (stationLabel(name) || titleCase(name)) + " Station" : titleCase(name);
-  const exitName = stopLabel(alightName);
-  const nextName = stopLabel(nextStopName);
-  const minutesText =
-    minutesToAlight !== null && minutesToAlight > 0 ? " · " + minutesToAlight + " min" : "";
-
-  if (state === "cruising" || state === "off-route") {
-    return (
-      <div
-        role="status"
-        className="sticky top-0 z-40 -mx-2 mb-2 flex items-center justify-between gap-2 rounded-full border border-border bg-surface-raised px-3.5 py-2"
-      >
-        <p className="text-xs font-semibold text-foreground">
-          {state === "off-route"
-            ? "Off route · alerts paused · exit at " + exitName
-            : "En route · Next: " + nextName + " · Exit at " + exitName + minutesText}
-        </p>
-        <button aria-label="Dismiss stop alert" onClick={onDismiss} className="shrink-0 text-muted-foreground">
-          <X className="size-3.5" />
-        </button>
-      </div>
-    );
-  }
-
-  const urgent = state === "urgent";
-  const passed = state === "passed";
-  const statusText = passed
-    ? live
-      ? "Tracking your location"
-      : "Using the timetable"
-    : (stopsAway <= 1 ? "1 stop to go" : stopsAway + " stops to go") +
-      minutesText +
-      (live ? " · tracking your location" : " · using the timetable");
-
-  return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      className={
-        "sticky top-0 z-40 -mx-2 mb-3 rounded-2xl border-2 px-4 py-3 shadow-lg " +
-        (passed
-          ? "border-border bg-surface-raised"
-          : urgent
-            ? "border-white bg-[#b91c1c]"
-            : "border-[#fbbf24] bg-[#78350f]")
-      }
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className={"text-base font-extrabold uppercase tracking-wide " + (passed ? "text-foreground" : "text-white")}>
-            {passed ? "Looks like you passed your stop" : urgent ? "⚠️ Pull cord · your stop is next!" : "🔔 Get ready · 2 stops away"}
-          </p>
-          <p className={"mt-1 text-[15px] font-bold leading-snug " + (passed ? "text-foreground" : "text-white")}>
-            {passed
-              ? "Your exit was " + exitName + ". Get off at the next stop and head back."
-              : urgent
-                ? "Get off at " + exitName
-                : "Next stop is " + nextName + ", then get off at " + exitName + "."}
-          </p>
-          <p className={"mt-1 text-xs font-semibold " + (passed ? "text-muted-foreground" : "text-white/80")}>
-            {statusText}
-          </p>
-        </div>
-        <button aria-label="Dismiss stop alert" onClick={onDismiss} className="shrink-0 rounded-full p-1 text-white/80 hover:text-white">
-          <X className="size-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** Friendly recovery steps shown when the browser has blocked location access. */
 function LocationBlockedCard({ onDismiss }: { onDismiss: () => void }) {
   const platform = useState(() =>
     typeof navigator === "undefined"
@@ -6361,6 +6269,1432 @@ function LocationBlockedCard({ onDismiss }: { onDismiss: () => void }) {
             body: (
               <>
                 Tap the <strong className="font-semibold">tune / lock</strong> icon next to the URL,
+                open <strong className="font-semibold">Permissions</strong>, set{" "}
+                <strong className="font-semibold">Location</strong> to{" "}
+                <strong className="font-semibold">Allow</strong>, then refresh.
+              </>
+            ),
+          }
+        : {
+            label: "Chrome or Edge · desktop",
+            body: (
+              <>
+                Click the <strong className="font-semibold">lock</strong> icon in the address bar,
+                open <strong className="font-semibold">Site settings</strong>, set{" "}
+                <strong className="font-semibold">Location</strong> to{" "}
+                <strong className="font-semibold">Allow</strong>, then reload.
+              </>
+            ),
+          };
+
+  return (
+    <div
+      className="relative rounded-lg border border-chart-4/40 bg-surface-raised p-4 pr-9"
+      role="status"
+    >
+      <p className="text-sm font-semibold text-foreground">Location is blocked</p>
+      <p className="mt-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+        {steps.label}
+      </p>
+      <p className="mt-1.5 text-sm leading-relaxed text-foreground">{steps.body}</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Nalu also works without location — you can always pick a station by hand.
+      </p>
+      <button
+        type="button"
+        aria-label="Dismiss location help"
+        onClick={onDismiss}
+        className="absolute right-2 top-2 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+/** Settings-only controls for how the stop alert announces itself. */
+function AlertPrefsSection({
+  prefs,
+  onChange,
+}: {
+  prefs: AlertPrefs;
+  onChange: (next: AlertPrefs) => void;
+}) {
+  const rows: { id: keyof AlertPrefs; label: string; hint: string }[] = [
+    { id: "sound", label: "Sound alert", hint: "A soft chime when your stop is next." },
+    { id: "haptics", label: "Haptic vibration", hint: "Buzz your phone when your stop is next." },
+    {
+      id: "keepOnTransfer",
+      label: "Keep alerts while changing rides",
+      hint: "Stay visible when the trip moves to the next leg.",
+    },
+  ];
+  return (
+    <section className="space-y-2 border-t border-border pt-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Stop alerts
+      </p>
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          className="flex items-center justify-between gap-4 rounded-lg bg-surface-raised px-4 py-3"
+        >
+          <Label htmlFor={`alert-${row.id}`} className="leading-snug">
+            {row.label}
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+              {row.hint}
+            </span>
+          </Label>
+          <Switch
+            id={`alert-${row.id}`}
+            checked={prefs[row.id]}
+            onCheckedChange={(checked) => {
+              onChange({ ...prefs, [row.id]: checked });
+              if (row.id === "sound" && checked) playChime();
+            }}
+          />
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function PlacePills({
+  places,
+  disabled,
+  onPick,
+}: {
+  places: SavedPlace[];
+  disabled: boolean;
+  onPick: (place: SavedPlace) => void;
+}) {
+  if (!places.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2" aria-label="Saved places">
+      {places.map((place) => {
+        const Icon = shortcutIcon(place.kind);
+        return (
+          <Button
+            key={place.id}
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={disabled}
+            onClick={() => onPick(place)}
+            className="h-9 gap-1.5 rounded-full px-3"
+          >
+            <Icon className="size-3.5" /> {place.label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
+const SHORTCUTS_KEY = "nalu-shortcuts-v1";
+const DEFAULT_SHORTCUTS = ["home", "work"];
+const MAX_SHORTCUTS = 4;
+
+/** A shortcut slot is a place kind (home/work/school/gym) or a saved place id. */
+function resolveShortcut(places: SavedPlace[], slot: string): SavedPlace | null {
+  if ((PLACE_KINDS as string[]).includes(slot) && slot !== "custom") {
+    return findByKind(places, slot as PlaceKind);
+  }
+  return places.find((place) => place.id === slot) ?? null;
+}
+function shortcutLabel(places: SavedPlace[], slot: string): string {
+  if ((PLACE_KINDS as string[]).includes(slot)) return kindLabel(slot as PlaceKind);
+  return places.find((place) => place.id === slot)?.label ?? "Saved place";
+}
+function shortcutIcon(slot: string) {
+  if (slot === "home") return House;
+  if (slot === "work") return BriefcaseBusiness;
+  if (slot === "school") return GraduationCap;
+  if (slot === "gym") return Dumbbell;
+  return MapPin;
+}
+
+function ShortcutGrid({
+  places,
+  onStart,
+  onPlacesChange,
+}: {
+  places: SavedPlace[];
+  onStart: (slot: string) => void;
+  onPlacesChange: (next: SavedPlace[]) => void;
+}) {
+  const [slots, setSlots] = useState<string[]>(DEFAULT_SHORTCUTS);
+  const [quickEdit, setQuickEdit] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SHORTCUTS_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((item) => typeof item === "string") &&
+        parsed.length
+      ) {
+        setSlots(parsed.slice(0, MAX_SHORTCUTS));
+      }
+    } catch {
+      // Keep defaults when storage is unreadable.
+    }
+  }, []);
+  function update(next: string[]) {
+    setSlots(next);
+    window.localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(next));
+  }
+  const choices = [
+    ...(["home", "work", "school", "gym"] as const).map((kind) => ({
+      value: kind as string,
+      label: kindLabel(kind),
+    })),
+    ...places
+      .filter((place) => place.kind === "custom")
+      .map((place) => ({ value: place.id, label: place.label })),
+  ];
+  const unused = choices.filter((choice) => !slots.includes(choice.value));
+
+  return (
+    <div className="mt-2">
+      <div className="grid grid-cols-2 gap-2" aria-label="Saved place shortcuts">
+        {slots.map((slot, index) => {
+          const place = resolveShortcut(places, slot);
+          const Icon = shortcutIcon(slot);
+          const label = shortcutLabel(places, slot);
+          if (editing) {
+            return (
+              <div
+                key={`${slot}-${index}`}
+                className="glass-panel flex h-14 items-center gap-1 rounded-md border border-primary/30 px-2"
+              >
+                <Select
+                  value={slot}
+                  onValueChange={(value) => {
+                    const next = [...slots];
+                    const swapIndex = next.indexOf(value);
+                    // Picking a slot already pinned elsewhere swaps the two.
+                    if (swapIndex >= 0) next[swapIndex] = slot;
+                    next[index] = value;
+                    update(next);
+                  }}
+                >
+                  <SelectTrigger
+                    className="h-10 min-w-0 flex-1 bg-transparent"
+                    aria-label={`Shortcut ${index + 1}`}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {choices.map((choice) => (
+                      <SelectItem key={choice.value} value={choice.value}>
+                        {choice.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0"
+                  aria-label={`Remove ${label} shortcut`}
+                  disabled={slots.length <= 1}
+                  onClick={() => update(slots.filter((_, i) => i !== index))}
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
+            );
+          }
+          return (
+            <div key={`${slot}-${index}`} className="relative min-w-0">
+              <Button
+                variant="outline"
+                onClick={() => onStart(slot)}
+                className="glass-panel h-14 w-full min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 pl-3 pr-9 text-foreground hover:bg-primary/10"
+                aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                  <Icon className="size-4" />
+                </span>
+                <span className="min-w-0 text-left">
+                  <span className="block truncate text-sm font-bold">{label}</span>
+                  <span className="block truncate text-[11px] font-medium text-muted-foreground">
+                    {place ? place.name : "Set location"}
+                  </span>
+                </span>
+              </Button>
+              <button
+                type="button"
+                onClick={() => setQuickEdit(slot)}
+                aria-label={`Change ${label} address`}
+                className="absolute right-1 top-1 grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            </div>
+          );
+        })}
+        {editing && slots.length < MAX_SHORTCUTS && unused.length > 0 && (
+          <Button
+            variant="outline"
+            className="h-14 gap-2 border-dashed border-primary/40 bg-transparent text-muted-foreground"
+            onClick={() => update([...slots, unused[0]!.value])}
+          >
+            <Plus className="size-4" /> Add shortcut
+          </Button>
+        )}
+      </div>
+      <div className="mt-1 flex justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5 text-xs text-muted-foreground"
+          onClick={() => setEditing((value) => !value)}
+        >
+          {editing ? <Check className="size-3.5" /> : <Pencil className="size-3.5" />}
+          {editing ? "Done" : "Edit shortcuts"}
+        </Button>
+      </div>
+      <QuickPlaceDialog
+        slot={quickEdit}
+        places={places}
+        onClose={() => setQuickEdit(null)}
+        onSave={(next) => {
+          onPlacesChange(next);
+          setQuickEdit(null);
+        }}
+      />
+    </div>
+  );
+}
+
+/** Search and replace one shortcut's address in place, without opening Settings. */
+function QuickPlaceDialog({
+  slot,
+  places,
+  onClose,
+  onSave,
+}: {
+  slot: string | null;
+  places: SavedPlace[];
+  onClose: () => void;
+  onSave: (next: SavedPlace[]) => void;
+}) {
+  const findPlaces = useServerFn(searchPlaces);
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    setQuery("");
+    setDebounced("");
+  }, [slot]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(query.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  const { data: results = [], isFetching } = useQuery({
+    queryKey: ["place-search", debounced],
+    enabled: Boolean(slot) && debounced.length >= 2,
+    staleTime: 5 * 60_000,
+    queryFn: async () => (await findPlaces({ data: { query: debounced } })).results,
+  });
+  const current = slot ? resolveShortcut(places, slot) : null;
+  const label = slot ? shortcutLabel(places, slot) : "";
+
+  function choose(hit: PlaceSuggestion) {
+    if (!slot) return;
+    const kind: PlaceKind =
+      current?.kind ?? ((PLACE_KINDS as string[]).includes(slot) ? (slot as PlaceKind) : "custom");
+    const place = makeSavedPlace({
+      ...(current
+        ? {
+            id: current.id,
+            label: current.label,
+            typicalArrivalSeconds: current.typicalArrivalSeconds,
+          }
+        : {}),
+      kind,
+      name: hit.name,
+      address: hit.address,
+      lat: hit.lat,
+      lon: hit.lon,
+    });
+    onSave(upsertPlace(places, place));
+    toast(`${label} updated`, { description: hit.address || hit.name });
+  }
+
+  return (
+    <Dialog open={Boolean(slot)} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Change {label}</DialogTitle>
+          <DialogDescription>
+            {current ? `Now: ${current.address}` : "Search for a place or street address."}
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          autoFocus
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search a place or address"
+          aria-label={`New ${label} address`}
+        />
+        <ul className="max-h-72 space-y-1 overflow-y-auto" aria-live="polite">
+          {isFetching && <li className="px-2 py-2 text-sm text-muted-foreground">Searching…</li>}
+          {!isFetching && debounced.length >= 2 && results.length === 0 && (
+            <li className="px-2 py-2 text-sm text-muted-foreground">No places found on Oʻahu.</li>
+          )}
+          {results.map((hit) => (
+            <li key={hit.id}>
+              <button
+                type="button"
+                onClick={() => choose(hit)}
+                className="w-full rounded-md px-3 py-2 text-left hover:bg-primary/10"
+              >
+                <span className="block truncate text-sm font-bold text-foreground">{hit.name}</span>
+                <span className="block truncate text-xs text-muted-foreground">{hit.address}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SettingsGroup({
+  title,
+  description,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="group overflow-hidden rounded-2xl border border-border bg-background/30"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-foreground">{title}</span>
+          {description && (
+            <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+              {description}
+            </span>
+          )}
+        </span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-border px-4 py-4">{children}</div>
+    </details>
+  );
+}
+
+function SetupDialog({
+  open,
+  firstRun,
+  setup,
+  onClose,
+  onSave,
+  alertPrefs,
+  onAlertPrefsChange,
+  savedPlaces,
+  onPlacesChange,
+}: SetupDialogProps) {
+  const findPlaces = useServerFn(searchPlaces);
+  const lookupAddress = useServerFn(reverseGeocode);
+  const [draft, setDraft] = useState<Setup>(setup);
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  // Whether the browser currently blocks location, so recovery steps can be shown.
+  const [permissionBlocked, setPermissionBlocked] = useState(false);
+  const [saveKind, setSaveKind] = useState<PlaceKind>("work");
+  const [saveTime, setSaveTime] = useState("");
+  const [originLabel, setOriginLabel] = useState("Current location");
+  // Distance to the best boarding station; decides walk vs park-and-ride.
+  const [stationDistanceM, setStationDistanceM] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setDraft(setup);
+      setStatus(null);
+      setOriginLabel(setup.homeLat !== null ? "Your starting point" : "Current location");
+      setPlaceQuery("");
+      setDebouncedQuery("");
+    }
+    if (!open) return;
+    let cancelled = false;
+    if (window.localStorage.getItem(LOCATION_DENIED_KEY) === "1") setPermissionBlocked(true);
+    queryLocationPermission()
+      .then((state) => {
+        if (cancelled) return;
+        if (state === "denied") {
+          setPermissionBlocked(true);
+          window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+        } else if (state === "granted" || state === "prompt") {
+          setPermissionBlocked(false);
+          window.localStorage.removeItem(LOCATION_DENIED_KEY);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, setup]);
+
+  // From defaults to the current location the first time a trip is set up.
+  useEffect(() => {
+    if (!open || setup.homeLat !== null) return;
+    void queryLocationPermission().then((state) => {
+      if (state === "granted") void locateMe();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // 300ms debounce so typing does not fire a search per keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(placeQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [placeQuery]);
+
+  const { data: suggestions = [], isFetching: searching } = useQuery({
+    queryKey: ["place-search", debouncedQuery],
+    enabled: open && debouncedQuery.length >= 2,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const result = await findPlaces({ data: { query: debouncedQuery } });
+      return result.results;
+    },
+  });
+
+  const { data: stations = [] } = useRailStations(open);
+
+  async function locateMe() {
+    if (!navigator.geolocation) {
+      setStatus("This device cannot share its location. Pick a saved place below.");
+      return;
+    }
+    // Check without prompting first: if it is already blocked, skip the request
+    // and show the recovery steps right away.
+    const permission = await queryLocationPermission();
+    if (permission === "denied") {
+      setPermissionBlocked(true);
+      window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+      setStatus(
+        "Location is blocked in your browser. Follow the steps below to allow it, or pick a saved place.",
+      );
+      return;
+    }
+    setBusy(true);
+    setStatus("Finding where you are…");
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const { data, error } = await supabase.rpc("nearest_stop", {
+          p_lat: lat,
+          p_lon: lon,
+          p_rail_only: true,
+        });
+        setBusy(false);
+        const nearest = data?.[0];
+        if (error || !nearest) {
+          setStatus("Could not plan from here. Pick a saved place.");
+          return;
+        }
+        setDraft((current) => ({
+          ...current,
+          homeLat: lat,
+          homeLon: lon,
+          homeStopId: nearest.stop_id,
+          homeStopName: nearest.stop_name ?? "",
+        }));
+        setOriginLabel("Current location");
+        setStationDistanceM(Number(nearest.distance_m));
+        const accuracy = position.coords.accuracy;
+        const precision = Number.isFinite(accuracy)
+          ? ` Accurate to about ${formatDistance(accuracy)}.`
+          : "";
+        setStatus(`Using your current location.${precision}`);
+        // Confirm the exact spot in plain words, so a wrong pin is obvious.
+        const address = await lookupAddress({ data: { lat, lon } }).catch(() => null);
+        if (address?.label) {
+          setStatus(`Detected: ${address.label}.${precision}`);
+        }
+      },
+      (error) => {
+        setBusy(false);
+        if (isPermissionDeniedError(error)) {
+          setPermissionBlocked(true);
+          window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
+          setStatus(
+            "Location is blocked in your browser. Follow the steps below to allow it, or pick a saved place.",
+          );
+          return;
+        }
+        setStatus("Location was not shared. Pick a saved place below.");
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+    );
+  }
+
+  /** Use a point as the starting side: remember the door and derive its station. */
+  async function applyOrigin(place: PointLike, label?: string) {
+    setBusy(true);
+    setOriginLabel(label ?? place.name);
+    setStatus(null);
+    try {
+      const { data } = await supabase.rpc("nearest_stop", {
+        p_lat: place.lat,
+        p_lon: place.lon,
+        p_rail_only: true,
+      });
+      const nearest = data?.[0];
+      setDraft((current) => ({
+        ...current,
+        homeLat: place.lat,
+        homeLon: place.lon,
+        homeStopId: nearest?.stop_id ?? current.homeStopId,
+        homeStopName: nearest?.stop_name ?? current.homeStopName,
+      }));
+      if (nearest) setStationDistanceM(Number(nearest.distance_m));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyPreset(from: PointLike, to: PointLike) {
+    await applyOrigin(from);
+    await selectPlace(to);
+  }
+
+  function savePlace(kind: PlaceKind, point: PointLike, arriveBySeconds: number | null) {
+    const label = kind === "custom" ? point.name : kindLabel(kind);
+    onPlacesChange(
+      upsertPlace(savedPlaces, {
+        id: `${kind}-${Date.now()}`,
+        kind,
+        label,
+        name: point.name,
+        address: point.address || point.name,
+        lat: point.lat,
+        lon: point.lon,
+        typicalArrivalSeconds: arriveBySeconds,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    setStatus(`Saved ${label}: ${point.name}.`);
+  }
+
+  async function selectPlace(place: PointLike) {
+    setBusy(true);
+    setStatus("Finding the stops on each side of that place…");
+    try {
+      // A stop serves one direction only, so resolve the arriving stop and the
+      // stop heading back toward the rail line separately, from the data.
+      const [arriving, boarding, fallback] = await Promise.all([
+        supabase.rpc("directional_dest_stop", {
+          p_lat: place.lat,
+          p_lon: place.lon,
+          p_toward_rail: false,
+        }),
+        supabase.rpc("directional_dest_stop", {
+          p_lat: place.lat,
+          p_lon: place.lon,
+          p_toward_rail: true,
+        }),
+        supabase.rpc("nearest_stop", { p_lat: place.lat, p_lon: place.lon, p_rail_only: false }),
+      ]);
+      const near = fallback.data?.[0];
+      const out = arriving.data?.[0] ?? near;
+      const back = boarding.data?.[0] ?? near;
+      if (!out || !back) {
+        setStatus("No stop found near that place.");
+        return;
+      }
+      setDraft((current) => ({
+        ...current,
+        destinationName: place.name,
+        destinationAddress: place.address || place.name,
+        destLat: place.lat,
+        destLon: place.lon,
+        destStopId: out?.stop_id ?? "",
+        destStopName: out?.stop_name ?? "",
+        destStopWalkM: Number(out?.distance_m ?? 0),
+        destReturnStopId: back?.stop_id ?? "",
+        destReturnStopName: back?.stop_name ?? "",
+        destReturnWalkM: Number(back?.distance_m ?? 0),
+      }));
+      setPlaceQuery("");
+      setDebouncedQuery("");
+      setStatus(null);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Place search failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function save() {
+    // A commute requires exact places. A station is transit access metadata,
+    // never a substitute for the rider's Home coordinates.
+    const home = findByKind(savedPlaces, "home");
+    onSave({
+      ...draft,
+      // Walk when the station is close; otherwise plan park-and-ride driving.
+      allowDrive: stationDistanceM === null ? draft.allowDrive : stationDistanceM > 1200,
+      homeLat: draft.homeLat ?? home?.lat ?? null,
+      homeLon: draft.homeLon ?? home?.lon ?? null,
+    });
+  }
+
+  const canSave =
+    hasValidCoordinates({ lat: draft.homeLat, lon: draft.homeLon }) &&
+    hasValidCoordinates({ lat: draft.destLat, lon: draft.destLon });
+  const presets = commutePresets(savedPlaces);
+  const originPoint: PointLike | null =
+    draft.homeLat !== null && draft.homeLon !== null
+      ? {
+          name: draft.homeStopName
+            ? `Near ${stationLabel(draft.homeStopName)}`
+            : "My starting point",
+          address: draft.homeStopName ? `${stationLabel(draft.homeStopName)} area` : "",
+          lat: draft.homeLat,
+          lon: draft.homeLon,
+        }
+      : null;
+  const destinationPoint: PointLike | null =
+    draft.destLat !== null && draft.destLon !== null
+      ? {
+          name: draft.destinationName,
+          address: draft.destinationAddress,
+          lat: draft.destLat,
+          lon: draft.destLon,
+        }
+      : null;
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <DialogContent className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
+        <SettingsExpiryBanner />
+        <DialogHeader className="text-left">
+          <DialogTitle className="text-2xl">{firstRun ? "WHERE TO?" : "Settings"}</DialogTitle>
+          <DialogDescription>
+            {firstRun
+              ? "Where you’re starting and where you’re going. Nalu picks the best station and route for you."
+              : "Keep the essentials up front. Open a section only when you need to change something."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-5">
+          <SettingsGroup
+            title={firstRun ? "Trip setup" : "Current trip"}
+            description={
+              firstRun
+                ? "Choose where you’re starting and going."
+                : "Change where you’re starting or going."
+            }
+            defaultOpen={firstRun}
+          >
+            <div className="grid gap-5">
+              <div className="grid gap-2">
+                <Label>From</Label>
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <LocateFixed className="size-4 shrink-0 text-primary" />
+                    <p className="truncate font-medium">{originLabel}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={busy}
+                    onClick={locateMe}
+                  >
+                    <LocateFixed className="size-4" /> Locate
+                  </Button>
+                </div>
+                <PlacePills
+                  places={savedPlaces}
+                  disabled={busy}
+                  onPick={(place) => void applyOrigin(place, place.label)}
+                />
+                {permissionBlocked && (
+                  <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="destination">To</Label>
+                {draft.destinationName ? (
+                  <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{draft.destinationName}</p>
+                      {draft.destinationAddress !== draft.destinationName && (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {draft.destinationAddress}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      className="shrink-0"
+                      onClick={() =>
+                        setDraft((current) => ({
+                          ...current,
+                          destinationName: "",
+                          destinationAddress: "",
+                          destLat: null,
+                          destLon: null,
+                          destStopId: "",
+                          destStopName: "",
+                          destStopWalkM: 0,
+                          destReturnStopId: "",
+                          destReturnStopName: "",
+                          destReturnWalkM: 0,
+                        }))
+                      }
+                    >
+                      Change
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <PlacePills places={savedPlaces} disabled={busy} onPick={selectPlace} />
+                    <Input
+                      id="destination"
+                      className="h-12 bg-surface-raised"
+                      placeholder="Search for a place or address"
+                      autoComplete="off"
+                      value={placeQuery}
+                      onChange={(event) => setPlaceQuery(event.target.value)}
+                    />
+                    {searching && <p className="text-sm text-muted-foreground">Searching…</p>}
+                    {suggestions.length > 0 && (
+                      <ul className="divide-y divide-border overflow-hidden rounded-lg bg-surface-raised">
+                        {suggestions.map((place) => (
+                          <li key={place.id}>
+                            <button
+                              type="button"
+                              onClick={() => selectPlace(place)}
+                              disabled={busy}
+                              className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                            >
+                              <span className="block truncate font-medium">{place.name}</span>
+                              {place.address && place.address !== place.name && (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {place.address}
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {!searching && debouncedQuery.length >= 2 && suggestions.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No places matched. Try a different name.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <Button
+                onClick={save}
+                disabled={!canSave || busy}
+                className="h-12 w-full shadow-none"
+              >
+                GO
+              </Button>
+            </div>
+          </SettingsGroup>
+
+          {!firstRun && permissionBlocked && (
+            <section className="space-y-2 border-t border-border pt-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Location
+              </p>
+              <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
+            </section>
+          )}
+
+          {!firstRun && (
+            <SettingsGroup
+              title="Saved places"
+              description="Home, Work, School, Gym, and custom places."
+              defaultOpen={false}
+            >
+              <section className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-sm">Saved places</Label>
+                  {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onPlacesChange(swapHomeWork(savedPlaces))}
+                    >
+                      Swap Home &amp; Work
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Save Home, Work, School, Gym or anywhere else once, then start a trip with one
+                  tap.
+                </p>
+
+                {presets.length > 0 && (
+                  <div className="flex flex-wrap gap-2" aria-label="Commute presets">
+                    {presets.map((preset) => (
+                      <Button
+                        key={preset.id}
+                        variant="secondary"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => applyPreset(preset.from, preset.to)}
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                {savedPlaces.length > 0 && (
+                  <ul className="grid gap-3">
+                    {savedPlaces.map((place) => (
+                      <li key={place.id} className="grid gap-2 rounded-lg bg-surface-raised p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <Input
+                              aria-label={`Label for ${place.name}`}
+                              value={place.label}
+                              onChange={(event) =>
+                                onPlacesChange(
+                                  upsertPlace(savedPlaces, { ...place, label: event.target.value }),
+                                )
+                              }
+                              className="h-9 bg-background/60 font-semibold"
+                            />
+                            <p className="mt-1 truncate text-xs text-muted-foreground">
+                              {place.name}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Remove ${place.label}`}
+                            onClick={() => onPlacesChange(removePlace(savedPlaces, place.id))}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Label
+                            htmlFor={`arrive-${place.id}`}
+                            className="text-xs text-muted-foreground"
+                          >
+                            Typical arrival
+                          </Label>
+                          <Input
+                            id={`arrive-${place.id}`}
+                            type="time"
+                            value={clockInputValue(place.typicalArrivalSeconds)}
+                            onChange={(event) =>
+                              onPlacesChange(
+                                upsertPlace(savedPlaces, {
+                                  ...place,
+                                  typicalArrivalSeconds: parseClockInput(event.target.value),
+                                }),
+                              )
+                            }
+                            className="h-9 w-32 bg-background/60 tabular-nums"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => applyOrigin(place)}
+                          >
+                            Start here
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => selectPlace(place)}
+                          >
+                            Go here
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                  <Select
+                    value={saveKind}
+                    onValueChange={(value) => setSaveKind(value as PlaceKind)}
+                  >
+                    <SelectTrigger className="h-10 w-32 bg-surface-raised">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PLACE_KINDS.map((kind) => (
+                        <SelectItem key={kind} value={kind}>
+                          {kind === "custom" ? "Custom" : kindLabel(kind)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="time"
+                    aria-label="Typical arrival time for the place you are saving"
+                    value={saveTime}
+                    onChange={(event) => setSaveTime(event.target.value)}
+                    className="h-10 w-32 bg-surface-raised tabular-nums"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!originPoint}
+                    onClick={() =>
+                      originPoint && savePlace(saveKind, originPoint, parseClockInput(saveTime))
+                    }
+                  >
+                    Save start
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!destinationPoint}
+                    onClick={() =>
+                      destinationPoint &&
+                      savePlace(saveKind, destinationPoint, parseClockInput(saveTime))
+                    }
+                  >
+                    Save destination
+                  </Button>
+                </div>
+              </section>
+            </SettingsGroup>
+          )}
+
+          {!firstRun && (
+            <SettingsGroup
+              title="Stop alerts"
+              description="Sound, vibration, and transfer alerts during an active trip."
+              defaultOpen={false}
+            >
+              <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />
+            </SettingsGroup>
+          )}
+
+          {!firstRun && (
+            <SettingsGroup
+              title="Notifications"
+              description="Optional commute alerts and quiet hours."
+              defaultOpen={false}
+            >
+              <NotificationsSection />
+            </SettingsGroup>
+          )}
+
+          {!firstRun && (
+            <SettingsGroup
+              title="Privacy & data"
+              description="Analytics consent and trip diagnostics."
+              defaultOpen={false}
+            >
+              <PrivacySection />
+            </SettingsGroup>
+          )}
+
+          {!firstRun && (
+            <SettingsGroup
+              title="Account"
+              description="Sign in, sign out, or manage your Nalu account."
+              defaultOpen={false}
+            >
+              <AccountSection />
+            </SettingsGroup>
+          )}
+
+          {!firstRun && (
+            <SettingsGroup
+              title="About Nalu"
+              description="App information, data sources, feedback, and the Welcome page."
+              defaultOpen={false}
+            >
+              <AboutSection />
+            </SettingsGroup>
+          )}
+
+          {status && <p className="text-sm text-muted-foreground">{status}</p>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const DATA_SOURCES = [
+  {
+    label: "Transit schedules: TheBus / Oahu Transit Services (thebus.org)",
+    href: "https://www.thebus.org",
+  },
+  { label: "Live bus arrivals: TheBus HEA API", href: "https://hea.thebus.org" },
+  { label: "Traffic and drive times: TomTom (tomtom.com)", href: "https://www.tomtom.com" },
+  {
+    label: "Weather: National Weather Service / NOAA (weather.gov)",
+    href: "https://www.weather.gov",
+  },
+  { label: "Air quality: AirNow / US EPA (airnow.gov)", href: "https://www.airnow.gov" },
+];
+
+function AboutSection() {
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  return (
+    <div className="border-t border-border pt-8">
+      <div className="flex flex-col items-center pb-7 text-center">
+        <WaveMark className="nalu-honu h-16 w-24" />
+        <p className="nalu-brand-title mt-3 text-2xl font-bold tracking-wide">Nalu</p>
+        <p className="mt-1 text-xs text-muted-foreground">version 1.0</p>
+        <p className="mt-2 text-sm italic text-muted-foreground">
+          Hawaiian for wave, and to think deeply.
+        </p>
+      </div>
+      <div className="h-px bg-border/60" />
+
+      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        What is Nalu
+      </p>
+      <div className="mt-2 grid gap-2 text-sm leading-relaxed text-muted-foreground">
+        <p>
+          Nalu helps Oahu commuters decide whether to take Skyline rail or drive, using real-time
+          traffic and live bus schedules.
+        </p>
+        <p>Built for Oahu. Transit data covers TheBus and Skyline rail.</p>
+        <Link
+          to="/oahu-commute"
+          className="mt-2 inline-block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+        >
+          Oʻahu commute guide
+        </Link>
+        <Link
+          to="/welcome"
+          className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+        >
+          View Welcome page
+        </Link>
+      </div>
+      <div className="mt-6 h-px bg-border/60" />
+
+      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Data sources
+      </p>
+      <ul className="mt-1">
+        {DATA_SOURCES.map((source) => (
+          <li key={source.href} className="border-b border-border/50 last:border-b-0">
+            <a
+              href={source.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <span>{source.label}</span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" />
+            </a>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-6 h-px bg-border/60" />
+
+      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Privacy
+      </p>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        Guest trips and saved places can remain on this device. If you choose to sign in, your
+        profile, saved places, and preferences can sync across your devices. Feedback you submit is
+        sent to Nalu for review and is processed through our feedback service provider.
+      </p>
+      <div className="mt-6 h-px bg-border/60" />
+
+      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Contact
+      </p>
+      <a
+        href="mailto:HelloNalu14@gmail.com"
+        className="mt-2 inline-block text-sm text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+      >
+        HelloNalu14@gmail.com
+      </a>
+      <Button
+        type="button"
+        variant="outline"
+        className="mt-3 w-full shadow-none"
+        onClick={() => {
+          setFeedbackOpen(true);
+        }}
+      >
+        Send feedback
+      </Button>
+      <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+    </div>
+  );
+}
+
+const FEEDBACK_ENDPOINT = "https://formspree.io/f/mppwqpaz";
+
+function FeedbackForm({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { user } = useAuth();
+  const [message, setMessage] = useState("");
+  const [component, setComponent] = useState("");
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const signedInName = profileFirstName(user);
+  const signedInEmail = typeof user?.email === "string" ? user.email : "";
+
+  useEffect(() => {
+    if (open) {
+      setSent(false);
+      setFailed(false);
+      // Pre-fill from the signed-in account so riders never retype.
+      setEmail((current) => current || signedInEmail);
+    }
+  }, [open, signedInEmail]);
+
+  async function submit() {
+    if (!message.trim() || sending) return;
+    setSending(true);
+    setFailed(false);
+    try {
+      const response = await fetch(FEEDBACK_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          message: message.trim(),
+          component,
+          name: signedInName || undefined,
+          email: email.trim() || undefined,
+        }),
+      });
+      if (!response.ok) throw new Error(`status ${response.status}`);
+      setSent(true);
+      setMessage("");
+      setComponent("");
+      setEmail("");
+    } catch {
+      setFailed(true);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className={open ? "mt-3" : ""}>
+      {open && (
+        <div className="grid gap-3 rounded-lg bg-surface-raised p-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="feedback-message">What happened?</Label>
+            <Textarea
+              id="feedback-message"
+              rows={4}
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="feedback-component">Which part of the app?</Label>
+            <Select value={component} onValueChange={setComponent}>
+              <SelectTrigger id="feedback-component" className="bg-background">
+                <SelectValue placeholder="Choose one" />
+              </SelectTrigger>
+              <SelectContent>
+                {["Browse mode", "Trip setup", "Verdict", "Departures", "Weather", "Other"].map(
+                  (part) => (
+                    <SelectItem key={part} value={part}>
+                      {part}
+                    </SelectItem>
+                  ),
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="feedback-email">Your email (optional)</Label>
+            <Input
+              id="feedback-email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              Cancel
+            </button>
+            <Button
+              size="sm"
+              onClick={submit}
+              disabled={!message.trim() || sending}
+              className="shadow-none"
+            >
+              {sending ? "Sending…" : "Submit"}
+            </Button>
+          </div>
+          {sent && <p className="text-xs text-muted-foreground">Thanks, we read everything.</p>}
+          {failed && (
+            <p className="text-xs text-muted-foreground">
+              Couldn't send · try HelloNalu14@gmail.com
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Inline map card normally; an edge-to-edge navigation screen during a live trip. */
+function NavShell({
+  fullscreen,
+  overlay,
+  children,
+}: {
+  fullscreen: boolean;
+  overlay: ReactNode;
+  children: ReactNode;
+}) {
+  if (!fullscreen || typeof document === "undefined") {
+    return <div className="h-72 border-t border-border sm:h-80">{children}</div>;
+  }
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-background" role="dialog" aria-label="Live navigation">
+      <div className="h-full w-full">{children}</div>
+      {overlay}
+    </div>,
+    document.body,
+  );
+}
+
+/** Hold for 1 s to end, so a bump on the freeway can't cancel navigation. */
+function HoldToEndButton({
+  onEnd,
+  label,
+  className,
+}: {
+  onEnd: () => void;
+  label: string;
+  className?: string;
+}) {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<number | null>(null);
+  const start = () => {
+    if (timer.current !== null) return;
+    setHolding(true);
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      setHolding(false);
+      if ("vibrate" in navigator) navigator.vibrate?.(40);
+      onEnd();
+    }, 1000);
+  };
+  const cancel = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+    setHolding(false);
+  };
+  useEffect(() => cancel, []);
+  return (
+    <Button
+      type="button"
+      variant="destructive"
+      aria-label={`Hold to ${label.toLowerCase()}`}
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
+          e.preventDefault();
+          start();
+        }
+      }}
+      onKeyUp={cancel}
+      className={`relative touch-none select-none overflow-hidden font-black uppercase ${className ?? ""}`}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 bg-foreground/25"
+        style={{
+          width: holding ? "100%" : "0%",
+          transition: holding ? "width 1s linear" : "width 150ms ease-out",
+        }}
+      />
+      <span className="relative flex items-center gap-2">
+        <X className="size-4" /> {holding ? "Keep holding…" : `Hold to ${label}`}
+      </span>
+    </Button>
+  );
+}
+
+function NavBottomCard({
+  mode,
+  delayMinutes,
+  steps,
+  onEnd,
+}: {
+  mode: "drive" | "transit";
+  delayMinutes: number | null;
+  steps: string[];
+  onEnd: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const traffic =
+    mode === "transit"
+      ? "Transit live"
+      : delayMinutes === null
+        ? "Checking traffic"
+        : delayMinutes >= 5
+          ? `Heavy · +${Math.round(delayMinutes)} min`
+          : delayMinutes >= 2
+            ? `Moderate · +${Math.round(delayMinutes)} min`
+            : "Traffic clear";
+  return (
+    <div className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-20 max-lg:landscape:left-auto max-lg:landscape:w-80">
+      <div className="nav-hud pointer-events-auto rounded-2xl p-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            clasng className="font-semibold">tune / lock</strong> icon next to the URL,
                 open <strong className="font-semibold">Permissions</strong>, set{" "}
                 <strong className="font-semibold">Location</strong> to{" "}
                 <strong className="font-semibold">Allow</strong>, then refresh.
