@@ -115,15 +115,15 @@ export const busArrivals = createServerFn({ method: "POST" })
       if (cached && cached.expiresAt > Date.now()) {
         xml = cached.xml;
       } else {
-        const url = new URL("http://api.thebus.org/arrivals/");
+        const url = new URL("https://api.thebus.org/arrivals/");
         url.searchParams.set("key", key);
         url.searchParams.set("stop", data.stopId);
         const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
-        if (!response.ok) return failed(false);
+        if (!response.ok) return failed(true);
         xml = await response.text();
         cacheFeed(data.stopId, { xml, expiresAt: Date.now() + CACHE_MS });
       }
-      if (text(xml, "errorMessage")) return failed(false);
+      if (text(xml, "errorMessage")) return failed(true);
 
       const nowSeconds = honoluluSecondsNow();
       const blocks = xml.match(/<arrival\b[^>]*>[\s\S]*?<\/arrival>/gi) ?? [];
@@ -163,6 +163,6 @@ export const busArrivals = createServerFn({ method: "POST" })
         "TheBus HEA arrivals failed",
         error instanceof Error ? error.message : "Unknown error",
       );
-      return failed(false);
+      return failed(true);
     }
   });
