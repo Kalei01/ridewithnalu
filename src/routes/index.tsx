@@ -3564,7 +3564,6 @@ function Index() {
     }> = [];
 
     const delay = Math.round(driveTripEstimate.trafficDelayMinutes ?? 0);
-    const liveDriveMinutes = driveTripEstimate.expectedDurationMinutes;
     const roadwork = drive?.hdotScheduledClosures?.[0];
 
     if (verdict === "drive") {
@@ -3582,10 +3581,10 @@ function Index() {
         tone: delay >= 5 ? "alert" : "neutral",
       });
 
-      if (liveDriveMinutes != null) {
+      if (driveTripEstimate.expectedDurationMinutes != null) {
         signals.push({
           label: "Your drive",
-          value: formatDriveMinutes(liveDriveMinutes),
+          value: formatDriveMinutes(driveTripEstimate.expectedDurationMinutes),
           detail: "Live route estimate",
           tone: "neutral",
         });
@@ -3601,7 +3600,7 @@ function Index() {
         });
       }
 
-      const incident = driveTripEstimate.majorIncident ? drive?.incidents[0] : null;
+      const incident = driveTripEstimate.majorIncident ? drive?.incidents?.[0] : null;
       if (incident) {
         signals.push({
           label: "Road incident",
@@ -3634,7 +3633,7 @@ function Index() {
           tone: "alert",
         });
       }
-      if (drive?.incidents[0] && driveTripEstimate.majorIncident) {
+      if (drive?.incidents?.[0] && driveTripEstimate.majorIncident) {
         signals.push({
           label: "Road incident",
           value: incidentHeadline(drive.incidents[0]),
