@@ -1,4 +1,4 @@
-CREATE TABLE public.trip_updates (
+CREATE TABLE IF NOT EXISTS public.trip_updates (
   trip_id text NOT NULL,
   stop_id text NOT NULL,
   delay_seconds integer,
@@ -11,11 +11,12 @@ GRANT ALL ON public.trip_updates TO service_role;
 
 ALTER TABLE public.trip_updates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public read trip_updates" ON public.trip_updates;
 CREATE POLICY "Public read trip_updates" ON public.trip_updates
   FOR SELECT TO anon, authenticated USING (true);
 
-CREATE INDEX trip_updates_stop_idx ON public.trip_updates (stop_id);
-CREATE INDEX trip_updates_fetched_at_idx ON public.trip_updates (fetched_at DESC);
+CREATE INDEX IF NOT EXISTS trip_updates_stop_idx ON public.trip_updates (stop_id);
+CREATE INDEX IF NOT EXISTS trip_updates_fetched_at_idx ON public.trip_updates (fetched_at DESC);
 
 DROP FUNCTION IF EXISTS public.next_departures(text, integer);
 

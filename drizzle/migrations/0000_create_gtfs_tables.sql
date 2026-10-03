@@ -1,4 +1,4 @@
-CREATE TABLE public.stops (
+CREATE TABLE IF NOT EXISTS public.stops (
   stop_id text PRIMARY KEY,
   stop_name text,
   stop_lat numeric,
@@ -6,14 +6,14 @@ CREATE TABLE public.stops (
   location_type int
 );
 
-CREATE TABLE public.routes (
+CREATE TABLE IF NOT EXISTS public.routes (
   route_id text PRIMARY KEY,
   route_short_name text,
   route_long_name text,
   route_type int
 );
 
-CREATE TABLE public.trips (
+CREATE TABLE IF NOT EXISTS public.trips (
   trip_id text PRIMARY KEY,
   route_id text,
   service_id text,
@@ -21,7 +21,7 @@ CREATE TABLE public.trips (
   direction_id int
 );
 
-CREATE TABLE public.stop_times (
+CREATE TABLE IF NOT EXISTS public.stop_times (
   trip_id text NOT NULL,
   stop_id text NOT NULL,
   arrival_time text,
@@ -30,7 +30,7 @@ CREATE TABLE public.stop_times (
   PRIMARY KEY (trip_id, stop_sequence)
 );
 
-CREATE TABLE public.calendar (
+CREATE TABLE IF NOT EXISTS public.calendar (
   service_id text PRIMARY KEY,
   monday int,
   tuesday int,
@@ -43,17 +43,17 @@ CREATE TABLE public.calendar (
   end_date text
 );
 
-CREATE TABLE public.calendar_dates (
+CREATE TABLE IF NOT EXISTS public.calendar_dates (
   service_id text NOT NULL,
   date text NOT NULL,
   exception_type int,
   PRIMARY KEY (service_id, date)
 );
 
-CREATE INDEX stop_times_stop_departure_idx ON public.stop_times (stop_id, departure_time);
-CREATE INDEX stop_times_trip_idx ON public.stop_times (trip_id);
-CREATE INDEX trips_route_idx ON public.trips (route_id);
-CREATE INDEX stops_stop_name_idx ON public.stops (stop_name);
+CREATE INDEX IF NOT EXISTS stop_times_stop_departure_idx ON public.stop_times (stop_id, departure_time);
+CREATE INDEX IF NOT EXISTS stop_times_trip_idx ON public.stop_times (trip_id);
+CREATE INDEX IF NOT EXISTS trips_route_idx ON public.trips (route_id);
+CREATE INDEX IF NOT EXISTS stops_stop_name_idx ON public.stops (stop_name);
 
 GRANT SELECT ON public.stops TO anon, authenticated;
 GRANT SELECT ON public.routes TO anon, authenticated;
@@ -75,11 +75,17 @@ ALTER TABLE public.stop_times ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_dates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public read stops" ON public.stops;
 CREATE POLICY "Public read stops" ON public.stops FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public read routes" ON public.routes;
 CREATE POLICY "Public read routes" ON public.routes FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public read trips" ON public.trips;
 CREATE POLICY "Public read trips" ON public.trips FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public read stop_times" ON public.stop_times;
 CREATE POLICY "Public read stop_times" ON public.stop_times FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public read calendar" ON public.calendar;
 CREATE POLICY "Public read calendar" ON public.calendar FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public read calendar_dates" ON public.calendar_dates;
 CREATE POLICY "Public read calendar_dates" ON public.calendar_dates FOR SELECT TO anon, authenticated USING (true);
 
 CREATE OR REPLACE FUNCTION public.next_departures(p_station_query text, p_limit int DEFAULT 4)

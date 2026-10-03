@@ -17,6 +17,12 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
 $$;
 
 -- Walk / drive / feeder-bus options from a point to a rail station (or to any rail station).
+-- Re-runnable: a later migration changes this function's return type.
+DO $$ DECLARE r record; BEGIN
+  FOR r IN SELECT oid::regprocedure AS sig FROM pg_proc
+    WHERE proname = 'access_legs' AND pronamespace = 'public'::regnamespace
+  LOOP EXECUTE 'DROP FUNCTION ' || r.sig; END LOOP;
+END $$;
 CREATE OR REPLACE FUNCTION public.access_legs(
   p_lat numeric,
   p_lon numeric,
@@ -96,6 +102,12 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
 $$;
 
 -- Walk / drive / bus options from a rail station to a point.
+-- Re-runnable: a later migration changes this function's return type.
+DO $$ DECLARE r record; BEGIN
+  FOR r IN SELECT oid::regprocedure AS sig FROM pg_proc
+    WHERE proname = 'egress_legs' AND pronamespace = 'public'::regnamespace
+  LOOP EXECUTE 'DROP FUNCTION ' || r.sig; END LOOP;
+END $$;
 CREATE OR REPLACE FUNCTION public.egress_legs(
   p_station text,
   p_lat numeric,
@@ -187,6 +199,12 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
 $$;
 
 -- Outbound: point -> (walk/drive/feeder bus) -> rail -> connecting bus -> destination stop.
+-- Re-runnable: a later migration changes this function's return type.
+DO $$ DECLARE r record; BEGIN
+  FOR r IN SELECT oid::regprocedure AS sig FROM pg_proc
+    WHERE proname = 'plan_outbound' AND pronamespace = 'public'::regnamespace
+  LOOP EXECUTE 'DROP FUNCTION ' || r.sig; END LOOP;
+END $$;
 CREATE OR REPLACE FUNCTION public.plan_outbound(
   p_origin_lat numeric,
   p_origin_lon numeric,

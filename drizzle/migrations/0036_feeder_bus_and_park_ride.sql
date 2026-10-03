@@ -1,4 +1,4 @@
-CREATE TABLE public.station_parking (
+CREATE TABLE IF NOT EXISTS public.station_parking (
   name_match text PRIMARY KEY,
   status text NOT NULL CHECK (status IN ('available','limited','none')),
   note text
@@ -6,9 +6,11 @@ CREATE TABLE public.station_parking (
 GRANT SELECT ON public.station_parking TO anon, authenticated;
 GRANT ALL ON public.station_parking TO service_role;
 ALTER TABLE public.station_parking ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Parking info is public" ON public.station_parking;
 CREATE POLICY "Parking info is public" ON public.station_parking FOR SELECT TO anon, authenticated USING (true);
 INSERT INTO public.station_parking (name_match, status, note) VALUES
-  ('pearl highlands', 'available', 'Park & Ride garage');
+  ('pearl highlands', 'available', 'Park & Ride garage')
+ON CONFLICT (name_match) DO NOTHING;
 
 CREATE OR REPLACE FUNCTION public.feeder_bus_to_station(p_lat numeric, p_lon numeric, p_station text, p_after_seconds integer)
 RETURNS TABLE(route_short_name text, board_stop_name text, alight_stop_name text, board_walk_m double precision, depart_seconds integer, ride_minutes integer, arrive_seconds integer)

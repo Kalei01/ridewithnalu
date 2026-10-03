@@ -1,4 +1,4 @@
-CREATE TABLE public.push_subscriptions (
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
   token text PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
   categories text[] NOT NULL DEFAULT '{}',
@@ -10,7 +10,7 @@ CREATE TABLE public.push_subscriptions (
 GRANT ALL ON public.push_subscriptions TO service_role;
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
-CREATE TABLE public.push_deliveries (
+CREATE TABLE IF NOT EXISTS public.push_deliveries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   token text NOT NULL REFERENCES public.push_subscriptions(token) ON DELETE CASCADE,
   dedupe_key text NOT NULL,
@@ -19,4 +19,4 @@ CREATE TABLE public.push_deliveries (
 );
 GRANT ALL ON public.push_deliveries TO service_role;
 ALTER TABLE public.push_deliveries ENABLE ROW LEVEL SECURITY;
-CREATE INDEX push_deliveries_sent_at_idx ON public.push_deliveries (sent_at);
+CREATE INDEX IF NOT EXISTS push_deliveries_sent_at_idx ON public.push_deliveries (sent_at);

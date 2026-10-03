@@ -92,6 +92,12 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
 $$;
 
 -- Rail departures from a station today, on or after a given seconds-after-midnight.
+-- Re-runnable: a later migration changes this function's return type.
+DO $$ DECLARE r record; BEGIN
+  FOR r IN SELECT oid::regprocedure AS sig FROM pg_proc
+    WHERE proname = 'rail_departures' AND pronamespace = 'public'::regnamespace
+  LOOP EXECUTE 'DROP FUNCTION ' || r.sig; END LOOP;
+END $$;
 CREATE OR REPLACE FUNCTION public.rail_departures(
   p_home_stop text, p_after_seconds integer DEFAULT NULL, p_limit integer DEFAULT 4
 )

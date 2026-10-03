@@ -58,6 +58,12 @@ Notes from a local rehearsal (all 50 files, filename order, on an empty Postgres
 - `directional_dest_stop` is called by the app but is defined in no migration. It exists
   only in Lovable's database. Take its definition from Lovable's schema export.
 - No sign-up trigger is needed: the app creates `profiles` rows itself.
+- Every migration is now safe to re-run: the full set applied twice in a row ends with
+  identical functions. 0048 locks the GTFS swap/prune functions to the service role,
+  lets `nearby_stops` use its index (general planner ~2.5x faster in rehearsal), adds
+  missing indexes, validates the account cascades, and schedules `nalu_maintenance()`
+  nightly via pg_cron. When importing user data, skip `profiles`/`user_preferences`
+  rows whose user is not in the imported `auth.users`, or 0048's validation fails.
 
 ## 5. Sign-in
 

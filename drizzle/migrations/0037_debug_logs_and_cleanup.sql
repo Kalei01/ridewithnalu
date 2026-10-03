@@ -1,4 +1,4 @@
-CREATE TABLE public.debug_logs (
+CREATE TABLE IF NOT EXISTS public.debug_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   device_id text NOT NULL,
   session_id text NOT NULL,
@@ -8,8 +8,8 @@ CREATE TABLE public.debug_logs (
 );
 GRANT ALL ON public.debug_logs TO service_role;
 ALTER TABLE public.debug_logs ENABLE ROW LEVEL SECURITY;
-CREATE INDEX debug_logs_device_idx ON public.debug_logs (device_id);
-CREATE INDEX debug_logs_created_idx ON public.debug_logs (created_at);
+CREATE INDEX IF NOT EXISTS debug_logs_device_idx ON public.debug_logs (device_id);
+CREATE INDEX IF NOT EXISTS debug_logs_created_idx ON public.debug_logs (created_at);
 
 CREATE OR REPLACE FUNCTION public.nalu_maintenance()
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$

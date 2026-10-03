@@ -1,4 +1,12 @@
-ALTER TABLE public.profiles ADD CONSTRAINT profiles_auth_user_fk FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE NOT VALID;
-ALTER TABLE public.user_preferences ADD CONSTRAINT user_preferences_auth_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE NOT VALID;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_auth_user_fk') THEN
+    ALTER TABLE public.profiles ADD CONSTRAINT profiles_auth_user_fk FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE NOT VALID;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_preferences_auth_user_fk') THEN
+    ALTER TABLE public.user_preferences ADD CONSTRAINT user_preferences_auth_user_fk FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE NOT VALID;
+  END IF;
+END $$;
 COMMENT ON CONSTRAINT profiles_auth_user_fk ON public.profiles IS 'Deletes account profile when the owning auth user is deleted; NOT VALID permits legacy orphan cleanup before validation.';
 COMMENT ON CONSTRAINT user_preferences_auth_user_fk ON public.user_preferences IS 'Deletes synced places and preferences when the owning auth user is deleted; NOT VALID permits legacy orphan cleanup before validation.';
