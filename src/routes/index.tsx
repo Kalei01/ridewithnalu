@@ -5228,6 +5228,18 @@ function Index() {
           period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
           decision={verdict}
           trafficLevel={naluHeroTrafficLevel}
+          driveMinutes={driveTripEstimate.expectedDurationMinutes}
+          transitMinutes={transitTripEstimate.expectedDurationMinutes}
+          timeDelta={activeDecision.differenceMinutes ?? null}
+          incidents={drive?.incidents ?? []}
+          activeRoadwork={[
+            ...(drive?.hdotLaneClosures ?? []),
+            ...(drive?.hdotScheduledClosures ?? []),
+          ]}
+          weather={weather?.moments ?? []}
+          transferMinutes={transitTripEstimate.transferMinutes}
+          waitMinutes={transitTripEstimate.waitMinutes}
+          walkMinutes={transitTripEstimate.walkingMinutes}
         />
 
         <section
