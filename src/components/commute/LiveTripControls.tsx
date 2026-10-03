@@ -1,7 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { stationLabel, titleCase } from "@/lib/commute-formatting";
 import type { ApproachState } from "@/lib/approach";
@@ -96,8 +94,6 @@ export function ApproachBanner({
     </div>
   );
 }
-
-/** Friendly recovery steps shown when the browser has blocked location access. */
 
 export function NavShell({
   fullscreen,
