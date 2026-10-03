@@ -11,6 +11,49 @@ export type NaluCommuteTone =
   | "arrive"
   | "parking";
 
+export type SmartNaluIncident = {
+  description?: string | null;
+  road?: string | null;
+  delayMinutes?: number | null;
+  category?: string | null;
+  from?: string | null;
+  to?: string | null;
+};
+
+export type SmartNaluRoadwork = {
+  road?: string | null;
+  description?: string | null;
+  headline?: string | null;
+  route?: string | null;
+  active?: boolean;
+};
+
+export type SmartNaluWeather = {
+  precipPercent?: number | null;
+  shortForecast?: string | null;
+  rain?: boolean;
+  wetRoads?: boolean;
+  impact?: "none" | "minor" | "meaningful";
+};
+
+export type SmartNaluContext = {
+  driveMinutes: number | null | undefined;
+  transitMinutes: number | null | undefined;
+  timeDelta?: number | null;
+  selectedMode?: "drive" | "transit" | "rail" | "toss_up" | "same" | null;
+  decision?: "drive" | "transit" | "rail" | "toss_up" | "same" | null;
+  incidents?: SmartNaluIncident[] | null;
+  activeRoadwork?: SmartNaluRoadwork[] | SmartNaluRoadwork | null;
+  weather?: SmartNaluWeather | SmartNaluWeather[] | null;
+  period?: NaluPulsePeriod;
+  trafficLevel?: "light" | "moderate" | "heavy" | "severe";
+  transferMinutes?: number | null;
+  transfers?: number | null;
+  walkMinutes?: number | null;
+  waitMinutes?: number | null;
+  direction?: "morning-westbound" | "morning-eastbound" | "evening-westbound" | "evening-eastbound" | string | null;
+};
+
 export type NaluCommuteContext = {
   period?: NaluPulsePeriod;
   tone?: NaluCommuteTone;
@@ -167,6 +210,168 @@ function pickContextual(lines: string[], context: NaluCommuteContext, date: Date
   return pick(lines, date, offset);
 }
 
+function asRoadworkList(value: SmartNaluContext["activeRoadwork"]): SmartNaluRoadwork[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function asWeatherList(value: SmartNaluContext["weather"]): SmartNaluWeather[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function cleanRoadName(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const road = value.trim();
+  if (!road) return null;
+  return road
+    .replace(/\bH1\b/gi, "H-1")
+    .replace(/\bH2\b/gi, "H-2")
+    .replace(/\bNimitz Highway\b/gi, "Nimitz")
+    .replace(/\bFarrington Highway\b/gi, "Farrington")
+    .replace(/\bKamehameha Highway\b/gi, "Kamehameha");
+}
+
+function incidentRoad(incident: SmartNaluIncident | undefined): string | null {
+  if (!incident) return null;
+  return cleanRoadName(incident.road) ?? cleanRoadName(incident.from) ?? null;
+}
+
+function majorIncidentFor(context: SmartNaluContext): SmartNaluIncident | undefined {
+  return context.incidents?.find((incident) =>
+    (incident.delayMinutes ?? 0) >= 10 ||
+    /closure|closed|blocked|crash|collision|incident|disabled|lane/i.test(
+      [incident.description, incident.category].filter(Boolean).join(" "),
+    ),
+  );
+}
+
+function hasWetWeather(context: SmartNaluContext): boolean {
+  return asWeatherList(context.weather).some((weather) =>
+    weather.wetRoads === true ||
+    weather.rain === true ||
+    weather.impact === "meaningful" ||
+    (weather.precipPercent ?? 0) >= 30 ||
+    /rain|showers|thunderstorm|wet/i.test(weather.shortForecast ?? ""),
+  );
+}
+
+function weatherImpact(context: SmartNaluContext): "none" | "minor" | "meaningful" {
+  if (hasWetWeather(context)) return "meaningful";
+  return context.weather && asWeatherList(context.weather).some((weather) => weather.impact === "minor")
+    ? "minor"
+    : "none";
+}
+
+function transferFriction(context: SmartNaluContext): boolean {
+  return (context.transferMinutes ?? 0) >= 15 ||
+    (context.waitMinutes ?? 0) >= 15 ||
+    (context.walkMinutes ?? 0) >= 15;
+}
+
+function formatMinutes(minutes: number): string {
+  return Math.round(Math.abs(minutes)) === 1 ? "1 min" : `${Math.round(Math.abs(minutes))} min`;
+}
+
+function modeLabel(mode: SmartNaluContext["selectedMode"]): "driving" | "transit" | "rail" {
+  return mode === "transit" || mode === "rail" ? "transit" : "driving";
+}
+
+function contextDelta(context: SmartNaluContext): number | null {
+  if (typeof context.timeDelta === "number" && Number.isFinite(context.timeDelta)) {
+    return Math.abs(context.timeDelta);
+  }
+  if (
+    typeof context.driveMinutes === "number" &&
+    typeof context.transitMinutes === "number" &&
+    Number.isFinite(context.driveMinutes) &&
+    Number.isFinite(context.transitMinutes)
+  ) {
+    return Math.abs(context.driveMinutes - context.transitMinutes);
+  }
+  return null;
+}
+
+/**
+ * Deterministic, metric-backed Nalu copy.
+ *
+ * Priority:
+ * 1) substantial winner (>20 min)
+ * 2) close call (<=8 min)
+ * 3) major incident / closure
+ * 4) transit transfer friction
+ * 5) wet-weather impact
+ */
+export function generateSmartNaluInsight(context: SmartNaluContext): string {
+  const drive = typeof context.driveMinutes === "number" ? context.driveMinutes : null;
+  const transit = typeof context.transitMinutes === "number" ? context.transitMinutes : null;
+  const delta = contextDelta(context);
+  const mode = context.selectedMode ?? context.decision;
+  const winner =
+    mode === "drive" ? "drive" :
+    mode === "transit" || mode === "rail" ? "transit" :
+    drive !== null && transit !== null && drive !== transit
+      ? drive < transit ? "drive" : "transit"
+      : null;
+  const incident = majorIncidentFor(context);
+  const roadwork = asRoadworkList(context.activeRoadwork).find((item) => item.active !== false);
+  const weather = weatherImpact(context);
+
+  if (drive !== null && transit !== null && delta !== null && delta > 20 && winner) {
+    const saved = formatMinutes(delta);
+    if (winner === "drive") {
+      const road = incidentRoad(incident);
+      const reason = road
+        ? ` — ${road} is still moving despite the traffic`
+        : context.trafficLevel === "heavy" || context.trafficLevel === "severe"
+          ? " — the drive still has the edge despite the volume"
+          : "";
+      return `Driving saves ${saved} over transit right now${reason}.`;
+    }
+
+    const road = incidentRoad(incident);
+    const reason = road
+      ? ` — Skyline avoids the ${road} slowdown`
+      : incident
+        ? " — rail + bus avoids the road slowdown"
+        : "";
+    return `Transit saves ${saved} over driving right now${reason}.`;
+  }
+
+  if (drive !== null && transit !== null && delta !== null && delta <= 8) {
+    const close = formatMinutes(delta);
+    return mode === "transit" || mode === "rail"
+      ? `Times are neck-and-neck (~${close} apart). Take Skyline/transit if you want to skip driving stress.`
+      : mode === "drive"
+        ? `Times are neck-and-neck (~${close} apart). Take the car if you want the simpler, flexible run.`
+        : `Times are neck-and-neck (~${close} apart). Either works — pick based on whether you want Skyline or the car.`;
+  }
+
+  if (incident || roadwork) {
+    const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
+    const closureWord = roadwork || /closure|closed/i.test(incident?.description ?? "") ? "closure" : "incident";
+    if (road) {
+      return `Heads-up: ${road} has a ${closureWord} affecting this route right now.`;
+    }
+    return `Heads-up: a major road ${closureWord} is affecting this route right now.`;
+  }
+
+  if (transferFriction(context) && transit !== null) {
+    const friction = context.transferMinutes ?? context.waitMinutes ?? context.walkMinutes ?? 0;
+    return `Transit is picking up some extra time from the ${formatMinutes(friction)} transfer/wait.`;
+  }
+
+  if (weather !== "none") {
+    return weather === "meaningful"
+      ? "Wet roads can make the drive less predictable today — give yourself a little breathing room."
+      : "Weather may add a little variability to the drive today.";
+  }
+
+  if (winner === "transit") return "Transit is looking like the cleaner run on the numbers.";
+  if (winner === "drive") return "Driving is looking like the cleaner run on the numbers.";
+  return "Nalu checked the trip. I’ll call it when the numbers are clear.";
+}
+
 export function naluCommuteLine(
   tone: NaluCommuteTone,
   date = new Date(),
@@ -202,9 +407,35 @@ export function naluCommuteLine(
 }
 
 export function naluHeroVerdictLine(
-  context: NaluCommuteContext & { majorIncident?: boolean; trafficDelayMinutes?: number | null } = {},
+  context: NaluCommuteContext & {
+    majorIncident?: boolean;
+    trafficDelayMinutes?: number | null;
+    driveMinutes?: number | null;
+    transitMinutes?: number | null;
+    incidents?: SmartNaluIncident[] | null;
+    activeRoadwork?: SmartNaluRoadwork[] | SmartNaluRoadwork | null;
+    weather?: SmartNaluWeather | SmartNaluWeather[] | null;
+    transferMinutes?: number | null;
+    waitMinutes?: number | null;
+  } = {},
   date = new Date(),
 ): string {
+  if (context.driveMinutes != null || context.transitMinutes != null) {
+    return generateSmartNaluInsight({
+      driveMinutes: context.driveMinutes,
+      transitMinutes: context.transitMinutes,
+      timeDelta: context.timeDifferenceMinutes,
+      selectedMode: context.decision,
+      incidents: context.incidents,
+      activeRoadwork: context.activeRoadwork,
+      weather: context.weather,
+      trafficLevel: context.trafficLevel,
+      transferMinutes: context.transferMinutes,
+      waitMinutes: context.waitMinutes,
+      period: context.period,
+    });
+  }
+
   const difference = context.timeDifferenceMinutes ?? null;
   const trafficDelay = context.trafficDelayMinutes ?? 0;
 
@@ -219,7 +450,6 @@ export function naluHeroVerdictLine(
   if (context.decision === "rail") return pickContextual(RAIL_LINES, context, date);
   if (context.decision === "drive") return pickContextual(DRIVE_LINES, context, date);
 
-  // Never let the Hero silently fail when the decision is already visible.
   return "Nalu checked it. Here’s the move.";
 }
 
