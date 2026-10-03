@@ -3177,6 +3177,16 @@ function Index() {
             trafficLevel: naluHeroTrafficLevel,
             trafficDelayMinutes: driveTripEstimate.trafficDelayMinutes,
             majorIncident: driveTripEstimate.majorIncident,
+            driveMinutes: driveTripEstimate.expectedDurationMinutes,
+            transitMinutes: transitTripEstimate.expectedDurationMinutes,
+            incidents: drive?.incidents ?? [],
+            activeRoadwork: [
+              ...(drive?.hdotLaneClosures ?? []),
+              ...(drive?.hdotScheduledClosures ?? []),
+            ],
+            weather: weather?.moments ?? [],
+            transferMinutes: transitTripEstimate.transferMinutes,
+            waitMinutes: transitTripEstimate.waitMinutes,
           },
           now,
         )
