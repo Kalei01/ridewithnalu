@@ -61,9 +61,9 @@ export function NaluPersonalityStrip({
               : decision === "drive"
                 ? "drive"
                 : "toss_up",
-          incidents,
-          activeRoadwork,
-          weather,
+          incidents: incidents ?? null,
+          activeRoadwork: activeRoadwork ?? null,
+          weather: weather ?? null,
           period,
           trafficLevel,
           transferMinutes,
