@@ -167,14 +167,6 @@ function pickContextual(lines: string[], context: NaluCommuteContext, date: Date
   return pick(lines, date, offset);
 }
 
-/**
- * Context-aware personality layer.
- * This layer only chooses copy. It never changes routing, ETA, traffic,
- * transit, weather, or commute-decision calculations.
- *
- * The caller can provide facts it already knows; the personality layer
- * decides whether a relevant line is useful and avoids unnecessary chatter.
- */
 export function naluCommuteLine(
   tone: NaluCommuteTone,
   date = new Date(),
@@ -197,32 +189,15 @@ export function naluCommuteLine(
   if (tone === "rail") return pickContextual(RAIL_LINES, context, date);
   if (tone === "drive") return pickContextual(DRIVE_LINES, context, date);
   if (tone === "rush") return pickContextual(RUSH_LINES, context, date);
-
   if (tone === "weather") {
-    return context.weatherImpact === "meaningful"
-      ? pickContextual(WEATHER_LINES, context, date)
-      : "";
+    return context.weatherImpact === "meaningful" ? pickContextual(WEATHER_LINES, context, date) : "";
   }
-
   if (tone === "roadwork") {
-    if (context.roadworkScheduledLater && !context.roadworkActive) {
-      return pickContextual(ROADWORK_LINES, context, date);
-    }
-    return context.roadworkActive
-      ? pickContextual(ROADWORK_LINES, context, date)
-      : "";
+    if (context.roadworkScheduledLater && !context.roadworkActive) return pickContextual(ROADWORK_LINES, context, date);
+    return context.roadworkActive ? pickContextual(ROADWORK_LINES, context, date) : "";
   }
-
-  if (tone === "arrive") {
-    return context.isArriveBy ? pickContextual(ARRIVE_LINES, context, date) : "";
-  }
-
-  if (tone === "parking") {
-    return (context.parkingMinutes ?? 0) > 0
-      ? pickContextual(PARKING_LINES, context, date)
-      : "";
-  }
-
+  if (tone === "arrive") return context.isArriveBy ? pickContextual(ARRIVE_LINES, context, date) : "";
+  if (tone === "parking") return (context.parkingMinutes ?? 0) > 0 ? pickContextual(PARKING_LINES, context, date) : "";
   return "";
 }
 
@@ -233,21 +208,19 @@ export function naluHeroVerdictLine(
   const difference = context.timeDifferenceMinutes ?? null;
   const trafficDelay = context.trafficDelayMinutes ?? 0;
 
-  // Give a close call its own neutral voice instead of pretending there is a winner.
   if (context.decision === "toss_up" || (difference !== null && difference <= 5)) {
     return pickContextual(TOSS_UP_LINES, context, date);
   }
 
-  // When the drive is clearly affected, a little levity can reduce commute tension
-  // without changing the factual verdict. Major incidents use the same human tone;
-  // safety-critical wording remains in the underlying alert/roadwork UI.
   if (context.trafficLevel === "heavy" || context.trafficLevel === "severe" || trafficDelay >= 10 || context.majorIncident) {
     return pickContextual(TRAFFIC_LINES, context, date);
   }
 
   if (context.decision === "rail") return pickContextual(RAIL_LINES, context, date);
   if (context.decision === "drive") return pickContextual(DRIVE_LINES, context, date);
-  return "";
+
+  // Never let the Hero silently fail when the decision is already visible.
+  return "Nalu checked it. Here’s the move.";
 }
 
 export function naluPulseTagline(
