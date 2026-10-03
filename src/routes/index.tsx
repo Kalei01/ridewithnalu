@@ -5842,8 +5842,6 @@ function Index() {
 
         <Button
           variant="destructive"
-          onClick={endTrip}        <Button
-          variant="destructive"
           onClick={endTrip}
           className="end-trip-action mt-2 h-14 w-full text-base font-black uppercase"
         >
