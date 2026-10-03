@@ -5987,11 +5987,19 @@ function RailTripBreakdown({
               ? Math.max(0, Math.round((leg.depart_seconds - previous.arrive_seconds) / 60))
               : 0;
           const legMinutes = duration(leg);
-          const stationName = stationLabel(leg.to);
+          const nextLeg = rows[index + 1];
+          const toBusStop = nextLeg?.mode === "bus" || (leg.mode === "bus" && leg.kind === "access");
+          const stationName = toBusStop ? titleCase(leg.to) : stationLabel(leg.to);
           const label =
-            leg.kind === "access"
+            leg.mode === "bus" && leg.kind !== "access"
+              ? leg.route_short ? `Bus ${leg.route_short}` : "Bus"
+              : leg.mode === "walk" && leg.kind === "connect"
+                ? `Walk to ${toBusStop ? titleCase(leg.to) || "the next stop" : `${stationLabel(leg.to) || "the"} Station`}`
+              : leg.kind === "access"
               ? leg.mode === "walk"
-                ? `Walk to ${stationName || "the station"} Station`
+                ? toBusStop
+                  ? `Walk to ${stationName || "the bus stop"}`
+                  : `Walk to ${stationName || "the station"} Station`
                 : stationName
                   ? `To ${stationName}${leg.mode === "bus" ? "" : " Station"}`
                   : leg.mode === "bus" ? "To the stop" : "To the station"
@@ -6016,7 +6024,7 @@ function RailTripBreakdown({
                 ? "home"
                 : "destination"
               : leg.kind === "access"
-                ? leg.mode === "bus"
+                ? leg.mode === "bus" || toBusStop
                   ? `${stationName || titleCase(leg.to) || "stop"}`
                   : `${stationName || titleCase(leg.to) || "station"} Station platform`
                 : titleCase(leg.to);
@@ -6090,7 +6098,7 @@ function RailTripBreakdown({
                       </p>
                     )}
                     <p className="text-sm font-semibold text-foreground">
-                      Board at: {transitStopName(leg, "from")}
+                      Board at: {transitStopName(leg, "from")} · {clockFromSeconds(leg.depart_seconds)}
                     </p>
                     <LandmarkHint name={transitStopName(leg, "from")} />
                     <BusArrivalTime

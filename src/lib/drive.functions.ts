@@ -5,7 +5,9 @@ import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./
 import { incidentAffectsTrip, localRoadName } from "./traffic-incidents";
 import { lookupHdotLaneClosureRoutes, type HdotLaneClosureRoute, type HdotScheduledClosure, lookupHdotScheduledClosures } from "./hdot-lane-closures.functions";
 
-const TOMTOM_KEY = process.env["TOMTOM_API_KEY"] ?? atob("MzQ4RDAwQzYtODQxMi00ODVCLTk2N0MtNjE2QzA5NzU1MTA1");
+function tomtomKey() {
+  return process.env["TOMTOM_API_KEY"] ?? "";
+}
 
 const schema = z.object({
   fromLat: z.number(),
@@ -93,7 +95,11 @@ function round(value: number) {
 
 /** Live driving time with traffic plus any incident on the route, via TomTom. */
 export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<DriveTime | null> {
-  const key = TOMTOM_KEY;
+  const key = tomtomKey();
+  if (!key) {
+    console.error("[drive] routing unavailable: TOMTOM_API_KEY is not set");
+    return null;
+  }
 
   try {
     const from = `${round(data.fromLat)},${round(data.fromLon)}`;
