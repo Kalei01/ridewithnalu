@@ -39,13 +39,13 @@ export type SmartNaluWeather = {
 export type SmartNaluContext = {
   driveMinutes: number | null | undefined;
   transitMinutes: number | null | undefined;
-  timeDelta?: number | null;
-  selectedMode?: "drive" | "transit" | "rail" | "toss_up" | "same" | null;
+  timeDelta?: number | null | undefined;
+  selectedMode?: "drive" | "transit" | "rail" | "toss_up" | "same" | null | undefined;
   decision?: "drive" | "transit" | "rail" | "toss_up" | "same" | null;
   incidents?: SmartNaluIncident[] | null;
   activeRoadwork?: SmartNaluRoadwork[] | SmartNaluRoadwork | null;
   weather?: SmartNaluWeather | SmartNaluWeather[] | null;
-  period?: NaluPulsePeriod;
+  period?: NaluPulsePeriod | undefined;
   trafficLevel?: "light" | "moderate" | "heavy" | "severe";
   transferMinutes?: number | null;
   transfers?: number | null;
