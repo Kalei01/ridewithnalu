@@ -15,7 +15,7 @@ export class AiGatewayError extends Error {
 }
 
 function model() {
-  // Portable: a standard OPENAI_API_KEY (e.g. on Vercel) wins; otherwise the
+  // Portable: a standard OPENAI_API_KEY (e.g. self-hosted on Cloudflare) wins; otherwise the
   // hosted gateway is used. OPENAI_MODEL optionally overrides the model name.
   const openaiKey = process.env["OPENAI_API_KEY"];
   if (openaiKey) {
