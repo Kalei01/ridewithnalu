@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { findInboundOptions } from "./inbound-fallback";
+import {
+  findInboundOptions,
+  filterTransferSanityOptions,
+  isTransferSane,
+} from "./inbound-fallback";
 
 const destination = { lat: 21.36, lon: -157.94 };
 const stations = [
@@ -54,5 +58,63 @@ describe("inbound arrival station fallback", () => {
     });
     expect(result.stationId).toBe("halawa");
     expect(fetchAtStation).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe("rail transfer sanity", () => {
+  const leg = (
+    mode: "walk" | "drive" | "bus" | "rail",
+    minutes: number | null,
+    depart_seconds: number | null,
+    arrive_seconds: number | null,
+  ) => ({ mode, minutes, depart_seconds, arrive_seconds });
+
+  it("rejects a one-station micro-rail hop feeding a bus", () => {
+    expect(
+      isTransferSane({
+        legs: [
+          leg("drive", 8, 0, 480),
+          leg("rail", 2, 600, 720),
+          leg("bus", 13, 1500, 2280),
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects a rail-to-bus transfer when the wait exceeds the rail ride", () => {
+    expect(
+      isTransferSane({
+        legs: [
+          leg("rail", 8, 600, 1080),
+          leg("bus", 9, 1920, 2460),
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps a meaningful rail corridor run with a short bus transfer wait", () => {
+    expect(
+      isTransferSane({
+        legs: [
+          leg("rail", 20, 600, 1800),
+          leg("bus", 5, 1980, 2280),
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("filters only the irrational rail-to-bus chains", () => {
+    const options = [
+      {
+        id: "micro-hop",
+        legs: [leg("rail", 2, 600, 720), leg("bus", 13, 1500, 2280)],
+      },
+      {
+        id: "full-rail",
+        legs: [leg("rail", 20, 600, 1800), leg("bus", 3, 1860, 2040)],
+      },
+    ];
+    expect(filterTransferSanityOptions(options).map((option) => option.id)).toEqual(["full-rail"]);
   });
 });
