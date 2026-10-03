@@ -5737,7 +5737,12 @@ function Index() {
                                     <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
                                   </p>
                                 ))}
-        {selectedMode === "transit" && options.length > 1 && (
+                </>
+              }
+            />
+          )}
+
+          {selectedMode === "transit" && options.length > 1 && (
           <AlternativeDepartures>
             <ol className="mt-5 grid min-w-0 max-w-full gap-3">
               {options
