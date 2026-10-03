@@ -1550,6 +1550,31 @@ function Index() {
           hint: typeof e?.hint === "string" ? e.hint : null,
         });
       };
+      const fetchBusRescue = async (cursor: number): Promise<Option[]> => {
+        try {
+          const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+            p_origin_lat: tripDirection.from.lat as number,
+            p_origin_lon: tripDirection.from.lon as number,
+            p_dest_lat: tripDirection.to.lat as number,
+            p_dest_lon: tripDirection.to.lon as number,
+            p_after_seconds: cursor,
+            p_limit: planMode === "arrive-by" ? 8 : 4,
+          });
+          if (busError) {
+            recordTransitRpcError("plan_bus_direct", busError);
+            return [];
+          }
+          const busOptions = (busData ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[];
+          return mergeTransitOptions(busOptions);
+        } catch (error) {
+          recordTransitRpcError("plan_bus_direct", error);
+          return [];
+        }
+      };
+
       const fetchGeneralTransit = async (cursor: number): Promise<Option[]> => {
         const { data, error } = await supabase.rpc("plan_transit_general", {
           p_origin_lat: tripDirection.from.lat as number,
@@ -1571,6 +1596,39 @@ function Index() {
       };
 
       const fetchPage = async (cursor: number): Promise<Option[]> => {
+        // When Skyline is outside its published service window, do not let a
+        // rail-inclusive planner result hide the remaining TheBus option. The
+        // bus rescue is checked first so the UI can honestly compare Drive vs Bus.
+        let skylineOutOfService = false;
+        const serviceStopId = inbound ? arrivalStationId : setup.homeStopId;
+        if (serviceStopId) {
+          try {
+            const { data: serviceRows, error: serviceError } = await supabase.rpc("service_hours", {
+              p_stop_id: serviceStopId,
+              p_route_type: 1,
+            });
+            if (!serviceError) {
+              const today = (serviceRows ?? []).find(
+                (row) => Number(row.dow) === honoluluIsoDow(now),
+              );
+              skylineOutOfService = Boolean(
+                today &&
+                (nowSeconds >= Number(today.last_seconds) ||
+                  nowSeconds < Number(today.first_seconds)),
+              );
+            } else {
+              recordTransitRpcError("service_hours", serviceError);
+            }
+          } catch (error) {
+            recordTransitRpcError("service_hours", error);
+          }
+        }
+
+        if (skylineOutOfService) {
+          const busRescue = await fetchBusRescue(cursor);
+          if (busRescue.length) return busRescue;
+        }
+
         // Primary path: generalized door-to-door transit. This remains authoritative
         // whenever it produces a usable itinerary.
         const primaryTransit = await fetchGeneralTransit(cursor);
@@ -1712,29 +1770,9 @@ function Index() {
 
         // Final transit rescue: if the rail/general planner cannot form an
         // itinerary, search TheBus directly from the actual origin to stops near
-        // the actual destination. This keeps transit useful after Skyline service
-        // ends and for riders who do not have access to a car.
-        try {
-          const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
-            p_origin_lat: tripDirection.from.lat as number,
-            p_origin_lon: tripDirection.from.lon as number,
-            p_dest_lat: tripDirection.to.lat as number,
-            p_dest_lon: tripDirection.to.lon as number,
-            p_after_seconds: cursor,
-            p_limit: planMode === "arrive-by" ? 8 : 4,
-          });
-          if (busError) {
-            recordTransitRpcError("plan_bus_direct", busError);
-          } else {
-            const busOptions = (busData ?? []).map((row) => ({
-              ...row,
-              legs: row.legs as unknown as Leg[],
-            })) as Option[];
-            if (busOptions.length) return mergeTransitOptions(busOptions, primaryTransit);
-          }
-        } catch (error) {
-          recordTransitRpcError("plan_bus_direct", error);
-        }
+        // the actual destination.
+        const busRescue = await fetchBusRescue(cursor);
+        if (busRescue.length) return mergeTransitOptions(busRescue, primaryTransit);
 
         if (generalTransitError) throw generalTransitError;
 
