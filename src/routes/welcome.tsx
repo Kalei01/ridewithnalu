@@ -36,7 +36,7 @@ function WelcomeNavigationPreview() {
       </div>
       <div className="relative overflow-hidden bg-black">
         <img
-          src={welcomeNavigationImage}"
+          src={welcomeNavigationImage}
           alt="Nalu live turn-by-turn navigation preview"
           className="block h-auto max-h-[585px] w-full object-contain object-top"
           loading="lazy"
