@@ -3,6 +3,8 @@
  * says Nalu checked the roads and rail — plus the wave/shell brand mark.
  */
 
+import { naluCommuteLine } from "@/lib/nalu-voice";
+
 export type NaluDecisionState = "drive" | "transit" | "same" | "none" | "uncertain";
 
 export function NaluPersonalityStrip({
