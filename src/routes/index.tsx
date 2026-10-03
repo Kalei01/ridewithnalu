@@ -155,7 +155,6 @@ import {
   H1ConditionsCard,
   airLine,
   TONE_CLASS,
-  trafficStatus,
   type WeatherLine,
 } from "@/components/commute/H1ConditionsCard";
 import { NaluPersonalityStrip, WaveMark } from "@/components/commute/NaluPersonalityStrip";
@@ -164,7 +163,6 @@ import {
   clockFromSeconds,
   directionLabel,
   distanceM,
-  expandName,
   formatDistance,
   honoluluDateKey,
   honoluluIsoDow,
