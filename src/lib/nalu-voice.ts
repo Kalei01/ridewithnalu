@@ -1,4 +1,4 @@
-export type NaluPulsePeriod = "morning" | "evening";
+import {\n  ARRIVE_LINES,\n  CLOSE_CALL_TAILS,\n  DECISIVE_DRIVE_TAILS,\n  DECISIVE_TRANSIT_TAILS,\n  DRIVE_LINES,\n  EVENING_LINES,\n  FALLBACK_TAILS,\n  INCIDENT_TAILS,\n  MORNING_LINES,\n  PARKING_LINES,\n  RAIL_LINES,\n  ROADWORK_LINES,\n  RUSH_LINES,\n  TOSS_UP_LINES,\n  TRAFFIC_LINES,\n  TRANSFER_TAILS,\n  WEATHER_LINES,\n  WEATHER_TAILS,\n} from "./nalu-voice-bank";\n\nexport type NaluPulsePeriod = "morning" | "evening";
 
 export type NaluCommuteTone =
   | "normal"
@@ -68,128 +68,6 @@ export type NaluCommuteContext = {
   walkMinutes?: number;
   urgent?: boolean;
 };
-
-const MORNING_LINES = [
-  "Alright, here’s the move. 🤙",
-  "Nalu checked it. Let’s get you there.",
-  "Morning. One less thing to figure out.",
-  "Here’s your move for the morning.",
-  "Let’s get you to work without the guesswork.",
-  "Good morning. I checked the roads and rail.",
-  "Your commute is checked. Here’s the plan.",
-  "Nalu’s on it. Let’s get this commute handled.",
-  "Quick commute check — here’s what I’m seeing.",
-  "I ran the numbers. Here’s the move.",
-  "Let’s make this morning a little easier.",
-  "Your morning commute, sorted.",
-];
-
-const EVENING_LINES = [
-  "Alright, heading home.",
-  "Let’s get you back home.",
-  "Here’s the move home.",
-  "Work’s done. Nalu’s got the trip home.",
-  "Time to make the trip back.",
-  "Homebound. Here’s what I’m seeing.",
-  "Nalu checked the evening run.",
-  "Alright, let’s get you out of here.",
-  "Heading back? I got you.",
-  "Home stretch. Let’s check the commute.",
-];
-
-const TRAFFIC_LINES = [
-  "Traffic no joke right now.",
-  "The freeway is not cooperating this morning.",
-  "The roads are getting pretty packed.",
-  "Traffic is stacking up.",
-  "Things are slowing down out there.",
-  "The freeway is starting to drag.",
-  "That drive is moving slower than usual.",
-  "The morning buildup is underway.",
-  "Yeah, the traffic is showing up today. 😅",
-  "This one’s looking like a slower run.",
-];
-
-const RAIL_LINES = [
-  "Rail might be the move.",
-  "Skyline is looking good for this trip.",
-  "Nalu’s leaning rail based on the numbers.",
-  "Rail is looking solid for this run.",
-  "The train is looking competitive.",
-  "Rail has the cleaner run right now.",
-  "Skyline is making a case for itself today.",
-  "Rail is looking like a good way around the traffic.",
-  "The numbers are pointing toward rail.",
-  "For this trip, rail is holding its own.",
-];
-
-const DRIVE_LINES = [
-  "Driving is looking like the move.",
-  "The roads are giving you the better run.",
-  "Nalu’s leaning drive based on the numbers.",
-  "The drive is looking solid for this trip.",
-  "Road time is coming out ahead.",
-  "Driving has the edge on this run.",
-  "The car is looking like the simpler move.",
-  "The roads are working in your favor.",
-  "Drive is holding the better time today.",
-  "The numbers are pointing toward driving.",
-];
-
-const TOSS_UP_LINES = [
-  "These two are pretty close right now.",
-  "It’s a close call — neither option is running away with it.",
-  "The times are close enough that either can make sense.",
-  "Not much between rail and driving on this one.",
-  "This one is too close for Nalu to force a call.",
-  "Both options are in the same ballpark right now.",
-];
-
-const RUSH_LINES = [
-  "If you can leave now, you can beat some of that buildup.",
-  "Traffic is building. Earlier is looking better.",
-  "The sooner you roll, the better this looks.",
-  "The road is getting busier by the minute.",
-  "This is a good time to get ahead of the rush.",
-  "You’ve got a little window before things get heavier.",
-  "The commute is heating up. Earlier looks cleaner.",
-  "The buildup is coming. A head start could help.",
-];
-
-const WEATHER_LINES = [
-  "Rain can change the drive pretty quickly.",
-  "Wet roads today — give yourself a little extra breathing room.",
-  "Weather is part of the commute today.",
-  "Looks like the weather wants a say in the drive.",
-  "Wet conditions can make the drive less predictable.",
-  "A rainy commute calls for a little extra time.",
-];
-
-const ROADWORK_LINES = [
-  "Quick heads-up: this roadwork is tied to the listed closure window.",
-  "That closure is scheduled, so check the time before changing your plan.",
-  "Roadwork noted. The timing matters here.",
-  "Heads-up on the roadwork — it may only affect certain hours.",
-  "This one’s a scheduled closure, not necessarily an all-day closure.",
-  "Nalu flagged the work so you know what’s coming.",
-];
-
-const ARRIVE_LINES = [
-  "You’ve got a target time. I’ll work backward from there.",
-  "Let’s get you there on time without cutting it too close.",
-  "Your arrival time is the priority here.",
-  "We’re planning backward from when you need to arrive.",
-  "Let’s give you a little breathing room.",
-  "The goal is simple: get there when you need to be there.",
-];
-
-const PARKING_LINES = [
-  "Getting there isn’t always the same as being parked.",
-  "I’m leaving room for the part after the drive too.",
-  "Give yourself a little buffer for parking and the walk in.",
-  "The commute doesn’t end when the car stops moving.",
-  "Parking can be the wild card, so a little buffer helps.",
-];
 
 function dayIndex(date: Date): number {
   const start = Date.UTC(date.getUTCFullYear(), 0, 1);
@@ -466,7 +344,7 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
         : mode === "drive"
           ? "Take the car if you want the simpler, flexible run."
           : "Either works — pick based on whether you want Skyline or the car.";
-    return `${fact} ${preference} ${pickSmart(CLOSE_CALL_TAILS, context)}`;
+    return `${fact} ${pickSmart(CLOSE_CALL_TAILS, context)}`;
   }
 
   if (incident || roadwork) {
