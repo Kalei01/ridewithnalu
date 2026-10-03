@@ -13,7 +13,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Clock3,
   Footprints,
   House,
   Dumbbell,
@@ -5832,10 +5831,6 @@ function Index() {
                 })}
             </ol>
           </AlternativeDepartures>
-        )}            );
-                })}
-            </ol>
-          </section>
         )}
 
         <Button
