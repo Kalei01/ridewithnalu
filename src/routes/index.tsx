@@ -42,6 +42,7 @@ import { TravelModeTabs } from "@/components/commute/TravelModeTabs";
 import { TransitItinerary } from "@/components/commute/TransitItinerary";
 import { DriveDetails } from "@/components/commute/DriveDetails";
 import { AlternativeDepartures } from "@/components/commute/AlternativeDepartures";
+import { DataExpiryNotice, SettingsExpiryBanner, useDataExpiry } from "@/components/commute/DataExpiry";
 import { HdotRoadworkNotice } from "@/components/commute/HdotRoadworkNotice";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
@@ -6447,19 +6448,6 @@ function AlertPrefsSection({
         </div>
       ))}
     </section>
-  );
-}
-
-function SettingsExpiryBanner() {
-  const expiry = useDataExpiry();
-  if (!expiry || expiry.daysRemaining > 14) return null;
-  return (
-    <p
-      className="mb-4 rounded-lg border border-chart-4/40 px-4 py-3 text-xs text-chart-4"
-      role="status"
-    >
-      Transit data expires {expiryLabel(expiry.expiresOn)} · refresh needed
-    </p>
   );
 }
 
