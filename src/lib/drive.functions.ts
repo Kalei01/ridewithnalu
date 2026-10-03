@@ -248,7 +248,12 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
           lon: step.point?.longitude as number,
           maneuver: step.maneuver as string,
           instruction: (step.message as string).replace(/<[^>]*>/g, ""),
-          road: step.street ?? step.roadNumbers?.[0] ?? step.signpostText ?? null,
+          // Street names first; route numbers only through the local-name map.
+          road:
+            localRoadName(step.street ?? null) ??
+            localRoadName(step.roadNumbers?.[0] ?? null) ??
+            step.signpostText ??
+            null,
         })),
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",

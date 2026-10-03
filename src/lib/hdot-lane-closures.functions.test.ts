@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { lookupHdotLaneClosureRoutes } from "./hdot-lane-closures.functions";
+import {
+  hdotEntryEndDate,
+  lookupHdotLaneClosureRoutes,
+  parseHdotOahuRoadwork,
+} from "./hdot-lane-closures.functions";
 
 describe("lookupHdotLaneClosureRoutes", () => {
   it("returns spatially intersecting HDOT features without changing route data", async () => {
@@ -58,5 +62,32 @@ describe("lookupHdotLaneClosureRoutes", () => {
     ).resolves.toEqual([]);
 
     fetchMock.mockRestore();
+  });
+});
+
+describe("parseHdotOahuRoadwork", () => {
+  const oct3 = Date.UTC(2026, 9, 3);
+  const page = `<h3>— H-1 Freeway —</h3>
+    <p>1) Westbound Kalaeloa to Kunia, closure of two to three lanes from Monday, Sept. 28 through Thursday, Oct. 1, nightly from 8 p.m. to 5 a.m. for paving.</p>
+    <p>2) Eastbound full closure of the Punahou Street off-ramp (Exit 23 from the H-1 Freeway) nightly from 8:30 p.m. to 4:30 a.m. for striping.</p>
+    <p>3) Eastbound Kapiolani Boulevard, single lane closure from Sunday, Oct. 4 through Friday, Oct. 9 for drainage work.</p>`;
+
+  it("drops entries whose last date has passed", () => {
+    const items = parseHdotOahuRoadwork(page, oct3);
+    expect(items.some((item) => /Kalaeloa/.test(item.location))).toBe(false);
+    expect(items.some((item) => /Kapiolani/.test(item.location))).toBe(true);
+  });
+
+  it("does not cut a location inside parentheses", () => {
+    const ramp = parseHdotOahuRoadwork(page, oct3).find((item) => /Punahou/.test(item.location));
+    expect(ramp?.location).toBe(
+      "Eastbound full closure of the Punahou Street off-ramp (Exit 23 from the H-1 Freeway)",
+    );
+  });
+
+  it("places a year-less date in the year closest to today", () => {
+    expect(hdotEntryEndDate("through Thursday, Oct. 1", oct3)).toBe(Date.UTC(2026, 9, 1));
+    expect(hdotEntryEndDate("through Jan. 4", Date.UTC(2026, 11, 20))).toBe(Date.UTC(2027, 0, 4));
+    expect(hdotEntryEndDate("nightly until further notice", oct3)).toBeNull();
   });
 });

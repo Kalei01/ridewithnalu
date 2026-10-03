@@ -52,6 +52,8 @@ function tidyRoadText(road: string): string {
     // Drop bureaucratic prefixes: "Interstate Hwy H201 E", "State Rte 92".
     .replace(/\b(?:Interstate|State|Federal)\s+(?:Highway|Hwy|Route|Rte|Rd)\b/gi, " ")
     .replace(/\bInterstate\b/gi, " ")
+    // TomTom writes the freeways as "I-H1"; locals say H-1.
+    .replace(/\bI-?(?=H-?\d)/gi, "")
     .replace(/\bHighway\b/gi, "Hwy")
     .replace(/\bFreeway\b/gi, "Fwy")
     .replace(/^(?:North|South|East|West|N|S|E|W)\s+(?=Nimitz\b)/i, "")
@@ -75,13 +77,23 @@ export function routeCodeName(road: string | null): string | null {
   return entry.directional && direction ? `${entry.name} ${direction}` : entry.name;
 }
 
+/**
+ * Internal identifiers riders should never see: bare route codes Nalu has no
+ * local name for ("HI-764", "7852") and provider segment IDs ("H-1_WB_16AAN").
+ */
+export function isInternalRoadCode(text: string): boolean {
+  const cleaned = tidyRoadText(text);
+  return ROUTE_CODE.test(cleaned) || /_|^\d+$|^[A-Z0-9-]+\d[A-Z0-9-]*$/.test(cleaned);
+}
+
 /** Translate TomTom route codes into the names Oahu drivers commonly use. */
 export function localRoadName(road: string | null): string | null {
   if (!road) return null;
   const mapped = routeCodeName(road);
   if (mapped) return mapped;
   const cleaned = tidyRoadText(road);
-  return cleaned || null;
+  if (!cleaned || isInternalRoadCode(cleaned)) return null;
+  return cleaned;
 }
 
 /** True only for the H-1/H-2/H-3 freeway mainline, not ramps or surface streets. */

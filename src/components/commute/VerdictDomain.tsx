@@ -112,10 +112,10 @@ export function VerdictDomain({
             }
           >
             {confidence === "high"
-              ? "Strong signal"
+              ? "Confident call"
               : confidence === "moderate"
-                ? "Moderate signal"
-                : "Limited confidence"}
+                ? "Fairly confident"
+                : "Low confidence"}
           </span>
           {differenceMinutes !== null && (
             <span className="text-xs text-muted-foreground">

@@ -32,7 +32,7 @@ export function TravelModeTabs({
         className={`relative h-14 disabled:opacity-100 ${selectedMode === "transit" ? selected : commitment ? "opacity-35" : inactive}`}>
         {transitUsesRail ? <TrainFront /> : transitUsesBus ? <Bus /> : <Footprints />}{" "}
         {transitLabel}{" "}
-        {arriveByActive && bestTransitMinutes !== null ? `· ${bestTransitMinutes} min` : transitMinutes !== null ? `· ${formatMinutes(transitMinutes)}` : ""}
+        {arriveByActive && bestTransitMinutes !== null ? `· ${formatMinutes(bestTransitMinutes)}` : transitMinutes !== null ? `· ${formatMinutes(transitMinutes)}` : ""}
         {!commitment && transitWinner && <span className="mode-winner-badge">Faster than driving</span>}
         {lockedMode === "transit" && <span className="mode-winner-badge">On this trip</span>}
       </Button>

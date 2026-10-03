@@ -133,7 +133,57 @@ function normalizeDirection(value: string | null | undefined): string | null {
   return null;
 }
 
-function parseHdotOahuRoadwork(html: string): HdotScheduledClosure[] {
+const MONTHS: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+};
+
+/** Today's date in Honolulu as a UTC-midnight timestamp, for date-only comparisons. */
+export function honoluluToday(reference = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Pacific/Honolulu", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(reference);
+  const read = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  return Date.UTC(read("year"), read("month") - 1, read("day"));
+}
+
+/**
+ * The last calendar date HDOT names for an entry ("Sept. 28 through Thursday,
+ * Oct. 1"), as a UTC-midnight timestamp. HDOT omits the year, so the date is
+ * placed in the year closest to today. Null when no date is named.
+ */
+export function hdotEntryEndDate(text: string, today: number): number | null {
+  const matches = [
+    ...text.matchAll(/\b(Jan|Feb|Mar|Apr|May|June?|July?|Aug|Sept?|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})\b/gi),
+  ];
+  const last = matches[matches.length - 1];
+  if (!last) return null;
+  const month = MONTHS[(last[1] ?? "").slice(0, 3).toLowerCase()];
+  const day = Number(last[2]);
+  if (month === undefined || !day) return null;
+  const year = new Date(today).getUTCFullYear();
+  const candidates = [year - 1, year, year + 1].map((y) => Date.UTC(y, month, day));
+  return candidates.reduce((best, value) =>
+    Math.abs(value - today) < Math.abs(best - today) ? value : best,
+  );
+}
+
+/** Cut at the first " from "/" between " that is not inside parentheses. */
+function hdotLocation(clean: string): string {
+  let depth = 0;
+  for (let index = 0; index < clean.length; index += 1) {
+    const char = clean[index];
+    if (char === "(") depth += 1;
+    else if (char === ")") depth = Math.max(0, depth - 1);
+    else if (depth === 0 && char === " ") {
+      const rest = clean.slice(index);
+      if (/^\s+(?:nightly\s+)?(from|between|in the vicinity of)\s+/i.test(rest))
+        return clean.slice(0, index).trim();
+    }
+  }
+  return clean.trim();
+}
+
+export function parseHdotOahuRoadwork(html: string, today = honoluluToday()): HdotScheduledClosure[] {
   const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -165,8 +215,12 @@ function parseHdotOahuRoadwork(html: string): HdotScheduledClosure[] {
       const clean = raw.replace(/^\s*\d+\)\s*/, "").trim();
       if (!clean) continue;
 
+      // Drop entries whose last listed date has passed.
+      const endDate = hdotEntryEndDate(clean, today);
+      if (endDate !== null && endDate < today) continue;
+
       const direction = normalizeDirection(clean);
-      const location = (clean.split(/\s+from\s+|\s+between\s+|\s+in the vicinity of\s+/i)[0] ?? clean).trim();
+      const location = hdotLocation(clean);
 
       let laneSummary = "Lane closure";
       const range = clean.match(/closure of (?:the )?(one|two|three|four|five|six|seven|eight|nine|ten)\s+to\s+(one|two|three|four|five|six|seven|eight|nine|ten) lanes?/i);

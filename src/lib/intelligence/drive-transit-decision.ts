@@ -1,3 +1,5 @@
+import { formatDriveMinutes } from "../drive/traffic-summary";
+
 export type DecisionMode = "drive" | "transit";
 export type TransitDecisionMode = "walk" | "bus" | "rail" | "walk+bus" | "walk+rail" | "rail+bus" | "walk+rail+bus";
 
@@ -217,7 +219,7 @@ export function decideDriveVsTransit(
 
   let primary = evidence(
     "time_advantage",
-    `${faster === "drive" ? "Drive" : (transit.label ?? "Transit")} gets you there about ${difference} min sooner`,
+    `${faster === "drive" ? "Drive" : (transit.label ?? "Transit")} gets you there about ${formatDriveMinutes(difference)} sooner`,
   );
   let supporting: { kind: EvidenceKind; text: string } | null = null;
 

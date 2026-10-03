@@ -1,5 +1,5 @@
 import { Car, TrainFront } from "lucide-react";
-import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
+import { formatDriveMinutes, formatMinuteRange } from "@/lib/drive/traffic-summary";
 
 type Row = {
   label: string;
@@ -44,14 +44,15 @@ export function DecisionBars({ drive, transit }: { drive: Row; transit: Row }) {
               className="text-right text-sm font-semibold tabular-nums"
               title={
                 row.low !== undefined && row.high !== undefined
-                  ? `Typical range ${row.low}–${row.high} min`
+                  ? `Typical range ${formatMinuteRange(row.low, row.high)}`
                   : undefined
               }
             >
               {row.minutes === null ? (row.label === "Drive" ? "Unavailable" : "—") : formatDriveMinutes(row.minutes)}
-              {row.minutes !== null && row.low !== undefined && row.high !== undefined && (
+              {row.minutes !== null && row.low !== undefined && row.high !== undefined &&
+                Math.round(row.low) !== Math.round(row.high) && (
                 <span className="block text-[10px] font-normal text-muted-foreground">
-                  {formatDriveMinutes(row.low)}–{formatDriveMinutes(row.high)}
+                  {formatMinuteRange(row.low, row.high)}
                 </span>
               )}
             </span>

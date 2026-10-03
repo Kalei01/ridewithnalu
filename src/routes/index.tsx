@@ -514,7 +514,7 @@ function rainLine(moment: OutdoorMoment, reading: MomentConditions): string | nu
       return `Rain during your ${moment.minutes ?? 0} min walk between rides`;
     case "wait-connect":
       return moment.label
-        ? `Showers possible while waiting for Route ${moment.label}`
+        ? `Showers possible while waiting for ${/^[A-Z]?\d{1,3}[A-Z]?$/i.test(moment.label) ? `Route ${moment.label}` : titleCase(moment.label)}`
         : "Showers possible while waiting for your bus";
     case "final-walk":
       return `Rain likely during your ${moment.minutes ?? 0} min walk`;
@@ -623,7 +623,9 @@ function vehicleName(leg: Leg) {
     return leg.headsign ? `${line} (toward ${stationLabel(leg.headsign)})` : line;
   }
   if (leg.mode === "bus") {
-    const label = leg.route_short ? `Route ${leg.route_short}` : "Bus";
+    // "Route 42" for TheBus numbers; named lines ("W LINE") read as names.
+    const short = leg.route_short?.trim() ?? "";
+    const label = !short ? "Bus" : /^[A-Z]?\d{1,3}[A-Z]?$/i.test(short) ? `Route ${short}` : titleCase(short);
     return leg.headsign ? `${label} (toward ${titleCase(leg.headsign)})` : label;
   }
   const verb = leg.mode === "drive" ? "Drive" : "Walk";
@@ -665,7 +667,7 @@ function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
       ? "Live traffic"
       : source.name.includes("TheBus")
         ? "Bus schedule"
-        : "Train schedule";
+        : "Transit schedule";
 
   if (source.basis === "future-estimate") label = "Future traffic estimate";
 
@@ -3549,7 +3551,7 @@ function Index() {
     }> = [];
 
     const delay = Math.round(driveTripEstimate.trafficDelayMinutes ?? 0);
-    const roadwork = drive?.hdotScheduledClosures?.[0];
+    // Scheduled HDOT roadwork lives in the Drive tab, not under live conditions.
 
     if (verdict === "drive") {
       const trafficValue =
@@ -3565,25 +3567,6 @@ function Index() {
         value: trafficValue,
         tone: delay >= 5 ? "alert" : "neutral",
       });
-
-      if (driveTripEstimate.expectedDurationMinutes != null) {
-        signals.push({
-          label: "Your drive",
-          value: formatDriveMinutes(driveTripEstimate.expectedDurationMinutes),
-          detail: "Live route estimate",
-          tone: "neutral",
-        });
-      }
-
-      if (roadwork) {
-        signals.push({
-          label: "Roadwork",
-          value:
-            `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
-          detail: `${roadwork.laneSummary} · ${roadwork.location}`,
-          tone: "alert",
-        });
-      }
 
       const incident = driveTripEstimate.majorIncident ? drive?.incidents?.[0] : null;
       if (incident) {
@@ -3609,15 +3592,6 @@ function Index() {
           value: `${busWait} min`,
           tone: busWait >= 10 ? "alert" : "neutral",
         });
-      if (roadwork) {
-        signals.push({
-          label: "Roadwork",
-          value:
-            `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
-          detail: `${roadwork.laneSummary} · ${roadwork.location}`,
-          tone: "alert",
-        });
-      }
       if (drive?.incidents?.[0] && driveTripEstimate.majorIncident) {
         signals.push({
           label: "Road incident",
@@ -3629,15 +3603,6 @@ function Index() {
     } else {
       if (delay >= 5)
         signals.push({ label: "Traffic", value: `+${delay} min vs usual`, tone: "alert" });
-      if (roadwork) {
-        signals.push({
-          label: "Roadwork",
-          value:
-            `${roadwork.route} ${roadwork.direction ? directionLabel(roadwork.direction) : ""}`.trim(),
-          detail: `${roadwork.laneSummary} · ${roadwork.location}`,
-          tone: "alert",
-        });
-      }
       const incident = driveTripEstimate.majorIncident ? drive?.incidents[0] : null;
       if (incident) {
         signals.push({
@@ -3666,9 +3631,10 @@ function Index() {
   const destinationLabel = setup.destinationName || setup.destinationAddress || "your destination";
   const tripOriginLabel = reverseTrip
     ? destinationLabel
-    : departingFromSavedHome || (!savedHome && !inbound)
+    : departingFromSavedHome
       ? "Home"
-      : "Current location";
+      : // Without a saved Home, the start is wherever the trip was set from.
+        "Your starting point";
   const tripArrivalLabel = arrivingHome ? "Home" : destinationLabel;
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
   const plannedInboundAccess = inbound && best?.legs[0]?.kind === "access" ? best.legs[0] : null;
@@ -4342,7 +4308,7 @@ function Index() {
               </div>
               <div className="mt-1.5 h-px bg-border/70" />
               <p className="mt-1 text-xs font-semibold uppercase text-muted-foreground">
-                Oahu commute conditions
+                Oʻahu commute conditions
               </p>
             </div>
             <div className="flex max-w-[65%] flex-wrap items-center justify-end gap-1">
@@ -5175,14 +5141,14 @@ function Index() {
                       {arriveByComparison.driveMarginMinutes !== null &&
                         arriveByComparison.driveMarginMinutes >= 0 && (
                           <p>
-                            Drive: about {Math.round(arriveByComparison.driveMarginMinutes)} min to
+                            Drive: about {formatDriveMinutes(arriveByComparison.driveMarginMinutes)} to
                             spare.
                           </p>
                         )}
                       {arriveByComparison.railMarginMinutes !== null &&
                         arriveByComparison.railMarginMinutes >= 0 && (
                           <p>
-                            Rail: about {Math.round(arriveByComparison.railMarginMinutes)} min to
+                            {transitLabel}: about {formatDriveMinutes(arriveByComparison.railMarginMinutes)} to
                             spare.
                           </p>
                         )}
@@ -5244,12 +5210,6 @@ function Index() {
         >
           <>
             {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
-            {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
-              <HdotRoadworkNotice
-                scheduledClosures={drive?.hdotScheduledClosures ?? []}
-                variant="browse"
-              />
-            )}
             {configured && (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
               <p className="mt-4 text-lg font-medium text-muted-foreground">
                 {verdict === "same"
@@ -5817,7 +5777,7 @@ function Index() {
                                 Total trip
                               </span>
                               <span className="mt-1 block text-lg font-bold tabular-nums text-foreground">
-                                {option.total_minutes} min
+                                {formatDriveMinutes(option.total_minutes)}
                               </span>
                             </span>
                           </span>
@@ -6012,7 +5972,8 @@ function RailTripBreakdown({
               <div className="min-w-0 flex-1 pb-5">
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="text-xs font-bold uppercase text-foreground">
-                    {followsTransit && previous
+                    {/* The ride above already says where to get off; a walk after it is titled as the walk. */}
+                    {followsTransit && previous && isTransit
                       ? `Get off at ${transitStopName(previous, "to")}`
                       : label}
                   </p>
@@ -6022,13 +5983,15 @@ function RailTripBreakdown({
                     </p>
                   )}
                 </div>
-                <p
-                  className={`mt-1 text-sm font-bold leading-snug text-foreground ${followsTransit ? "rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2" : ""}`}
-                >
-                  {followsTransit
-                    ? `${vehicleName(leg)} from ${transitStopName(previous, "to")}`
-                    : vehicleName(leg)}
-                </p>
+                {(followsTransit && isTransit) || vehicleName(leg).toLowerCase() !== label.toLowerCase() ? (
+                  <p
+                    className={`mt-1 text-sm font-bold leading-snug text-foreground ${followsTransit && isTransit ? "rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2" : ""}`}
+                  >
+                    {followsTransit && isTransit
+                      ? `${vehicleName(leg)} from ${transitStopName(previous, "to")}`
+                      : vehicleName(leg)}
+                  </p>
+                ) : null}
                 {accessWalk && <WalkSegment walk={accessWalk} />}
                 {leg.mode === "bus" ? (
                   <div className="mt-2">

@@ -88,7 +88,7 @@ export function H1ConditionsCard({
     const incident = data.incidents[0];
     if (!incident) return null;
     const condition = standaloneIncidentCondition(incident);
-    const road = incident.road ?? "near H-1";
+    const road = incident.road ?? "On this route";
     const location = standaloneIncidentLocation(incident);
     const cause = standaloneIncidentCause(incident);
     const clearance = standaloneIncidentClearance(incident);

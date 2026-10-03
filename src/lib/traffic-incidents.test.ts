@@ -205,3 +205,16 @@ describe("standalone traffic alerts", () => {
     }, 0)).toBe("No slowdown is showing on the H-1 mainline yet. Possible backups on the connecting road.");
   });
 });
+
+describe("localRoadName hides internal codes", () => {
+  it("never returns a code Nalu has no local name for", () => {
+    for (const code of ["HI-764", "7852", "H-1_WB_16AAN", "H2014_EB_1", "SR 999"]) {
+      expect(localRoadName(code)).toBeNull();
+    }
+  });
+  it("turns TomTom's I-H1 into H-1 and keeps real street names", () => {
+    expect(localRoadName("I-H1 E")).toBe("H-1 East");
+    expect(localRoadName("Ala Moana Blvd")).toBe("Ala Moana Blvd");
+    expect(localRoadName("Punahou Street off-ramp")).toBe("Punahou Street off-ramp");
+  });
+});

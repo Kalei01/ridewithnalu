@@ -23,6 +23,15 @@ export function routeTravelSeconds(
 }
 
 /** Human-friendly commute duration: 65 -> "1 hr 5 min", 60 -> "1 hr". */
+/** "29 min", or "29–33 min" / "58 min–1 hr 4 min" for a range; one value when both ends match. */
+export function formatMinuteRange(low: number, high: number): string {
+  const lo = Math.max(0, Math.round(Math.min(low, high)));
+  const hi = Math.max(0, Math.round(Math.max(low, high)));
+  if (lo === hi) return formatDriveMinutes(lo);
+  if (hi < 60) return `${lo}–${hi} min`;
+  return `${formatDriveMinutes(lo)}–${formatDriveMinutes(hi)}`;
+}
+
 export function formatDriveMinutes(minutes: number): string {
   const total = Math.max(0, Math.round(minutes));
   if (total < 60) return `${total} min`;

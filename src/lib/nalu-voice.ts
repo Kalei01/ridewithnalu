@@ -1,3 +1,4 @@
+import { formatDriveMinutes } from "./drive/traffic-summary";
 export type NaluPulsePeriod = "morning" | "evening";
 
 export type NaluCommuteTone =
@@ -313,7 +314,7 @@ function transferFriction(context: SmartNaluContext): boolean {
 }
 
 function formatMinutes(minutes: number): string {
-  return Math.round(Math.abs(minutes)) === 1 ? "1 min" : `${Math.round(Math.abs(minutes))} min`;
+  return formatDriveMinutes(Math.abs(minutes));
 }
 
 function smartVariantSeed(context: SmartNaluContext): number {
