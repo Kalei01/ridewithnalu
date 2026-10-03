@@ -265,7 +265,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
 }
 
 export const driveTime = createServerFn({ method: "POST" })
-  .inputValidator((input) => schema.parse(input))
+  .validator((input) => schema.parse(input))
   .handler(async ({ data }) => lookupDriveTime(data));
 
 /** Active incidents inside a slightly padded box around the two points. */
