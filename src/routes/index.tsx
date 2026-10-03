@@ -5024,53 +5024,14 @@ function Index() {
           </p>
         )}
 
-        <section
-          className="mt-4 rounded-lg border border-border bg-surface-raised p-4"
-          aria-labelledby="plan-mode-title"
+        <ArriveByControls
+          mode={planMode}
+          time={arriveByInput}
+          destination={tripArrivalLabel}
+          onModeChange={choosePlanMode}
+          onTimeChange={chooseArriveBy}
         >
-          <h2 id="plan-mode-title" className="sr-only">
-            When do you need to travel?
-          </h2>
-          <div
-            role="group"
-            aria-label="Planning mode"
-            className="grid grid-cols-2 gap-1 rounded-full bg-background/60 p-1"
-          >
-            {[
-              { label: "Leave now", value: "leave-now" as PlanMode },
-              { label: "Arrive by", value: "arrive-by" as PlanMode },
-            ].map((tab) => (
-              <button
-                key={tab.value}
-                aria-pressed={planMode === tab.value}
-                onClick={() => choosePlanMode(tab.value)}
-                className={`min-h-11 rounded-full text-sm font-semibold transition-colors ${
-                  planMode === tab.value
-                    ? "bg-recommended text-recommended-foreground"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {planMode === "arrive-by" && (
-            <div className="mt-4">
-              <Label
-                htmlFor="arrive-by-time"
-                className="text-xs font-semibold uppercase text-muted-foreground"
-              >
-                Be at {tripArrivalLabel} by
-              </Label>
-              <Input
-                id="arrive-by-time"
-                type="time"
-                value={arriveByInput}
-                onChange={(event) => chooseArriveBy(event.target.value)}
-                className="mt-2 h-12 w-full bg-background/60 text-2xl font-bold tabular-nums"
-              />
-              {arriveByPassed && (
+          {arriveByPassed && (
                 <div
                   role="alert"
                   className="mt-3 rounded-lg border border-warning/50 bg-warning/10 px-3 py-2.5"
@@ -5251,7 +5212,8 @@ function Index() {
               )}
             </div>
           )}
-        </section>
+
+        </ArriveByControls>
 
         <NaluPersonalityStrip
           loading={optionsLoading || driveLoading}
