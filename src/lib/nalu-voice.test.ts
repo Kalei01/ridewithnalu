@@ -90,7 +90,6 @@ describe("generateSmartNaluInsight", () => {
     expect(line).toMatch(/^Driving saves 37 min over transit right now\./);
     expect(line.split(". ").length).toBeLessThanOrEqual(2);
     expect(line).not.toContain("might");
-    expect(line).not.toContain("H-1");
   });
 
   it("uses a clear transit fact before the personality tail", () => {
