@@ -78,4 +78,75 @@ describe("generateSmartNaluInsight", () => {
       }),
     ).toContain("Nimitz");
   });
+  it("keeps personality separate from the factual drive recommendation", () => {
+    const line = generateSmartNaluInsight({
+      driveMinutes: 42,
+      transitMinutes: 79,
+      selectedMode: "drive",
+      trafficLevel: "heavy",
+      direction: "morning-westbound",
+    });
+
+    expect(line).toMatch(/^Driving saves 37 min over transit right now\./);
+    expect(line.split(". ").length).toBeLessThanOrEqual(3);
+    expect(line).not.toContain("might");
+    expect(line).toContain("H-1");
+  });
+
+  it("uses a clear transit fact before the personality tail", () => {
+    const line = generateSmartNaluInsight({
+      driveMinutes: 84,
+      transitMinutes: 54,
+      selectedMode: "transit",
+      incidents: [{ road: "H1 Westbound", description: "Crash", delayMinutes: 24 }],
+    });
+
+    expect(line).toMatch(/^Transit saves 30 min over driving right now/);
+    expect(line).toContain("H-1");
+  });
+
+  it("adds useful humor without changing a close-call decision", () => {
+    const line = generateSmartNaluInsight({
+      driveMinutes: 58,
+      transitMinutes: 63,
+      selectedMode: "toss_up",
+    });
+
+    expect(line).toMatch(/^Times are neck-and-neck \(~5 min apart\)\./);
+    expect(line).toContain("Either works");
+  });
+
+  it("makes personality deterministic for the same commute", () => {
+    const context = {
+      driveMinutes: 47,
+      transitMinutes: 76,
+      selectedMode: "drive" as const,
+      trafficLevel: "heavy" as const,
+      direction: "morning-westbound" as const,
+    };
+
+    expect(generateSmartNaluInsight(context)).toBe(generateSmartNaluInsight(context));
+  });
+
+  it("varies the personality tail across materially different commute contexts", () => {
+    const first = generateSmartNaluInsight({
+      driveMinutes: 41,
+      transitMinutes: 78,
+      selectedMode: "drive",
+      trafficLevel: "heavy",
+      direction: "morning-westbound",
+    });
+    const second = generateSmartNaluInsight({
+      driveMinutes: 56,
+      transitMinutes: 93,
+      selectedMode: "drive",
+      trafficLevel: "heavy",
+      direction: "evening-westbound",
+    });
+
+    expect(first).not.toBe(second);
+    expect(first).toMatch(/^Driving saves /);
+    expect(second).toMatch(/^Driving saves /);
+  });
+
 });
