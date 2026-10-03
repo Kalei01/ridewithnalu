@@ -344,108 +344,72 @@ function pickSmart(lines: string[], context: SmartNaluContext, offset = 0): stri
 }
 
 const DECISIVE_DRIVE_TAILS = [
-  "The road is busy, but the time savings are real.",
-  "Traffic is annoying. The clock is still on your side.",
-  "The car comes out ahead, and the numbers aren’t being subtle.",
-  "The freeway may complain. The stopwatch doesn’t.",
-  "Not the world’s most exciting drive, but it gets you there sooner.",
-  "The road has some attitude today, but driving still saves time.",
-  "The car has the advantage where it counts: total time.",
-  "Traffic is in the picture, but the drive still comes out ahead.",
-  "The numbers are clear enough that I’m not going to overthink it.",
-  "Driving saves enough time here to matter.",
-  "The road is doing road things. The car is still faster.",
-  "This one is pretty straightforward: the shorter trip is by car.",
+  "Traffic no joke right now, but the car still saves the time.",
+  "H-1 is busy, but the clock is still on your side.",
+  "Yeah, the road is busy. You’re still saving time by driving.",
+  "Not exactly a relaxing drive, but it gets you there sooner.",
+  "The road is a little ugly today, but driving still wins on time.",
+  "That’s a real time savings. Worth knowing before you head out.",
+  "The car wins this one on time. Pretty simple.",
+  "Busy roads, shorter trip. That’s the trade-off.",
 ];
 
 const DECISIVE_TRANSIT_TAILS = [
   "That’s enough time saved to let somebody else deal with the road.",
-  "Transit has the better clock today. I’d pay attention to that.",
-  "The bus-and-Skyline combo is doing some heavy lifting here.",
-  "The road can keep its traffic. Transit has the time advantage.",
+  "Transit has the better clock today. Worth paying attention to.",
+  "Bus and Skyline are doing some work for you today.",
+  "The road can keep the traffic. Transit has the time.",
   "That’s a real time difference, not a rounding error.",
-  "Transit is saving enough time here to make the choice pretty clear.",
-  "Let the transit system handle the grind for a while.",
-  "The car has the traffic problem. Transit has the better total time.",
-  "That’s a meaningful time win for transit.",
-  "The numbers are doing the talking here.",
-  "Transit is ahead by enough that it’s worth noticing.",
-  "This is one of those trips where transit earns its spot.",
+  "Transit saves enough time here to make a difference.",
+  "Let somebody else handle the road for a bit.",
+  "The car has the traffic. Transit has the better clock.",
 ];
 
 const CLOSE_CALL_TAILS = [
-  "At that point, pick the one you’d rather spend the trip with.",
+  "At that point, pick the one you’d rather deal with.",
   "That’s close enough that comfort gets a vote.",
-  "No need to split hairs over a few minutes.",
+  "No need split hairs over a few minutes.",
   "The clock isn’t giving us much to argue about.",
-  "Either way, you’re in roughly the same time zone.",
-  "This is where your preference can make the call.",
-  "A few minutes either way isn’t worth a commute debate.",
-  "Close enough that I’m not going to pretend there’s a perfect answer.",
-  "Pick your preferred kind of inconvenience: traffic or transfers.",
-  "The stopwatch has officially stopped taking sides.",
-  "That gap is small enough to choose based on what sounds better.",
-  "Sometimes the best answer is simply the one you’d rather take.",
+  "Traffic or transfers — pick your adventure.",
+  "A few minutes either way. Your call.",
+  "That’s basically a commute coin flip.",
+  "Close enough to go with what feels easier today.",
 ];
 
 const INCIDENT_TAILS = [
-  "Good thing you know before you get there.",
-  "That’s worth knowing before you head out.",
-  "A heads-up now beats finding out at the ramp.",
-  "That could change the drive pretty quickly.",
-  "Consider that your advance warning.",
-  "That’s the kind of detail you want before you leave.",
-  "Better to know now than discover it in traffic.",
+  "A heads-up now is better than a surprise at the ramp.",
+  "Good to know before you head out.",
+  "Better to know now than find out in traffic.",
+  "That could change the drive pretty quick.",
   "One less surprise for the commute.",
-  "That’s worth keeping on your radar.",
-  "I’d rather flag it now than have it surprise you later.",
-  "That’s a useful thing to know before you roll.",
-  "Traffic is easier to deal with when it isn’t a surprise.",
+  "Worth knowing before you roll.",
 ];
 
 const TRANSFER_TAILS = [
-  "The ride may be fine; the handoff is where the time goes.",
-  "The transfer is doing more work than the ride itself.",
+  "The handoff is where the minutes are going.",
+  "That transfer is doing the time-consuming part.",
+  "The ride is fine. The connection is the slow part.",
   "That’s a decent wait hiding inside the trip.",
-  "The trip is moving, eventually. The connection is the slow part.",
+  "The timetable has a little patience test built in.",
   "Those extra minutes are coming from the connection.",
-  "That transfer is the part I’d keep an eye on.",
-  "The timetable is asking for a little patience.",
-  "The connection is where this trip starts giving time back to the clock.",
-  "The ride is fine. The handoff is eating the minutes.",
-  "That’s enough waiting to make the car look interesting.",
-  "The transfer is the tax on this particular trip.",
-  "The connection is costing more time than it should.",
 ];
 
 const WEATHER_TAILS = [
   "No need to race the rain.",
+  "Give yourself a little extra room today.",
+  "Wet roads aren’t the place to chase every minute.",
+  "Let the weather have its five minutes; you don’t need to.",
+  "Keep it smooth. The rain is already enough excitement.",
   "A little cushion is worth it when the roads are wet.",
-  "Give yourself some room today.",
-  "Wet roads are not the place to squeeze every last minute.",
-  "A few extra minutes beats an unnecessarily stressful drive.",
-  "Getting there safely is more useful than winning the stopwatch.",
-  "Let the weather take its time. You don’t have to.",
-  "A little extra breathing room goes a long way.",
-  "Keep it smooth. The weather is already adding enough excitement.",
-  "The road may need a little patience today.",
-  "Rain changes the equation. A little buffer helps.",
-  "Nobody gets a trophy for arriving thirty seconds earlier in the rain.",
 ];
 
 const FALLBACK_TAILS = [
-  "I’ll keep the answer tied to the data.",
-  "No guessing just to make the answer sound confident.",
-  "When the data is clear, the answer is clear.",
-  "I’d rather give you a real answer than make one up.",
-  "Numbers first. Extra drama can stay home.",
+  "Numbers first. Nonsense stays in the trunk.",
+  "I’ll stick with what the data can actually tell us.",
+  "No guessing just to sound confident.",
   "If the data changes, the answer changes.",
-  "Real numbers beat a confident guess every time.",
-  "I’m not going to invent a commute just to fill the silence.",
-  "Keep it simple: data first, personality second.",
-  "If I don’t know, I’d rather tell you than fake it.",
-  "The goal is useful, not fancy.",
-  "Good commute advice starts with good information.",
+  "Real numbers beat a confident guess.",
+  "Useful first. Everything else can wait.",
 ];
 
 
@@ -502,11 +466,10 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
     if (winner === "drive") {
       const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
       const fact = road
-        ? `Driving saves ${saved} over transit right now — ${road} is still the faster play.`
+        ? `Driving saves ${saved} over transit right now — ${road} is faster.`
         : `Driving saves ${saved} over transit right now.`;
-      const tail = road
-        ? pickSmart(DECISIVE_DRIVE_TAILS, context, 3)
-        : context.trafficLevel === "heavy" || context.trafficLevel === "severe"
+      const tail =
+        context.trafficLevel === "heavy" || context.trafficLevel === "severe"
           ? pickSmart(DECISIVE_DRIVE_TAILS, context, 7)
           : pickSmart(DECISIVE_DRIVE_TAILS, context);
       return `${fact} ${tail}`;
@@ -514,7 +477,7 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
 
     const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
     const fact = road
-      ? `Transit saves ${saved} over driving right now — it avoids the ${road} slowdown.`
+      ? `Transit saves ${saved} over driving right now — ${road} is slowing the drive.`
       : `Transit saves ${saved} over driving right now.`;
     return `${fact} ${pickSmart(DECISIVE_TRANSIT_TAILS, context, seed % 5)}`;
   }
@@ -553,11 +516,11 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
   }
 
   if (winner === "transit") {
-    return `Transit is looking like the cleaner run on the numbers. ${pickSmart(DECISIVE_TRANSIT_TAILS, context)}`;
+    return `Transit has the better time on the numbers. ${pickSmart(DECISIVE_TRANSIT_TAILS, context)}`;
   }
 
   if (winner === "drive") {
-    return `Driving is looking like the cleaner run on the numbers. ${pickSmart(DECISIVE_DRIVE_TAILS, context)}`;
+    return `Driving has the better time on the numbers. ${pickSmart(DECISIVE_DRIVE_TAILS, context)}`;
   }
 
   return `Nalu checked the trip. ${pickSmart(FALLBACK_TAILS, context)}`;
