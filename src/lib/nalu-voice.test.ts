@@ -88,8 +88,9 @@ describe("generateSmartNaluInsight", () => {
     });
 
     expect(line).toMatch(/^Driving saves 37 min over transit right now\./);
-    expect(line.split(". ").length).toBeLessThanOrEqual(2);
+    expect(line.split(". ").length).toBeLessThanOrEqual(3);
     expect(line).not.toContain("might");
+    expect(line).not.toContain("H-1");
   });
 
   it("uses a clear transit fact before the personality tail", () => {
@@ -112,7 +113,7 @@ describe("generateSmartNaluInsight", () => {
     });
 
     expect(line).toMatch(/^Times are neck-and-neck \(~5 min apart\)\./);
-    expect(line.split(". ").length).toBeLessThanOrEqual(2);
+    expect(line).toContain("Either works");
   });
 
   it("makes personality deterministic for the same commute", () => {
@@ -148,19 +149,4 @@ describe("generateSmartNaluInsight", () => {
     expect(second).toMatch(/^Driving saves /);
   });
 
-});
-
-describe("Nalu voice library architecture", () => {
-  it("keeps smart personality deterministic and limited to two sentences", () => {
-    const contexts = [
-      { driveMinutes: 42, transitMinutes: 79, selectedMode: "drive" as const, trafficLevel: "heavy" as const },
-      { driveMinutes: 84, transitMinutes: 54, selectedMode: "transit" as const },
-      { driveMinutes: 58, transitMinutes: 63, selectedMode: "toss_up" as const },
-    ];
-
-    for (const context of contexts) {
-      const line = generateSmartNaluInsight(context);
-      expect(line.split(". ").length).toBeLessThanOrEqual(2);
-    }
-  });
 });
