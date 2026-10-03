@@ -48,7 +48,7 @@ export function DecisionBars({ drive, transit }: { drive: Row; transit: Row }) {
                   : undefined
               }
             >
-              {row.minutes === null ? "—" : formatDriveMinutes(row.minutes)}
+              {row.minutes === null ? (row.label === "Drive" ? "Unavailable" : "—") : formatDriveMinutes(row.minutes)}
               {row.minutes !== null && row.low !== undefined && row.high !== undefined && (
                 <span className="block text-[10px] font-normal text-muted-foreground">
                   {formatDriveMinutes(row.low)}–{formatDriveMinutes(row.high)}
