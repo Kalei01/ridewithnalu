@@ -40,6 +40,7 @@ import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { CommuteHeader } from "@/components/commute/CommuteHeader";
 import { CommutePageNav } from "@/components/commute/CommutePageNav";
 import { TravelModeTabs } from "@/components/commute/TravelModeTabs";
+import { TransitItinerary } from "@/components/commute/TransitItinerary";
 import { HdotRoadworkNotice } from "@/components/commute/HdotRoadworkNotice";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
@@ -5631,42 +5632,37 @@ function Index() {
           />
 
           {selectedMode === "transit" && (
-            <div className="mt-6">
-              <div className="flex items-baseline justify-between gap-3">
-                <h3 className="text-xl font-bold text-foreground">{transitLabel} itinerary</h3>
-                {itineraryRange && (
-                  <p className="text-sm font-semibold text-muted-foreground">
-                    {itineraryRange.low}–{itineraryRange.high} min
-                  </p>
-                )}
-              </div>
-              {best ? (
-                <RailTripBreakdown
-                  option={best}
-                  inbound={arrivingHome}
-                  liveBus={liveBus}
-                  liveBusRefreshing={liveBusRefreshing}
-                  weatherLines={weatherLines}
-                  points={commuteMapPoints}
-                />
-              ) : (
-                <p className="mt-5 text-sm text-muted-foreground">
-                  {optionsLoading
-                    ? "Building your trip…"
-                    : transitDiagnostic === "NO_ACTIVE_SERVICE"
-                      ? "No active transit service is loaded for today."
-                      : transitDiagnostic === "NO_ORIGIN_STOPS"
-                        ? "Nalu can't find transit stops close enough to your start."
-                        : transitDiagnostic === "NO_DESTINATION_STOPS"
-                          ? "Nalu can't find transit stops close enough to your destination."
-                          : transitDiagnostic === "NO_REACHABLE_DEPARTURES"
-                            ? "Transit stops are present, but Nalu isn't seeing a reachable departure right now."
-                            : transitDiagnostic === "NO_VALID_ITINERARY"
-                              ? "Transit service is present, but Nalu couldn't build a complete trip yet."
-                              : "Transit trip data isn't available right now."}
-                </p>
-              )}
-            </div>
+            <TransitItinerary
+              transitLabel={transitLabel}
+              itineraryRange={itineraryRange}
+              content={
+                best ? (
+                  <RailTripBreakdown
+                    option={best}
+                    inbound={arrivingHome}
+                    liveBus={liveBus}
+                    liveBusRefreshing={liveBusRefreshing}
+                    weatherLines={weatherLines}
+                    points={commuteMapPoints}
+                  />
+                ) : null
+              }
+              emptyMessage={
+                optionsLoading
+                  ? "Building your trip…"
+                  : transitDiagnostic === "NO_ACTIVE_SERVICE"
+                    ? "No active transit service is loaded for today."
+                    : transitDiagnostic === "NO_ORIGIN_STOPS"
+                      ? "Nalu can't find transit stops close enough to your start."
+                      : transitDiagnostic === "NO_DESTINATION_STOPS"
+                        ? "Nalu can't find transit stops close enough to your destination."
+                        : transitDiagnostic === "NO_REACHABLE_DEPARTURES"
+                          ? "Transit stops are present, but Nalu isn't seeing a reachable departure right now."
+                          : transitDiagnostic === "NO_VALID_ITINERARY"
+                            ? "Transit service is present, but Nalu couldn't build a complete trip yet."
+                            : "Transit trip data isn't available right now."
+              }
+            />
           )}
 
           {selectedMode === "drive" && (
