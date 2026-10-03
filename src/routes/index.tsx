@@ -3369,6 +3369,14 @@ function Index() {
     driveTrafficUnavailable &&
     transitTripEstimate.availability === "available" &&
     Boolean(best);
+  const naluHeroTrafficLevel: "light" | "moderate" | "heavy" | "severe" =
+    driveTripEstimate.majorIncident || (driveTripEstimate.trafficDelayMinutes ?? 0) >= 20
+      ? "severe"
+      : (driveTripEstimate.trafficDelayMinutes ?? 0) >= 10
+        ? "heavy"
+        : (driveTripEstimate.trafficDelayMinutes ?? 0) >= 5
+          ? "moderate"
+          : "light";
   const gap =
     !commitment && !arriveByActive && (verdict === "transit" || verdict === "drive")
       ? (activeDecision?.differenceMinutes ?? null)
