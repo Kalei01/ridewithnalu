@@ -90,11 +90,6 @@ export function VerdictDomain({
           {commitment ? "On this trip" : "Nalu says"}
         </span>
       </div>
-      {configured && !optionsLoading && !driveLoading && naluHeroLine && (
-        <p className="mb-4 max-w-[42rem] text-sm font-medium leading-6 text-muted-foreground">
-          {naluHeroLine}
-        </p>
-      )}
       <h1 id="verdict-title" className="max-w-[390px] text-4xl font-bold leading-none text-foreground">
         {headline}
       </h1>
