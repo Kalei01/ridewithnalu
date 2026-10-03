@@ -7,12 +7,13 @@ checked on the new host.
 
 ## 1. Accounts to create (all free tiers)
 
-- [ ] Cloudflare (hosting, scheduled jobs)
+- [x] Cloudflare (hosting, scheduled jobs): Worker `ridewithnalu`, builds from the `cloudflare` branch (`main` stays frozen for Lovable)
 - [x] Supabase (database + sign-in): new project `nsoameosqsnumjivkmyv` (`https://nsoameosqsnumjivkmyv.supabase.co`). The old project `kkvpznrahtldzpqjvbhj` is Lovable-managed
 - [ ] Firebase project with a service-account key (push notifications)
 - [ ] Mapbox, PostHog: only if the current tokens come from Lovable-managed accounts
 - [ ] OpenAI API key (Nalu AI), if not already set
-- [ ] Google Cloud OAuth client (Google sign-in); Apple sign-in waits on the Apple Developer account
+- [x] Google Cloud OAuth client (Google sign-in), published to production
+- [ ] Apple sign-in waits on the Apple Developer account ($99/yr). Hidden in the app until `VITE_APPLE_SIGN_IN=true`
 
 ## 2. Server secrets (Cloudflare → Worker → Settings → Variables and Secrets)
 
@@ -29,6 +30,8 @@ checked on the new host.
 | `LOVABLE_CRON_SECRET` | Generate a long random string | Name kept as-is; protects `/api/public/*` cron routes |
 
 No longer needed once self-hosted: `LOVABLE_API_KEY`, `FIREBASE_MESSAGING_API_KEY`.
+
+Cloudflare Workers Logs is on in the dashboard; add `observability.enabled` to the Worker config so deploys keep it on.
 
 ## 3. Build-time variables (Cloudflare build settings; baked into the browser bundle)
 
@@ -67,8 +70,8 @@ Notes from a local rehearsal (all 50 files, filename order, on an empty Postgres
 
 ## 5. Sign-in
 
-- [ ] Supabase → Authentication → URL configuration: site URL + redirect URLs for the new domain
-- [ ] Enable Google provider with your own OAuth client
+- [x] Supabase → Authentication → URL configuration: site URL + redirect URLs for the new domain
+- [x] Enable Google provider with your own OAuth client
 - [ ] Enable Apple provider (after Apple Developer enrollment)
 - [ ] Email templates, if customized in Lovable
 
