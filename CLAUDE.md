@@ -5,3 +5,16 @@ Read @CLOUD_CODE_CONTEXT.md before making substantial changes — it holds Nalu'
 Also follow @AGENTS.md (Lovable sync: never rewrite pushed history; keep `main` working).
 
 Quality gate before pushing to `main`: `bun run test` → `bun run typecheck` → `bun run build`.
+
+## Reviewer subagents (`.claude/agents/`)
+
+Each one reviews and reports findings by severity; none of them fixes anything. Run the ones that match the change:
+
+| Agent | Run it when |
+|---|---|
+| `transit-accuracy` | Any change under `src/lib`, `src/components/commute`, or the commute screens in `src/routes/index.tsx` |
+| `mobile-design` | Any UI change: components, routes, CSS, or text riders see |
+| `security-keys` | Before every push to `main` |
+| `database` | Any new or edited file in `drizzle/migrations` or `drizzle/schema.ts` |
+
+Fix critical and high findings before pushing.
