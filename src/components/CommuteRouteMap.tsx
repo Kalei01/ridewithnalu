@@ -110,9 +110,54 @@ export default function CommuteRouteMap({
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const liveLayerRef = useRef<L.LayerGroup | null>(null);
 
+  const pointsRef = useRef(points);
+  pointsRef.current = points;
+  const pathRef = useRef(path);
+  pathRef.current = path;
+  const segmentsRef = useRef(segments);
+  segmentsRef.current = segments;
+  const trafficRef = useRef(trafficSections);
+  trafficRef.current = trafficSections;
+  const incidentsRef = useRef(incidents);
+  incidentsRef.current = incidents;
+  const fittedGeometryRef = useRef<string | null>(null);
+  const suppressLiveFollowRef = useRef(false);
+
+  const geometrySignature = useMemo(
+    () =>
+      [
+        points
+          .map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`)
+          .join("|"),
+        (path ?? []).map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";"),
+        (segments ?? [])
+          .map(
+            (segment) =>
+              `${segment.id}:${segment.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`,
+          )
+          .join("|"),
+      ].join("#"),
+    [points, path, segments],
+  );
+  const geometrySignatureRef = useRef(geometrySignature);
+  geometrySignatureRef.current = geometrySignature;
+
+  const corridorPoints = useMemo(
+    () => [
+      ...(path ?? []).map((point) => [point.lat, point.lon] as L.LatLngTuple),
+      ...(segments ?? []).flatMap((segment) =>
+        segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple),
+      ),
+      ...points.map((point) => [point.lat, point.lon] as L.LatLngTuple),
+    ],
+    [path, segments, points],
+  );
+  const corridorPointsRef = useRef(corridorPoints);
+  corridorPointsRef.current = corridorPoints;
+
   useEffect(() => {
     const node = nodeRef.current;
-    const first = points[0];
+    const first = pointsRef.current[0];
     if (!node || !first || mapRef.current) return;
 
     const map = L.map(node, {
@@ -132,7 +177,41 @@ export default function CommuteRouteMap({
     liveLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
+    const fitInitialCorridor = () => {
+      const currentMap = mapRef.current;
+      const corridor = corridorPointsRef.current;
+      if (!currentMap || corridor.length < 2) return false;
+      currentMap.invalidateSize({ animate: false });
+      const size = currentMap.getSize();
+      if (size.x < 20 || size.y < 20) return false;
+
+      currentMap.fitBounds(L.latLngBounds(corridor), {
+        padding: [36, 36],
+        maxZoom: 13,
+        animate: false,
+      });
+      fittedGeometryRef.current = geometrySignatureRef.current;
+      return true;
+    };
+
+    const scheduleInitialFit = () => {
+      requestAnimationFrame(() => {
+        if (fitInitialCorridor()) return;
+        requestAnimationFrame(() => {
+          fitInitialCorridor();
+        });
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (fittedGeometryRef.current === geometrySignatureRef.current) return;
+      scheduleInitialFit();
+    });
+    resizeObserver.observe(node);
+    scheduleInitialFit();
+
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
       tileLayerRef.current = null;
@@ -168,36 +247,7 @@ export default function CommuteRouteMap({
       ].join("#"),
     [points, path, segments, trafficSections, incidents],
   );
-  const pointsRef = useRef(points);
-  pointsRef.current = points;
-  const pathRef = useRef(path);
-  pathRef.current = path;
-  const segmentsRef = useRef(segments);
-  segmentsRef.current = segments;
-  const trafficRef = useRef(trafficSections);
-  trafficRef.current = trafficSections;
-  const incidentsRef = useRef(incidents);
-  incidentsRef.current = incidents;
-  const fittedGeometryRef = useRef<string | null>(null);
-  const suppressLiveFollowRef = useRef(false);
-  const geometrySignature = useMemo(
-    () =>
-      [
-        points
-          .map((point) => `${point.kind}:${point.lat.toFixed(5)},${point.lon.toFixed(5)}`)
-          .join("|"),
-        (path ?? []).map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";"),
-        (segments ?? [])
-          .map(
-            (segment) =>
-              `${segment.id}:${segment.points.map((point) => `${point.lat.toFixed(5)},${point.lon.toFixed(5)}`).join(";")}`,
-          )
-          .join("|"),
-      ].join("#"),
-    [points, path, segments],
-  );
-  const geometrySignatureRef = useRef(geometrySignature);
-  geometrySignatureRef.current = geometrySignature;
+
 
   useEffect(() => {
     const map = mapRef.current;
@@ -321,27 +371,37 @@ export default function CommuteRouteMap({
         .addTo(routeLayer);
     });
 
-    const boundsLatLngs = [
-      ...drawableSegments.flatMap((segment) =>
-        segment.points.map((point) => [point.lat, point.lon] as L.LatLngTuple),
-      ),
-      ...current.map((point) => [point.lat, point.lon] as L.LatLngTuple),
-    ];
-    if (fittedGeometryRef.current !== geometrySignatureRef.current) {
+    const boundsLatLngs = corridorPointsRef.current;
+    if (fittedGeometryRef.current !== geometrySignatureRef.current && boundsLatLngs.length >= 2) {
       const firstFit = fittedGeometryRef.current === null;
-      fittedGeometryRef.current = geometrySignatureRef.current;
-      if (followLive) suppressLiveFollowRef.current = true;
-      map.invalidateSize({ animate: false });
       const fit = () => {
-        if (map.getSize().x < 20 || map.getSize().y < 20) return;
-        if (firstFit || followLive)
-          map.fitBounds(L.latLngBounds(boundsLatLngs), { padding: [52, 52], maxZoom: 12, animate: false });
-        else
-          map.flyToBounds(L.latLngBounds(boundsLatLngs), { padding: [52, 52], maxZoom: 12, duration: 0.7 });
-      };
-      requestAnimationFrame(() => {
         map.invalidateSize({ animate: false });
-        fit();
+        const size = map.getSize();
+        if (size.x < 20 || size.y < 20) return false;
+
+        if (firstFit || followLive) {
+          map.fitBounds(L.latLngBounds(boundsLatLngs), {
+            padding: [36, 36],
+            maxZoom: 13,
+            animate: false,
+          });
+        } else if (!followLive) {
+          map.flyToBounds(L.latLngBounds(boundsLatLngs), {
+            padding: [36, 36],
+            maxZoom: 13,
+            duration: 0.7,
+          });
+        }
+        fittedGeometryRef.current = geometrySignatureRef.current;
+        return true;
+      };
+
+      if (followLive) suppressLiveFollowRef.current = true;
+      requestAnimationFrame(() => {
+        if (fit()) return;
+        requestAnimationFrame(() => {
+          fit();
+        });
       });
     }
   }, [routeSignature]);
