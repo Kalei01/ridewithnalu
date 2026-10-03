@@ -464,10 +464,16 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
     const saved = formatMinutes(delta);
 
     if (winner === "drive") {
-      const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
-      const fact = road
-        ? `Driving saves ${saved} over transit right now — ${road} is faster.`
-        : `Driving saves ${saved} over transit right now.`;
+      // An incident or roadwork road is a caution on the drive, never the reason
+      // driving wins, so it is flagged rather than credited.
+      const incidentOn = incidentRoad(incident);
+      const roadworkOn = cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
+      const caution = incidentOn
+        ? ` Heads up: incident on ${incidentOn}.`
+        : roadworkOn
+          ? ` Heads up: roadwork on ${roadworkOn}.`
+          : "";
+      const fact = `Driving saves ${saved} over transit right now.${caution}`;
       const tail =
         context.trafficLevel === "heavy" || context.trafficLevel === "severe"
           ? pickSmart(DECISIVE_DRIVE_TAILS, context, 7)

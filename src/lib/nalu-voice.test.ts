@@ -13,6 +13,30 @@ describe("generateSmartNaluInsight", () => {
     ).toContain("Driving saves 37 min over transit right now");
   });
 
+  it("flags roadwork or an incident on a winning drive without crediting that road", () => {
+    const roadwork = generateSmartNaluInsight({
+      driveMinutes: 33,
+      transitMinutes: 74,
+      selectedMode: "drive",
+      activeRoadwork: [{ road: "H1 Westbound" }],
+    });
+    expect(roadwork).toContain(
+      "Driving saves 41 min over transit right now. Heads up: roadwork on H-1 Westbound.",
+    );
+    expect(roadwork).not.toMatch(/is faster/);
+
+    const incident = generateSmartNaluInsight({
+      driveMinutes: 33,
+      transitMinutes: 74,
+      selectedMode: "drive",
+      incidents: [{ road: "Nimitz Highway", description: "Crash", delayMinutes: 12 }],
+      activeRoadwork: [{ road: "H1 Westbound" }],
+    });
+    expect(incident).toContain(
+      "Driving saves 41 min over transit right now. Heads up: incident on Nimitz.",
+    );
+  });
+
   it("never shows internal HDOT or TomTom road IDs to riders", () => {
     for (const id of ["7852", "H-1_WB_16AAN", "H2014_EB_1", "8930_-MP", "H-1_WB_8A_+MP"]) {
       const driveWin = generateSmartNaluInsight({
@@ -170,5 +194,4 @@ describe("generateSmartNaluInsight", () => {
     expect(first).toMatch(/^Driving saves /);
     expect(second).toMatch(/^Driving saves /);
   });
-
 });
