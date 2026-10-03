@@ -67,6 +67,73 @@ type HubOption = {
   total_minutes: number; legs: HubLeg[];
 };
 
+const MICRO_RAIL_HOP_MAX_MINUTES = 4;
+
+/**
+ * Rejects rail→bus chains where Skyline is only being used as a tiny hop before
+ * a longer transfer wait. These chains are poor routing choices even when their
+ * door-to-door arithmetic happens to look competitive.
+ */
+export function isTransferSane(option: {
+  legs: Array<{
+    mode: "walk" | "drive" | "bus" | "rail";
+    kind?: "access" | "rail" | "connect" | "egress";
+    minutes: number | null;
+    depart_seconds: number | null;
+    arrive_seconds: number | null;
+  }>;
+}) {
+  for (let index = 0; index < option.legs.length; index += 1) {
+    const rail = option.legs[index];
+    if (rail.mode !== "rail") continue;
+
+    const nextBus = option.legs
+      .slice(index + 1)
+      .find((leg) => leg.mode === "bus" && leg.depart_seconds !== null);
+
+    if (!nextBus) continue;
+
+    const railMinutes =
+      rail.minutes ??
+      (rail.depart_seconds !== null && rail.arrive_seconds !== null
+        ? Math.max(0, (rail.arrive_seconds - rail.depart_seconds) / 60)
+        : null);
+
+    const transferWait =
+      rail.arrive_seconds !== null && nextBus.depart_seconds !== null
+        ? Math.max(0, (nextBus.depart_seconds - rail.arrive_seconds) / 60)
+        : null;
+
+    // A sub-4-minute Skyline leg is a micro-hop. If it feeds a bus egress,
+    // there is no reason to force the rider onto rail for a single station.
+    if (railMinutes !== null && railMinutes < MICRO_RAIL_HOP_MAX_MINUTES) return false;
+
+    // Never make a rider wait longer for the bus than the rail ride that got
+    // them there. Prefer the direct bus or a meaningful rail corridor run.
+    if (
+      railMinutes !== null &&
+      transferWait !== null &&
+      transferWait > railMinutes
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function filterTransferSanityOptions<T extends {
+  legs: Array<{
+    mode: "walk" | "drive" | "bus" | "rail";
+    kind?: "access" | "rail" | "connect" | "egress";
+    minutes: number | null;
+    depart_seconds: number | null;
+    arrive_seconds: number | null;
+  }>;
+}>(options: T[]) {
+  return options.filter(isTransferSane);
+}
+
 /** Rough road time to a rail hub: 1.35× straight-line at ~40 km/h, +3 min to park/board. */
 export function estimateHubAccessMinutes(from: Point, hub: Point) {
   const km = Math.sqrt(distanceSquared(from, hub)) * 111.2;
