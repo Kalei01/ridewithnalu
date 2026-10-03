@@ -165,6 +165,52 @@ const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
 
+function NaluPersonalityStrip({
+  loading,
+  configured,
+  period,
+  decision,
+  trafficLevel,
+}: {
+  loading: boolean;
+  configured: boolean;
+  period: "morning" | "evening";
+  decision: UiDecisionState;
+  trafficLevel: "light" | "moderate" | "heavy" | "severe";
+}) {
+  if (!configured) return null;
+
+  const line = loading
+    ? period === "evening"
+      ? "Alright, let me check the evening run."
+      : "Alright, let me check it."
+    : decision === "drive"
+      ? trafficLevel === "heavy" || trafficLevel === "severe"
+        ? "Yeah, the roads are getting busy. I checked it for you."
+        : "I checked the roads and rail. Here’s what I’m seeing."
+      : decision === "transit"
+        ? "I checked the roads and rail. Here’s what I’m seeing."
+        : decision === "same"
+          ? "I checked both. This one’s pretty close."
+          : "I’m checking the latest commute information for you.";
+
+  return (
+    <div
+      className="mt-5 flex items-start gap-3 rounded-2xl border border-border/70 bg-surface-raised/70 px-4 py-3"
+      aria-live="polite"
+      aria-label="Nalu status"
+    >
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-recommended text-recommended-foreground text-xs font-black">
+        N
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Nalu</p>
+        <p className="mt-0.5 text-sm font-medium leading-5 text-foreground">{line}</p>
+      </div>
+    </div>
+  );
+}
+
 function WaveMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 44" fill="none" className={className} aria-hidden="true">
@@ -5198,6 +5244,14 @@ function Index() {
             </div>
           )}
         </section>
+
+        <NaluPersonalityStrip
+          loading={optionsLoading || driveLoading}
+          configured={configured}
+          period={now.getHours() >= 15 ? "evening" : "morning"}
+          decision={verdict}
+          trafficLevel={naluHeroTrafficLevel}
+        />
 
         <section
           className="verdict-lift glass-panel -mx-2 mt-5 rounded-2xl px-5 py-7 animate-in fade-in duration-300"
