@@ -176,7 +176,6 @@ import {
   TONE_CLASS,
   type WeatherLine,
 } from "@/components/commute/H1ConditionsCard";
-import { NaluPersonalityStrip } from "@/components/commute/NaluPersonalityStrip";
 import {
   alohaGreeting,
   clockFromSeconds,
