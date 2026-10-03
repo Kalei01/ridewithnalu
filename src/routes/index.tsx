@@ -1840,7 +1840,11 @@ function Index() {
     staleTime: 60_000,
     retry: false,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("diagnose_transit_general", {
+      const diagnoseTransitGeneral = supabase.rpc as unknown as (
+        functionName: string,
+        args: Record<string, number>,
+      ) => Promise<{ data: string | null; error: unknown }>;
+      const { data, error } = await diagnoseTransitGeneral("diagnose_transit_general", {
         p_origin_lat: tripDirection.from.lat as number,
         p_origin_lon: tripDirection.from.lon as number,
         p_dest_lat: tripDirection.to.lat as number,
