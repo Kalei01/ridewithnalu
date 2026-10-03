@@ -41,17 +41,17 @@ export type SmartNaluContext = {
   transitMinutes: number | null | undefined;
   timeDelta?: number | null | undefined;
   selectedMode?: "drive" | "transit" | "rail" | "toss_up" | "same" | null | undefined;
-  decision?: "drive" | "transit" | "rail" | "toss_up" | "same" | null;
-  incidents?: SmartNaluIncident[] | null;
-  activeRoadwork?: SmartNaluRoadwork[] | SmartNaluRoadwork | null;
-  weather?: SmartNaluWeather | SmartNaluWeather[] | null;
+  decision?: "drive" | "transit" | "rail" | "toss_up" | "same" | null | undefined;
+  incidents?: SmartNaluIncident[] | null | undefined;
+  activeRoadwork?: SmartNaluRoadwork[] | SmartNaluRoadwork | null | undefined;
+  weather?: SmartNaluWeather | SmartNaluWeather[] | null | undefined;
   period?: NaluPulsePeriod | undefined;
-  trafficLevel?: "light" | "moderate" | "heavy" | "severe";
-  transferMinutes?: number | null;
-  transfers?: number | null;
-  walkMinutes?: number | null;
-  waitMinutes?: number | null;
-  direction?: "morning-westbound" | "morning-eastbound" | "evening-westbound" | "evening-eastbound" | string | null;
+  trafficLevel?: "light" | "moderate" | "heavy" | "severe" | undefined;
+  transferMinutes?: number | null | undefined;
+  transfers?: number | null | undefined;
+  walkMinutes?: number | null | undefined;
+  waitMinutes?: number | null | undefined;
+  direction?: "morning-westbound" | "morning-eastbound" | "evening-westbound" | "evening-eastbound" | string | null | undefined;
 };
 
 export type NaluCommuteContext = {
