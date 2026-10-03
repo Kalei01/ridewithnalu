@@ -67,7 +67,7 @@ async function tomtomSearch(
       if (!response.ok) {
         const body = await response.text();
         console.error(`TomTom ${endpoint} failed [${response.status}]: ${body}`);
-        throw new Error(`Place search failed (${response.status}).`);
+        return [];
       }
       const payload = (await response.json()) as { results?: TomTomHit[] };
       return payload.results ?? [];
