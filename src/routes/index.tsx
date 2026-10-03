@@ -3142,6 +3142,70 @@ function Index() {
             supporting: null,
           };
 
+  const fetchWeather = useServerFn(outdoorConditions);
+  // Runs alongside the plan, never in front of it: the trip renders regardless.
+  const { data: weather } = useQuery({
+    queryKey: [
+      "weather",
+      moments.map(
+        (moment) =>
+          `${moment.id}:${moment.lat.toFixed(2)},${moment.lon.toFixed(2)}:${moment.offsetMinutes}`,
+      ),
+    ],
+    enabled: moments.length > 0,
+    staleTime: 20 * 60_000,
+    refetchInterval: 20 * 60_000,
+    retry: false,
+    queryFn: () => {
+      const longest = moments
+        .filter((moment) => moment.outdoorMinutes > 5)
+        .sort((a, b) => b.outdoorMinutes - a.outdoorMinutes)[0];
+      return fetchWeather({
+        data: {
+          points: moments.map((moment) => ({
+            id: moment.id,
+            lat: moment.lat,
+            lon: moment.lon,
+            offsetMinutes: moment.offsetMinutes,
+          })),
+          airLat: longest?.lat ?? null,
+          airLon: longest?.lon ?? null,
+        },
+      });
+    },
+  });
+
+  // One line per condition, hung on the leg it belongs to.
+  const weatherLines = useMemo(() => {
+    const byLeg = new Map<number, WeatherLine[]>();
+    if (!weather) return byLeg;
+    const readings = new Map(weather.moments.map((moment) => [moment.id, moment]));
+    // Air quality is said once, on the longest stretch spent outside.
+    const airMoment = moments
+      .filter((moment) => moment.outdoorMinutes > 5)
+      .sort((a, b) => b.outdoorMinutes - a.outdoorMinutes)[0];
+
+    for (const moment of moments) {
+      const reading = readings.get(moment.id);
+      if (!reading) continue;
+      const lines: WeatherLine[] = [];
+      const rain = rainLine(moment, reading);
+      if (rain) lines.push({ text: rain, tone: "rain", source: "NWS" });
+      const heat = heatLine(moment, reading);
+      if (heat) lines.push(heat);
+      if (airMoment && moment.id === airMoment.id) {
+        const air = airLine(weather.air?.category ?? 0);
+        if (air) lines.push(air);
+      }
+      if (!lines.length) continue;
+      byLeg.set(moment.legIndex, [...(byLeg.get(moment.legIndex) ?? []), ...lines]);
+    }
+    return byLeg;
+  }, [weather, moments]);
+
+  const driveWeatherLines = weatherLines.get(-2) ?? [];
+
+
   // Canonical decision state is Drive vs Transit. The UI still uses "rail"
   // as its transit-view key for compatibility with the existing transit panels;
   // this adapter keeps that legacy UI vocabulary out of the decision engine.
@@ -3860,69 +3924,6 @@ function Index() {
     }
     return list;
   }, [best, reverseTrip, homePoint, destPoint, nowSeconds, stationPoint, setup.homeStopName]);
-
-  const fetchWeather = useServerFn(outdoorConditions);
-  // Runs alongside the plan, never in front of it: the trip renders regardless.
-  const { data: weather } = useQuery({
-    queryKey: [
-      "weather",
-      moments.map(
-        (moment) =>
-          `${moment.id}:${moment.lat.toFixed(2)},${moment.lon.toFixed(2)}:${moment.offsetMinutes}`,
-      ),
-    ],
-    enabled: moments.length > 0,
-    staleTime: 20 * 60_000,
-    refetchInterval: 20 * 60_000,
-    retry: false,
-    queryFn: () => {
-      const longest = moments
-        .filter((moment) => moment.outdoorMinutes > 5)
-        .sort((a, b) => b.outdoorMinutes - a.outdoorMinutes)[0];
-      return fetchWeather({
-        data: {
-          points: moments.map((moment) => ({
-            id: moment.id,
-            lat: moment.lat,
-            lon: moment.lon,
-            offsetMinutes: moment.offsetMinutes,
-          })),
-          airLat: longest?.lat ?? null,
-          airLon: longest?.lon ?? null,
-        },
-      });
-    },
-  });
-
-  // One line per condition, hung on the leg it belongs to.
-  const weatherLines = useMemo(() => {
-    const byLeg = new Map<number, WeatherLine[]>();
-    if (!weather) return byLeg;
-    const readings = new Map(weather.moments.map((moment) => [moment.id, moment]));
-    // Air quality is said once, on the longest stretch spent outside.
-    const airMoment = moments
-      .filter((moment) => moment.outdoorMinutes > 5)
-      .sort((a, b) => b.outdoorMinutes - a.outdoorMinutes)[0];
-
-    for (const moment of moments) {
-      const reading = readings.get(moment.id);
-      if (!reading) continue;
-      const lines: WeatherLine[] = [];
-      const rain = rainLine(moment, reading);
-      if (rain) lines.push({ text: rain, tone: "rain", source: "NWS" });
-      const heat = heatLine(moment, reading);
-      if (heat) lines.push(heat);
-      if (airMoment && moment.id === airMoment.id) {
-        const air = airLine(weather.air?.category ?? 0);
-        if (air) lines.push(air);
-      }
-      if (!lines.length) continue;
-      byLeg.set(moment.legIndex, [...(byLeg.get(moment.legIndex) ?? []), ...lines]);
-    }
-    return byLeg;
-  }, [weather, moments]);
-
-  const driveWeatherLines = weatherLines.get(-2) ?? [];
 
   // Browse mode gets one line only, read at wherever the rider is standing now.
   const { data: browseWeather } = useQuery({
