@@ -454,7 +454,15 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
       ? drive < transit ? "drive" : "transit"
       : null;
   const incident = majorIncidentFor(context);
-  const roadwork = asRoadworkList(context.activeRoadwork).find((item) => item.active !== false);
+  // Scheduled roadwork is context, not evidence of a slowdown. Only roadwork
+  // explicitly marked active may be described in the present tense.
+  const roadworkItems = asRoadworkList(context.activeRoadwork).filter((item) => item.active !== false);
+  const roadwork = roadworkItems.find((item) => item.active === true) ?? roadworkItems[0];
+  const roadworkIsActive = roadwork?.active === true;
+  const roadworkRoad = cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
+  const roadworkPhrase = roadworkRoad
+    ? `${roadworkIsActive ? "roadwork" : "scheduled roadwork"} on ${roadworkRoad}`
+    : null;
   const weather = weatherImpact(context);
   const seed = smartVariantSeed(context);
 
@@ -467,11 +475,10 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
       // An incident or roadwork road is a caution on the drive, never the reason
       // driving wins, so it is flagged rather than credited.
       const incidentOn = incidentRoad(incident);
-      const roadworkOn = cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
       const caution = incidentOn
         ? ` Heads up: incident on ${incidentOn}.`
-        : roadworkOn
-          ? ` Heads up: roadwork on ${roadworkOn}.`
+        : roadworkPhrase
+          ? ` Heads up: ${roadworkPhrase}.`
           : "";
       const fact = `Driving saves ${saved} over transit right now.${caution}`;
       const tail =
@@ -481,9 +488,10 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
       return `${fact} ${tail}`;
     }
 
-    const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
-    const fact = road
-      ? `Transit saves ${saved} over driving right now — ${road} is slowing the drive.`
+    // Only name a road as the cause when the provider measured a delay there.
+    const slowRoad = (incident?.delayMinutes ?? 0) >= 5 ? incidentRoad(incident) : null;
+    const fact = slowRoad
+      ? `Transit saves ${saved} over driving right now — ${slowRoad} is slowing the drive.`
       : `Transit saves ${saved} over driving right now.`;
     return `${fact} ${pickSmart(DECISIVE_TRANSIT_TAILS, context, seed % 5)}`;
   }
@@ -496,16 +504,23 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
         ? "Take transit if you want to skip driving stress."
         : mode === "drive"
           ? "Take the car if you want the simpler, flexible run."
-          : "Either works — pick based on whether you want Skyline or the car.";
+          : "Either works — pick based on whether you'd rather ride or drive.";
     return `${fact} ${preference} ${pickSmart(CLOSE_CALL_TAILS, context)}`;
   }
 
-  if (incident || roadwork) {
-    const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
-    const closureWord = roadwork || /closure|closed/i.test(incident?.description ?? "") ? "closure" : "incident";
+  if (incident) {
+    const road = incidentRoad(incident);
+    const closureWord = /closure|closed/i.test(incident.description ?? "") ? "closure" : "incident";
     const fact = road
-      ? `Heads-up: ${road} has a ${closureWord} affecting this route right now.`
-      : `Heads-up: a major road ${closureWord} is affecting this route right now.`;
+      ? `Heads-up: ${road} has a reported ${closureWord} on this route.`
+      : `Heads-up: a ${closureWord} is reported on this route.`;
+    return `${fact} ${pickSmart(INCIDENT_TAILS, context)}`;
+  }
+
+  if (roadworkPhrase) {
+    const fact = roadworkIsActive
+      ? `Heads-up: ${roadworkPhrase} on this route right now.`
+      : `Heads-up: HDOT lists ${roadworkPhrase} along this route. Check the hours before you go.`;
     return `${fact} ${pickSmart(INCIDENT_TAILS, context)}`;
   }
 

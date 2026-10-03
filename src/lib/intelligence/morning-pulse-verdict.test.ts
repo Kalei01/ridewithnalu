@@ -30,6 +30,24 @@ describe("createMorningPulseVerdict", () => {
     expect(verdict.reasons[0]?.text).toContain("Drive gets you there about 5 min sooner");
   });
 
+  it("uses the door leave time and scheduled door arrival, in seconds", () => {
+    const nowSec = Math.floor(base.nowEpochMs / 1000);
+    const { trip } = createMorningPulseVerdict({
+      ...base,
+      drive: { minutes: 30, delayMinutes: 0, roads: [], incidents: [] },
+      rail: {
+        leave_by_seconds: 7 * 3600 + 2 * 60,
+        depart_seconds: 7 * 3600 + 12 * 60,
+        arrive_seconds: 7 * 3600 + 55 * 60,
+        total_minutes: 53,
+      },
+    });
+    const rail = trip.routes.find((route) => route.mode === "rail");
+    expect(rail?.departureTime).toBe(nowSec + 2 * 60);
+    // Door arrival includes the walk and the wait for the train.
+    expect(rail?.arrivalTime).toBe(nowSec + 55 * 60);
+  });
+
   it("keeps the result usable when one side is unavailable", () => {
     const { verdict } = createMorningPulseVerdict({
       ...base,

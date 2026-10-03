@@ -21,7 +21,7 @@ describe("generateSmartNaluInsight", () => {
       activeRoadwork: [{ road: "H1 Westbound" }],
     });
     expect(roadwork).toContain(
-      "Driving saves 41 min over transit right now. Heads up: roadwork on H-1 Westbound.",
+      "Driving saves 41 min over transit right now. Heads up: scheduled roadwork on H-1 Westbound.",
     );
     expect(roadwork).not.toMatch(/is faster/);
 
@@ -193,5 +193,42 @@ describe("generateSmartNaluInsight", () => {
     expect(first).not.toBe(second);
     expect(first).toMatch(/^Driving saves /);
     expect(second).toMatch(/^Driving saves /);
+  });
+
+  it("never names scheduled roadwork as the reason a trip is slow or as happening now", () => {
+    const transitWin = generateSmartNaluInsight({
+      driveMinutes: 82,
+      transitMinutes: 55,
+      selectedMode: "transit",
+      activeRoadwork: [{ road: "H1 Westbound" }],
+    });
+    expect(transitWin).toContain("Transit saves 27 min over driving right now.");
+    expect(transitWin).not.toMatch(/slowing/);
+
+    const contextOnly = generateSmartNaluInsight({
+      driveMinutes: 50,
+      transitMinutes: 62,
+      selectedMode: "drive",
+      activeRoadwork: [{ road: "H1 Westbound" }],
+    });
+    expect(contextOnly).not.toMatch(/right now/);
+    expect(contextOnly).toContain("scheduled roadwork on H-1 Westbound");
+  });
+
+  it("names an incident as the cause only when a delay was measured", () => {
+    const measured = generateSmartNaluInsight({
+      driveMinutes: 82,
+      transitMinutes: 55,
+      selectedMode: "transit",
+      incidents: [{ road: "H1 Eastbound", description: "Crash", delayMinutes: 18 }],
+    });
+    expect(measured).toContain("H-1 Eastbound is slowing the drive");
+    const unmeasured = generateSmartNaluInsight({
+      driveMinutes: 82,
+      transitMinutes: 55,
+      selectedMode: "transit",
+      incidents: [{ road: "H1 Eastbound", description: "Crash" }],
+    });
+    expect(unmeasured).not.toMatch(/slowing/);
   });
 });

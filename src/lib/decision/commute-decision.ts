@@ -69,7 +69,9 @@ function toDecisionEstimate(item: TripEstimate): DecisionModeEstimate {
     mode: item.mode === "drive" ? "drive" : "transit",
     availability: item.availability,
     quality: eta?.quality === "stale" ? "stale" : item.source.quality,
-    expectedMinutes: item.expectedDurationMinutes,
+    // Compare door to door: drive includes parking and the walk in, transit
+    // already includes walking and waiting.
+    expectedMinutes: item.doorToDoorMinutes ?? item.expectedDurationMinutes,
     leaveTime: item.leaveTime,
     arrivalTime: item.arrivalTime,
     earliestArrival: item.earliestArrival,
@@ -96,6 +98,24 @@ export function decideTrip(
     previous,
     config,
   );
+}
+
+/**
+ * How many minutes the chosen mode saves. Null when the chosen mode is not
+ * actually the faster one (the verdict kept its earlier call because the times
+ * are close), so the UI never credits the slower mode with being "faster".
+ */
+export function verdictMarginMinutes(
+  state: DecisionState,
+  driveMinutes: number | null,
+  transitMinutes: number | null,
+): number | null {
+  if (driveMinutes === null || transitMinutes === null) return null;
+  const transitMinusDrive = transitMinutes - driveMinutes;
+  if (state === "same") return Math.abs(transitMinusDrive);
+  if (state === "drive") return transitMinusDrive > 0 ? transitMinusDrive : null;
+  if (state === "transit") return transitMinusDrive < 0 ? -transitMinusDrive : null;
+  return null;
 }
 
 export type ArrivalDecision = TripDecision & {

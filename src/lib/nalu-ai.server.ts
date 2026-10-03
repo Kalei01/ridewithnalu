@@ -470,6 +470,7 @@ export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, 
       p_dest_lon: toPoint.lon,
     });
     const fallbackRows = (fallback.data ?? []) as Array<{
+      leave_by_seconds?: number | null;
       depart_seconds: number;
       arrive_seconds: number;
       total_minutes: number;
@@ -478,6 +479,7 @@ export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, 
   }
 
   const rows = (data ?? []) as Array<{
+    leave_by_seconds?: number | null;
     depart_seconds: number;
     arrive_seconds: number;
     total_minutes: number;

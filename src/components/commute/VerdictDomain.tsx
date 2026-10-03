@@ -34,6 +34,7 @@ export function VerdictDomain({
   driveWindow,
   driveBufferNote,
   driveTotalMinutes,
+  driveLeaveSeconds = null,
   children,
 }: {
   configured: boolean;
@@ -57,6 +58,8 @@ export function VerdictDomain({
   driveWindow: string | null;
   driveBufferNote: string | null;
   driveTotalMinutes: number | null;
+  /** Arrive By leave time for the drive; null means leave now. */
+  driveLeaveSeconds?: number | null;
   children?: ReactNode;
 }) {
   const headline = !configured
@@ -161,7 +164,6 @@ export function VerdictDomain({
                 : transitMinutes !== null
                   ? formatDriveMinutes(transitMinutes)
                   : "—"}
-              <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
             </p>
           </div>
           {transitWindow && (
@@ -174,8 +176,10 @@ export function VerdictDomain({
       {verdict === "drive" && driveAvailable && (
         <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
           <div className="metric-glass">
-            <p className="text-xs text-muted-foreground">Leave</p>
-            <p className="mt-1 text-xl font-bold text-recommended">Now</p>
+            <p className="text-xs text-muted-foreground">{driveLeaveSeconds !== null ? "Leave by" : "Leave"}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-recommended">
+              {driveLeaveSeconds !== null ? clockFromSeconds(driveLeaveSeconds) : "Now"}
+            </p>
           </div>
           <div className="metric-glass">
             <p className="text-xs text-muted-foreground">Arrive</p>
@@ -186,8 +190,7 @@ export function VerdictDomain({
           <div className="metric-glass">
             <p className="text-xs text-muted-foreground">Total trip</p>
             <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
-              {Math.round(driveTotalMinutes ?? 0)}
-              <span className="ml-1 text-xs font-semibold text-muted-foreground">min</span>
+              {driveTotalMinutes !== null ? formatDriveMinutes(driveTotalMinutes) : "—"}
             </p>
           </div>
           <p className="col-span-3 text-sm font-semibold tabular-nums text-muted-foreground">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { destinationAccess } from "../destination-access";
-import { decideArrival, decideTrip } from "./commute-decision";
+import { decideArrival, decideTrip, verdictMarginMinutes } from "./commute-decision";
 import { driveEstimate, transitEstimate, type TripEstimate } from "./trip-estimate";
 
 const nowMs = Date.parse("2026-09-28T16:00:00-10:00");
@@ -53,12 +53,18 @@ function rail(
 
 describe("normalized trip estimates", () => {
   it("compares Kapolei to downtown door to door, including parking and walk", () => {
+    // Downtown access: 7–14 min to park and walk in (typical 10).
     const item = drive(42, 40, 48);
-    expect(item.expectedDurationMinutes).toBe(42);
-    expect(item.latestArrival).toBe(at(6) + 48 * 60);
+    expect(item.expectedDurationMinutes).toBe(42); // road time, as shown on the drive tab
+    expect(item.doorToDoorMinutes).toBe(52);
+    expect(item.arrivalTime).toBe(at(6) + 52 * 60);
+    expect(item.earliestArrival).toBe(at(6) + (40 + 7) * 60);
+    expect(item.latestArrival).toBe(at(6) + (48 + 14) * 60);
     expect(item.walkingMinutes).toBe(10);
-    expect(decideTrip(item, rail(48)).state).toBe("drive");
-    expect(decideTrip(item, rail(42)).state).toBe("same");
+    expect(decideTrip(item, rail(60)).state).toBe("drive");
+    expect(decideTrip(item, rail(52)).state).toBe("same");
+    // 42 min of road time does not beat a 48 min door-to-door train by itself.
+    expect(decideTrip(item, rail(42)).state).toBe("transit");
   });
 
   it("counts time before a reachable train in the leave-now arrival", () => {
@@ -148,16 +154,18 @@ describe("expected-outcome decision", () => {
   it("selects clearly faster transit", () =>
     expect(decideTrip(drive(55), rail(48)).state).toBe("transit"));
   it("calls overlapping arrival ranges a toss-up", () => {
-    expect(decideTrip(drive(42, 40, 48), rail(55)).state).toBe("drive");
+    // Drive 52 min door to door vs transit 55 min.
+    expect(decideTrip(drive(42, 40, 48), rail(55)).state).toBe("same");
   });
   it("does not flip modes for a small ETA fluctuation", () => {
-    const item = decideTrip(drive(37, 36, 38), rail(50), "transit", {
-      tossUpMinutes: 5,
-      switchMarginMinutes: 3,
-    });
+    const config = { tossUpMinutes: 5, switchMarginMinutes: 3 };
+    // Drive 47 min door to door vs transit 50: keep the earlier transit call.
+    expect(decideTrip(drive(37, 36, 38), rail(50), "transit", config).state).toBe("transit");
+    // A clear 13 min drive lead does switch.
+    const item = decideTrip(drive(37, 36, 38), rail(60), "transit", config);
     expect(item.state).toBe("drive");
     expect(item.differenceMinutes).toBe(13);
-    expect(decideTrip(drive(40, 39, 41), rail(60), "transit").state).toBe("drive");
+    expect(decideTrip(drive(40, 39, 41), rail(70), "transit").state).toBe("drive");
   });
   it("uses an incident and delay only when grounded in a transit win", () => {
     const item = driveEstimate({
@@ -268,5 +276,43 @@ describe("arrival-first decision", () => {
         at(7, 30),
       ).state,
     ).toBe("uncertain");
+  });
+});
+
+describe("verdictMarginMinutes", () => {
+  it("credits the chosen mode only when it is actually faster", () => {
+    expect(verdictMarginMinutes("drive", 30, 45)).toBe(15);
+    expect(verdictMarginMinutes("transit", 45, 30)).toBe(15);
+  });
+
+  it("drops the margin when the verdict kept an earlier, now-slower call", () => {
+    // Earlier call was Drive, transit is now 6 min faster: never say "Drive · 6 min faster".
+    expect(verdictMarginMinutes("drive", 40, 34)).toBeNull();
+    expect(verdictMarginMinutes("transit", 34, 40)).toBeNull();
+  });
+
+  it("reports the gap for a toss-up and nothing without both times", () => {
+    expect(verdictMarginMinutes("same", 30, 33)).toBe(3);
+    expect(verdictMarginMinutes("drive", null, 30)).toBeNull();
+    expect(verdictMarginMinutes("uncertain", 30, 40)).toBeNull();
+  });
+});
+
+describe("Arrive By counts parking for the drive", () => {
+  it("does not call a drive on time when parking makes it late", () => {
+    // 6:25, need to be downtown by 7:00. 30 min of road + ~10 min to park and walk in.
+    const late = driveEstimate({
+      drive: { trafficMinutes: 30, lowMinutes: 28, highMinutes: 33, delayMinutes: 0, fetchedAt: nowMs, trafficBasis: "live" },
+      access: downtown,
+      nowSeconds: at(6, 25),
+      leaveAtSeconds: at(6, 25),
+      nowMs,
+      carAvailable: true,
+      targetArrivalSeconds: at(7),
+    });
+    expect(late.arrivalTime).toBe(at(7, 5));
+    expect(late.arrivalMarginMinutes).toBe(-5);
+    const decision = decideArrival(late, rail(60), at(7));
+    expect(decision.driveMarginMinutes).toBe(-5);
   });
 });

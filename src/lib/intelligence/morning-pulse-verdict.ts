@@ -11,7 +11,11 @@ type MorningPulseDrive = {
 };
 
 type MorningPulseRail = {
+  /** When the rider must leave the door (GTFS seconds since Honolulu midnight). */
+  leave_by_seconds?: number | null;
+  /** When the train departs. */
   depart_seconds: number;
+  /** Door arrival at the destination. */
   arrive_seconds: number;
   total_minutes: number;
 };
@@ -41,14 +45,24 @@ export function createMorningPulseVerdict(input: MorningPulseVerdictInput): Morn
     ? requestedAt + Math.max(0, Math.round(input.drive.minutes * 60))
     : null;
 
-  const railDeparture =
-    input.rail && Number.isFinite(input.rail.depart_seconds)
-      ? Math.floor(railEpochMs(input.nowEpochMs, input.nowSecondsSinceMidnight, input.rail.depart_seconds) / 1000)
-      : null;
+  const toEpoch = (gtfsSeconds: number) =>
+    Math.floor(railEpochMs(input.nowEpochMs, input.nowSecondsSinceMidnight, gtfsSeconds) / 1000);
+  // Leave time is when the rider walks out the door, not when the train departs.
+  const railLeaveSeconds =
+    input.rail && Number.isFinite(input.rail.leave_by_seconds ?? NaN)
+      ? (input.rail.leave_by_seconds as number)
+      : input.rail && Number.isFinite(input.rail.depart_seconds)
+        ? input.rail.depart_seconds
+        : null;
+  const railDeparture = railLeaveSeconds === null ? null : toEpoch(railLeaveSeconds);
+  // Arrival is the scheduled door arrival, which already includes the wait
+  // before boarding. Fall back to leave time + door-to-door minutes.
   const railArrival =
-    input.rail && Number.isFinite(input.rail.total_minutes) && input.rail.total_minutes > 0
-      ? requestedAt + Math.round(input.rail.total_minutes * 60)
-      : null;
+    input.rail && Number.isFinite(input.rail.arrive_seconds) && input.rail.arrive_seconds > 0
+      ? toEpoch(input.rail.arrive_seconds)
+      : railDeparture !== null && input.rail && Number.isFinite(input.rail.total_minutes) && input.rail.total_minutes > 0
+        ? railDeparture + Math.round(input.rail.total_minutes * 60)
+        : null;
 
   const drive: DecisionModeEstimate = {
     mode: "drive",
@@ -70,7 +84,7 @@ export function createMorningPulseVerdict(input: MorningPulseVerdictInput): Morn
   const rail: DecisionModeEstimate = {
     mode: "transit",
     availability: input.rail ? "available" : "service-unavailable",
-          quality: input.rail ? "good" : "unavailable",
+    quality: input.rail ? "good" : "unavailable",
     expectedMinutes:
       input.rail && Number.isFinite(input.rail.total_minutes) && input.rail.total_minutes > 0
         ? input.rail.total_minutes

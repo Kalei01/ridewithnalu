@@ -3,7 +3,6 @@ import { z } from "zod";
 import { lookupDriveTime } from "./drive.functions";
 import { createMorningPulseVerdict } from "./intelligence/morning-pulse-verdict";
 import { isRailGeographicallyRelevant } from "./intelligence/pulse-geography";
-import { localPulseClock, minutesSinceMidnight } from "./intelligence/pulse-time";
 
 const point = z.object({
   lat: z.number().min(21).max(22),
@@ -147,13 +146,16 @@ export const morningPulse = createServerFn({ method: "POST" })
           : null,
         rail: railTrip && skylineMinutes !== null
           ? {
+              leave_by_seconds:
+                railTrip.leave_by_seconds == null ? null : Number(railTrip.leave_by_seconds),
               depart_seconds: Number(railTrip.depart_seconds),
               arrive_seconds: Number(railTrip.arrive_seconds),
               total_minutes: skylineMinutes,
             }
           : null,
         nowEpochMs: Date.now(),
-        nowSecondsSinceMidnight: minutesSinceMidnight(localPulseClock(new Date(), data.timezone)),
+        // GTFS times are seconds since Honolulu midnight.
+        nowSecondsSinceMidnight: ai.honoluluSeconds(),
       });
 
       const reasons = verdict.reasons.map((reason) => reason.text);
@@ -284,6 +286,8 @@ export const eveningPulse = createServerFn({ method: "POST" })
           : null,
         rail: railTrip && skylineMinutes !== null
           ? {
+              leave_by_seconds:
+                railTrip.leave_by_seconds == null ? null : Number(railTrip.leave_by_seconds),
               depart_seconds: Number(railTrip.depart_seconds),
               arrive_seconds: Number(railTrip.arrive_seconds),
               total_minutes: skylineMinutes,

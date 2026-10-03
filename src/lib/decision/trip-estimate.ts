@@ -16,7 +16,11 @@ export type EstimateSource = {
   quality: DataQuality;
 };
 
-/** Drive duration is the canonical road ETA; parking/walking access is tracked separately. */
+/**
+ * Drive duration is the canonical road ETA (what the drive tab shows). Drive
+ * arrival times and doorToDoorMinutes add the destination parking/walk-in
+ * time, so arrivals and comparisons are door to door like transit.
+ */
 export type TripEstimate = {
   mode: EstimateMode;
   /** Actual public-transit family represented by the itinerary. */
@@ -27,6 +31,8 @@ export type TripEstimate = {
   leaveTime: number | null;
   arrivalTime: number | null;
   expectedDurationMinutes: number | null;
+  /** Leave-to-door minutes. Drive: road + parking/walk-in. Transit: same as expectedDurationMinutes. */
+  doorToDoorMinutes?: number | null;
   earliestArrival: number | null;
   latestArrival: number | null;
   uncertaintyMinutes: number | null;
@@ -125,21 +131,22 @@ export function driveEstimate(input: {
       quality: "unavailable",
     });
   const departure = input.leaveAtSeconds ?? nowSeconds;
-  // The canonical current Drive ETA is the live road-travel estimate from
-  // TomTom. Do not silently add a parking/walking buffer to the displayed
-  // driving duration: that made the hero, saved Work view, verdict bars, and
-  // Morning Pulse disagree about the same drive. Access time remains available
-  // separately for explicit door-to-door/Arrive By calculations.
+  // The displayed drive duration stays the live TomTom road time. Arrivals are
+  // door to door: the car stopping is not the rider arriving, so the
+  // destination parking/walk-in range is added here, once, for every consumer
+  // (verdict, Arrive By feasibility, arrival windows).
   const expected = drive.trafficMinutes;
-  const earliest = departure + drive.lowMinutes * 60;
-  const latest = departure + drive.highMinutes * 60;
-  const arrival = departure + expected * 60;
+  const doorToDoor = expected + access.typicalMin;
+  const earliest = departure + (Math.min(drive.lowMinutes, expected) + access.lowMin) * 60;
+  const latest = departure + (Math.max(drive.highMinutes, expected) + access.highMin) * 60;
+  const arrival = departure + doorToDoor * 60;
   return {
     mode: "drive",
     availability: "available",
     leaveTime: departure,
     arrivalTime: arrival,
     expectedDurationMinutes: expected,
+    doorToDoorMinutes: doorToDoor,
     earliestArrival: earliest,
     latestArrival: latest,
     uncertaintyMinutes: Math.max((arrival - earliest) / 60, (latest - arrival) / 60),
@@ -235,6 +242,7 @@ export function transitEstimate(input: {
     leaveTime: option.leave_by_seconds,
     arrivalTime: option.arrive_seconds,
     expectedDurationMinutes: expected,
+    doorToDoorMinutes: expected,
     earliestArrival: option.arrive_seconds - 60,
     latestArrival: latest,
     uncertaintyMinutes: lateAllowance,

@@ -111,7 +111,7 @@ import {
 import { carAvailableForDrive } from "@/lib/car-state";
 import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-direction";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
-import { decideArrival, type DecisionState } from "@/lib/decision/commute-decision";
+import { decideArrival, verdictMarginMinutes, type DecisionState } from "@/lib/decision/commute-decision";
 import { createNaluVerdict } from "@/lib/intelligence/verdict-engine";
 import { NaluPersonalityStrip, WaveMark } from "@/components/commute/NaluPersonalityStrip";
 import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
@@ -3129,7 +3129,7 @@ function Index() {
               label: estimate.transitLabel,
               availability: estimate.availability,
               quality: estimate.source.quality === "good" ? "good" : estimate.source.quality,
-              expectedMinutes: estimate.expectedDurationMinutes,
+              expectedMinutes: estimate.doorToDoorMinutes ?? estimate.expectedDurationMinutes,
               leaveTime: estimate.leaveTime,
               arrivalTime: estimate.arrivalTime,
               earliestArrival: estimate.earliestArrival,
@@ -3158,14 +3158,11 @@ function Index() {
               centralVerdict.confidence === "medium"
                 ? "moderate"
                 : (centralVerdict.confidence ?? "low"),
-            differenceMinutes:
-              driveTripEstimate.expectedDurationMinutes !== null &&
-              transitTripEstimate.expectedDurationMinutes !== null
-                ? Math.abs(
-                    driveTripEstimate.expectedDurationMinutes -
-                      transitTripEstimate.expectedDurationMinutes,
-                  )
-                : null,
+            differenceMinutes: verdictMarginMinutes(
+              centralVerdict.decisionState as DecisionState,
+              driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes,
+              transitTripEstimate.expectedDurationMinutes,
+            ),
             primary: {
               kind:
                 (centralVerdict.reasons[0]
@@ -5197,14 +5194,17 @@ function Index() {
           period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
           decision={verdict}
           trafficLevel={naluHeroTrafficLevel}
-          driveMinutes={driveTripEstimate.expectedDurationMinutes}
+          driveMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
           transitMinutes={transitTripEstimate.expectedDurationMinutes}
           timeDelta={activeDecision.differenceMinutes ?? null}
           incidents={drive?.incidents ?? []}
-          activeRoadwork={[
-            ...(drive?.hdotLaneClosures ?? []),
-            ...(drive?.hdotScheduledClosures ?? []),
-          ]}
+          // HDOT route segments only say which roads the trip crosses; they are
+          // not closures. Scheduled closures carry a text schedule, so they are
+          // passed without an "active" flag and described as scheduled.
+          activeRoadwork={(drive?.hdotScheduledClosures ?? []).map((closure) => ({
+            route: closure.route,
+            description: closure.location,
+          }))}
           weather={weather?.moments ?? []}
           transferMinutes={transitTripEstimate.transferMinutes}
           waitMinutes={transitTripEstimate.waitMinutes}
@@ -5222,7 +5222,7 @@ function Index() {
           confidence={verdictConfidence}
           differenceMinutes={activeDecision.differenceMinutes}
           arriveByActive={arriveByActive}
-          driveMinutes={driveTripEstimate.expectedDurationMinutes}
+          driveMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
           driveRange={driveRange}
           transitMinutes={transitTripEstimate.expectedDurationMinutes}
           transitRange={transitRange}
@@ -5232,7 +5232,8 @@ function Index() {
           driveArrivalSeconds={driveTripEstimate.arrivalTime ?? driveArrival?.expectedSeconds ?? null}
           driveWindow={driveWindow}
           driveBufferNote={driveBufferNote}
-          driveTotalMinutes={driveTripEstimate.expectedDurationMinutes}
+          driveTotalMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
+          driveLeaveSeconds={arriveByActive && drivePlan ? drivePlan.leaveBySeconds : null}
         >
           <>
             {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
