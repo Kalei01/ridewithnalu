@@ -10,6 +10,7 @@ type TransitOption = {
   arrive_seconds: number;
   total_minutes: number;
 };
+// Presentation-only domain: decision data stays owned by the route orchestration layer.
 type Confidence = "high" | "moderate" | "low";
 
 export function VerdictDomain({
