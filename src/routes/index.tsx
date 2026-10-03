@@ -2996,6 +2996,17 @@ function Index() {
       : null;
   const previousDecisionSnapshot =
     decisionHistoryRef.current?.key === decisionKey ? decisionHistoryRef.current.snapshot : null;
+  // ---- Outdoor conditions --------------------------------------------------
+  // Every moment of this trip spent outside: where it happens, when, how long.
+  const homePoint =
+    setup.homeLat !== null && setup.homeLon !== null
+      ? { lat: setup.homeLat, lon: setup.homeLon }
+      : null;
+  const destPoint =
+    setup.destLat !== null && setup.destLon !== null
+      ? { lat: setup.destLat, lon: setup.destLon }
+      : null;
+
   const centralTrip = useMemo(() => {
     if (
       setup.homeLat === null ||
@@ -3141,6 +3152,109 @@ function Index() {
             },
             supporting: null,
           };
+
+  const moments = useMemo<OutdoorMoment[]>(() => {
+    if (!best) return [];
+    const originPoint = reverseTrip ? destPoint : homePoint;
+    const arrivalPoint = reverseTrip ? homePoint : destPoint;
+    const railLegHere = best.legs.find((leg) => leg.kind === "rail") ?? null;
+    const boardStation = stationPoint(railLegHere?.from);
+    const transferStation = stationPoint(railLegHere?.to);
+    const list: OutdoorMoment[] = [];
+
+    best.legs.forEach((leg, legIndex) => {
+      const previous = best.legs[legIndex - 1];
+      const start = previous?.arrive_seconds ?? best.leave_by_seconds;
+      const waitMinutes = Math.max(0, Math.round(((leg.depart_seconds ?? start) - start) / 60));
+      const offset = Math.max(0, Math.round(((leg.depart_seconds ?? start) - nowSeconds) / 60));
+
+      if (leg.kind === "access" && leg.mode === "bus" && originPoint) {
+        list.push({
+          id: `wait-feeder-${legIndex}`,
+          legIndex,
+          kind: "wait-feeder",
+          ...originPoint,
+          offsetMinutes: offset,
+          outdoorMinutes: waitMinutes,
+        });
+        return;
+      }
+      if (leg.kind === "access" && leg.mode === "drive" && boardStation) {
+        list.push({
+          id: `drive-station-${legIndex}`,
+          legIndex,
+          kind: "drive-station",
+          ...boardStation,
+          offsetMinutes: Math.max(0, Math.round(((leg.arrive_seconds ?? start) - nowSeconds) / 60)),
+          outdoorMinutes: 0,
+          label: titleCase(leg.to) || stationLabel(setup.homeStopName),
+        });
+        return;
+      }
+      if (leg.kind === "rail" && boardStation) {
+        list.push({
+          id: `platform-${legIndex}`,
+          legIndex,
+          kind: "platform",
+          ...boardStation,
+          offsetMinutes: offset,
+          outdoorMinutes: waitMinutes,
+        });
+        return;
+      }
+      if (leg.mode === "walk" && leg.kind === "connect" && transferStation) {
+        list.push({
+          id: `transfer-walk-${legIndex}`,
+          legIndex,
+          kind: "transfer-walk",
+          ...transferStation,
+          offsetMinutes: offset,
+          outdoorMinutes: leg.minutes ?? 0,
+          minutes: leg.minutes ?? 0,
+        });
+        return;
+      }
+      if (leg.mode === "bus" && leg.kind !== "access") {
+        const point = transferStation ?? originPoint;
+        if (!point) return;
+        list.push({
+          id: `wait-connect-${legIndex}`,
+          legIndex,
+          kind: "wait-connect",
+          ...point,
+          offsetMinutes: offset,
+          outdoorMinutes: waitMinutes,
+          label: leg.route_short ?? null,
+        });
+        return;
+      }
+      if (leg.mode === "walk" && leg.kind === "egress" && arrivalPoint) {
+        list.push({
+          id: `final-walk-${legIndex}`,
+          legIndex,
+          kind: "final-walk",
+          ...arrivalPoint,
+          offsetMinutes: offset,
+          outdoorMinutes: leg.minutes ?? 0,
+          minutes: leg.minutes ?? 0,
+        });
+      }
+    });
+
+    // The drive itself: the corridor between the two ends of the trip.
+    if (originPoint && arrivalPoint) {
+      list.push({
+        id: "drive-route",
+        legIndex: -2,
+        kind: "drive-route",
+        lat: (originPoint.lat + arrivalPoint.lat) / 2,
+        lon: (originPoint.lon + arrivalPoint.lon) / 2,
+        offsetMinutes: 0,
+        outdoorMinutes: 0,
+      });
+    }
+    return list;
+  }, [best, reverseTrip, homePoint, destPoint, nowSeconds, stationPoint, setup.homeStopName]);
 
   const fetchWeather = useServerFn(outdoorConditions);
   // Runs alongside the plan, never in front of it: the trip renders regardless.
@@ -3598,16 +3712,7 @@ function Index() {
     return rows;
   }, [best, arrivingHome, setup.destinationName, setup.destinationAddress]);
 
-  // ---- Outdoor conditions --------------------------------------------------
-  // Every moment of this trip spent outside: where it happens, when, how long.
-  const homePoint =
-    setup.homeLat !== null && setup.homeLon !== null
-      ? { lat: setup.homeLat, lon: setup.homeLon }
-      : null;
-  const destPoint =
-    setup.destLat !== null && setup.destLon !== null
-      ? { lat: setup.destLat, lon: setup.destLon }
-      : null;
+
 
   const commuteMapPoints = useMemo(() => {
     if (!best || !homePoint || !destPoint) return [];
@@ -3822,108 +3927,7 @@ function Index() {
   const driveMapPath = selectedMode === "drive" ? drive?.path : undefined;
   const driveTrafficSections = selectedMode === "drive" ? drive?.trafficSections : undefined;
 
-  const moments = useMemo<OutdoorMoment[]>(() => {
-    if (!best) return [];
-    const originPoint = reverseTrip ? destPoint : homePoint;
-    const arrivalPoint = reverseTrip ? homePoint : destPoint;
-    const railLegHere = best.legs.find((leg) => leg.kind === "rail") ?? null;
-    const boardStation = stationPoint(railLegHere?.from);
-    const transferStation = stationPoint(railLegHere?.to);
-    const list: OutdoorMoment[] = [];
 
-    best.legs.forEach((leg, legIndex) => {
-      const previous = best.legs[legIndex - 1];
-      const start = previous?.arrive_seconds ?? best.leave_by_seconds;
-      const waitMinutes = Math.max(0, Math.round(((leg.depart_seconds ?? start) - start) / 60));
-      const offset = Math.max(0, Math.round(((leg.depart_seconds ?? start) - nowSeconds) / 60));
-
-      if (leg.kind === "access" && leg.mode === "bus" && originPoint) {
-        list.push({
-          id: `wait-feeder-${legIndex}`,
-          legIndex,
-          kind: "wait-feeder",
-          ...originPoint,
-          offsetMinutes: offset,
-          outdoorMinutes: waitMinutes,
-        });
-        return;
-      }
-      if (leg.kind === "access" && leg.mode === "drive" && boardStation) {
-        list.push({
-          id: `drive-station-${legIndex}`,
-          legIndex,
-          kind: "drive-station",
-          ...boardStation,
-          offsetMinutes: Math.max(0, Math.round(((leg.arrive_seconds ?? start) - nowSeconds) / 60)),
-          outdoorMinutes: 0,
-          label: titleCase(leg.to) || stationLabel(setup.homeStopName),
-        });
-        return;
-      }
-      if (leg.kind === "rail" && boardStation) {
-        list.push({
-          id: `platform-${legIndex}`,
-          legIndex,
-          kind: "platform",
-          ...boardStation,
-          offsetMinutes: offset,
-          outdoorMinutes: waitMinutes,
-        });
-        return;
-      }
-      if (leg.mode === "walk" && leg.kind === "connect" && transferStation) {
-        list.push({
-          id: `transfer-walk-${legIndex}`,
-          legIndex,
-          kind: "transfer-walk",
-          ...transferStation,
-          offsetMinutes: offset,
-          outdoorMinutes: leg.minutes ?? 0,
-          minutes: leg.minutes ?? 0,
-        });
-        return;
-      }
-      if (leg.mode === "bus" && leg.kind !== "access") {
-        const point = transferStation ?? originPoint;
-        if (!point) return;
-        list.push({
-          id: `wait-connect-${legIndex}`,
-          legIndex,
-          kind: "wait-connect",
-          ...point,
-          offsetMinutes: offset,
-          outdoorMinutes: waitMinutes,
-          label: leg.route_short ?? null,
-        });
-        return;
-      }
-      if (leg.mode === "walk" && leg.kind === "egress" && arrivalPoint) {
-        list.push({
-          id: `final-walk-${legIndex}`,
-          legIndex,
-          kind: "final-walk",
-          ...arrivalPoint,
-          offsetMinutes: offset,
-          outdoorMinutes: leg.minutes ?? 0,
-          minutes: leg.minutes ?? 0,
-        });
-      }
-    });
-
-    // The drive itself: the corridor between the two ends of the trip.
-    if (originPoint && arrivalPoint) {
-      list.push({
-        id: "drive-route",
-        legIndex: -2,
-        kind: "drive-route",
-        lat: (originPoint.lat + arrivalPoint.lat) / 2,
-        lon: (originPoint.lon + arrivalPoint.lon) / 2,
-        offsetMinutes: 0,
-        outdoorMinutes: 0,
-      });
-    }
-    return list;
-  }, [best, reverseTrip, homePoint, destPoint, nowSeconds, stationPoint, setup.homeStopName]);
 
   // Browse mode gets one line only, read at wherever the rider is standing now.
   const { data: browseWeather } = useQuery({
