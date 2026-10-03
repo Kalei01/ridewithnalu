@@ -589,3 +589,5 @@ export function naluPulseTagline(
 ): string {
   return naluCommuteLine("normal", date, { ...context, period });
 }
+
+// Lovable preview rebuild marker: keep source module stable while forcing a fresh preview artifact.
