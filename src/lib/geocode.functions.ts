@@ -82,7 +82,7 @@ async function tomtomSearch(
 
 /** Geocodes free text inside Oahu, preferring named places for non-address queries. */
 export const geocodeAddress = createServerFn({ method: "POST" })
-  .inputValidator((input) => schema.parse(input))
+  .validator((input) => schema.parse(input))
   .handler(async ({ data }) => {
     const key = TOMTOM_KEY ?? "";
     const addressQuery = looksLikeStreetAddress(data.address);
@@ -189,7 +189,7 @@ function autocompleteSearchQuery(query: string) {
   return normalized;
 }
 export const searchPlaces = createServerFn({ method: "POST" })
-  .inputValidator((input) => searchSchema.parse(input))
+  .validator((input) => searchSchema.parse(input))
   .handler(async ({ data }): Promise<{ results: PlaceSuggestion[] }> => {
     const key = TOMTOM_KEY ?? "";
 
@@ -316,7 +316,7 @@ const reverseSchema = z.object({ lat: z.number(), lon: z.number() });
  * confirm the exact spot the phone detected before saving it.
  */
 export const reverseGeocode = createServerFn({ method: "POST" })
-  .inputValidator((input) => reverseSchema.parse(input))
+  .validator((input) => reverseSchema.parse(input))
   .handler(async ({ data }): Promise<{ found: boolean; label: string | null }> => {
     const key = TOMTOM_KEY ?? "";
     const requestKey = `${data.lat.toFixed(5)},${data.lon.toFixed(5)}`;
