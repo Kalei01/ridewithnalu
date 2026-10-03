@@ -329,11 +329,11 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
       return `Driving saves ${saved} over transit right now${reason}.`;
     }
 
-    const road = incidentRoad(incident);
+    const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
     const reason = road
-      ? ` — Skyline avoids the ${road} slowdown`
-      : incident
-        ? " — rail + bus avoids the road slowdown"
+      ? ` — transit avoids the ${road} slowdown`
+      : incident || roadwork
+        ? " — transit avoids the road slowdown"
         : "";
     return `Transit saves ${saved} over driving right now${reason}.`;
   }
@@ -341,7 +341,7 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
   if (drive !== null && transit !== null && delta !== null && delta <= 8) {
     const close = formatMinutes(delta);
     return mode === "transit" || mode === "rail"
-      ? `Times are neck-and-neck (~${close} apart). Take Skyline/transit if you want to skip driving stress.`
+      ? `Times are neck-and-neck (~${close} apart). Take transit if you want to skip driving stress.`
       : mode === "drive"
         ? `Times are neck-and-neck (~${close} apart). Take the car if you want the simpler, flexible run.`
         : `Times are neck-and-neck (~${close} apart). Either works — pick based on whether you want Skyline or the car.`;
