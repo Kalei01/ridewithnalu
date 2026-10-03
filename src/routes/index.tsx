@@ -3555,6 +3555,11 @@ function Index() {
             ? "The estimated arrival times are close enough that neither option has a clear time advantage right now."
             : activeDecision.primary.text;
 
+  const verdictConfidence: "high" | "moderate" | "low" =
+    activeDecision.confidence === "high" || activeDecision.confidence === "moderate" || activeDecision.confidence === "low"
+      ? activeDecision.confidence
+      : "low";
+
   const decisionSignals = useMemo(() => {
     const signals: Array<{
       label: string;
@@ -5239,7 +5244,7 @@ function Index() {
           transitLabel={transitLabel}
           optionsLoading={optionsLoading}
           driveLoading={driveLoading}
-          confidence={activeDecision.confidence === "medium" ? "moderate" : activeDecision.confidence}
+          confidence={verdictConfidence}
           differenceMinutes={activeDecision.differenceMinutes}
           arriveByActive={arriveByActive}
           driveMinutes={driveTripEstimate.expectedDurationMinutes}
