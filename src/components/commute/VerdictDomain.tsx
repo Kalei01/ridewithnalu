@@ -15,7 +15,6 @@ type Confidence = "high" | "moderate" | "low";
 export function VerdictDomain({
   configured,
   commitment,
-  naluHeroLine,
   verdict,
   transitStandaloneAvailable,
   transitLabel,
@@ -39,7 +38,6 @@ export function VerdictDomain({
 }: {
   configured: boolean;
   commitment: boolean;
-  naluHeroLine: string | null | undefined;
   verdict: "drive" | "transit" | "same" | "none" | "uncertain";
   transitStandaloneAvailable: boolean;
   transitLabel: string;
