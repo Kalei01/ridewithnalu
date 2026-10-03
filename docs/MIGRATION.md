@@ -8,7 +8,7 @@ checked on the new host.
 ## 1. Accounts to create (all free tiers)
 
 - [ ] Cloudflare (hosting, scheduled jobs)
-- [ ] Supabase (database + sign-in), unless project `kkvpznrahtldzpqjvbhj` is already yours
+- [x] Supabase (database + sign-in): new project `nsoameosqsnumjivkmyv` (`https://nsoameosqsnumjivkmyv.supabase.co`). The old project `kkvpznrahtldzpqjvbhj` is Lovable-managed
 - [ ] Firebase project with a service-account key (push notifications)
 - [ ] Mapbox, PostHog: only if the current tokens come from Lovable-managed accounts
 - [ ] OpenAI API key (Nalu AI), if not already set
@@ -64,6 +64,7 @@ Defined in Lovable today, not in this repo. Fill in from Lovable's handoff:
 |---|---|---|
 | Push dispatch | `/api/public/push-dispatch` | _from handoff_ |
 | GTFS import | `/api/public/import-gtfs` | _from handoff_ |
+| Database cleanup | `select public.nalu_maintenance()` via pg_cron (migration 0037 enables pg_cron but does not schedule it) | _from handoff_ |
 
 Both expect `Authorization: Bearer <LOVABLE_CRON_SECRET>`.
 
