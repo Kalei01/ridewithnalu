@@ -10,7 +10,7 @@ type ExpiryData = {
 };
 
 /** The expiry date is read from the loaded feed's calendar, never hardcoded. */
-function useDataExpiry() {
+export function useDataExpiry() {
   const { data } = useQuery({
     queryKey: ["gtfs-expiry"],
     staleTime: 12 * 60 * 60_000,
@@ -27,7 +27,7 @@ function useDataExpiry() {
   return (data ?? null) as ExpiryData | null;
 }
 
-function expiryLabel(iso: string) {
+export function expiryLabel(iso: string) {
   const [year, month, day] = iso.split("-").map(Number);
   return new Date(year!, (month ?? 1) - 1, day ?? 1).toLocaleDateString("en-US", {
     month: "short",
