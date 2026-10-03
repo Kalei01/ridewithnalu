@@ -1876,28 +1876,86 @@ function Index() {
           // when its door-to-door bus/rail chain cannot be formed, while the
           // configured home station + destination stop has a valid Skyline trip.
           try {
-            const { data, error } = await supabase.rpc("plan_outbound", {
-              p_origin_lat: tripDirection.from.lat as number,
-              p_origin_lon: tripDirection.from.lon as number,
-              p_station: setup.homeStopId,
-              p_dest_stop: setup.destStopId,
-              p_allow_drive: driveAvailable,
-              p_after_seconds: cursor,
-              p_limit: planMode === "arrive-by" ? 8 : 4,
-              p_dest_lat: tripDirection.to.lat as number,
-              p_dest_lon: tripDirection.to.lon as number,
-            });
-            if (error) {
-              recordTransitRpcError("plan_outbound", error);
+            // Do not treat the saved home station as a hard routing constraint.
+            // If the generalized door-to-door planner misses, compare a small set
+            // of nearby Skyline boarding stations instead. This is especially
+            // important for park-and-ride: driving a few minutes to East Kapolei
+            // just to ride one short stop to UH West can be worse than using the
+            // next station or simply taking the drive recommendation.
+            let candidateStations: RailStation[] = [];
+            const stationResult = await supabase.rpc("rail_stations");
+            if (!stationResult.error) {
+              candidateStations = ((stationResult.data ?? []) as RailStation[])
+                .filter(
+                  (station) =>
+                    station.stop_lat !== null &&
+                    station.stop_lon !== null &&
+                    Number.isFinite(Number(station.stop_lat)) &&
+                    Number.isFinite(Number(station.stop_lon)),
+                )
+                .sort((a, b) => {
+                  const aLat = Number(a.stop_lat);
+                  const aLon = Number(a.stop_lon);
+                  const bLat = Number(b.stop_lat);
+                  const bLon = Number(b.stop_lon);
+                  const origin = tripDirection.from as Coords;
+                  const aLatDelta = origin.lat - aLat;
+                  const aLonDelta =
+                    (origin.lon - aLon) * Math.cos((origin.lat * Math.PI) / 180);
+                  const bLatDelta = origin.lat - bLat;
+                  const bLonDelta =
+                    (origin.lon - bLon) * Math.cos((origin.lat * Math.PI) / 180);
+                  return (
+                    aLatDelta * aLatDelta +
+                    aLonDelta * aLonDelta -
+                    (bLatDelta * bLatDelta + bLonDelta * bLonDelta)
+                  );
+                });
             } else {
-              const outboundOptions = (data ?? []).map((row) => ({
-                ...row,
-                legs: row.legs as unknown as Leg[],
-              })) as Option[];
-              if (outboundOptions.length) return mergeTransitOptions(outboundOptions, primaryTransit);
+              recordTransitRpcError("rail_stations_fallback", stationResult.error);
+            }
+
+            const preferredIds = [
+              setup.homeStopId,
+              ...candidateStations.map((station) => station.stop_id),
+            ].filter(Boolean);
+            const uniqueIds = [...new Set(preferredIds)].slice(0, 4);
+
+            const outboundGroups = await Promise.all(
+              uniqueIds.map(async (stationId) => {
+                try {
+                  const { data, error } = await supabase.rpc("plan_outbound", {
+                    p_origin_lat: tripDirection.from.lat as number,
+                    p_origin_lon: tripDirection.from.lon as number,
+                    p_station: stationId,
+                    p_dest_stop: setup.destStopId,
+                    p_allow_drive: driveAvailable,
+                    p_after_seconds: cursor,
+                    p_limit: planMode === "arrive-by" ? 8 : 4,
+                    p_dest_lat: tripDirection.to.lat as number,
+                    p_dest_lon: tripDirection.to.lon as number,
+                  });
+                  if (error) {
+                    recordTransitRpcError(`plan_outbound:${stationId}`, error);
+                    return [];
+                  }
+                  return (data ?? []).map((row) => ({
+                    ...row,
+                    legs: row.legs as unknown as Leg[],
+                  })) as Option[];
+                } catch (error) {
+                  recordTransitRpcError(`plan_outbound:${stationId}`, error);
+                  return [];
+                }
+              }),
+            );
+
+            const outboundOptions = mergeTransitOptions(...outboundGroups);
+            if (outboundOptions.length) {
+              return mergeTransitOptions(outboundOptions, primaryTransit);
             }
           } catch (error) {
-            recordTransitRpcError("plan_outbound", error);
+            recordTransitRpcError("plan_outbound_candidates", error);
           }
         }
 
