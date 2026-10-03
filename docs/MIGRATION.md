@@ -49,6 +49,16 @@ No longer needed once self-hosted: `LOVABLE_API_KEY`, `FIREBASE_MESSAGING_API_KE
 - [ ] Run the GTFS import once (`POST /api/public/import-gtfs` with `Authorization: Bearer <LOVABLE_CRON_SECRET>`; it resumes across calls until done). Repeat whenever TheBus publishes a new feed
 - [ ] Recreate any extensions/settings Lovable's handoff lists (pg_cron, pg_net, storage, edge functions)
 
+Notes from a local rehearsal (all 50 files, filename order, on an empty Postgres):
+- Apply in **filename order**, not `meta/_journal.json` order. The journal lists only 45
+  of the 50 files. 0047 redefines every function the out-of-order files touch, so filename
+  order ends in the right state.
+- 0045 and 0047 granted `diagnose_transit_general` with 6 argument types, but the function
+  takes 7, so both files failed. Fixed. Lovable's copy of this function may be stale.
+- `directional_dest_stop` is called by the app but is defined in no migration. It exists
+  only in Lovable's database. Take its definition from Lovable's schema export.
+- No sign-up trigger is needed: the app creates `profiles` rows itself.
+
 ## 5. Sign-in
 
 - [ ] Supabase → Authentication → URL configuration: site URL + redirect URLs for the new domain

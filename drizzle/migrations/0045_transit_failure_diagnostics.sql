@@ -61,5 +61,5 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
   END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.diagnose_transit_general(numeric,numeric,numeric,numeric,integer,integer)
+GRANT EXECUTE ON FUNCTION public.diagnose_transit_general(numeric,numeric,numeric,numeric,integer,integer,integer)
   TO anon, authenticated, service_role;
