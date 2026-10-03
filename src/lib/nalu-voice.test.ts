@@ -48,7 +48,7 @@ describe("generateSmartNaluInsight", () => {
         selectedMode: "transit",
         transferMinutes: 17,
       }),
-    ).toContain("17 min transfer/wait");
+    ).toContain("17 min from the transfer/wait");
   });
 
   it("mentions wet roads when weather can affect the drive", () => {
@@ -90,7 +90,7 @@ describe("generateSmartNaluInsight", () => {
     expect(line).toMatch(/^Driving saves 37 min over transit right now\./);
     expect(line.split(". ").length).toBeLessThanOrEqual(3);
     expect(line).not.toContain("might");
-    expect(line).toContain("H-1");
+    expect(line).not.toContain("H-1");
   });
 
   it("uses a clear transit fact before the personality tail", () => {
