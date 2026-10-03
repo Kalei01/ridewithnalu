@@ -273,6 +273,120 @@ function formatMinutes(minutes: number): string {
   return Math.round(Math.abs(minutes)) === 1 ? "1 min" : `${Math.round(Math.abs(minutes))} min`;
 }
 
+function smartVariantSeed(context: SmartNaluContext): number {
+  const text = [
+    context.selectedMode,
+    context.decision,
+    context.direction,
+    context.trafficLevel,
+    incidentRoad(majorIncidentFor(context)),
+    cleanRoadName(asRoadworkList(context.activeRoadwork).find((item) => item.active !== false)?.road),
+    context.driveMinutes,
+    context.transitMinutes,
+    context.transferMinutes,
+    context.waitMinutes,
+    context.walkMinutes,
+  ]
+    .filter((value) => value !== null && value !== undefined)
+    .join("|");
+
+  let hash = 0;
+  for (const char of text) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  return Math.abs(hash);
+}
+
+function pickSmart(lines: string[], context: SmartNaluContext, offset = 0): string {
+  if (lines.length === 0) return "";
+  return lines[(smartVariantSeed(context) + offset) % lines.length] ?? lines[0] ?? "";
+}
+
+const DECISIVE_DRIVE_TAILS = [
+  "H-1 is busy, but the car still has the cleanest shot.",
+  "The roads are doing their thing, and the car still comes out ahead.",
+  "Not exactly a scenic drive, but the numbers are clear.",
+  "Traffic can have its moment. You’re still getting there sooner by car.",
+  "The freeway is making you work for it, but the time savings are real.",
+  "That’s enough time to make the traffic worth tolerating.",
+  "H-1 may be loud today, but the stopwatch says drive.",
+  "The drive wins this round without much drama.",
+  "Not a perfect road day — just a better drive time.",
+  "The car gets the nod on time, even with the usual freeway nonsense.",
+  "Traffic is present. So is the time advantage.",
+  "The road may be busy, but it’s still the faster play.",
+];
+
+const DECISIVE_TRANSIT_TAILS = [
+  "Skyline + bus gets around the road mess and keeps the trip moving.",
+  "H-1 can keep the drama — transit has the better time.",
+  "That’s a big enough gap to let someone else do the driving.",
+  "The road is taking the scenic route today. Transit isn’t.",
+  "You’re giving up the steering wheel and getting there sooner. Not bad.",
+  "This is one of those days when transit earns its keep.",
+  "The freeway has a problem; your commute doesn’t have to.",
+  "Let the bus and Skyline deal with the road situation.",
+  "That’s a real time win, not a rounding error.",
+  "The transit combo is doing some work today.",
+  "The car has traffic. Transit has the clock.",
+  "This is a pretty clean case for letting transit handle the grind.",
+];
+
+const CLOSE_CALL_TAILS = [
+  "At that point, choose between traffic and transfers.",
+  "That’s close enough that comfort can make the call.",
+  "No heroics needed — pick the option you’d rather deal with.",
+  "Five-ish minutes is basically a commute coin flip.",
+  "The stopwatch isn’t giving us much to argue about.",
+  "This is where personal preference gets a vote.",
+  "Either way, you’re in roughly the same ballpark.",
+  "No need to overthink a gap this small.",
+  "Traffic or transfers — pick your adventure.",
+  "That gap is small enough to choose based on how you feel about the trip.",
+];
+
+const INCIDENT_TAILS = [
+  "Worth knowing before you roll.",
+  "That’s the kind of thing that can change the drive quickly.",
+  "A heads-up now is better than a surprise at the ramp.",
+  "So yeah, that one is worth keeping an eye on.",
+  "Consider that your advance warning.",
+  "That’s not a detail I’d ignore on the way out.",
+  "Better to know about it before you hit the road.",
+  "That’s the traffic version of a yellow light.",
+];
+
+const TRANSFER_TAILS = [
+  "The ride itself may be fine; the handoff is where the time goes.",
+  "The transfer is doing a little too much of the heavy lifting today.",
+  "That’s a decent chunk of time just waiting for the next piece.",
+  "The trip is moving — eventually. The handoff is the slow part.",
+  "The extra minutes are coming from the connection, not the ride.",
+  "That transfer is the part to keep an eye on.",
+  "The timetable has a little patience test built into it.",
+  "The connection is where this trip starts to lose its shine.",
+  "The ride may be faster, but the transfer is eating into it.",
+  "That’s enough waiting to make the car look tempting.",
+];
+
+const WEATHER_TAILS = [
+  "No need to race the rain.",
+  "Give yourself a little extra breathing room.",
+  "Wet roads are not the time to squeeze every minute.",
+  "A few extra minutes beats white-knuckling the drive.",
+  "Let the weather have its five minutes; you don’t need to.",
+  "The goal is getting there, not beating the rain by thirty seconds.",
+  "A little cushion goes a long way on a wet H-1.",
+  "Keep it smooth — the roads don’t need extra excitement.",
+];
+
+const FALLBACK_TAILS = [
+  "I’ll keep the call tied to the numbers.",
+  "No guessing just to make the sentence sound confident.",
+  "When the data gets clearer, the call gets clearer.",
+  "I’d rather give you a real answer than a made-up one.",
+  "Numbers first. Nonsense stays in the trunk.",
+];
+
+
 function modeLabel(mode: SmartNaluContext["selectedMode"]): "driving" | "transit" | "rail" {
   return mode === "transit" || mode === "rail" ? "transit" : "driving";
 }
@@ -316,60 +430,75 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
   const incident = majorIncidentFor(context);
   const roadwork = asRoadworkList(context.activeRoadwork).find((item) => item.active !== false);
   const weather = weatherImpact(context);
+  const seed = smartVariantSeed(context);
 
+  // The first sentence always carries the factual commute call. Personality
+  // stays in the second sentence so humor can never obscure the recommendation.
   if (drive !== null && transit !== null && delta !== null && delta > 20 && winner) {
     const saved = formatMinutes(delta);
+
     if (winner === "drive") {
-      const road = incidentRoad(incident);
-      const reason = road
-        ? ` — ${road} is still moving despite the traffic`
+      const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
+      const fact = road
+        ? `Driving saves ${saved} over transit right now — ${road} is still the faster play.`
+        : `Driving saves ${saved} over transit right now.`;
+      const tail = road
+        ? pickSmart(DECISIVE_DRIVE_TAILS, context, 3)
         : context.trafficLevel === "heavy" || context.trafficLevel === "severe"
-          ? " — the drive still has the edge despite the volume"
-          : "";
-      return `Driving saves ${saved} over transit right now${reason}.`;
+          ? pickSmart(DECISIVE_DRIVE_TAILS, context, 7)
+          : pickSmart(DECISIVE_DRIVE_TAILS, context);
+      return `${fact} ${tail}`;
     }
 
     const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
-    const reason = road
-      ? ` — transit avoids the ${road} slowdown`
-      : incident || roadwork
-        ? " — transit avoids the road slowdown"
-        : "";
-    return `Transit saves ${saved} over driving right now${reason}.`;
+    const fact = road
+      ? `Transit saves ${saved} over driving right now — it avoids the ${road} slowdown.`
+      : `Transit saves ${saved} over driving right now.`;
+    return `${fact} ${pickSmart(DECISIVE_TRANSIT_TAILS, context, seed % 5)}`;
   }
 
   if (drive !== null && transit !== null && delta !== null && delta <= 8) {
     const close = formatMinutes(delta);
-    return mode === "transit" || mode === "rail"
-      ? `Times are neck-and-neck (~${close} apart). Take transit if you want to skip driving stress.`
-      : mode === "drive"
-        ? `Times are neck-and-neck (~${close} apart). Take the car if you want the simpler, flexible run.`
-        : `Times are neck-and-neck (~${close} apart). Either works — pick based on whether you want Skyline or the car.`;
+    const fact = `Times are neck-and-neck (~${close} apart).`;
+    const preference =
+      mode === "transit" || mode === "rail"
+        ? "Take transit if you want to skip driving stress."
+        : mode === "drive"
+          ? "Take the car if you want the simpler, flexible run."
+          : "Either works — pick based on whether you want Skyline or the car.";
+    return `${fact} ${preference} ${pickSmart(CLOSE_CALL_TAILS, context)}`;
   }
 
   if (incident || roadwork) {
     const road = incidentRoad(incident) ?? cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
     const closureWord = roadwork || /closure|closed/i.test(incident?.description ?? "") ? "closure" : "incident";
-    if (road) {
-      return `Heads-up: ${road} has a ${closureWord} affecting this route right now.`;
-    }
-    return `Heads-up: a major road ${closureWord} is affecting this route right now.`;
+    const fact = road
+      ? `Heads-up: ${road} has a ${closureWord} affecting this route right now.`
+      : `Heads-up: a major road ${closureWord} is affecting this route right now.`;
+    return `${fact} ${pickSmart(INCIDENT_TAILS, context)}`;
   }
 
   if (transferFriction(context) && transit !== null) {
     const friction = context.transferMinutes ?? context.waitMinutes ?? context.walkMinutes ?? 0;
-    return `Transit is picking up some extra time from the ${formatMinutes(friction)} transfer/wait.`;
+    return `Transit is picking up ${formatMinutes(friction)} from the transfer/wait. ${pickSmart(TRANSFER_TAILS, context)}`;
   }
 
   if (weather !== "none") {
-    return weather === "meaningful"
-      ? "Wet roads can make the drive less predictable today — give yourself a little breathing room."
+    const fact = weather === "meaningful"
+      ? "Wet roads can make the drive less predictable today."
       : "Weather may add a little variability to the drive today.";
+    return `${fact} ${pickSmart(WEATHER_TAILS, context)}`;
   }
 
-  if (winner === "transit") return "Transit is looking like the cleaner run on the numbers.";
-  if (winner === "drive") return "Driving is looking like the cleaner run on the numbers.";
-  return "Nalu checked the trip. I’ll call it when the numbers are clear.";
+  if (winner === "transit") {
+    return `Transit is looking like the cleaner run on the numbers. ${pickSmart(DECISIVE_TRANSIT_TAILS, context)}`;
+  }
+
+  if (winner === "drive") {
+    return `Driving is looking like the cleaner run on the numbers. ${pickSmart(DECISIVE_DRIVE_TAILS, context)}`;
+  }
+
+  return `Nalu checked the trip. ${pickSmart(FALLBACK_TAILS, context)}`;
 }
 
 export function naluCommuteLine(
