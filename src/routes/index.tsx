@@ -108,6 +108,7 @@ import { createClientRateWindow } from "@/lib/client-rate-limit";
 import { decideArrival, type DecisionState } from "@/lib/decision/commute-decision";
 import { createNaluVerdict } from "@/lib/intelligence/verdict-engine";
 import { naluHeroVerdictLine } from "@/lib/nalu-voice";
+import { NaluPersonalityStrip, WaveMark } from "@/components/commute/NaluPersonalityStrip";
 import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
@@ -5239,14 +5240,14 @@ function Index() {
           transitLabel={transitLabel}
           optionsLoading={optionsLoading}
           driveLoading={driveLoading}
-          confidence={activeDecision.confidence}
+          confidence={activeDecision.confidence === "medium" ? "moderate" : activeDecision.confidence}
           differenceMinutes={activeDecision.differenceMinutes}
           arriveByActive={arriveByActive}
           driveMinutes={driveTripEstimate.expectedDurationMinutes}
           driveRange={driveRange}
           transitMinutes={transitTripEstimate.expectedDurationMinutes}
           transitRange={transitRange}
-          best={best}
+          best={best ?? null}
           transitWindow={transitWindow}
           driveAvailable={Boolean(drive && driveRange && driveArrival)}
           driveArrivalSeconds={driveTripEstimate.arrivalTime ?? driveArrival?.expectedSeconds ?? null}
