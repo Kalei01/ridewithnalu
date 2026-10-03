@@ -58,7 +58,7 @@ export function NaluPersonalityStrip({
   trafficLevel: "light" | "moderate" | "heavy" | "severe";
   driveMinutes?: number | null;
   transitMinutes?: number | null;
-  timeDelta?: number | null;
+  timeDelta?: number | null | undefined;
   incidents?: SmartNaluContext["incidents"];
   activeRoadwork?: SmartNaluContext["activeRoadwork"];
   weather?: SmartNaluContext["weather"];
