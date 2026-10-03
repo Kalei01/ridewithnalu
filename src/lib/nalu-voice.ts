@@ -219,7 +219,7 @@ const DECISIVE_TRANSIT_TAILS = [
   "H-1 can keep the drama — transit has the better time.",
   "That’s a big enough gap to let someone else do the driving.",
   "The road is taking the scenic route today. Transit isn’t.",
-  "You’re giving up the steering wheel and getting there sooner. Not bad.",
+  "You’re giving up the steering wheel and getting there sooner — not bad.",
   "This is one of those days when transit earns its keep.",
   "The freeway has a problem; your commute doesn’t have to.",
   "Let the bus and Skyline deal with the road situation.",
