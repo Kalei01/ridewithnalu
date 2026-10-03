@@ -3142,6 +3142,7 @@ function Index() {
     configured &&
     !optionsLoading &&
     !driveLoading &&
+    !driveTrafficUnavailable &&
     (verdict === "drive" || verdict === "transit" || verdict === "same")
       ? naluHeroVerdictLine(
           {
@@ -3154,6 +3155,11 @@ function Index() {
           now,
         )
       : "";
+  const driveTrafficUnavailable = driveTripEstimate.availability === "data-error";
+  const transitStandaloneAvailable =
+    driveTrafficUnavailable &&
+    transitTripEstimate.availability === "available" &&
+    Boolean(best);
   const gap =
     !commitment && !arriveByActive && (verdict === "transit" || verdict === "drive")
       ? (activeDecision?.differenceMinutes ?? null)
@@ -5228,16 +5234,24 @@ function Index() {
               ? "Where to?"
               : verdict === "none"
                 ? "No valid option"
-                : verdict === "uncertain"
-                  ? optionsLoading || driveLoading
-                    ? "Checking…"
-                    : "Not enough current information"
-                  : verdict === "same"
+                : transitStandaloneAvailable
+                  ? "Transit trip available"
+                  : verdict === "uncertain"
+                    ? optionsLoading || driveLoading
+                      ? "Checking…"
+                      : "Not enough current information"
+                    : verdict === "same"
                     ? "Too close to call"
                     : verdict === "transit"
                       ? `Take ${transitLabel}${gap !== null ? ` · ${formatDriveMinutes(Math.abs(gap))} faster` : ""}`
                       : `Drive${gap !== null ? ` · ${formatDriveMinutes(Math.abs(gap))} faster` : ""}`}
           </h1>
+          {transitStandaloneAvailable && (
+            <p className="mt-3 text-sm font-medium text-muted-foreground">
+              Transit is available. Drive traffic unavailable, so Nalu is showing the transit trip
+              without guessing a drive time.
+            </p>
+          )}
           {configured && verdict !== "none" && !optionsLoading && !driveLoading && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span
@@ -5280,7 +5294,7 @@ function Index() {
               }}
             />
           )}
-          {verdict === "transit" && best && transitRange && (
+          {(verdict === "transit" || transitStandaloneAvailable) && best && transitRange && (
             <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
               <div className="metric-glass">
                 <p className="text-xs text-muted-foreground">Leave by</p>
