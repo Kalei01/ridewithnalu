@@ -331,7 +331,9 @@ GRANT EXECUTE ON FUNCTION public.plan_transit_general(numeric,numeric,numeric,nu
 
 
 -- Reconciliation source: drizzle/migrations/0046_phase1_transit_bus_rescue.sql
--- Phase 1 transit hardening: broaden direct bus rescue and correct walk-leg minutes.\n\n-- General transit fallback: when a rail-inclusive itinerary cannot be found,
+-- Phase 1 transit hardening: broaden direct bus rescue and correct walk-leg minutes.
+
+-- General transit fallback: when a rail-inclusive itinerary cannot be found,
 -- return a direct bus itinerary from the actual trip origin to a stop near the
 -- actual destination. Transit is a family of modes; rail is not a prerequisite.
 CREATE OR REPLACE FUNCTION public.plan_bus_direct(
