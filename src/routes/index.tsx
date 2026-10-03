@@ -107,7 +107,6 @@ import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-dire
 import { createClientRateWindow } from "@/lib/client-rate-limit";
 import { decideArrival, type DecisionState } from "@/lib/decision/commute-decision";
 import { createNaluVerdict } from "@/lib/intelligence/verdict-engine";
-import { naluHeroVerdictLine } from "@/lib/nalu-voice";
 import { NaluPersonalityStrip, WaveMark } from "@/components/commute/NaluPersonalityStrip";
 import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
 import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
@@ -3406,41 +3405,6 @@ function Index() {
     driveTrafficUnavailable &&
     transitTripEstimate.availability === "available" &&
     Boolean(best);
-  const naluHeroTrafficLevel: "light" | "moderate" | "heavy" | "severe" =
-    driveTripEstimate.majorIncident || (driveTripEstimate.trafficDelayMinutes ?? 0) >= 20
-      ? "severe"
-      : (driveTripEstimate.trafficDelayMinutes ?? 0) >= 10
-        ? "heavy"
-        : (driveTripEstimate.trafficDelayMinutes ?? 0) >= 5
-          ? "moderate"
-          : "light";
-  const naluHeroLine =
-    configured &&
-    !optionsLoading &&
-    !driveLoading &&
-    !driveTrafficUnavailable &&
-    (verdict === "drive" || verdict === "transit" || verdict === "same")
-      ? naluHeroVerdictLine(
-          {
-            decision: verdict === "drive" ? "drive" : verdict === "transit" ? "rail" : "toss_up",
-            timeDifferenceMinutes: activeDecision.differenceMinutes ?? undefined,
-            trafficLevel: naluHeroTrafficLevel,
-            trafficDelayMinutes: driveTripEstimate.trafficDelayMinutes,
-            majorIncident: driveTripEstimate.majorIncident,
-            driveMinutes: driveTripEstimate.expectedDurationMinutes,
-            transitMinutes: transitTripEstimate.expectedDurationMinutes,
-            incidents: drive?.incidents ?? [],
-            activeRoadwork: [
-              ...(drive?.hdotLaneClosures ?? []),
-              ...(drive?.hdotScheduledClosures ?? []),
-            ],
-            weather: weather?.moments ?? [],
-            transferMinutes: transitTripEstimate.transferMinutes,
-            waitMinutes: transitTripEstimate.waitMinutes,
-          },
-          now,
-        )
-      : "";
   const gap =
     !commitment && !arriveByActive && (verdict === "transit" || verdict === "drive")
       ? (activeDecision?.differenceMinutes ?? null)
@@ -5272,7 +5236,6 @@ function Index() {
         <VerdictDomain
           configured={configured}
           commitment={Boolean(commitment)}
-          naluHeroLine={naluHeroLine}
           verdict={verdict}
           transitStandaloneAvailable={transitStandaloneAvailable}
           transitLabel={transitLabel}
