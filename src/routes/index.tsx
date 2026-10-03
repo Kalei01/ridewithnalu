@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { debugLog, endDebugSession, flushDebugLogs, startDebugSession } from "@/lib/debug-log";
 import {
@@ -830,9 +830,12 @@ function Index() {
     if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
     setArriveByInput(window.localStorage.getItem(ARRIVE_BY_KEY) ?? "");
     setHydrated(true);
-    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    // Browse/inspection mode does not need a 30s root render. Keep the clock
+    // local to the page at a slower cadence; active navigation keeps its own
+    // 10s liveTick below and remains intentionally responsive.
+    const timer = window.setInterval(() => setNow(new Date()), commitment ? 30_000 : 120_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [commitment]);
 
   // Local data remains authoritative on the device. On sign-in, merge any
   // cloud copy with the guest's current places before enabling ongoing sync.
@@ -1339,7 +1342,8 @@ function Index() {
   } = useQuery({
     queryKey: ["browse-departures", browseStation?.stopId, Math.floor(scheduleAfterSeconds / 60)],
     enabled: browseActive && Boolean(browseStation?.stopId),
-    staleTime: 30_000,
+    staleTime: 120_000,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rail_departures", {
         p_home_stop: browseStation?.stopId as string,
@@ -1448,8 +1452,9 @@ function Index() {
       Math.floor(scheduleAfterSeconds / 60),
     ],
     enabled: browseActive && Boolean(browseUserPoint),
-    staleTime: 30_000,
+    staleTime: 120_000,
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const point = browseUserPoint as Coords;
       const { data, error } = await supabase.rpc("nearby_transit_stops", {
@@ -1529,7 +1534,8 @@ function Index() {
       planMode === "arrive-by" ? arriveByTarget : null,
     ],
     enabled: hydrated && transitConfigured,
-    staleTime: 60_000,
+    staleTime: 120_000,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       let selectedInboundStation = arrivalStationId;
       let fallbackChecked = false;
@@ -1784,9 +1790,17 @@ function Index() {
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null);
   useEffect(() => {
     // A locked transit trip keeps its itinerary even as fresher options arrive.
+    // In browse/inspection mode, keep a user's selected departure while it is
+    // still present in the refreshed option set. Do not let background polling
+    // collapse what they are reading.
     if (commitment?.mode === "transit") return;
+    if (
+      selectedDeparture !== null &&
+      options.some((option) => optionIdentity(option) === selectedDeparture)
+    )
+      return;
     setSelectedDeparture(null);
-  }, [inbound, earliest?.leave_by_seconds, earliest?.arrive_seconds, commitment]);
+  }, [inbound, options, selectedDeparture, commitment]);
   const liveBest =
     options.find((option) => optionIdentity(option) === selectedDeparture) ?? earliest;
   // While riding, the itinerary on screen is the one boarded — including its
@@ -1885,6 +1899,7 @@ function Index() {
         ),
       ),
     staleTime: 30 * 60_000,
+    placeholderData: keepPreviousData,
     queryFn: async (): Promise<TransitLegSequence[]> => {
       if (!best) return [];
       const sequences = await Promise.all(
@@ -1986,6 +2001,7 @@ function Index() {
     enabled: Boolean(busTarget),
     staleTime: 30_000,
     refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
     retry: false,
     queryFn: () => fetchBusArrivals({ data: busTarget as BusStopTarget }),
   });
