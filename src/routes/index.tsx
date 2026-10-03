@@ -1821,6 +1821,36 @@ function Index() {
   // never make a valid door-to-door transit search appear unavailable.
   const optionsLoading = planLoading;
   const optionsFailed = planFailed;
+  const { data: transitDiagnostic } = useQuery({
+    queryKey: [
+      "transit-diagnostic",
+      tripDirection.from.lat,
+      tripDirection.from.lon,
+      tripDirection.to.lat,
+      tripDirection.to.lon,
+      scheduleAfterSeconds,
+    ],
+    enabled:
+      hydrated &&
+      configured &&
+      !planLoading &&
+      options.length === 0 &&
+      tripDirection.from.lat !== null &&
+      tripDirection.to.lat !== null,
+    staleTime: 60_000,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("diagnose_transit_general", {
+        p_origin_lat: tripDirection.from.lat as number,
+        p_origin_lon: tripDirection.from.lon as number,
+        p_dest_lat: tripDirection.to.lat as number,
+        p_dest_lon: tripDirection.to.lon as number,
+        p_after_seconds: scheduleAfterSeconds,
+      });
+      if (error) throw error;
+      return typeof data === "string" ? data : "UNKNOWN";
+    },
+  });
 
   // Options arrive in earliest-door-arrival order. A slightly later trip is
   // available by choice, but is never silently preferred.
@@ -5708,7 +5738,19 @@ function Index() {
                 />
               ) : (
                 <p className="mt-5 text-sm text-muted-foreground">
-                  {optionsLoading ? "Building your trip…" : "No transit trip available."}
+                  {optionsLoading
+                    ? "Building your trip…"
+                    : transitDiagnostic === "NO_ACTIVE_SERVICE"
+                      ? "No active transit service is loaded for today."
+                      : transitDiagnostic === "NO_ORIGIN_STOPS"
+                        ? "Nalu can't find transit stops close enough to your start."
+                        : transitDiagnostic === "NO_DESTINATION_STOPS"
+                          ? "Nalu can't find transit stops close enough to your destination."
+                          : transitDiagnostic === "NO_REACHABLE_DEPARTURES"
+                            ? "Transit stops are present, but Nalu isn't seeing a reachable departure right now."
+                            : transitDiagnostic === "NO_VALID_ITINERARY"
+                              ? "Transit service is present, but Nalu couldn't build a complete trip yet."
+                              : "Transit trip data isn't available right now."}
                 </p>
               )}
             </div>
