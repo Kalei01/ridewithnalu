@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { stationLabel, titleCase } from "@/lib/commute-formatting";
 import type { ApproachState } from "@/lib/approach";
 
-function NavShell({
+export function NavShell({
   fullscreen,
   overlay,
   children,
@@ -29,7 +29,7 @@ function NavShell({
 
 /** Hold for 1 s to end, so a bump on the freeway can't cancel navigation. */
 
-function HoldToEndButton({
+export function HoldToEndButton({
   onEnd,
   label,
   className,
@@ -92,7 +92,7 @@ function HoldToEndButton({
 
 
 
-function ApproachBanner({
+export function ApproachBanner({
   state,
   stopsAway,
   minutesToAlight,
