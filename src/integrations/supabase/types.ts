@@ -842,7 +842,8 @@ export type Database = {
           p_origin_lat: number
           p_origin_lon: number
           p_origin_radius_m?: number
-        }
+          p_service_day_offset?: number
+          }
         Returns: {
           arrive_seconds: number
           depart_seconds: number
@@ -944,7 +945,8 @@ export type Database = {
           p_origin_lon: number
           p_origin_radius_m?: number
           p_transfer_radius_m?: number
-        }
+          p_service_day_offset?: number
+          }
         Returns: {
           arrive_seconds: number
           depart_seconds: number

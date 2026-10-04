@@ -1559,7 +1559,34 @@ function Index() {
           hint: typeof e?.hint === "string" ? e.hint : null,
         });
       };
+      // TheBus files after-midnight trips under the previous day's service
+      // (25:59 = 1:59 AM). Between midnight and 4 AM, search both days.
+      const lateNight = (cursor: number) => cursor < 4 * 3600;
+      const fromYesterday = (rows: Option[]): Option[] =>
+        rows.map((row) => ({
+          ...row,
+          leave_by_seconds: row.leave_by_seconds - 86400,
+          depart_seconds: row.depart_seconds - 86400,
+          arrive_seconds: row.arrive_seconds - 86400,
+          legs: row.legs.map((leg) => ({
+            ...leg,
+            depart_seconds: leg.depart_seconds === null ? null : leg.depart_seconds - 86400,
+            arrive_seconds: leg.arrive_seconds === null ? null : leg.arrive_seconds - 86400,
+          })),
+        }));
+
       const fetchBusRescue = async (cursor: number): Promise<Option[]> => {
+        if (lateNight(cursor)) {
+          const [today, yesterday] = await Promise.all([
+            fetchBusRescueDay(cursor, 0),
+            fetchBusRescueDay(cursor, -1),
+          ]);
+          return mergeTransitOptions(today, fromYesterday(yesterday));
+        }
+        return fetchBusRescueDay(cursor, 0);
+      };
+
+      const fetchBusRescueDay = async (cursor: number, dayOffset: number): Promise<Option[]> => {
         try {
           const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
             p_origin_lat: tripDirection.from.lat as number,
@@ -1570,6 +1597,7 @@ function Index() {
             p_limit: planMode === "arrive-by" ? 8 : 4,
             p_origin_radius_m: MAX_STOP_WALK_M,
             p_dest_radius_m: MAX_STOP_WALK_M,
+            p_service_day_offset: dayOffset,
           });
           if (busError) {
             recordTransitRpcError("plan_bus_direct", busError);
@@ -1587,6 +1615,17 @@ function Index() {
       };
 
       const fetchGeneralTransit = async (cursor: number): Promise<Option[]> => {
+        if (lateNight(cursor)) {
+          const [today, yesterday] = await Promise.all([
+            fetchGeneralTransitDay(cursor, 0),
+            fetchGeneralTransitDay(cursor, -1),
+          ]);
+          return mergeTransitOptions(today, fromYesterday(yesterday));
+        }
+        return fetchGeneralTransitDay(cursor, 0);
+      };
+
+      const fetchGeneralTransitDay = async (cursor: number, dayOffset: number): Promise<Option[]> => {
         const { data, error } = await supabase.rpc("plan_transit_general", {
           p_origin_lat: tripDirection.from.lat as number,
           p_origin_lon: tripDirection.from.lon as number,
@@ -1597,6 +1636,7 @@ function Index() {
           p_limit: planMode === "arrive-by" ? 8 : 6,
           p_origin_radius_m: MAX_STOP_WALK_M,
           p_dest_radius_m: MAX_STOP_WALK_M,
+          p_service_day_offset: dayOffset,
         });
         if (error) {
           generalTransitError = error;
