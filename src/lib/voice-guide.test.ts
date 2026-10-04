@@ -21,7 +21,7 @@ describe("VoiceGuide", () => {
     expect(g.next({ maneuver: turn, distanceM: 700 }, 0)).toMatch(/half a mile.*Fort Weaver Road/);
     expect(g.next({ maneuver: turn, distanceM: 600 }, 1000)).toBeNull();
     expect(g.next({ maneuver: turn, distanceM: 80 }, 2000)).toBeNull(); // cooldown
-    expect(g.next({ maneuver: turn, distanceM: 40 }, 3000)).toMatch(/300 feet/); // safety
+    expect(g.next({ maneuver: turn, distanceM: 40 }, 3000)).toMatch(/100 feet/); // safety, real distance
     expect(g.next({ maneuver: turn, distanceM: 30 }, 20000)).toBeNull();
   });
   it("waits for GPS to settle, stays silent while rerouting, uses freeway tiers", () => {
@@ -35,7 +35,7 @@ describe("VoiceGuide", () => {
     );
     expect(g.next({ maneuver: turn, distanceM: 1000 }, 30000, { speedMps: 27 })).toBeNull();
     expect(g.next({ maneuver: turn, distanceM: 550 }, 9000, { speedMps: 27 })).toBeNull(); // cooldown
-    expect(g.next({ maneuver: turn, distanceM: 550 }, 16000, { speedMps: 27 })).toMatch(/third of a mile/);
+    expect(g.next({ maneuver: turn, distanceM: 550 }, 16000, { speedMps: 27 })).toMatch(/quarter mile/);
     expect(g.next({ maneuver: turn, distanceM: 500 }, 40000, { speedMps: 27 })).toBeNull();
   });
   it("resets on reroute so new turns are not skipped", () => {

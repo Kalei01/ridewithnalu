@@ -338,7 +338,8 @@ const ORDER: ManeuverVoiceState[] = ["unannounced", "far_spoken", "mid_spoken", 
 export function spokenDistance(distanceM: number): string {
   const feet = distanceM * 3.281;
   if (distanceM < 305) return `In ${Math.max(100, Math.round(feet / 100) * 100)} feet`;
-  if (distanceM < 560) return "In a quarter mile";
+  // Midpoints between a quarter (402 m), half (805 m) and three quarters (1,207 m) of a mile.
+  if (distanceM < 600) return "In a quarter mile";
   if (distanceM < 1000) return "In half a mile";
   if (distanceM < 1450) return "In three quarters of a mile";
   const miles = Math.round(distanceM / 1609);
