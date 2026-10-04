@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsDeveloper, useRealTier, useTier } from "@/hooks/use-tier";
 import { DAILY_TRIP_LIMIT, ENFORCE_TIERS, FEATURE_TIER, writePreviewTier, type Tier } from "@/lib/tiers";
 import { readPushPrefs } from "@/lib/push-client";
+import { useServerFn } from "@tanstack/react-start";
+import { sendServerTestError } from "@/lib/dev.functions";
 import { REGIONS, activeRegion, switchRegion, type RegionId } from "@/lib/region";
 
 const TIERS: Array<{ value: Tier | null; label: string }> = [
@@ -21,6 +23,30 @@ export function DevPanel() {
   const { tier, previewing } = useTier();
   const [open, setOpen] = useState(false);
   const [pushLinked, setPushLinked] = useState(false);
+  const [testStatus, setTestStatus] = useState<string | null>(null);
+  const serverTest = useServerFn(sendServerTestError);
+  async function sendTestErrors() {
+    setTestStatus("Sending…");
+    const parts: string[] = [];
+    try {
+      const Sentry = await import("@sentry/react");
+      if (!Sentry.getClient()) parts.push("app: reporting is off (no DSN in this build)");
+      else {
+        Sentry.captureException(new Error("Nalu test error (app). Safe to resolve."));
+        await Sentry.flush(3000);
+        parts.push("app: sent");
+      }
+    } catch {
+      parts.push("app: failed");
+    }
+    try {
+      await serverTest();
+      parts.push("server: sent");
+    } catch {
+      parts.push("server: failed");
+    }
+    setTestStatus(parts.join(" · "));
+  }
   useEffect(() => setPushLinked(Boolean(readPushPrefs().token)), [open]);
   const { data: expiry } = useQuery({
     queryKey: ["dev-gtfs-expiry"],
@@ -58,6 +84,16 @@ export function DevPanel() {
               </button>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">Only visible on owner accounts.</p>
+
+            <p className="mt-4 text-sm font-semibold">Error reporting (Sentry)</p>
+            <button
+              type="button"
+              onClick={() => void sendTestErrors()}
+              className="mt-2 h-11 w-full rounded-lg border border-border text-sm font-semibold"
+            >
+              Send test error
+            </button>
+            {testStatus && <p className="mt-1 text-xs text-muted-foreground">{testStatus}</p>}
 
             <p className="mt-4 text-sm font-semibold">Region (test)</p>
             <div className="mt-2 grid grid-cols-2 gap-1.5">
