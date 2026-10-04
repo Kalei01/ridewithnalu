@@ -16,4 +16,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://ridewithnalu.lovable.app/sitemap.xml
+Sitemap: https://ridewithnalu.jreverio01.workers.dev/sitemap.xml

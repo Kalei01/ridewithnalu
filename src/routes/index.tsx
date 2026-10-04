@@ -166,6 +166,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { HOLO_FARES } from "@/lib/fares";
+import { InstallNaluCard } from "@/components/InstallNaluCard";
 import { MAX_STOP_WALK_M, preferLessWalking } from "@/lib/rail/walk-preference";
 import {
   AskNaluIfAvailable,
@@ -4482,6 +4483,8 @@ function Index() {
             onStart={(slot) => void quickStartSavedPlace(slot)}
             onPlacesChange={persistPlaces}
           />
+
+          <InstallNaluCard />
 
           {browseUserPoint && (
             <section

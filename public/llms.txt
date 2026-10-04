@@ -1,0 +1,18 @@
+# Nalu
+
+> Nalu is a free web app for Oʻahu, Hawaiʻi that answers one commute question: is it faster to drive or to take TheBus or Skyline rail right now, and when should you leave?
+
+You enter where you're going. Nalu compares a live-traffic driving time with TheBus and Skyline timetables (including walking and transfers) and gives one answer: drive or take transit, when to leave, and when you'll arrive. It also plans backward from an arrival time ("Arrive by") and offers turn-by-turn driving directions.
+
+- Coverage: the island of Oʻahu only.
+- Data: driving times from TomTom live traffic; bus and rail times from TheBus's official GTFS timetable, with live TheBus arrival estimates where available; weather from the National Weather Service.
+- Cost: free; no account needed. An optional free account saves places like Home and Work.
+- Limits: estimates, not guarantees. Traffic and buses can change after you leave.
+
+## Pages
+
+- [Welcome: what Nalu does](https://ridewithnalu.jreverio01.workers.dev/welcome)
+- [Oʻahu commute guide: Skyline hours, stations, fares, and drive vs. transit](https://ridewithnalu.jreverio01.workers.dev/oahu-commute)
+- [Open the app](https://ridewithnalu.jreverio01.workers.dev/)
+- [Privacy](https://ridewithnalu.jreverio01.workers.dev/privacy)
+- [Terms](https://ridewithnalu.jreverio01.workers.dev/terms)

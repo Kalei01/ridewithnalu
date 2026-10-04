@@ -33,11 +33,11 @@ function HonuMark() {
 export const Route = createFileRoute("/welcome")({
   head: () => ({
     meta: [
-      { title: "Nalu | Your Oʻahu commute, simplified" },
+      { title: "Nalu: Drive or Bus? Oʻahu Commute App for TheBus, Skyline & Traffic" },
       {
         name: "description",
         content:
-          "Nalu brings the important pieces of the Oʻahu commute together, so you know your options and when to leave.",
+          "Free Oʻahu commute app: Nalu checks live traffic, TheBus and Skyline for your trip and tells you whether to drive or ride, and when to leave.",
       },
       { name: "robots", content: "index,follow,max-image-preview:large" },
       { property: "og:type", content: "website" },
@@ -85,6 +85,26 @@ export const Route = createFileRoute("/welcome")({
               operatingSystem: "Web",
               publisher: { "@id": SITE_URL + "/#organization" },
               isAccessibleForFree: true,
+            },
+            {
+              "@type": "FAQPage",
+              mainEntity: [
+                {
+                  "@type": "Question",
+                  name: "Does Nalu replace Google Maps or Apple Maps?",
+                  acceptedAnswer: { "@type": "Answer", text: "No. Nalu answers one question: is it faster to drive or take TheBus or Skyline right now, and when should you leave. It’s built for Oʻahu." },
+                },
+                {
+                  "@type": "Question",
+                  name: "Where does the information come from?",
+                  acceptedAnswer: { "@type": "Answer", text: "Driving times come from live traffic (TomTom). Bus and Skyline times come from TheBus’s official timetable. Weather comes from the National Weather Service." },
+                },
+                {
+                  "@type": "Question",
+                  name: "How accurate is it?",
+                  acceptedAnswer: { "@type": "Answer", text: "Nalu uses the latest information it can get, but traffic and buses can change after you leave. Treat the times as a strong guide, not a guarantee." },
+                },
+              ],
             },
             {
               "@type": "WebPage",
