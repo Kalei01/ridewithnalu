@@ -221,7 +221,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Compare Skyline, TheBus, and driving for your Oʻahu commute. Know what to take and when to leave.",
+          "Ride it. Drive it. Just go. Nalu checks Oʻahu traffic, TheBus and Skyline and tells you what to take and when to leave.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Nalu" },
@@ -234,7 +234,7 @@ export const Route = createFileRoute("/")({
       { name: "twitter:title", content: "Nalu | Rail or drive on Oʻahu?" },
       {
         name: "twitter:description",
-        content: "A clear commute choice for Skyline, TheBus, and driving on Oʻahu.",
+        content: "Ride it. Drive it. Just go. The Oʻahu commute answer for TheBus, Skyline and driving.",
       },
       { name: "twitter:image", content: SITE_URL + "/social-card.png" },
     ],
@@ -4363,8 +4363,8 @@ function Index() {
                 <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
               </div>
               <div className="mt-1.5 h-px bg-border/70" />
-              <p className="mt-1 text-xs font-semibold uppercase text-muted-foreground">
-                Oʻahu commute conditions
+              <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                Ride it. Drive it. Just go.
               </p>
             </div>
             <div className="flex max-w-[65%] flex-wrap items-center justify-end gap-1">
