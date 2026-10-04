@@ -87,7 +87,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <head><HeadContent /></head>
+      <head>
+        {/* Nalu moved to Cloudflare. Send visitors of the old published address
+            (not Lovable's editor preview) to the same page on the new site. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if(location.hostname==="ridewithnalu.lovable.app"){location.replace("https://ridewithnalu.jreverio01.workers.dev"+location.pathname+location.search+location.hash)}`,
+          }}
+        />
+        <HeadContent />
+      </head>
       <body>{children}<Scripts /></body>
     </html>
   );
