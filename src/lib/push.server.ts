@@ -68,7 +68,12 @@ export async function sendToSubscription(
       token: sub.token,
       notification: { title: message.title, body: message.body },
       data: { category: message.category, path: message.path ?? "/" },
-      webpush: { fcm_options: { link: message.path ?? "/" } },
+      // Urgent + short-lived: a sleeping phone delivers it now, and a stale
+      // "time to leave" is dropped rather than shown late.
+      webpush: {
+        headers: { Urgency: "high", TTL: "1800" },
+        fcm_options: { link: message.path ?? "/" },
+      },
     },
   };
 
