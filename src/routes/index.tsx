@@ -1,7 +1,9 @@
 import { hdotRoadName } from "@/lib/hdot-road-names";
 import { Tagline } from "@/components/brand/Tagline";
 import { VoiceSection } from "@/components/settings/VoiceSection";
+import { SettingsHint } from "@/components/SettingsHint";
 import { readVoiceLabel } from "@/lib/best-voice";
+import { APP_VERSION } from "@/lib/site";
 import { readPushPrefs } from "@/lib/push-client";
 import { createPortal } from "react-dom";
 import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
@@ -745,6 +747,15 @@ function Index() {
   const [mapStopActionBusy, setMapStopActionBusy] = useState(false);
   const mapStopActionBusyRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsPage, setSettingsPage] = useState<SettingsPageId | null>(null);
+  const openSettingsAt = (page: SettingsPageId) => {
+    setSettingsPage(page);
+    setSettingsOpen(true);
+  };
+  const openSettingsList = () => {
+    setSettingsPage(null);
+    setSettingsOpen(true);
+  };
   useEffect(() => warmVoicesOnFirstTap(), []);
   const [accountOpen, setAccountOpen] = useState(false);
   const [restoreSlot, setRestoreSlot] = useState<string | null>(null);
@@ -4416,6 +4427,7 @@ function Index() {
         onAlertPrefsChange={saveAlertPrefs}
         savedPlaces={savedPlaces}
         onPlacesChange={persistPlaces}
+        initialPage={settingsOpen ? settingsPage : null}
       />
     </>
   );
@@ -4517,7 +4529,7 @@ function Index() {
                 variant="ghost"
                 size="icon"
                 aria-label="Open settings"
-                onClick={() => setSettingsOpen(true)}
+                onClick={() => openSettingsList()}
                 className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
               >
                 <Settings className="size-5" />
@@ -4601,7 +4613,7 @@ function Index() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => openSettingsList()}
               className="h-9 gap-1.5 rounded-full px-3.5"
             >
               <Plus className="size-3.5" /> Add Place
@@ -4949,7 +4961,7 @@ function Index() {
               {browseLocationDenied && locationDenied && (
                 <Button
                   variant="link"
-                  onClick={() => setSettingsOpen(true)}
+                  onClick={() => openSettingsList()}
                   className="mt-1 h-auto px-0 text-xs text-muted-foreground"
                 >
                   Location blocked · see how to allow it
@@ -5120,7 +5132,7 @@ function Index() {
             setRestoreSlot(null);
             setAccountOpen(true);
           }}
-          onSettings={() => setSettingsOpen(true)}
+          onSettings={() => openSettingsList()}
           onBrowse={() => setPageView("browse")}
         />
 
@@ -5134,6 +5146,14 @@ function Index() {
             vehicle={approach.vehicle}
             live={approach.live}
             onDismiss={() => setApproachDismissed(`${approach.key}-${approach.state}`)}
+          />
+        )}
+        {lockedMode === "transit" && !(showApproach && approach) && (
+          <SettingsHint
+            id="transit-stop-alerts"
+            label="Stop alerts: choose sound or vibration"
+            onOpen={() => openSettingsAt("alerts")}
+            className="mt-3 self-start"
           />
         )}
 
@@ -5785,6 +5805,7 @@ function Index() {
                       }
                       muted={navMuted}
                       onToggleMute={() => setNavMuted((value) => !value)}
+                      onChangeVoice={() => openSettingsAt("voice")}
                       rerouting={rerouting}
                       onRouteStateChange={handleRouteStateChange}
                       traffic={
@@ -6490,6 +6511,8 @@ type SetupDialogProps = {
   onAlertPrefsChange: (next: AlertPrefs) => void;
   savedPlaces: SavedPlace[];
   onPlacesChange: (next: SavedPlace[]) => void;
+  /** Open straight to one Settings page (from a hint), not the list. */
+  initialPage?: SettingsPageId | null;
 };
 
 /** Sticky, automatic alert for the stop the rider needs to get off at. */
@@ -7089,6 +7112,7 @@ function SetupDialog({
   onAlertPrefsChange,
   savedPlaces,
   onPlacesChange,
+  initialPage = null,
 }: SetupDialogProps) {
   const findPlaces = useServerFn(searchPlaces);
   const lookupAddress = useServerFn(reverseGeocode);
@@ -7114,7 +7138,7 @@ function SetupDialog({
 
   useEffect(() => {
     if (open) {
-      setPage(null);
+      setPage(initialPage);
       setDraft(setup);
       setStatus(null);
       setOriginLabel(setup.homeLat !== null ? "Your starting point" : "Current location");
@@ -7855,6 +7879,15 @@ const DATA_SOURCES = [
   { label: "Air quality: AirNow / US EPA (airnow.gov)", href: "https://www.airnow.gov" },
 ];
 
+const ABOUT_FEATURES = [
+  "Compares driving, TheBus and Skyline door to door, with live traffic.",
+  "Tells you when to leave, and can alert you before it’s time to go.",
+  "Turn-by-turn voice directions for drives.",
+  "Live bus locations, and an alert when your stop is next.",
+  "Scheduled roadwork on your route, in plain road names.",
+  "Late at night: the last bus home, or a ride with Uber or Lyft.",
+];
+
 function AboutSection() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
@@ -7863,7 +7896,8 @@ function AboutSection() {
       <div className="flex flex-col items-center pb-7 text-center">
         <WaveMark className="nalu-honu h-16 w-24" />
         <p className="nalu-brand-title mt-3 text-2xl font-bold tracking-wide">Nalu</p>
-        <p className="mt-1 text-xs text-muted-foreground">version 1.0</p>
+        <p className="mt-1 text-sm text-muted-foreground">Version {APP_VERSION}</p>
+        <Tagline className="mt-3" />
         <p className="mt-2 text-sm italic text-muted-foreground">
           Hawaiian for wave, and to think deeply.
         </p>
@@ -7871,25 +7905,40 @@ function AboutSection() {
       <div className="h-px bg-border/60" />
 
       <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        What is Nalu
+        What Nalu does
       </p>
-      <div className="mt-2 grid gap-2 text-sm leading-relaxed text-muted-foreground">
-        <p>
-          Nalu helps Oahu commuters decide whether to take Skyline rail or drive, using real-time
-          traffic and live bus schedules.
-        </p>
-        <p>Built for Oahu. Transit data covers TheBus and Skyline rail.</p>
-        <Link
-          to="/oahu-commute"
-          className="mt-2 inline-block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
-        >
-          Oʻahu commute guide
-        </Link>
+      <p className="mt-2 text-base leading-7 text-foreground">
+        Tell Nalu where you’re going. It finds the fastest way there, by car, TheBus or Skyline,
+        and tells you when to leave.
+      </p>
+      <ul className="mt-3 grid gap-2.5 text-base leading-7 text-muted-foreground">
+        {ABOUT_FEATURES.map((feature) => (
+          <li key={feature} className="flex gap-2.5">
+            <Check className="mt-1.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Who it’s for
+      </p>
+      <p className="mt-2 text-base leading-7 text-muted-foreground">
+        Anyone getting around Oʻahu: daily commuters, students, visitors and late-night shifts.
+        Made in Hawaiʻi. The core answer and safety features are free.
+      </p>
+      <div className="mt-4 grid gap-2">
         <Link
           to="/welcome"
-          className="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 text-base font-semibold text-foreground transition-colors hover:bg-accent"
         >
           View Welcome page
+        </Link>
+        <Link
+          to="/oahu-commute"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-base font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          Oʻahu commute guide
         </Link>
       </div>
       <div className="mt-6 h-px bg-border/60" />

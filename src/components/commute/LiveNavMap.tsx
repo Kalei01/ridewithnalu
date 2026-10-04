@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SettingsHint } from "@/components/SettingsHint";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -36,6 +37,8 @@ export type LiveNavMapProps = {
   eta: { arrive: string; range: string | null; minutes: number; distance: string | null } | null;
   muted: boolean;
   onToggleMute: () => void;
+  /** Opens Settings → Voice, from a small hint under the mute button. */
+  onChangeVoice?: () => void;
   rerouting?: boolean;
   onRouteStateChange?: (state: {
     offRoute: boolean;
@@ -99,6 +102,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     eta,
     muted,
     onToggleMute,
+    onChangeVoice,
     rerouting = false,
     onRouteStateChange,
     traffic = [],
@@ -451,6 +455,9 @@ export default function LiveNavMap(props: LiveNavMapProps) {
           >
             {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
           </Button>
+          {onChangeVoice && (
+            <SettingsHint id="nav-voice" label="Change voice" onOpen={onChangeVoice} className="pointer-events-auto" />
+          )}
         </div>
       </div>
 

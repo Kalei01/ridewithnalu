@@ -6,3 +6,6 @@
 export const SITE_URL: string =
   (import.meta.env["VITE_SITE_URL"] as string | undefined)?.replace(/\/$/, "") ||
   "https://ridenalu.com";
+
+/** The version shown in About Nalu. Bump it with each notable release. */
+export const APP_VERSION = "3.0";
