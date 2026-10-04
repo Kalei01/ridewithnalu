@@ -238,8 +238,14 @@ export function parseHdotOahuRoadwork(html: string, today = honoluluToday()): Hd
     const body = text.slice(bodyStart, bodyEnd);
 
     const entries = splitHdotEntries(body);
+    const numbered = entries.some((raw) => /^\s*\d+\)\s/.test(raw));
     for (const raw of entries) {
-      const clean = raw.replace(/^\s*\d+\)\s*/, "").trim();
+      // Text before the numbered list (e.g. "ADDED 9/29/26") is a note, not a closure.
+      if (numbered && !/^\s*\d+\)\s/.test(raw)) continue;
+      const clean = raw
+        .replace(/^\s*\d+\)\s*/, "")
+        .replace(/^\s*(?:\*\s*)?(?:NEW|ADDED|UPDATED|REVISED)\b[^A-Za-z]*(?:\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)?[\s:–-]*/i, "")
+        .trim();
       if (!clean) continue;
 
       // Drop entries whose last listed date has passed.

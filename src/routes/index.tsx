@@ -2687,7 +2687,11 @@ function Index() {
         arriveSeconds: tickSeconds + remainingMin * 60,
         meters: basis.meters as number | null,
         live: Boolean(liveDrive),
-        range: `${clockFromSeconds(win.earliestSeconds)} – ${clockFromSeconds(win.latestSeconds)}`,
+        // A range whose ends read the same minute adds nothing ("1:11 PM – 1:11 PM").
+        range:
+          clockFromSeconds(win.earliestSeconds) === clockFromSeconds(win.latestSeconds)
+            ? null
+            : `${clockFromSeconds(win.earliestSeconds)} – ${clockFromSeconds(win.latestSeconds)}`,
       };
     }
     if (!best?.arrive_seconds) return null;
@@ -3670,7 +3674,11 @@ function Index() {
         ? best
           ? `Skyline has not started yet today. Nalu is comparing ${transitLabel} service with driving.`
           : "Skyline has not started yet today. Nalu is checking available transit options."
-        : activeDecision.primary.text;
+        : // "Drive gets you there about 30 min sooner" repeats the headline;
+          // show the supporting reason instead, if there is one.
+          activeDecision.primary.kind === "time_advantage"
+          ? (activeDecision.supporting?.text ?? null)
+          : activeDecision.primary.text;
 
   const whyNaluText = railClosedForEvening
     ? best
@@ -4707,6 +4715,7 @@ function Index() {
 
               <div className="absolute left-3 top-3 z-[500] flex items-center gap-2 rounded-md border border-border bg-background/90 px-3 py-2 backdrop-blur-md">
                 <span
+                  role="img"
                   className="size-3 rounded-full border-2 border-foreground bg-location shadow-[0_0_10px_var(--color-location)]"
                   aria-label="Your location"
                 />
@@ -5562,6 +5571,30 @@ function Index() {
           </>
         </VerdictDomain>
 
+        {/* Nalu's one-line take sits right under the answer it explains. */}
+        <NaluPersonalityStrip
+          loading={optionsLoading || driveLoading}
+          configured={configured}
+          period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
+          decision={verdict}
+          trafficLevel={naluHeroTrafficLevel}
+          driveMinutes={driveTripEstimate.expectedDurationMinutes}
+          transitMinutes={transitTripEstimate.expectedDurationMinutes}
+          timeDelta={activeDecision.differenceMinutes ?? null}
+          incidents={drive?.incidents ?? []}
+          // HDOT route segments only say which roads the trip crosses; they are
+          // not closures. Scheduled closures carry a text schedule, so they are
+          // passed without an "active" flag and described as scheduled.
+          activeRoadwork={(drive?.hdotScheduledClosures ?? []).map((closure) => ({
+            route: hdotRoadName(closure.route).name,
+            description: closure.location,
+          }))}
+          weather={weather?.moments ?? []}
+          transferMinutes={transitTripEstimate.transferMinutes}
+          waitMinutes={transitTripEstimate.waitMinutes}
+          walkMinutes={transitTripEstimate.walkingMinutes}
+        />
+
         {/* Leave alerts run on Oʻahu time and Oʻahu places only. */}
         {!commitment &&
           activeRegion().hasTransit &&
@@ -5592,28 +5625,6 @@ function Index() {
             />
           )}
 
-        <NaluPersonalityStrip
-          loading={optionsLoading || driveLoading}
-          configured={configured}
-          period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
-          decision={verdict}
-          trafficLevel={naluHeroTrafficLevel}
-          driveMinutes={driveTripEstimate.expectedDurationMinutes}
-          transitMinutes={transitTripEstimate.expectedDurationMinutes}
-          timeDelta={activeDecision.differenceMinutes ?? null}
-          incidents={drive?.incidents ?? []}
-          // HDOT route segments only say which roads the trip crosses; they are
-          // not closures. Scheduled closures carry a text schedule, so they are
-          // passed without an "active" flag and described as scheduled.
-          activeRoadwork={(drive?.hdotScheduledClosures ?? []).map((closure) => ({
-            route: hdotRoadName(closure.route).name,
-            description: closure.location,
-          }))}
-          weather={weather?.moments ?? []}
-          transferMinutes={transitTripEstimate.transferMinutes}
-          waitMinutes={transitTripEstimate.waitMinutes}
-          walkMinutes={transitTripEstimate.walkingMinutes}
-        />
 
         {/* Keep the trip commitment action directly beneath the verdict so it
             remains visible before route and comparison details. */}
@@ -5923,20 +5934,7 @@ function Index() {
           </section>
         )}
 
-        {selectedMode === "drive" && activeRegion().hasTransit && (
-          <H1ConditionsCard
-            eastbound={eastboundTraffic}
-            westbound={westboundTraffic}
-            loading={eastboundTrafficLoading || westboundTrafficLoading}
-            unavailable={
-              eastboundTrafficFailed ||
-              westboundTrafficFailed ||
-              (!(eastboundTrafficLoading || westboundTrafficLoading) &&
-                (!eastboundTraffic || !westboundTraffic))
-            }
-            compact
-          />
-        )}
+        {/* H-1 conditions live on Browse; on a trip, "Nalu is watching" covers the route. */}
 
         <section className="py-6" aria-labelledby="mode-details-title">
           <h2 id="mode-details-title" className="sr-only">
@@ -8276,7 +8274,7 @@ function HoldToEndButton({
         }
       }}
       onKeyUp={cancel}
-      className={`relative touch-none select-none overflow-hidden font-black uppercase ${className ?? ""}`}
+      className={`relative touch-none select-none overflow-hidden bg-[#c42a20] font-black uppercase text-white hover:bg-[#a8231a] ${className ?? ""}`}
     >
       <span
         aria-hidden="true"

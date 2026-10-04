@@ -246,7 +246,7 @@ export default function NearbyTransitMap({
             aria-pressed={basemap === "standard"}
             data-pressed={basemap === "standard"}
             onClick={() => setBasemap("standard")}
-            className="rounded-none px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground"
+            className="rounded-none px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-background"
           >
             <Map /> Standard
           </Button>
@@ -258,7 +258,7 @@ export default function NearbyTransitMap({
             aria-pressed={basemap === "satellite"}
             data-pressed={basemap === "satellite"}
             onClick={() => setBasemap("satellite")}
-            className="rounded-none border-l border-border px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground"
+            className="rounded-none border-l border-border px-2.5 text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-background"
           >
             <Satellite /> Satellite
           </Button>

@@ -97,3 +97,16 @@ describe("parseHdotOahuRoadwork", () => {
     expect(hdotEntryEndDate("nightly until further notice", oct3)).toBeNull();
   });
 });
+
+describe("parseHdotOahuRoadwork notes", () => {
+  const today = Date.UTC(2026, 9, 4);
+  it("skips an ADDED note before the numbered list and strips markers from entries", () => {
+    const page =
+      "<p>— H-201 Moanalua Freeway —</p><p>ADDED 9/29/26</p>" +
+      "<p>1) ADDED 9/29/26: Westbound closure of one to two lanes near Red Hill from 8 p.m. to 5 a.m., Monday, Oct. 5, through Friday, Oct. 9, for paving.</p>";
+    const items = parseHdotOahuRoadwork(page, today);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.location).not.toMatch(/ADDED/);
+    expect(items[0]?.location).toMatch(/Westbound|Red Hill/);
+  });
+});

@@ -1,6 +1,5 @@
 import { Bus, Car, Check, TrainFront } from "lucide-react";
 import { activeRegion } from "@/lib/region";
-import { DecisionBars } from "@/components/commute/DecisionBars";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { clockFromSeconds } from "@/lib/commute-formatting";
 import type { ReactNode } from "react";
@@ -132,9 +131,9 @@ export function VerdictDomain({
         // so the "N min faster" headline is visible math.
         <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Total trip times">
           {[
-            { key: "drive", label: "Drive", minutes: driveMinutes, won: verdict === "drive", Icon: Car },
-            { key: "transit", label: transitLabel, minutes: transitMinutes, won: verdict === "transit", Icon: /rail|skyline/i.test(transitLabel) ? TrainFront : Bus },
-          ].map(({ key, label, minutes, won, Icon }) => (
+            { key: "drive", label: "Drive", minutes: driveMinutes, arrive: driveArrivalSeconds, won: verdict === "drive", Icon: Car },
+            { key: "transit", label: transitLabel, minutes: transitMinutes, arrive: best ? best.arrive_seconds : null, won: verdict === "transit", Icon: /rail|skyline/i.test(transitLabel) ? TrainFront : Bus },
+          ].map(({ key, label, minutes, arrive, won, Icon }) => (
             <div
               key={key}
               className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${won ? "border-recommended/50 bg-recommended/10" : "border-border bg-background/40"}`}
@@ -145,6 +144,11 @@ export function VerdictDomain({
                 <span className={`block whitespace-nowrap font-bold tabular-nums text-foreground ${(minutes ?? 0) >= 60 ? "text-base" : "text-lg"}`}>
                   {minutes !== null ? formatDriveMinutes(minutes) : "—"}
                 </span>
+                {minutes !== null && arrive !== null && (
+                  <span className="block whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+                    arrive {clockFromSeconds(arrive)}
+                  </span>
+                )}
               </span>
             </div>
           ))}
@@ -211,22 +215,6 @@ export function VerdictDomain({
             </p>
           )}
         </div>
-      )}
-      {configured && activeRegion().hasTransit && !arriveByActive && (
-        <DecisionBars
-          drive={{
-            label: "Drive",
-            // Door to door (parking included), so the bars agree with the
-            // "N min faster" headline; the clock is what people compare.
-            minutes: driveMinutes,
-            arrive: driveArrivalSeconds !== null ? clockFromSeconds(driveArrivalSeconds) : null,
-          }}
-          transit={{
-            label: transitLabel,
-            minutes: transitMinutes,
-            arrive: best ? clockFromSeconds(best.arrive_seconds) : null,
-          }}
-        />
       )}
       {children}
     </section>
