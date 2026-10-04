@@ -44,8 +44,29 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+const CANONICAL_ORIGIN = "https://ridenalu.com";
+// Flip on once ridenalu.com is confirmed live, so the old address never sends
+// people to a page that doesn't load yet.
+const REDIRECT_OLD_ADDRESS = false;
+
+/**
+ * One public address. Pages on www.ridenalu.com (and, when enabled, the old
+ * workers.dev address) move permanently to ridenalu.com. Scheduled jobs under
+ * /api/ and the notification script keep answering where they are.
+ */
+function canonicalRedirect(request: Request): Response | null {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  const url = new URL(request.url);
+  const oldAddress = url.hostname.endsWith(".workers.dev") && REDIRECT_OLD_ADDRESS;
+  if (url.hostname !== "www.ridenalu.com" && !oldAddress) return null;
+  if (url.pathname.startsWith("/api/") || url.pathname === "/firebase-messaging-sw.js") return null;
+  return Response.redirect(`${CANONICAL_ORIGIN}${url.pathname}${url.search}`, 301);
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const redirect = canonicalRedirect(request);
+    if (redirect) return redirect;
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

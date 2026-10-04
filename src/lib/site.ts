@@ -5,4 +5,4 @@
  */
 export const SITE_URL: string =
   (import.meta.env["VITE_SITE_URL"] as string | undefined)?.replace(/\/$/, "") ||
-  "https://ridewithnalu.jreverio01.workers.dev";
+  "https://ridenalu.com";

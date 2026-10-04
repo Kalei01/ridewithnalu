@@ -11,8 +11,8 @@ You enter where you're going. Nalu compares a live-traffic driving time with The
 
 ## Pages
 
-- [Welcome: what Nalu does](https://ridewithnalu.jreverio01.workers.dev/welcome)
-- [Oʻahu commute guide: Skyline hours, stations, fares, and drive vs. transit](https://ridewithnalu.jreverio01.workers.dev/oahu-commute)
-- [Open the app](https://ridewithnalu.jreverio01.workers.dev/)
-- [Privacy](https://ridewithnalu.jreverio01.workers.dev/privacy)
-- [Terms](https://ridewithnalu.jreverio01.workers.dev/terms)
+- [Welcome: what Nalu does](https://ridenalu.com/welcome)
+- [Oʻahu commute guide: Skyline hours, stations, fares, and drive vs. transit](https://ridenalu.com/oahu-commute)
+- [Open the app](https://ridenalu.com/)
+- [Privacy](https://ridenalu.com/privacy)
+- [Terms](https://ridenalu.com/terms)
