@@ -2,8 +2,12 @@
 export async function authenticateCronRequest(
   request: Request,
 ): Promise<Response | null> {
-  const currentSecret = process.env['LOVABLE_CRON_SECRET']
-  const previousSecret = process.env['LOVABLE_CRON_SECRET_PREVIOUS']
+  // Nalu's own password for scheduled jobs (pg_cron sends it from Vault as
+  // nalu_cron_secret). CRON_SECRET is the name going forward; the older
+  // LOVABLE_CRON_SECRET name still works so nothing breaks mid-rename.
+  const currentSecret = process.env['CRON_SECRET'] ?? process.env['LOVABLE_CRON_SECRET']
+  const previousSecret =
+    process.env['CRON_SECRET_PREVIOUS'] ?? process.env['LOVABLE_CRON_SECRET_PREVIOUS']
 
   if (!currentSecret) {
     return new Response('Server configuration error', { status: 500 })

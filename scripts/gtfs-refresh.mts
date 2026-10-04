@@ -11,7 +11,7 @@ if (!url || !admin) throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY 
 
 // The route checks a cron secret; this process is the only caller.
 const cronSecret = randomBytes(32).toString("hex");
-process.env.LOVABLE_CRON_SECRET = cronSecret;
+process.env.CRON_SECRET = cronSecret;
 
 const { Route } = await import("../src/routes/api/public/import-gtfs.ts");
 const post = (Route as unknown as {

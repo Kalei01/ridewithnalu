@@ -27,7 +27,7 @@ checked on the new host.
 | `SUPABASE_PUBLISHABLE_KEY` | Supabase → API keys | |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → API keys | Server-only. Never expose to the browser |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Firebase → Project settings → Service accounts → Generate key | Whole JSON file as one secret. Enables direct push (`src/lib/fcm-direct.server.ts`) |
-| `LOVABLE_CRON_SECRET` | Generate a long random string | Name kept as-is; protects `/api/public/*` cron routes |
+| `CRON_SECRET` (old name `LOVABLE_CRON_SECRET` still accepted) | Generate a long random string; same value as Vault secret `nalu_cron_secret` | Nalu's own password for `/api/public/*` scheduled jobs. Do not delete it with the Lovable leftovers |
 
 No longer needed once self-hosted: `LOVABLE_API_KEY`, `FIREBASE_MESSAGING_API_KEY`.
 
@@ -49,7 +49,7 @@ Cloudflare Workers Logs is on in the dashboard; add `observability.enabled` to t
 - [x] Get Lovable's export of the current database (schema, data, auth users), 2026-10-04
 - [x] Apply `drizzle/migrations/*` in order to the new project (0000–0049 in one transaction, 2026-10-04; all 28 functions verified)
 - [x] Import user data: 3 Google accounts with the same ids and identities, 3 profiles, 3 user_preferences, 1 push subscription (counts match Lovable)
-- [ ] Run the GTFS import once (`POST /api/public/import-gtfs` with `Authorization: Bearer <LOVABLE_CRON_SECRET>`; it resumes across calls until done). Repeat whenever TheBus publishes a new feed
+- [ ] Run the GTFS import once (`POST /api/public/import-gtfs` with `Authorization: Bearer <CRON_SECRET>`; it resumes across calls until done). Repeat whenever TheBus publishes a new feed
 - [ ] Recreate any extensions/settings Lovable's handoff lists (pg_cron, pg_net, storage, edge functions)
 
 Notes from a local rehearsal (all 50 files, filename order, on an empty Postgres):
@@ -91,7 +91,7 @@ Defined in Lovable today, not in this repo. Fill in from Lovable's handoff:
 | GTFS import | `/api/public/import-gtfs` | _from handoff_ |
 | Database cleanup | `select public.nalu_maintenance()` via pg_cron (migration 0037 enables pg_cron but does not schedule it) | _from handoff_ |
 
-Both expect `Authorization: Bearer <LOVABLE_CRON_SECRET>`.
+Both expect `Authorization: Bearer <CRON_SECRET>`.
 
 ## 7. Domain cutover
 
