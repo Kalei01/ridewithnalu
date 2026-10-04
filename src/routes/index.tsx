@@ -4,6 +4,7 @@ import { Tagline } from "@/components/brand/Tagline";
 import { VoiceSection } from "@/components/settings/VoiceSection";
 import { SettingsHint } from "@/components/SettingsHint";
 import { RideCard } from "@/components/commute/RideCard";
+import { WalkCard } from "@/components/commute/WalkCard";
 import { readVoiceLabel } from "@/lib/best-voice";
 import { APP_VERSION } from "@/lib/site";
 import { readPushPrefs } from "@/lib/push-client";
@@ -5701,6 +5702,17 @@ function Index() {
             )}
           </section>
         )}
+
+        {!commitment &&
+          tripDirection.from.lat !== null &&
+          tripDirection.from.lon !== null &&
+          tripDirection.to.lat !== null &&
+          tripDirection.to.lon !== null && (
+            <WalkCard
+              from={{ lat: tripDirection.from.lat, lon: tripDirection.from.lon }}
+              to={{ lat: tripDirection.to.lat, lon: tripDirection.to.lon }}
+            />
+          )}
 
         {!commitment && !activeRegion().hasTransit && tripDirection.to.lat !== null && tripDirection.to.lon !== null && (
           <RideCard
