@@ -98,11 +98,11 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
     const utterance = new window.SpeechSynthesisUtterance(request.message);
     const voice = useDefaultVoice ? null : bestVoice();
     if (voice) utterance.voice = voice;
-    debugLog("speech", { phase: "voice", voice: voice ? voice.name : "phone default", lang: utterance.lang });
     // On iPhone, plain "en" lets the phone use the English voice and accent
     // its owner picked in Settings; "en-US" would force a US voice.
     utterance.lang = !voice && isAppleMobile() ? "en" : (voice?.lang ?? "en-US");
     utterance.rate = 0.94;
+    debugLog("speech", { phase: "voice", voice: voice ? voice.name : "phone default", lang: utterance.lang });
     utterance.volume = 1;
     let started = false;
 
