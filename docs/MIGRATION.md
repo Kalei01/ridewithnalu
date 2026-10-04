@@ -58,8 +58,14 @@ Notes from a local rehearsal (all 50 files, filename order, on an empty Postgres
   order ends in the right state.
 - 0045 and 0047 granted `diagnose_transit_general` with 6 argument types, but the function
   takes 7, so both files failed. Fixed. Lovable's copy of this function may be stale.
-- `directional_dest_stop` is called by the app but is defined in no migration. It exists
-  only in Lovable's database. Take its definition from Lovable's schema export.
+- `directional_dest_stop` existed only in Lovable's database; 0049 adds it, copied from
+  Lovable's export (checksum identical).
+- Lovable's export (2026-10-04) compared function by function against a rebuild from these
+  files: 24 of 27 identical. Lovable never got 0039 (plan_outbound direct rail + walk) or
+  `diagnose_transit_general` (0045/0047 grant typo). The new database gets both.
+- Lovable's database holds 3 accounts (all Google), 3 profiles, 3 user_preferences rows,
+  1 push subscription. Lovable's cron jobs: weekly GTFS import + hourly resume (via
+  pg_net to the Lovable URL) and hourly nalu_maintenance.
 - No sign-up trigger is needed: the app creates `profiles` rows itself.
 - Every migration is now safe to re-run: the full set applied twice in a row ends with
   identical functions. 0048 locks the GTFS swap/prune functions to the service role,
