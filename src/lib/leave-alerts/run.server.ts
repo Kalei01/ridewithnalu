@@ -134,7 +134,7 @@ export async function runLeaveAlerts(now = new Date()) {
         .select("token, categories, quiet_start_min, quiet_end_min")
         .eq("token", alert.token)
         .maybeSingle();
-      const message = leaveMessage(plan, alert.place_label);
+      const message = leaveMessage(plan, alert.place_label, alert.to_home);
       const status = sub
         ? await sendToSubscription(
             { ...sub, categories: Array.from(new Set([...sub.categories, "morning_commute"])) },

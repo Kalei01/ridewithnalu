@@ -24,6 +24,7 @@ describe("chooseLeave", () => {
     })!;
     expect(plan.mode).toBe("drive");
     expect(plan.leaveBySeconds).toBe(h(7, 18));
+    expect(leaveMessage(plan, "Home", true).title).toBe("Time to head home");
     expect(plan.transitOnTime).toBe(true);
     expect(leaveMessage(plan, "Work").body).toBe(
       "Leave by 7:18 AM to get there by 8:00 AM. Driving is faster today: about 32 min plus parking.",
@@ -74,6 +75,7 @@ describe("chooseLeave", () => {
       title: "Leave now for Work",
       body: "Driving gets you there around 8:14 AM.",
     });
+    expect(leaveMessage(plan, "Home", true).title).toBe("Leave now to get home");
   });
 
   it("ignores transit trips you can no longer catch", () => {

@@ -132,10 +132,11 @@ function clock(seconds: number) {
   return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
 }
 
-export function leaveMessage(plan: LeavePlan, placeLabel: string) {
+export function leaveMessage(plan: LeavePlan, placeLabel: string, toHome = false) {
+  const leaveTitle = toHome ? "Time to head home" : `Time to leave for ${placeLabel}`;
   if (plan.late) {
     return {
-      title: `Leave now for ${placeLabel}`,
+      title: toHome ? "Leave now to get home" : `Leave now for ${placeLabel}`,
       body: `Driving gets you there around ${clock(plan.arriveSeconds)}.`,
     };
   }
@@ -145,14 +146,14 @@ export function leaveMessage(plan: LeavePlan, placeLabel: string) {
         ? ` for ${plan.rideLabel} at ${clock(plan.rideDepartSeconds)}`
         : "";
     return {
-      title: `Time to leave for ${placeLabel}`,
+      title: leaveTitle,
       body: `Leave by ${clock(plan.leaveBySeconds)}${ride}. You'll get there around ${clock(plan.arriveSeconds)}.`,
     };
   }
   const parking = plan.parkingMinutes > 1 ? " plus parking" : "";
   const traffic = plan.trafficDelayMinutes >= 10 ? " Traffic is heavier than usual." : "";
   return {
-    title: `Time to leave for ${placeLabel}`,
+    title: leaveTitle,
     body: `Leave by ${clock(plan.leaveBySeconds)} to get there by ${clock(plan.arriveSeconds)}. ${plan.transitOnTime ? "Driving is faster today" : "No bus or train makes it in time, so drive"}: about ${plan.driveMinutes} min${parking}.${traffic}`,
   };
 }
