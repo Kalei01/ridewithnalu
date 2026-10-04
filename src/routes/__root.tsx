@@ -1,3 +1,4 @@
+import { DevPanel } from "@/components/DevPanel";
 import { NotificationPrompt } from "@/components/NotificationPrompt";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -107,6 +108,7 @@ function RootComponent() {
       <AuthProvider>
         <AppRouteGate />
         <NotificationPrompt />
+        <DevPanel />
         <Toaster position="top-center" richColors />
       </AuthProvider>
     </QueryClientProvider>

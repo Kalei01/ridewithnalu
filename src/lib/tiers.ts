@@ -48,8 +48,31 @@ export const DAILY_TRIP_LIMIT: Record<Tier, number | null> = {
   plus: null,
 };
 
-export function tierAllows(tier: Tier, feature: Feature): boolean {
-  if (!ENFORCE_TIERS) return true;
+const PREVIEW_KEY = "nalu-dev-preview-tier-v1";
+
+/** Developer mode: the tier the owner is previewing on this device, if any. */
+export function readPreviewTier(): Tier | null {
+  try {
+    const value = window.localStorage.getItem(PREVIEW_KEY);
+    return value === "guest" || value === "free" || value === "plus" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writePreviewTier(tier: Tier | null) {
+  try {
+    if (tier) window.localStorage.setItem(PREVIEW_KEY, tier);
+    else window.localStorage.removeItem(PREVIEW_KEY);
+  } catch {
+    /* private mode */
+  }
+  window.dispatchEvent(new Event("nalu-preview-tier"));
+}
+
+/** A developer preview always shows the limits, even before they're switched on. */
+export function tierAllows(tier: Tier, feature: Feature, previewing = false): boolean {
+  if (!ENFORCE_TIERS && !previewing) return true;
   return RANK[tier] >= RANK[FEATURE_TIER[feature]];
 }
 
