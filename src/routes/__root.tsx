@@ -109,7 +109,13 @@ function RootComponent() {
         <AppRouteGate />
         <NotificationPrompt />
         <DevPanel />
-        <Toaster position="top-center" richColors />
+        <Toaster
+          position="top-center"
+          richColors
+          // Keep pop-ups below the iPhone's camera cutout and status bar.
+          offset={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
+          mobileOffset={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
+        />
       </AuthProvider>
     </QueryClientProvider>
   );
