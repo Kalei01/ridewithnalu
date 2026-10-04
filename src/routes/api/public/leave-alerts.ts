@@ -9,8 +9,10 @@ export const Route = createFileRoute("/api/public/leave-alerts")({
         const denied = await authenticateCronRequest(request);
         if (denied) return denied;
         const { runLeaveAlerts } = await import("@/lib/leave-alerts/run.server");
+        const { sendDueReminders } = await import("@/lib/leave-alerts/scheduled.server");
         try {
-          return Response.json(await runLeaveAlerts());
+          const reminders = await sendDueReminders();
+          return Response.json({ ...(await runLeaveAlerts()), reminders });
         } catch (error) {
           console.error("[leave-alerts]", error instanceof Error ? error.message : error);
           return Response.json({ error: "Leave alerts failed" }, { status: 500 });

@@ -70,16 +70,12 @@ type AlertTrip = {
 };
 
 /**
- * Sign this phone up for notifications if needed, then save one trip's alert.
- * Returns the device's alerts afterwards, or null when notifications are blocked.
+ * Make sure this phone is signed up for notifications (asking if needed) and
+ * return its token, or null with a friendly message when it can't be.
  */
-async function saveTripAlert(
-  trip: AlertTrip,
-  arriveMin: number,
-  days: number[],
+export async function ensurePushSignup(
   saveSub: ReturnType<typeof useServerFn<typeof savePushSubscription>>,
-  saveAlert: ReturnType<typeof useServerFn<typeof saveLeaveAlert>>,
-): Promise<LocalLeaveAlert[] | null> {
+): Promise<string | null> {
   const result = await obtainPushToken(true);
   if (result.status !== "registered") {
     toast(BLOCKED_COPY[result.status]);
@@ -97,9 +93,25 @@ async function saveTripAlert(
     },
   });
   writePushPrefs({ ...prefs, categories, token: result.token });
+  return result.token;
+}
+
+/**
+ * Sign this phone up for notifications if needed, then save one trip's alert.
+ * Returns the device's alerts afterwards, or null when notifications are blocked.
+ */
+async function saveTripAlert(
+  trip: AlertTrip,
+  arriveMin: number,
+  days: number[],
+  saveSub: ReturnType<typeof useServerFn<typeof savePushSubscription>>,
+  saveAlert: ReturnType<typeof useServerFn<typeof saveLeaveAlert>>,
+): Promise<LocalLeaveAlert[] | null> {
+  const token = await ensurePushSignup(saveSub);
+  if (!token) return null;
   await saveAlert({
     data: {
-      token: result.token,
+      token,
       placeKey: trip.placeKey,
       placeLabel: trip.label,
       toHome: trip.toHome,

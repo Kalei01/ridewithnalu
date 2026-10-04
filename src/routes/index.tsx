@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { reverseGeocode, searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
 import { RouteCorridor } from "@/components/commute/RouteCorridor";
+import { NightCard } from "@/components/commute/NightCard";
 import { CommuteHeader } from "@/components/commute/CommuteHeader";
 import { CommutePageNav } from "@/components/commute/CommutePageNav";
 import { TravelModeTabs } from "@/components/commute/TravelModeTabs";
@@ -5308,6 +5309,19 @@ function Index() {
               )}
         </ArriveByControls>
 
+
+        {!commitment && (
+          <NightCard
+            nowSeconds={nowSeconds}
+            options={options}
+            plannerAnswered={!optionsLoading && !optionsFailed}
+            destination={
+              tripDirection.to.lat !== null && tripDirection.to.lon !== null
+                ? { lat: tripDirection.to.lat, lon: tripDirection.to.lon, name: tripArrivalLabel }
+                : null
+            }
+          />
+        )}
 
         <VerdictDomain
           configured={configured}

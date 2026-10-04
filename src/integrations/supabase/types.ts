@@ -259,6 +259,33 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_pushes: {
+        Row: {
+          body: string
+          created_at: string
+          kind: string
+          send_at: string
+          title: string
+          token: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          kind: string
+          send_at: string
+          title: string
+          token: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          kind?: string
+          send_at?: string
+          title?: string
+          token?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           categories: string[]

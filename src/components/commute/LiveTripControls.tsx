@@ -36,7 +36,7 @@ export function ApproachBanner({
         role="status"
         className="sticky top-0 z-40 -mx-2 mb-2 flex items-center justify-between gap-2 rounded-full border border-border bg-surface-raised px-3.5 py-2"
       >
-        <p className="text-xs font-semibold text-foreground">
+        <p className="text-sm font-semibold text-foreground">
           {state === "off-route"
             ? "Off route · alerts paused · exit at " + exitName
             : "En route · Next: " + nextName + " · Exit at " + exitName + minutesText}
@@ -73,22 +73,22 @@ export function ApproachBanner({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={"text-base font-extrabold uppercase tracking-wide " + (passed ? "text-foreground" : "text-white")}>
+          <p className={"text-lg font-extrabold uppercase tracking-wide " + (passed ? "text-foreground" : "text-white")}>
             {passed ? "Looks like you passed your stop" : urgent ? "⚠️ Pull cord · your stop is next!" : "🔔 Get ready · 2 stops away"}
           </p>
-          <p className={"mt-1 text-[15px] font-bold leading-snug " + (passed ? "text-foreground" : "text-white")}>
+          <p className={"mt-1 text-xl font-bold leading-snug " + (passed ? "text-foreground" : "text-white")}>
             {passed
               ? "Your exit was " + exitName + ". Get off at the next stop and head back."
               : urgent
                 ? "Get off at " + exitName
                 : "Next stop is " + nextName + ", then get off at " + exitName + "."}
           </p>
-          <p className={"mt-1 text-xs font-semibold " + (passed ? "text-muted-foreground" : "text-white/80")}>
+          <p className={"mt-1 text-sm font-semibold " + (passed ? "text-muted-foreground" : "text-white/80")}>
             {statusText}
           </p>
         </div>
-        <button aria-label="Dismiss stop alert" onClick={onDismiss} className="shrink-0 rounded-full p-1 text-white/80 hover:text-white">
-          <X className="size-4" />
+        <button aria-label="Dismiss stop alert" onClick={onDismiss} className="flex size-11 shrink-0 items-center justify-center rounded-full text-white/80 hover:text-white">
+          <X className="size-5" />
         </button>
       </div>
     </div>

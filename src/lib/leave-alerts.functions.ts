@@ -67,3 +67,36 @@ export const removeLeaveAlert = createServerFn({ method: "POST" })
       .eq("place_key", data.placeKey);
     return { ok: true };
   });
+
+const reminderSchema = z.object({
+  token,
+  sendAt: z.string().datetime({ offset: true }),
+  title: z.string().trim().min(1).max(80),
+  body: z.string().trim().min(1).max(240),
+});
+
+/** One-time "your last bus home" reminder; replaces this device's earlier one. */
+export const scheduleLastBusReminder = createServerFn({ method: "POST" })
+  .inputValidator((input) => reminderSchema.parse(input))
+  .handler(async ({ data }) => {
+    const sendAt = new Date(data.sendAt).getTime();
+    if (sendAt < Date.now() - 60_000 || sendAt > Date.now() + 12 * 3600_000) {
+      throw new Error("That reminder time isn't tonight.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sub } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("token")
+      .eq("token", data.token)
+      .maybeSingle();
+    if (!sub) throw new Error("Turn on notifications first.");
+    const { error } = await supabaseAdmin.from("scheduled_pushes").upsert({
+      token: data.token,
+      kind: "last_bus",
+      send_at: new Date(sendAt).toISOString(),
+      title: data.title,
+      body: data.body,
+    });
+    if (error) throw new Error("Could not save the reminder.");
+    return { ok: true };
+  });
