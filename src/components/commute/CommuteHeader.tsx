@@ -1,4 +1,5 @@
-import { Settings } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { MapPin, Settings } from "lucide-react";
 import { AccountButton } from "@/components/account/AccountDialog";
 import { Button } from "@/components/ui/button";
 import { WaveMark } from "@/components/commute/NaluPersonalityStrip";
@@ -8,33 +9,47 @@ export function CommuteHeader({
   timeText,
   onAccount,
   onSettings,
+  onBrowse,
 }: {
   heading: string;
   timeText: string;
   onAccount: () => void;
   onSettings: () => void;
+  /** Opens the Browse view; replaces the separate Nalu/Browse row on the trip screen. */
+  onBrowse?: () => void;
 }) {
   return (
-    <header className="mt-5 flex min-h-11 items-center justify-between">
-      <div>
-        <div className="flex items-center gap-1.5">
-          <div className="nalu-brand flex items-center gap-2.5">
-            <WaveMark className="nalu-honu h-8 w-12" />
-            <p className="nalu-brand-title text-lg font-semibold tracking-wide">Nalu</p>
-          </div>
-        </div>
-        <div className="mt-1.5 h-px bg-border/70" />
-        <p className="mt-1 text-xs font-semibold uppercase text-muted-foreground">{heading}</p>
-        <p className="mt-1 text-[15px] font-medium text-foreground">{timeText}</p>
+    <header className="mt-4 flex min-h-11 items-center justify-between gap-3">
+      <div className="min-w-0">
+        <Link to="/welcome" className="nalu-brand flex min-h-11 items-center gap-2.5" aria-label="About Nalu">
+          <WaveMark className="nalu-honu h-8 w-12" />
+          <span className="nalu-brand-title text-lg font-semibold tracking-wide">Nalu</span>
+        </Link>
+        <p className="truncate text-sm text-muted-foreground">
+          <span className="font-semibold uppercase text-xs">{heading}</span>
+          <span aria-hidden="true"> · </span>
+          <span className="text-foreground">{timeText}</span>
+        </p>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
+        {onBrowse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Browse nearby transit"
+            onClick={onBrowse}
+            className="size-11 rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <MapPin className="size-5" />
+          </Button>
+        )}
         <AccountButton onClick={onAccount} />
         <Button
           variant="ghost"
           size="icon"
           aria-label="Open settings"
           onClick={onSettings}
-          className="rounded-full text-muted-foreground hover:text-foreground"
+          className="size-11 rounded-full text-muted-foreground hover:text-foreground"
         >
           <Settings className="size-5" />
         </Button>

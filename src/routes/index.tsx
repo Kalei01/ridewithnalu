@@ -4404,7 +4404,8 @@ function Index() {
           </Button>
 
           <div className="mt-3 flex flex-wrap justify-center gap-2" aria-label="Quick destinations">
-            {(["home", "work", "gym"] as const).map((kind) => {
+            {/* Home and Work have their own cards just below; avoid showing them twice. */}
+            {(["gym"] as const).map((kind) => {
               const Icon = shortcutIcon(kind);
               const saved = Boolean(findByKind(savedPlaces, kind));
               return (
@@ -4925,7 +4926,16 @@ function Index() {
       className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "transit" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
     >
       <div className="mx-auto flex w-full max-w-[680px] flex-col">
-        <CommutePageNav current="commute" onBrowse={() => setPageView("browse")} />
+        <CommuteHeader
+          heading={arrivingHome ? "Heading home" : inbound ? "Heading west" : "Heading out"}
+          timeText={timeText}
+          onAccount={() => {
+            setRestoreSlot(null);
+            setAccountOpen(true);
+          }}
+          onSettings={() => setSettingsOpen(true)}
+          onBrowse={() => setPageView("browse")}
+        />
 
         {showApproach && approach && (
           <ApproachBanner
@@ -4943,7 +4953,7 @@ function Index() {
         <div
           role="group"
           aria-label="Trip direction"
-          className="grid grid-cols-2 gap-1 rounded-full bg-surface-raised p-1"
+          className="mt-3 grid grid-cols-2 gap-1 rounded-full bg-surface-raised p-1"
         >
           {[
             { label: "To destination", value: false },
@@ -4964,15 +4974,6 @@ function Index() {
           ))}
         </div>
 
-        <CommuteHeader
-          heading={arrivingHome ? "Heading home" : inbound ? "Heading west" : "Heading out"}
-          timeText={timeText}
-          onAccount={() => {
-            setRestoreSlot(null);
-            setAccountOpen(true);
-          }}
-          onSettings={() => setSettingsOpen(true)}
-        />
 
         <DataExpiryNotice />
         {!online && (

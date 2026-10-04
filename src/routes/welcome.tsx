@@ -3,7 +3,6 @@ import { Sparkles } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
-import { naluPulseTagline } from "@/lib/nalu-voice";
 import welcomeNavigationImage from "@/assets/nalu-live-navigation.jpg";
 import { SITE_URL } from "@/lib/site";
 
@@ -46,15 +45,15 @@ function WelcomeNavigationPreview() {
   );
 }
 
+/** The app icon itself, so the welcome page matches the home-screen icon. */
 function HonuMark() {
   return (
-    <div className="relative flex size-16 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,.16),0_18px_45px_rgba(0,0,0,.35)]">
-      <svg viewBox="0 0 64 48" className="size-10 text-[var(--nalu-sapphire)]" fill="none" aria-hidden="true">
-        <ellipse cx="32" cy="25" rx="18" ry="11" stroke="currentColor" strokeWidth="2.4" opacity=".9" />
-        <path d="M32 14v22M18 25h28M22 18.5 32 25l10-6.5M22 31.5 32 25l10 6.5" stroke="currentColor" strokeWidth="1.5" opacity=".65" />
-        <path d="M14 23 6 17l3 9-3 8 8-5M50 23l8-6-3 9 3 8-8-5M24 35l-5 8 9-4M40 35l5 8-9-4M29 36h6l-3 7Z" fill="currentColor" opacity=".85" />
-      </svg>
-    </div>
+    <img
+      src="/icons/nalu-icon.svg"
+      alt=""
+      aria-hidden="true"
+      className="size-14 rounded-[22%] shadow-[0_12px_32px_rgba(0,0,0,.35)]"
+    />
   );
 }
 
@@ -170,15 +169,12 @@ function WelcomePage() {
 
         <section className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[1.1fr_.9fr] lg:gap-16">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Your commute. Figured out.</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Drive · Bus · Skyline</p>
             <h1 className="mt-4 max-w-2xl text-5xl font-black leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
               Your commute, <span className="text-[var(--nalu-platinum-2)]">figured out.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
               Nalu brings the important pieces of your Oʻahu commute together, so you know your options and when to leave.
-            </p>
-            <p className="mt-3 text-sm font-medium text-foreground/90">
-              {naluPulseTagline("morning")}
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">

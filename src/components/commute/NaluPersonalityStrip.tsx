@@ -6,29 +6,36 @@
 import { generateSmartNaluInsight, type SmartNaluContext } from "@/lib/nalu-voice";
 
 
+/**
+ * Nalu's brand mark, drawn from the app icon (public/icons/nalu-icon.svg): a
+ * curling wave (nalu) over a route line ending at a green destination dot.
+ * The wave and line follow the text color; the destination dot stays green.
+ */
 export function WaveMark({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 96 64"
+      viewBox="150 330 720 460"
       role="img"
-      aria-label="Nalu wave mark"
+      aria-label="Nalu"
       className={className}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        d="M8 39c8-16 16-16 24 0s16 16 24 0 16-16 24 0"
+        d="M 196 580 C 300 580 352 410 486 360 C 620 310 772 370 790 500 C 804 604 700 652 636 608 C 588 574 600 506 660 500"
         stroke="currentColor"
-        strokeWidth="6"
+        strokeWidth="80"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <path
-        d="M20 48c6-9 12-9 18 0s12 9 18 0 12-9 18 0"
+        d="M 196 740 C 320 710 420 760 540 740 C 640 723 712 712 770 726"
         stroke="currentColor"
-        strokeWidth="4"
+        strokeOpacity="0.55"
+        strokeWidth="40"
         strokeLinecap="round"
-        opacity=".55"
       />
+      <circle cx="806" cy="730" r="46" fill="#30d158" />
     </svg>
   );
 }

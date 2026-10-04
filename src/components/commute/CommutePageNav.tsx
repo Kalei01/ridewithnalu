@@ -10,7 +10,8 @@ export function CommutePageNav({
 }) {
   const itemClass =
     "flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors";
-  const activeClass = "bg-recommended text-recommended-foreground shadow-sm";
+  // Selected pages share the ice-blue selected style (liquid-titanium.css); green means "recommended".
+  const activeClass = "bg-primary text-primary-foreground shadow-sm";
   const inactiveClass = "text-muted-foreground hover:bg-background/60 hover:text-foreground";
 
   return (

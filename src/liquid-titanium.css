@@ -836,6 +836,7 @@ header,
 
 /* Final brand calibration: selected commute controls use Nalu ice-blue,
    while green remains a semantic "recommended/good" signal elsewhere. */
+[aria-label="Nalu pages"] [aria-current="page"],
 [aria-label="Trip direction"] [aria-pressed="true"],
 [aria-label="Planning mode"] [aria-pressed="true"],
 [aria-label="Travel mode"] [aria-pressed="true"] {
