@@ -1,4 +1,5 @@
 import type { HdotScheduledClosure } from "@/lib/hdot-lane-closures.functions";
+import { hdotRoadName } from "@/lib/hdot-road-names";
 
 type Props = {
   scheduledClosures?: HdotScheduledClosure[];
@@ -9,6 +10,17 @@ type Props = {
 
 function humanSchedule(value: string) {
   return value.replace(/^\s*(?:on|from)\s+/i, "").replace(/\s+the following morning/gi, "").replace(/\s+the following day/gi, "").replace(/\s+on the evening of/gi, "").replace(/\s+/g, " ").trim();
+}
+
+/** "Moanalua Freeway (H-201)", with the code in smaller, quieter text. */
+function RoadName({ route }: { route: string }) {
+  const { name, code } = hdotRoadName(route);
+  return (
+    <>
+      {name}
+      {code ? <span className="ml-1 text-[0.8em] font-normal text-muted-foreground">({code})</span> : null}
+    </>
+  );
 }
 
 function directionLabel(value: string | null) {
@@ -52,7 +64,7 @@ export function HdotRoadworkNotice({
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-foreground">Scheduled roadwork tonight</p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {primary.route} {directionLabel(primary.direction)} · {primary.laneSummary}
+              <RoadName route={primary.route} /> {directionLabel(primary.direction)} · {primary.laneSummary}
             </p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">{humanSchedule(primary.schedule)}</p>
           </div>
@@ -71,7 +83,7 @@ export function HdotRoadworkNotice({
             {scheduled.map((closure, index) => (
               <div key={closure.route + "-" + closure.location + "-" + index}>
                 <p className="text-sm font-bold leading-5 text-foreground">
-                  {closure.route} {closure.direction ? directionLabel(closure.direction) + " — " : "— "}{closure.location}
+                  <RoadName route={closure.route} /> {closure.direction ? directionLabel(closure.direction) + " — " : "— "}{closure.location}
                 </p>
                 <p className="mt-1 text-xs font-semibold text-warning">
                   {closure.laneSummary} · {humanSchedule(closure.schedule)}

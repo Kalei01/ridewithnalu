@@ -1,3 +1,4 @@
+import { hdotRoadName } from "@/lib/hdot-road-names";
 import { createPortal } from "react-dom";
 import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -5536,7 +5537,7 @@ function Index() {
           // not closures. Scheduled closures carry a text schedule, so they are
           // passed without an "active" flag and described as scheduled.
           activeRoadwork={(drive?.hdotScheduledClosures ?? []).map((closure) => ({
-            route: closure.route,
+            route: hdotRoadName(closure.route).name,
             description: closure.location,
           }))}
           weather={weather?.moments ?? []}
