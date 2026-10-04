@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { generateSmartNaluInsight } from "./nalu-voice";
 
+describe("drive tone follows live traffic", () => {
+  const base = { driveMinutes: 20, transitMinutes: 78, selectedMode: "drive" as const };
+  it("never calls a light-traffic drive stressful", () => {
+    for (const trafficLevel of ["light", "moderate"] as const) {
+      const line = generateSmartNaluInsight({ ...base, trafficLevel });
+      expect(line).not.toMatch(/relaxing|busy|ugly|no joke/i);
+    }
+  });
+  it("mentions busy roads only in heavy traffic", () => {
+    const line = generateSmartNaluInsight({ ...base, trafficLevel: "heavy" });
+    expect(line).toMatch(/busy|relaxing|ugly|no joke|trade-off/i);
+  });
+});
+
 describe("generateSmartNaluInsight", () => {
   it("explains a decisive driving win with the saved time", () => {
     expect(
@@ -18,11 +32,20 @@ describe("generateSmartNaluInsight", () => {
       driveMinutes: 33,
       transitMinutes: 74,
       selectedMode: "drive",
-      activeRoadwork: [{ road: "H1 Westbound" }],
+      activeRoadwork: [{ road: "H1 Westbound", active: true }],
     });
     expect(roadwork).toContain(
-      "Driving saves 41 min over transit right now. Heads up: scheduled roadwork on H-1 Westbound.",
+      "Driving saves 41 min over transit right now. Heads up: roadwork on H-1 Westbound.",
     );
+
+    // Roadwork that's only scheduled, not happening now, isn't worth a heads-up.
+    const scheduled = generateSmartNaluInsight({
+      driveMinutes: 33,
+      transitMinutes: 74,
+      selectedMode: "drive",
+      activeRoadwork: [{ road: "H-201" }],
+    });
+    expect(scheduled).not.toMatch(/roadwork/);
     expect(roadwork).not.toMatch(/is faster/);
 
     const incident = generateSmartNaluInsight({

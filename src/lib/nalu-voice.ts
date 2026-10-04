@@ -339,20 +339,41 @@ function smartVariantSeed(context: SmartNaluContext): number {
   return Math.abs(hash);
 }
 
+/** Second sentence for a drive win, matched to live traffic. */
+function driveTail(context: SmartNaluContext, hasCaution: boolean) {
+  if (context.trafficLevel === "heavy" || context.trafficLevel === "severe")
+    return pickSmart(BUSY_DRIVE_TAILS, context);
+  // Don't call the roads easy when there's an incident or roadwork on them.
+  if ((context.trafficLevel === "light" || context.trafficLevel === "moderate") && !hasCaution)
+    return pickSmart(CLEAR_DRIVE_TAILS, context);
+  return pickSmart(NEUTRAL_DRIVE_TAILS, context);
+}
+
 function pickSmart(lines: string[], context: SmartNaluContext, offset = 0): string {
   if (lines.length === 0) return "";
   return lines[(smartVariantSeed(context) + offset) % lines.length] ?? lines[0] ?? "";
 }
 
-const DECISIVE_DRIVE_TAILS = [
+// Only when live traffic is actually heavy: these lines say the road is busy.
+const BUSY_DRIVE_TAILS = [
   "Traffic no joke right now, but the car still saves the time.",
-  "H-1 is busy, but the clock is still on your side.",
   "Yeah, the road is busy. You’re still saving time by driving.",
   "Not exactly a relaxing drive, but it gets you there sooner.",
   "The road is a little ugly today, but driving still wins on time.",
+  "Busy roads, shorter trip. That’s the trade-off.",
+];
+
+// Light or moderate traffic: the roads are fine, so say so.
+const CLEAR_DRIVE_TAILS = [
+  "Roads look good, so the car is the easy call.",
+  "Traffic is moving fine. Driving is the quick way today.",
+  "Easy drive right now. Take the car.",
+];
+
+// Traffic level unknown: no claim about the road either way.
+const NEUTRAL_DRIVE_TAILS = [
   "That’s a real time savings. Worth knowing before you head out.",
   "The car wins this one on time. Pretty simple.",
-  "Busy roads, shorter trip. That’s the trade-off.",
 ];
 
 const DECISIVE_TRANSIT_TAILS = [
@@ -458,7 +479,8 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
   // Scheduled roadwork is context, not evidence of a slowdown. Only roadwork
   // explicitly marked active may be described in the present tense.
   const roadworkItems = asRoadworkList(context.activeRoadwork).filter((item) => item.active !== false);
-  const roadwork = roadworkItems.find((item) => item.active === true) ?? roadworkItems[0];
+  const activeRoadwork = roadworkItems.find((item) => item.active === true);
+  const roadwork = activeRoadwork ?? roadworkItems[0];
   const roadworkIsActive = roadwork?.active === true;
   const roadworkRoad = cleanRoadName(roadwork?.road) ?? cleanRoadName(roadwork?.route);
   const roadworkPhrase = roadworkRoad
@@ -474,19 +496,19 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
 
     if (winner === "drive") {
       // An incident or roadwork road is a caution on the drive, never the reason
-      // driving wins, so it is flagged rather than credited.
+      // driving wins, so it is flagged rather than credited. Roadwork only
+      // counts when it is happening now; a schedule elsewhere today is noise.
       const incidentOn = incidentRoad(incident);
+      const activeRoad = activeRoadwork
+        ? (cleanRoadName(activeRoadwork.road) ?? cleanRoadName(activeRoadwork.route))
+        : null;
       const caution = incidentOn
         ? ` Heads up: incident on ${incidentOn}.`
-        : roadworkPhrase
-          ? ` Heads up: ${roadworkPhrase}.`
+        : activeRoad
+          ? ` Heads up: roadwork on ${activeRoad}.`
           : "";
       const fact = `Driving saves ${saved} over transit right now.${caution}`;
-      const tail =
-        context.trafficLevel === "heavy" || context.trafficLevel === "severe"
-          ? pickSmart(DECISIVE_DRIVE_TAILS, context, 7)
-          : pickSmart(DECISIVE_DRIVE_TAILS, context);
-      return `${fact} ${tail}`;
+      return `${fact} ${driveTail(context, Boolean(caution))}`;
     }
 
     // Only name a road as the cause when the provider measured a delay there.
@@ -542,7 +564,7 @@ export function generateSmartNaluInsight(context: SmartNaluContext): string {
   }
 
   if (winner === "drive") {
-    return `Driving has the better time on the numbers. ${pickSmart(DECISIVE_DRIVE_TAILS, context)}`;
+    return `Driving has the better time on the numbers. ${driveTail(context, Boolean(incident))}`;
   }
 
   return `Nalu checked the trip. ${pickSmart(FALLBACK_TAILS, context)}`;

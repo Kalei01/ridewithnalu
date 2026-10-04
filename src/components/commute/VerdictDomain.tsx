@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Bus, Car, Check, TrainFront } from "lucide-react";
 import { DecisionBars } from "@/components/commute/DecisionBars";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { clockFromSeconds } from "@/lib/commute-formatting";
@@ -124,6 +124,29 @@ export function VerdictDomain({
                 : `About ${formatDriveMinutes(differenceMinutes)} apart`}
             </span>
           )}
+        </div>
+      )}
+      {configured && !arriveByActive && !optionsLoading && !driveLoading && (driveMinutes !== null || transitMinutes !== null) && (
+        // Both trip lengths at a glance, door to door (drive includes parking),
+        // so the "N min faster" headline is visible math.
+        <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Trip times, door to door">
+          {[
+            { key: "drive", label: "Drive", minutes: driveMinutes, won: verdict === "drive", Icon: Car },
+            { key: "transit", label: transitLabel, minutes: transitMinutes, won: verdict === "transit", Icon: /rail|skyline/i.test(transitLabel) ? TrainFront : Bus },
+          ].map(({ key, label, minutes, won, Icon }) => (
+            <div
+              key={key}
+              className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${won ? "border-recommended/50 bg-recommended/10" : "border-border bg-background/40"}`}
+            >
+              <Icon className={`size-5 shrink-0 ${won ? "text-recommended" : "text-muted-foreground"}`} />
+              <span className="min-w-0">
+                <span className="block truncate text-xs text-muted-foreground">{label}</span>
+                <span className="block whitespace-nowrap text-lg font-bold tabular-nums text-foreground">
+                  {minutes !== null ? formatDriveMinutes(minutes) : "—"}
+                </span>
+              </span>
+            </div>
+          ))}
         </div>
       )}
       {(verdict === "transit" || transitStandaloneAvailable) && best && transitRange && (
