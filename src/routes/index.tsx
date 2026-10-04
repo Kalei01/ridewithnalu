@@ -1,6 +1,7 @@
 import { TEST_REGION_POPULAR, activeRegion, regionContains, regionTimeZone } from "@/lib/region";
 import { hdotRoadName } from "@/lib/hdot-road-names";
 import { Tagline } from "@/components/brand/Tagline";
+import { useGate } from "@/hooks/use-gate";
 import { VoiceSection } from "@/components/settings/VoiceSection";
 import { SettingsHint } from "@/components/SettingsHint";
 import { RideCard } from "@/components/commute/RideCard";
@@ -729,6 +730,8 @@ function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
 
 function Index() {
   const { user, loading: authLoading, signedInAt } = useAuth();
+  // Plan checks (all allowed while the plan switches are off, Phase 1).
+  const gate = useGate();
   const [now, setNow] = useState(() => new Date());
   const [online, setOnline] = useState(true);
   useEffect(() => {
@@ -1055,6 +1058,7 @@ function Index() {
   }
 
   function choosePlanMode(next: PlanMode) {
+    if (next === "arrive-by" && !gate.require("arrive_by")) return;
     setPlanMode(next);
     window.localStorage.setItem(PLAN_MODE_KEY, next);
   }
@@ -2402,6 +2406,7 @@ function Index() {
   const lastPulse = useRef<string | null>(null);
   useEffect(() => {
     if (!approach || (approach.state !== "ready" && approach.state !== "urgent")) return;
+    if (!gate.allows("riding_alerts")) return;
     const pulseKey = `${approach.key}-${approach.state}`;
     if (lastPulse.current === pulseKey) return;
     lastPulse.current = pulseKey;
@@ -2427,8 +2432,10 @@ function Index() {
   useEffect(() => {
     if (!alertPrefs.keepOnTransfer) setApproachDismissed(null);
   }, [legKey, alertPrefs.keepOnTransfer]);
+  // "Get off in 2 stops" alerts are part of Plus.
+  const ridingAlerts = gate.allows("riding_alerts");
   const showApproach =
-    Boolean(approach) && approachDismissed !== `${approach?.key}-${approach?.state}`;
+    ridingAlerts && Boolean(approach) && approachDismissed !== `${approach?.key}-${approach?.state}`;
 
   // Real driving time between the two points that matter for this direction.
   const driveFrom = tripDirection.from;
@@ -2622,7 +2629,7 @@ function Index() {
       return;
     }
     const spike = liveDrive.delayMinutes - rescueBaseline.current;
-    if (spike < 8 || rescueAsked.current) return;
+    if (spike < 8 || rescueAsked.current || !gate.allows("traffic_rescue_tips")) return;
     rescueAsked.current = true;
     void fetchRescue({
       data: {
@@ -2864,6 +2871,8 @@ function Index() {
     // same cumulative increase from being announced at every refresh.
     trafficAlertBaseline.current = current;
 
+    // Live traffic updates while driving are part of Plus.
+    if (!gate.allows("traffic_rescue_tips")) return;
     const corridor =
       drive.corridorLabel?.replace(/^Via\s+/i, "") || drive.incidents[0]?.road || "your route";
     const message =
@@ -4136,6 +4145,7 @@ function Index() {
   }
 
   function saveSetup(next: Setup) {
+    if (!gate.tripCheck()) return;
     // Unlock audio inside this tap so iOS Safari allows the arrival chime later.
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
@@ -4242,6 +4252,7 @@ function Index() {
   }
 
   async function quickStartRoutine() {
+    if (!gate.tripCheck()) return;
     const routineTarget =
       findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
     if (routineTarget) {
@@ -4292,6 +4303,7 @@ function Index() {
   }
 
   async function quickStartSavedPlace(slot: string, options: { auto?: boolean } = {}) {
+    if (!options.auto && !gate.tripCheck()) return;
     const destination = resolveShortcut(savedPlaces, slot);
     if (destination && !options.auto) recordTripOpen(slot);
     if (!destination) {
@@ -5100,7 +5112,7 @@ function Index() {
             </section>
           )}
 
-          <AskNaluIfAvailable origin={browseUserPoint} />
+          {gate.allows("ask_nalu") && <AskNaluIfAvailable origin={browseUserPoint} />}
 
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <H1ConditionsCard
@@ -5657,6 +5669,19 @@ function Index() {
                 onClick={() => {
                   // Starting a trip means "tell me everything": unlock chime and speech
                   // inside this tap (iOS Safari), unmute voice and turn every alert on.
+                  // Turn-by-turn voice is part of Plus; without it, hand the drive
+                  // to the phone's own Maps app (Nalu doesn't compete with Maps).
+                  if (selectedMode === "drive" && !gate.allows("turn_by_turn")) {
+                    const to = tripDirection.to;
+                    if (to.lat !== null && to.lon !== null) {
+                      const ios = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+                      window.location.href = ios
+                        ? `https://maps.apple.com/?daddr=${to.lat},${to.lon}&dirflg=d`
+                        : `https://www.google.com/maps/dir/?api=1&destination=${to.lat},${to.lon}&travelmode=driving`;
+                      toast("Opening Maps. Voice directions in Nalu come with Plus.");
+                    }
+                    return;
+                  }
                   primeChimeAudio();
                   // Say where we're going and the first direction inside this
                   // tap: iPhones only let a web app start talking during a tap,
@@ -8050,7 +8075,10 @@ function AboutSection() {
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         Guest trips and saved places can remain on this device. If you choose to sign in, your
         profile, saved places, and preferences can sync across your devices. Feedback you submit is
-        sent to Nalu for review and is processed through our feedback service provider.
+        sent to Nalu for review and is processed through our feedback service provider. To know
+        how many people use Nalu each week, each phone is counted once a day under a random number,
+        with no name or location. Crash reports go to our error service without your searches or
+        location.
       </p>
       <div className="mt-6 h-px bg-border/60" />
 

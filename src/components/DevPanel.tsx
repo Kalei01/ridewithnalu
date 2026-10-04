@@ -6,7 +6,7 @@ import { useIsDeveloper, useRealTier, useTier } from "@/hooks/use-tier";
 import { DAILY_TRIP_LIMIT, ENFORCE_TIERS, FEATURE_TIER, writePreviewTier, type Tier } from "@/lib/tiers";
 import { readPushPrefs } from "@/lib/push-client";
 import { useServerFn } from "@tanstack/react-start";
-import { clearProblems, linkDeveloperPhone, listProblems, sendServerTestError } from "@/lib/dev.functions";
+import { clearProblems, linkDeveloperPhone, listProblems, sendServerTestError, usageStats } from "@/lib/dev.functions";
 import { areaName } from "@/lib/problems";
 import { REGIONS, activeRegion, switchRegion, type RegionId } from "@/lib/region";
 
@@ -36,6 +36,13 @@ export function DevPanel() {
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const serverTest = useServerFn(sendServerTestError);
   const fetchProblems = useServerFn(listProblems);
+  const fetchUsage = useServerFn(usageStats);
+  const { data: usage } = useQuery({
+    queryKey: ["dev-usage"],
+    enabled: developer && open,
+    staleTime: 60_000,
+    queryFn: () => fetchUsage(),
+  });
   const clear = useServerFn(clearProblems);
   const linkPhone = useServerFn(linkDeveloperPhone);
   const queryClient = useQueryClient();
@@ -115,6 +122,28 @@ export function DevPanel() {
               </button>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">Only visible on owner accounts.</p>
+
+            <p className="mt-4 text-sm font-semibold">Weekly users</p>
+            {usage ? (
+              <div className="mt-2 rounded-lg border border-border p-3">
+                <p className="text-2xl font-bold tabular-nums">
+                  {usage.weekly_users}
+                  <span className="ml-1 text-sm font-medium text-muted-foreground">of 200 for Phase 2</span>
+                </p>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                  <div className="h-full bg-primary" style={{ width: `${Math.min(100, (usage.weekly_users / 200) * 100)}%` }} />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Last week {usage.previous_week_users} · today {usage.today_users} · signed in this week{" "}
+                  {usage.weekly_signed_in}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Accounts {usage.accounts} (+{usage.new_accounts_week} this week) · paying {usage.paying}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">Counting…</p>
+            )}
 
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm font-semibold">Problems</p>

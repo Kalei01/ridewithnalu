@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useGate } from "@/hooks/use-gate";
 import { useServerFn } from "@tanstack/react-start";
 import { BellRing, Share, X } from "lucide-react";
 import { toast } from "sonner";
@@ -257,7 +258,14 @@ function TripSetup({
 }) {
   const [time, setTime] = useState(trip.defaultTime);
   const [days, setDays] = useState<number[]>(WEEKDAYS);
+  const gate = useGate();
   useEffect(() => setTime(trip.defaultTime), [trip.defaultTime]);
+  // Plans: a free account gets one leave alert; Plus gets alerts for every trip.
+  function allowedByPlan() {
+    if (!gate.require("leave_alert_one")) return false;
+    const others = readLeaveAlerts().filter((alert) => alert.placeKey !== trip.placeKey).length;
+    return others === 0 || gate.require("leave_alerts_all");
+  }
 
   return (
     <div className="grid gap-3">
@@ -295,7 +303,7 @@ function TripSetup({
         type="button"
         onClick={() => {
           const arriveMin = clockToMinutes(time);
-          if (arriveMin !== null && days.length) onTurnOn(trip, arriveMin, days);
+          if (arriveMin !== null && days.length && allowedByPlan()) onTurnOn(trip, arriveMin, days);
         }}
         disabled={busy || days.length === 0}
         className="h-12 text-base"

@@ -5,13 +5,20 @@
  *   free   signed up (free account)
  *   plus   paid subscription, or a comped owner account
  *
- * ENFORCE_TIERS is off: nothing is restricted until the lineup is agreed.
+ * Lineup agreed in the Plans doc. Two switches, both off in Phase 1 (everything
+ * free); Phase 2 (around 200 weekly users) turns them on:
+ *   ENFORCE_GUEST_LIMITS  guests get 5 trip checks a day; account features need sign-up
+ *   ENFORCE_PLUS          Plus features need Plus (needs payments first)
+ * Developers can preview any tier from the Dev panel with the limits applied.
  * The database answers "which tier am I?" through the my_tier() function.
  */
 
 export type Tier = "guest" | "free" | "plus";
 
-export const ENFORCE_TIERS = false;
+export const ENFORCE_GUEST_LIMITS = false;
+export const ENFORCE_PLUS = false;
+/** True when any limit is on (shown in the Dev panel). */
+export const ENFORCE_TIERS = ENFORCE_GUEST_LIMITS || ENFORCE_PLUS;
 
 export type Feature =
   | "drive_vs_transit_answer"
@@ -23,6 +30,8 @@ export type Feature =
   | "leave_alerts_all"
   | "turn_by_turn"
   | "traffic_rescue_tips"
+  | "riding_alerts"
+  | "get_home_safe"
   | "ask_nalu";
 
 const RANK: Record<Tier, number> = { guest: 0, free: 1, plus: 2 };
@@ -38,7 +47,26 @@ export const FEATURE_TIER: Record<Feature, Tier> = {
   leave_alerts_all: "plus",
   turn_by_turn: "plus",
   traffic_rescue_tips: "plus",
+  riding_alerts: "plus",
+  // Safety stays free for everyone, forever.
+  get_home_safe: "guest",
   ask_nalu: "plus",
+};
+
+/** Plain names for the upgrade screens. */
+export const FEATURE_NAME: Record<Feature, string> = {
+  drive_vs_transit_answer: "The drive-or-transit answer",
+  nearby_stops: "Nearby stops",
+  live_bus_times: "Live bus times",
+  saved_places: "Saved places on all your phones",
+  arrive_by: "Arrive-by planning",
+  leave_alert_one: "A time-to-leave alert",
+  leave_alerts_all: "More time-to-leave alerts",
+  turn_by_turn: "Turn-by-turn voice directions",
+  traffic_rescue_tips: "Live traffic updates while you drive",
+  riding_alerts: "“Get off in 2 stops” alerts",
+  get_home_safe: "Get home safe",
+  ask_nalu: "Ask Nalu",
 };
 
 /** "Where to?" trip checks per day. Null means unlimited. */
@@ -72,8 +100,10 @@ export function writePreviewTier(tier: Tier | null) {
 
 /** A developer preview always shows the limits, even before they're switched on. */
 export function tierAllows(tier: Tier, feature: Feature, previewing = false): boolean {
-  if (!ENFORCE_TIERS && !previewing) return true;
-  return RANK[tier] >= RANK[FEATURE_TIER[feature]];
+  const needs = FEATURE_TIER[feature];
+  if (RANK[tier] >= RANK[needs]) return true;
+  if (previewing) return false;
+  return needs === "plus" ? !ENFORCE_PLUS : !ENFORCE_GUEST_LIMITS;
 }
 
 export function asTier(value: unknown): Tier {
@@ -86,9 +116,13 @@ const TRIP_COUNT_KEY = "nalu-trip-checks-v1";
  * Counts a "Where to?" trip check on this device for today (Honolulu date) and
  * says whether it's allowed. A soft limit for guests; signing up removes it.
  */
-export function consumeTripCheck(tier: Tier, now = new Date()): { allowed: boolean; remaining: number | null } {
+export function consumeTripCheck(
+  tier: Tier,
+  now = new Date(),
+  previewing = false,
+): { allowed: boolean; remaining: number | null } {
   const limit = DAILY_TRIP_LIMIT[tier];
-  if (!ENFORCE_TIERS || limit === null) return { allowed: true, remaining: null };
+  if ((!ENFORCE_GUEST_LIMITS && !previewing) || limit === null) return { allowed: true, remaining: null };
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Honolulu" }).format(now);
   let used = 0;
   try {

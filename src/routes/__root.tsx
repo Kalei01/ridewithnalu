@@ -1,5 +1,7 @@
 import { DevPanel } from "@/components/DevPanel";
 import { startAutoUpdate } from "@/lib/app-update";
+import { UpgradeSheet } from "@/components/UpgradeSheet";
+import { UsagePing } from "@/components/UsagePing";
 import { startErrorReporting } from "@/lib/sentry-client";
 import { NotificationPrompt } from "@/components/NotificationPrompt";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -115,6 +117,8 @@ function RootComponent() {
         <AppRouteGate />
         <NotificationPrompt />
         <DevPanel />
+        <UpgradeSheet />
+        <UsagePing />
         <Toaster
           position="top-center"
           richColors

@@ -71,3 +71,24 @@ export const linkDeveloperPhone = createServerFn({ method: "POST" })
     await supabaseAdmin.from("push_subscriptions").update({ user_id: context.userId }).eq("token", data.token);
     return { ok: true };
   });
+
+export type UsageStats = {
+  weekly_users: number;
+  previous_week_users: number;
+  today_users: number;
+  weekly_signed_in: number;
+  accounts: number;
+  new_accounts_week: number;
+  paying: number;
+};
+
+/** Developer-only: weekly users, sign-ups and paying count. */
+export const usageStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<UsageStats | null> => {
+    await requireDeveloper(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as Rpc;
+    const { data } = await rpc("usage_stats");
+    return (data as UsageStats | null) ?? null;
+  });
