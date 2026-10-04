@@ -181,15 +181,15 @@ function WelcomePage() {
             <div className="mt-5 grid grid-cols-3 gap-2">
               <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <p className="text-sm text-muted-foreground">Leave</p>
-                <p className="mt-1 text-xl font-bold text-recommended">6:40</p>
+                <p className="mt-1 whitespace-nowrap text-lg font-bold text-recommended">6:40</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <p className="text-sm text-muted-foreground">Arrive</p>
-                <p className="mt-1 text-xl font-bold">7:38</p>
+                <p className="mt-1 whitespace-nowrap text-lg font-bold">7:38</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
                 <p className="text-sm text-muted-foreground">Driving</p>
-                <p className="mt-1 text-xl font-bold">48 min</p>
+                <p className="mt-1 whitespace-nowrap text-lg font-bold">48 min</p>
               </div>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
