@@ -237,10 +237,20 @@ function WelcomePage() {
               </li>
             ))}
           </ol>
-          <p className="mt-5 text-base leading-7 text-muted-foreground">
-            Need to be somewhere at a set time? Tap <span className="font-semibold text-foreground">Arrive by</span>{" "}
-            and Nalu tells you when to leave. Driving? Nalu can give you turn-by-turn directions.
-          </p>
+          <ul className="mt-5 grid gap-2 text-base leading-7 text-muted-foreground">
+            <li>
+              <span className="font-semibold text-foreground">Time-to-leave alerts:</span> one
+              notification when it's time to go, morning or evening.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">Your bus, live:</span> see where it is on
+              the map and how far it is from your stop.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">Arrive by:</span> tell Nalu when you need
+              to be there; it tells you when to leave. Driving? Turn-by-turn directions too.
+            </li>
+          </ul>
         </section>
 
         <section className="border-t border-white/10 py-10" aria-labelledby="faq">
@@ -253,6 +263,10 @@ function WelcomePage() {
             <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <summary className="flex min-h-12 cursor-pointer items-center py-2 text-base font-semibold">Where does the information come from?</summary>
               <p className="mt-3 text-base leading-7 text-muted-foreground">Driving times come from live traffic (TomTom). Bus and Skyline times come from TheBus’s official timetable. Weather comes from the National Weather Service.</p>
+            </details>
+            <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <summary className="flex min-h-12 cursor-pointer items-center py-2 text-base font-semibold">Is Nalu free?</summary>
+              <p className="mt-3 text-base leading-7 text-muted-foreground">Yes. No account is needed to check a trip. A free account saves your places and turns on alerts. Getting home safe will always be free.</p>
             </details>
             <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <summary className="flex min-h-12 cursor-pointer items-center py-2 text-base font-semibold">How accurate is it?</summary>
