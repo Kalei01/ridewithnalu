@@ -45,10 +45,16 @@ export type PushMessage = {
 export async function sendToSubscription(
   sub: Subscription,
   message: PushMessage,
+  options: { ignoreQuietHours?: boolean } = {},
 ): Promise<"sent" | "skipped" | "removed" | "failed"> {
   if (!sub.categories.includes(message.category)) return "skipped";
-  // Stop/transfer alerts are time-critical and the rider asked for them mid-trip.
-  if (message.category !== "stop_transfer" && inQuietHours(sub.quiet_start_min, sub.quiet_end_min))
+  // Stop/transfer alerts are time-critical and the rider asked for them mid-trip;
+  // a leave-time alert is for a time the rider picked themselves.
+  if (
+    !options.ignoreQuietHours &&
+    message.category !== "stop_transfer" &&
+    inQuietHours(sub.quiet_start_min, sub.quiet_end_min)
+  )
     return "skipped";
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

@@ -167,6 +167,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { HOLO_FARES } from "@/lib/fares";
 import { InstallNaluCard } from "@/components/InstallNaluCard";
+import { LeaveAlertCard } from "@/components/LeaveAlertCard";
 import { MAX_STOP_WALK_M, preferLessWalking } from "@/lib/rail/walk-preference";
 import {
   AskNaluIfAvailable,
@@ -4485,6 +4486,7 @@ function Index() {
           />
 
           <InstallNaluCard />
+          <LeaveAlertCard places={savedPlaces} variant="offer" />
 
           {browseUserPoint && (
             <section
@@ -7376,7 +7378,7 @@ function SetupDialog({
               description="Optional commute alerts and quiet hours."
               defaultOpen={false}
             >
-              <NotificationsSection />
+              <NotificationsSection places={savedPlaces} />
             </SettingsGroup>
           )}
 

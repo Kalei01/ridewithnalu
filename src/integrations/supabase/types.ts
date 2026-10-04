@@ -208,6 +208,57 @@ export type Database = {
           },
         ]
       }
+      leave_alerts: {
+        Row: {
+          arrive_min: number
+          created_at: string
+          days: number[]
+          dest_lat: number
+          dest_lon: number
+          last_sent_on: string | null
+          next_check_at: string | null
+          origin_lat: number
+          origin_lon: number
+          place_key: string
+          place_label: string
+          to_home: boolean
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          arrive_min: number
+          created_at?: string
+          days: number[]
+          dest_lat: number
+          dest_lon: number
+          last_sent_on?: string | null
+          next_check_at?: string | null
+          origin_lat: number
+          origin_lon: number
+          place_key: string
+          place_label: string
+          to_home?: boolean
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          arrive_min?: number
+          created_at?: string
+          days?: number[]
+          dest_lat?: number
+          dest_lon?: number
+          last_sent_on?: string | null
+          next_check_at?: string | null
+          origin_lat?: number
+          origin_lon?: number
+          place_key?: string
+          place_label?: string
+          to_home?: boolean
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           categories: string[]

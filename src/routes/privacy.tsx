@@ -42,6 +42,11 @@ function PrivacyPage() {
           </section>
 
           <section>
+            <h2 className="text-lg font-bold text-foreground">Time-to-leave alerts</h2>
+            <p className="mt-2">If you turn on a time-to-leave alert, Nalu stores the two ends of that trip rounded to about one block, the arrival time and the days you picked, linked to your device&apos;s notification token, so it can check traffic and the timetable and notify you when to leave. Nothing is stored if you don&apos;t turn an alert on, and turning it off deletes it.</p>
+          </section>
+
+          <section>
             <h2 className="text-lg font-bold text-foreground">How information is used</h2>
             <p className="mt-2">Information may be used to provide and improve Nalu, maintain accounts and saved places, respond to feedback, protect the service, troubleshoot problems, and provide the commute features you request.</p>
           </section>

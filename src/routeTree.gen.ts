@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as ApiPublicImportGtfsRouteImport } from './routes/api/public/import-gtfs'
+import { Route as ApiPublicLeaveAlertsRouteImport } from './routes/api/public/leave-alerts'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push-dispatch'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +60,11 @@ const ApiPublicImportGtfsRoute = ApiPublicImportGtfsRouteImport.update({
   path: '/api/public/import-gtfs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLeaveAlertsRoute = ApiPublicLeaveAlertsRouteImport.update({
+  id: '/api/public/leave-alerts',
+  path: '/api/public/leave-alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   id: '/api/public/push-dispatch',
   path: '/api/public/push-dispatch',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
+  '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
+  '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
+  '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/welcome'
     | '/api/public/import-gtfs'
+    | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/welcome'
     | '/api/public/import-gtfs'
+    | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/welcome'
     | '/api/public/import-gtfs'
+    | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   WelcomeRoute: typeof WelcomeRoute
   ApiPublicImportGtfsRoute: typeof ApiPublicImportGtfsRoute
+  ApiPublicLeaveAlertsRoute: typeof ApiPublicLeaveAlertsRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
 }
 
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicImportGtfsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/leave-alerts': {
+      id: '/api/public/leave-alerts'
+      path: '/api/public/leave-alerts'
+      fullPath: '/api/public/leave-alerts'
+      preLoaderRoute: typeof ApiPublicLeaveAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/push-dispatch': {
       id: '/api/public/push-dispatch'
       path: '/api/public/push-dispatch'
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   WelcomeRoute: WelcomeRoute,
   ApiPublicImportGtfsRoute: ApiPublicImportGtfsRoute,
+  ApiPublicLeaveAlertsRoute: ApiPublicLeaveAlertsRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
 }
 export const routeTree = rootRouteImport
