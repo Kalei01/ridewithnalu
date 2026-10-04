@@ -1,4 +1,5 @@
 import { DevPanel } from "@/components/DevPanel";
+import { startAutoUpdate } from "@/lib/app-update";
 import { NotificationPrompt } from "@/components/NotificationPrompt";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -102,6 +103,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => startAutoUpdate(), []);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -16,9 +16,11 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WelcomeRouteImport } from './routes/welcome'
+import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 import { Route as ApiPublicImportGtfsRouteImport } from './routes/api/public/import-gtfs'
 import { Route as ApiPublicLeaveAlertsRouteImport } from './routes/api/public/leave-alerts'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push-dispatch'
+import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -55,6 +57,11 @@ const WelcomeRoute = WelcomeRouteImport.update({
   path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHealthRoute = ApiPublicHealthRouteImport.update({
+  id: '/api/public/health',
+  path: '/api/public/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicImportGtfsRoute = ApiPublicImportGtfsRouteImport.update({
   id: '/api/public/import-gtfs',
   path: '/api/public/import-gtfs',
@@ -70,6 +77,11 @@ const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   path: '/api/public/push-dispatch',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicVersionRoute = ApiPublicVersionRouteImport.update({
+  id: '/api/public/version',
+  path: '/api/public/version',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,9 +91,11 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,9 +105,11 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,9 +120,11 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -118,9 +136,11 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/terms'
     | '/welcome'
+    | '/api/public/health'
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
+    | '/api/public/version'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -130,9 +150,11 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/terms'
     | '/welcome'
+    | '/api/public/health'
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
+    | '/api/public/version'
   id:
     | '__root__'
     | '/'
@@ -142,9 +164,11 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/terms'
     | '/welcome'
+    | '/api/public/health'
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
+    | '/api/public/version'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -155,9 +179,11 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
   WelcomeRoute: typeof WelcomeRoute
+  ApiPublicHealthRoute: typeof ApiPublicHealthRoute
   ApiPublicImportGtfsRoute: typeof ApiPublicImportGtfsRoute
   ApiPublicLeaveAlertsRoute: typeof ApiPublicLeaveAlertsRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
+  ApiPublicVersionRoute: typeof ApiPublicVersionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -211,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/health': {
+      id: '/api/public/health'
+      path: '/api/public/health'
+      fullPath: '/api/public/health'
+      preLoaderRoute: typeof ApiPublicHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/import-gtfs': {
       id: '/api/public/import-gtfs'
       path: '/api/public/import-gtfs'
@@ -232,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPushDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/version': {
+      id: '/api/public/version'
+      path: '/api/public/version'
+      fullPath: '/api/public/version'
+      preLoaderRoute: typeof ApiPublicVersionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -243,9 +283,11 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
   WelcomeRoute: WelcomeRoute,
+  ApiPublicHealthRoute: ApiPublicHealthRoute,
   ApiPublicImportGtfsRoute: ApiPublicImportGtfsRoute,
   ApiPublicLeaveAlertsRoute: ApiPublicLeaveAlertsRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
+  ApiPublicVersionRoute: ApiPublicVersionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

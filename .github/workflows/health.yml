@@ -1,0 +1,22 @@
+name: Health check
+
+# Every hour: ask ridenalu.com to test itself (timetable, planner, TomTom,
+# Mapbox, notifications). A failed run makes GitHub email the repo owner.
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check ridenalu.com
+        run: |
+          status=$(curl -s -o report.json -w "%{http_code}" --max-time 90 https://ridenalu.com/api/public/health)
+          echo "HTTP $status"
+          cat report.json | python3 -c 'import json,sys
+          r=json.load(sys.stdin)
+          for c in r.get("checks",[]): print(("OK  " if c["ok"] else "FAIL"), c["name"], "-", c["detail"])' || cat report.json
+          test "$status" = "200"
