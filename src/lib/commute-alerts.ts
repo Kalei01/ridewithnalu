@@ -84,12 +84,13 @@ export function speakCommuteAlert(
 }
 
 /** Which English voices this phone offers web apps (names only), for diagnosis. */
-function logVoiceInventory() {
+function logVoiceInventory(when: string) {
   try {
     const voices = window.speechSynthesis.getVoices?.() ?? [];
     const english = voices.filter((v) => v.lang.toLowerCase().startsWith("en"));
     const listed = english.map((v) => `${v.name}|${v.lang}${v.default ? "|default" : ""}`).join("; ");
     debugLog("voices", {
+      when,
       total: voices.length,
       english: english.length,
       defaults: voices.filter((v) => v.default).map((v) => `${v.name}|${v.lang}`).join("; "),
@@ -123,7 +124,11 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
     utterance.lang = !voice && isAppleMobile() ? "en" : (voice?.lang ?? "en-US");
     utterance.rate = 0.94;
     debugLog("speech", { phase: "voice", voice: voice ? voice.name : "phone default", lang: utterance.lang });
-    if (immediate) logVoiceInventory();
+    if (immediate) {
+      logVoiceInventory("tap");
+      // iPhones sometimes list their voices a few seconds later.
+      window.setTimeout(() => logVoiceInventory("after 5s"), 5000);
+    }
     utterance.volume = 1;
     let started = false;
 
