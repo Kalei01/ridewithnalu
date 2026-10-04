@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsDeveloper, useRealTier, useTier } from "@/hooks/use-tier";
 import { DAILY_TRIP_LIMIT, ENFORCE_TIERS, FEATURE_TIER, writePreviewTier, type Tier } from "@/lib/tiers";
 import { readPushPrefs } from "@/lib/push-client";
+import { REGIONS, activeRegion, switchRegion, type RegionId } from "@/lib/region";
 
 const TIERS: Array<{ value: Tier | null; label: string }> = [
   { value: null, label: "Real" },
@@ -57,6 +58,29 @@ export function DevPanel() {
               </button>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">Only visible on owner accounts.</p>
+
+            <p className="mt-4 text-sm font-semibold">Region (test)</p>
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              {(Object.keys(REGIONS) as RegionId[]).map((id) => {
+                const on = activeRegion().id === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => {
+                      if (!on) switchRegion(id);
+                    }}
+                    className={`h-11 rounded-lg text-sm font-semibold ${on ? "bg-primary text-primary-foreground" : "border border-border"}`}
+                  >
+                    {id === "oahu" ? "Oʻahu" : "San Francisco"}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              San Francisco is a test on this phone only: driving, Uber/Lyft and walking. No SF bus or train times yet.
+            </p>
 
             <p className="mt-4 text-sm font-semibold">View the app as</p>
             <div className="mt-2 grid grid-cols-4 gap-1.5">

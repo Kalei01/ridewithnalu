@@ -5,6 +5,8 @@
  * import them freely.
  */
 
+import { regionTimeZone } from "@/lib/region";
+
 export type Coords = { lat: number; lon: number };
 
 /** Structural shape of a trip leg needed for stop naming; matches the app's Leg type. */
@@ -26,7 +28,7 @@ export function distanceM(a: Coords, b: Coords) {
 
 export function honoluluParts(date: Date) {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Pacific/Honolulu",
+    timeZone: regionTimeZone(),
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -45,7 +47,7 @@ export function honoluluSeconds(date: Date) {
 
 export function honoluluIsoDow(date: Date) {
   const weekday = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Pacific/Honolulu",
+    timeZone: regionTimeZone(),
     weekday: "short",
   }).format(date);
   const order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -54,7 +56,7 @@ export function honoluluIsoDow(date: Date) {
 
 export function honoluluDateKey(date: Date) {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Pacific/Honolulu",
+    timeZone: regionTimeZone(),
     dateStyle: "short",
   }).format(date);
 }

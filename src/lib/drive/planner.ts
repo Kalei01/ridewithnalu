@@ -1,4 +1,6 @@
 /** Pure, portable helpers for interpreting TomTom drive estimates. */
+
+import { regionTimeZone, zoneOffset } from "@/lib/region";
 export const DRIVE_DESTINATION_BUFFER_MIN = 0;
 
 export type DrivePlan = {
@@ -128,7 +130,7 @@ export async function solveFutureDrive<T extends DriveRangeSample>(input: {
 /** Convert a Honolulu seconds-since-midnight target into an ISO instant. */
 export function honoluluSecondsToIso(seconds: number, reference = new Date()): string {
   const dateParts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Pacific/Honolulu",
+    timeZone: regionTimeZone(),
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -139,5 +141,5 @@ export function honoluluSecondsToIso(seconds: number, reference = new Date()): s
   const hh = String(Math.floor(normalized / 3600)).padStart(2, "0");
   const mm = String(Math.floor((normalized % 3600) / 60)).padStart(2, "0");
   const ss = String(normalized % 60).padStart(2, "0");
-  return `${read("year")}-${read("month")}-${read("day")}T${hh}:${mm}:${ss}-10:00`;
+  return `${read("year")}-${read("month")}-${read("day")}T${hh}:${mm}:${ss}${zoneOffset(regionTimeZone(), reference)}`;
 }

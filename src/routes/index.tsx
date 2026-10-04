@@ -1,7 +1,9 @@
+import { TEST_REGION_POPULAR, activeRegion, regionContains, regionTimeZone } from "@/lib/region";
 import { hdotRoadName } from "@/lib/hdot-road-names";
 import { Tagline } from "@/components/brand/Tagline";
 import { VoiceSection } from "@/components/settings/VoiceSection";
 import { SettingsHint } from "@/components/SettingsHint";
+import { RideCard } from "@/components/commute/RideCard";
 import { readVoiceLabel } from "@/lib/best-voice";
 import { APP_VERSION } from "@/lib/site";
 import { readPushPrefs } from "@/lib/push-client";
@@ -1156,7 +1158,7 @@ function Index() {
   const timeParts = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
-        timeZone: "Pacific/Honolulu",
+        timeZone: regionTimeZone(),
         weekday: "long",
         month: "short",
         day: "numeric",
@@ -1217,7 +1219,8 @@ function Index() {
   // configured trip, even when the selected origin/destination has no nearby
   // rail station. The legacy rail planner below remains optional and can fail
   // without suppressing bus/walk transit.
-  const transitConfigured = configured;
+  // Test regions (San Francisco) have no bus or rail data yet: drive only.
+  const transitConfigured = configured && activeRegion().hasTransit;
   const browseActive = hydrated && (!configured || pageView === "browse");
   // A committed drive is what turns on live GPS on the map and the rolling
   // 2-minute traffic refresh; both stop the moment the lock is released.
@@ -4537,10 +4540,15 @@ function Index() {
             </div>
           </header>
           <Tagline className="mt-2" />
+          {!activeRegion().hasTransit && (
+            <p className="mt-2 w-fit rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
+              Test: {activeRegion().name} · driving and rides only
+            </p>
+          )}
 
           <CommutePageNav current="browse" onBrowse={() => setPageView("browse")} />
 
-          {findByKind(savedPlaces, "home") && routineDestination && (
+          {activeRegion().hasTransit && findByKind(savedPlaces, "home") && routineDestination && (
             <button
               type="button"
               onClick={() => void quickStartRoutine()}
@@ -4565,18 +4573,23 @@ function Index() {
               reconnect.
             </p>
           )}
-          <MorningPulse
-            home={browseHome}
-            work={browseWork}
-            trainsEveryMinutes={trainsEveryMinutes}
-          />
-          <EveningPulse
-            home={browseHome}
-            work={browseWork}
-            trainsEveryMinutes={trainsEveryMinutes}
-          />
-          <BeatTheRush home={browseHome} work={browseWork} />
-          <WeeklyDigestCard />
+          {/* Oʻahu commute cards use Oʻahu Home/Work; off in the SF test. */}
+          {activeRegion().hasTransit && (
+            <>
+              <MorningPulse
+                home={browseHome}
+                work={browseWork}
+                trainsEveryMinutes={trainsEveryMinutes}
+              />
+              <EveningPulse
+                home={browseHome}
+                work={browseWork}
+                trainsEveryMinutes={trainsEveryMinutes}
+              />
+              <BeatTheRush home={browseHome} work={browseWork} />
+              <WeeklyDigestCard />
+            </>
+          )}
 
           <Button
             onClick={() => setOnboardingOpen(true)}
@@ -4826,6 +4839,9 @@ function Index() {
             </details>
           )}
 
+          {/* Skyline, H-1 and Oʻahu weather: off in the SF test. */}
+          {activeRegion().hasTransit && (
+            <>
           {browseStation && browseFar && !stationExpanded ? (
             <button
               type="button"
@@ -5114,6 +5130,8 @@ function Index() {
               </div>
             </details>
           </div>
+            </>
+          )}
         </div>
         {setupDialog}
       </main>
@@ -5382,7 +5400,13 @@ function Index() {
         </ArriveByControls>
 
 
-        {!commitment && (
+        {!commitment && !activeRegion().hasTransit && tripDirection.to.lat !== null && tripDirection.to.lon !== null && (
+          <RideCard
+            destination={{ lat: tripDirection.to.lat, lon: tripDirection.to.lon, name: tripArrivalLabel }}
+          />
+        )}
+
+        {!commitment && activeRegion().hasTransit && (
           <NightCard
             nowSeconds={nowSeconds}
             options={options}
@@ -6455,7 +6479,7 @@ function BusArrivalTime({
   const stale = Boolean(fetchedAt && Date.now() - fetchedAt > 90_000);
   const updatedTime = fetchedAt
     ? new Intl.DateTimeFormat("en-US", {
-        timeZone: "Pacific/Honolulu",
+        timeZone: regionTimeZone(),
         hour: "numeric",
         minute: "2-digit",
       }).format(new Date(fetchedAt))
@@ -6674,8 +6698,28 @@ const MAX_SHORTCUTS = 4;
 /** A shortcut slot is a place kind (home/work/school/gym) or a saved place id. */
 /** Recent destinations (this phone only, each removable) and popular Oahu places. */
 function QuickPlaces({ disabled, onPick }: { disabled: boolean; onPick: (place: PointLike) => void }) {
+  const region = activeRegion();
+  const findPlaces = useServerFn(searchPlaces);
+  const [looking, setLooking] = useState<string | null>(null);
   const [recents, setRecents] = useState<RecentPlace[]>([]);
-  useEffect(() => setRecents(readRecents()), []);
+  useEffect(
+    () => setRecents(readRecents().filter((place) => regionContains(region, place.lat, place.lon))),
+    [region],
+  );
+  // Test-region places are looked up live, so a tap fills in the real spot.
+  async function pickByName(name: string) {
+    setLooking(name);
+    try {
+      const { results } = await findPlaces({ data: { query: name, region: region.id } });
+      const top = results[0];
+      if (top) onPick({ name: top.name, address: top.address, lat: top.lat, lon: top.lon } as PointLike);
+      else toast.error(`Couldn't find ${name}. Try typing it.`);
+    } catch {
+      toast.error("Search isn't available right now.");
+    } finally {
+      setLooking(null);
+    }
+  }
   const chip =
     "flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-border bg-surface-raised px-3 text-sm font-medium text-foreground";
   return (
@@ -6724,9 +6768,23 @@ function QuickPlaces({ disabled, onPick }: { disabled: boolean; onPick: (place: 
         </div>
       )}
       <div>
-        <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Popular on Oʻahu</p>
+        <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
+          {region.id === "oahu" ? "Popular on Oʻahu" : `Popular in ${region.name}`}
+        </p>
         <div className="flex flex-wrap gap-2">
-          {POPULAR_PLACES.map((place) => (
+          {region.id !== "oahu" &&
+            TEST_REGION_POPULAR[region.id].map((name) => (
+              <button
+                key={name}
+                type="button"
+                disabled={disabled || looking !== null}
+                onClick={() => void pickByName(name)}
+                className={chip}
+              >
+                <span className="truncate">{looking === name ? "Finding…" : name.replace(/ San Francisco$/, "")}</span>
+              </button>
+            ))}
+          {region.id === "oahu" && POPULAR_PLACES.map((place) => (
             <button
               key={place.name}
               type="button"
@@ -6944,7 +7002,7 @@ function QuickPlaceDialog({
     queryKey: ["place-search", debounced],
     enabled: Boolean(slot) && debounced.length >= 2,
     staleTime: 5 * 60_000,
-    queryFn: async () => (await findPlaces({ data: { query: debounced } })).results,
+    queryFn: async () => (await findPlaces({ data: { query: debounced, region: activeRegion().id } })).results,
   });
   const current = slot ? resolveShortcut(places, slot) : null;
   const label = slot ? shortcutLabel(places, slot) : "";
@@ -7185,7 +7243,7 @@ function SetupDialog({
     enabled: open && debouncedQuery.length >= 2,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const result = await findPlaces({ data: { query: debouncedQuery } });
+      const result = await findPlaces({ data: { query: debouncedQuery, region: activeRegion().id } });
       return result.results;
     },
   });

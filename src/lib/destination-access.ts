@@ -5,6 +5,8 @@
  *
  * Zones are coarse Oʻahu geography, not route or station data.
  */
+
+import { regionTimeZone } from "@/lib/region";
 export type AccessZone =
   | "downtown"
   | "kakaako-ala-moana"
@@ -55,7 +57,7 @@ const QUIET_BUFFERS: Partial<Record<AccessZone, Omit<DestinationAccess, "zone">>
 /** Honolulu clock: Sunday all day, or before 6 AM / from 6 PM any day. */
 export function isQuietParkingTime(at: Date): boolean {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Pacific/Honolulu",
+    timeZone: regionTimeZone(),
     weekday: "short",
     hour: "numeric",
     hourCycle: "h23",

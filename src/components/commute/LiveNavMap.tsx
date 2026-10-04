@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SettingsHint } from "@/components/SettingsHint";
+import { honoluluParts } from "@/lib/commute-formatting";
+import { activeRegion } from "@/lib/region";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -76,7 +78,8 @@ function navPadding(map: mapboxgl.Map) {
 
 /** Honolulu daylight (HST, no DST): day roughly 6:15 AM – 6:30 PM. */
 export function isHonoluluDaytime(now = new Date()) {
-  const minutes = ((now.getUTCHours() - 10 + 24) % 24) * 60 + now.getUTCMinutes();
+  const { hour, minute } = honoluluParts(now);
+  const minutes = hour * 60 + minute;
   return minutes >= 6 * 60 + 15 && minutes < 18 * 60 + 30;
 }
 
@@ -181,7 +184,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
   useEffect(() => {
     if (!nodeRef.current || mapRef.current || !token) return;
     mapboxgl.accessToken = token;
-    const start = livePoint ?? lines[0]?.points[0] ?? destination ?? { lat: 21.31, lon: -157.86 };
+    const start = livePoint ?? lines[0]?.points[0] ?? destination ?? activeRegion().center;
     const map = new mapboxgl.Map({
       container: nodeRef.current,
       style: mapStyle,

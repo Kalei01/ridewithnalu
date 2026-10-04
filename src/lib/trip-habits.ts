@@ -4,6 +4,8 @@
  * the habit is real: three or more trips to that place at about this time on
  * the same kind of day (weekday or weekend) in the last 30 days.
  */
+
+import { regionTimeZone } from "@/lib/region";
 export type TripOpen = { slot: string; at: number };
 
 const KEY = "nalu-trip-habits-v1";
@@ -16,7 +18,7 @@ export const MAX_IGNORES = 3;
 
 function honolulu(at: number) {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Pacific/Honolulu",
+    timeZone: regionTimeZone(),
     weekday: "short",
     hour: "numeric",
     minute: "numeric",

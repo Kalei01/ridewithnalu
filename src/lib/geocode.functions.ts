@@ -1,8 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
+import { REGIONS, type RegionId } from "./region";
 import { z } from "zod";
 
-const schema = z.object({ address: z.string().min(3).max(200) });
-const searchSchema = z.object({ query: z.string().min(2).max(200) });
+const regionField = z.enum(["oahu", "sf"]).optional();
+const schema = z.object({ address: z.string().min(3).max(200), region: regionField });
+const searchSchema = z.object({ query: z.string().min(2).max(200), region: regionField });
+
+/** Search bounds and an "is this inside" check for the region being searched. */
+function searchArea(region: RegionId | undefined) {
+  const box = REGIONS[region ?? "oahu"].searchBox;
+  const [top, left] = box.topLeft.split(",").map(Number) as [number, number];
+  const [bottom, right] = box.btmRight.split(",").map(Number) as [number, number];
+  return {
+    oahu: (region ?? "oahu") === "oahu",
+    params: { topLeft: box.topLeft, btmRight: box.btmRight },
+    contains: (lat: number, lon: number) => lat <= top && lat >= bottom && lon >= left && lon <= right,
+  };
+}
 
 const TOMTOM_KEY = process.env["TOMTOM_API_KEY"];
 
@@ -85,17 +99,19 @@ export const geocodeAddress = createServerFn({ method: "POST" })
   .validator((input) => schema.parse(input))
   .handler(async ({ data }) => {
     const key = TOMTOM_KEY ?? "";
+    const area = searchArea(data.region);
     const addressQuery = looksLikeStreetAddress(data.address);
     const hits = addressQuery
-      ? await addressSearch(data.address, { key, limit: "10" })
+      ? await addressSearch(data.address, { key, limit: "10", ...area.params }, area.oahu)
       : await tomtomSearch("search", data.address, {
           key,
           limit: "10",
           idxSet: "POI,PAD,Addr,Geo,Str",
+          ...area.params,
         });
     const ranked = hits
       .map((hit) => ({ hit, point: hitPoint(hit) }))
-      .filter((row) => row.point && insideOahu(row.point.lat, row.point.lon));
+      .filter((row) => row.point && area.contains(row.point.lat, row.point.lon));
     if (!addressQuery)
       ranked.sort(
         (a, b) =>
@@ -138,8 +154,8 @@ export function hyphenateOahuHouseNumber(query: string): string | null {
 }
 
 /** Searches the typed query plus the hyphenated Oʻahu form; point addresses first. */
-async function addressSearch(query: string, params: Record<string, string>) {
-  const hyphenated = hyphenateOahuHouseNumber(query);
+async function addressSearch(query: string, params: Record<string, string>, oahu = true) {
+  const hyphenated = oahu ? hyphenateOahuHouseNumber(query) : null;
   const queries = hyphenated ? [hyphenated, query] : [query];
   const batches = await Promise.all(
     queries.map((q) => tomtomSearch("search", q, { ...params, idxSet: "PAD,Addr,Str" })),
@@ -192,24 +208,31 @@ export const searchPlaces = createServerFn({ method: "POST" })
   .validator((input) => searchSchema.parse(input))
   .handler(async ({ data }): Promise<{ results: PlaceSuggestion[] }> => {
     const key = TOMTOM_KEY ?? "";
+    const area = searchArea(data.region);
 
     try {
-      const searchQuery = autocompleteSearchQuery(data.query);
+      const searchQuery = area.oahu ? autocompleteSearchQuery(data.query) : data.query.trim();
       const addressQuery = looksLikeStreetAddress(searchQuery);
     // A numbered query is a street address: keep shop listings out of it.
     const hits = addressQuery
-      ? await addressSearch(searchQuery, {
-          key,
-          limit: "10",
-          typeahead: "true",
-          extendedPostalCodesFor: "PAD,Addr",
-        })
+      ? await addressSearch(
+          searchQuery,
+          {
+            key,
+            limit: "10",
+            typeahead: "true",
+            extendedPostalCodesFor: "PAD,Addr",
+            ...area.params,
+          },
+          area.oahu,
+        )
       : await tomtomSearch("search", searchQuery, {
           key,
           limit: "10",
           typeahead: "true",
           idxSet: "POI,PAD,Addr,Geo,Str",
           extendedPostalCodesFor: "POI,PAD,Addr",
+          ...area.params,
         });
 
     const results: PlaceSuggestion[] = [];
@@ -217,7 +240,7 @@ export const searchPlaces = createServerFn({ method: "POST" })
     const ranked = addressQuery ? hits : [...hits].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     for (const hit of ranked) {
       const point = hitPoint(hit);
-      if (!point || !insideOahu(point.lat, point.lon)) continue;
+      if (!point || !area.contains(point.lat, point.lon)) continue;
       const address = hit.address?.freeformAddress ?? hit.address?.municipality ?? "";
       const name = hit.poi?.name || address;
       if (!name) continue;
@@ -228,7 +251,7 @@ export const searchPlaces = createServerFn({ method: "POST" })
       results.push({ id: hit.id ?? `${point.lat},${point.lon}`, name, address, ...point });
     }
 
-    if (!addressQuery) {
+    if (!addressQuery && area.oahu) {
       const venue = await resolveAmbiguousVenue(key, searchQuery, results).catch((error) => {
         console.error("Venue disambiguation failed", error);
         return null;
