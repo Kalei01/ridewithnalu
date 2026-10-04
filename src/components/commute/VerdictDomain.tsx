@@ -142,7 +142,7 @@ export function VerdictDomain({
           </div>
           <div className="metric-glass">
             <p className="text-xs text-muted-foreground">{arriveByActive ? "Trip" : "From now"}</p>
-            <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
+            <p className="mt-1 text-2xl font-bold leading-tight tabular-nums text-foreground">
               {arriveByActive
                 ? formatDriveMinutes(best.total_minutes)
                 : transitMinutes !== null
@@ -173,7 +173,7 @@ export function VerdictDomain({
           </div>
           <div className="metric-glass">
             <p className="text-xs text-muted-foreground">Total trip</p>
-            <p className="mt-1 text-3xl font-bold leading-none tabular-nums text-foreground">
+            <p className="mt-1 text-2xl font-bold leading-tight tabular-nums text-foreground">
               {driveTotalMinutes !== null ? formatDriveMinutes(driveTotalMinutes) : "—"}
             </p>
           </div>

@@ -1511,7 +1511,11 @@ function Index() {
       let selectedInboundStation = arrivalStationId;
       let fallbackChecked = false;
       let generalTransitError: unknown = null;
+      // Any trip-planner failure: with no options found, the answer is
+      // "couldn't check transit", never "there is no transit trip".
+      let plannerError: unknown = null;
       const recordTransitRpcError = (stage: string, error: unknown) => {
+        if (stage.startsWith("plan_")) plannerError ??= error;
         const e = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
         debugLog("transit_rpc_error", {
           stage,
@@ -1746,6 +1750,7 @@ function Index() {
         if (busRescue.length) return mergeTransitOptions(busRescue, primaryTransit);
 
         if (generalTransitError) throw generalTransitError;
+        if (plannerError) throw plannerError;
 
         // A valid zero-row response after the targeted fallbacks is a genuine
         // transit miss. Keep the privacy-safe diagnostic path intact.
