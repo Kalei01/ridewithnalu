@@ -9,6 +9,10 @@ type VoiceLike = Pick<SpeechSynthesisVoice, "name" | "lang" | "localService" | "
 const NOVELTY =
   /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|fred|good news|hysterical|jester|junior|kathy|organ|ralph|superstar|trinoids|whisper|wobble|zarvox|grandma|grandpa|eddy|flo|reed|rocko|sandy|shelley)\b/i;
 
+export function isNoveltyVoice(name: string) {
+  return NOVELTY.test(name);
+}
+
 export function voiceScore(voice: VoiceLike): number {
   const lang = voice.lang.replace("_", "-").toLowerCase();
   if (!lang.startsWith("en")) return -1;
@@ -56,9 +60,11 @@ export function isAppleMobile() {
   return /iPhone|iPad|iPod/.test(ua) || (ua.includes("Mac") && (navigator.maxTouchPoints ?? 0) > 1);
 }
 
-/** The best voice available right now, or null to let the phone decide. */
+/** The voice to use right now: the one picked in Settings, else Nalu's pick, else null for the phone's own. */
 export function bestVoice(): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const chosen = findChosenVoice(safeVoices());
+  if (chosen) return chosen;
   if (isAppleMobile()) return null;
   const synth = window.speechSynthesis;
   if (!listening) {
@@ -80,4 +86,98 @@ export function bestVoice(): SpeechSynthesisVoice | null {
     }
   }
   return cached;
+}
+
+const CHOICE_KEY = "nalu-voice-v1";
+
+/** The voice picked in Settings (its id), or null for automatic. */
+export function readVoiceChoice(): string | null {
+  try {
+    return window.localStorage.getItem(CHOICE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+const LABEL_KEY = "nalu-voice-label-v1";
+
+/** A short label for the chosen voice, like "Daniel · British", for the Settings list. */
+export function readVoiceLabel(): string | null {
+  try {
+    return window.localStorage.getItem(CHOICE_KEY) ? window.localStorage.getItem(LABEL_KEY) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeVoiceChoice(id: string | null, label: string | null = null) {
+  try {
+    if (id) window.localStorage.setItem(CHOICE_KEY, id);
+    else window.localStorage.removeItem(CHOICE_KEY);
+    if (id && label) window.localStorage.setItem(LABEL_KEY, label);
+    else window.localStorage.removeItem(LABEL_KEY);
+  } catch {
+    /* private mode: the choice lasts until the app closes */
+  }
+}
+
+export function voiceId(voice: Pick<SpeechSynthesisVoice, "name" | "voiceURI">) {
+  return voice.voiceURI || voice.name;
+}
+
+export function findChosenVoice<T extends Pick<SpeechSynthesisVoice, "name" | "voiceURI">>(
+  voices: readonly T[],
+  id = typeof window === "undefined" ? null : readVoiceChoice(),
+): T | null {
+  if (!id) return null;
+  return voices.find((voice) => voiceId(voice) === id) ?? voices.find((voice) => voice.name === id) ?? null;
+}
+
+export function safeVoices(): SpeechSynthesisVoice[] {
+  try {
+    return window.speechSynthesis.getVoices?.() ?? [];
+  } catch {
+    return [];
+  }
+}
+
+const ACCENTS: Array<[RegExp, string]> = [
+  [/^en[-_]us/i, "American"],
+  [/^en[-_]gb[-_].*sct|scotland/i, "Scottish"],
+  [/^en[-_]gb/i, "British"],
+  [/^en[-_]au/i, "Australian"],
+  [/^en[-_]ie/i, "Irish"],
+  [/^en[-_]in/i, "Indian"],
+  [/^en[-_]za/i, "South African"],
+  [/^en[-_]nz/i, "New Zealand"],
+  [/^en[-_]ca/i, "Canadian"],
+  [/^en[-_]sg/i, "Singaporean"],
+];
+
+export function accentName(lang: string): string {
+  for (const [pattern, label] of ACCENTS) if (pattern.test(lang)) return label;
+  return "English";
+}
+
+/** Real English voices only, best-sounding first within each accent, American first. */
+export function choosableVoices<T extends VoiceLike & Pick<SpeechSynthesisVoice, "voiceURI">>(voices: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return voices
+    .filter((voice) => voice.lang.toLowerCase().startsWith("en") && !isNoveltyVoice(voice.name))
+    .filter((voice) => {
+      const id = voiceId(voice);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .sort((a, b) => {
+      const accentA = accentName(a.lang);
+      const accentB = accentName(b.lang);
+      if (accentA !== accentB) {
+        if (accentA === "American") return -1;
+        if (accentB === "American") return 1;
+        return accentA.localeCompare(accentB);
+      }
+      return voiceScore(b) - voiceScore(a) || a.name.localeCompare(b.name);
+    });
 }

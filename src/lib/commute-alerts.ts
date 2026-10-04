@@ -1,5 +1,5 @@
 import { audioContext } from "./approach";
-import { bestVoice, isAppleMobile } from "./best-voice";
+import { bestVoice, isAppleMobile, readVoiceChoice, safeVoices } from "./best-voice";
 import { debugLog } from "./debug-log";
 import { VoicePriorityQueue, type VoicePriority } from "./voice-priority-queue";
 
@@ -111,6 +111,11 @@ let speechGeneration = 0;
 let useDefaultVoice = false;
 const VOICE_START_TIMEOUT_MS = 2500;
 
+/** A new voice was picked in Settings: give it a fresh chance. */
+export function resetVoiceFallback() {
+  useDefaultVoice = false;
+}
+
 function speakQueuedRequest(request: { message: string; priority: VoicePriority }, immediate = false) {
   const generation = ++speechGeneration;
   debugLog("speech", { phase: "request", priority: request.priority, chars: request.message.length, immediate });
@@ -184,6 +189,28 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
       if (next) speakQueuedRequest(next);
     }
   }
+}
+
+/**
+ * iPhones list their voices only after speech has been used once. When a
+ * voice was picked in Settings, a silent word on the first tap anywhere in the
+ * app loads that list, so the picked voice is ready for the Start tap.
+ */
+export function warmVoicesOnFirstTap() {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return () => {};
+  const warm = () => {
+    try {
+      if (!readVoiceChoice() || safeVoices().length > 0) return;
+      const utterance = new window.SpeechSynthesisUtterance("ready");
+      utterance.volume = 0;
+      window.speechSynthesis.speak(utterance);
+      debugLog("speech", { phase: "warm" });
+    } catch {
+      /* best-effort */
+    }
+  };
+  document.addEventListener("pointerdown", warm, { once: true, capture: true });
+  return () => document.removeEventListener("pointerdown", warm, { capture: true });
 }
 
 /** Cancel current/pending spoken alerts without affecting navigation state. */

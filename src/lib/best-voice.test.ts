@@ -20,3 +20,31 @@ describe("pickBestVoice", () => {
     expect(pickBestVoice([v("Daniel", "en-GB"), v("Samantha")])?.name).toBe("Samantha");
   });
 });
+
+import { accentName, choosableVoices, findChosenVoice } from "./best-voice";
+
+const iv = (name: string, lang: string) => ({ name, lang, localService: true, default: true, voiceURI: `com.apple.${name}` });
+
+describe("voice choice", () => {
+  it("lists real English voices only, American first, then by accent", () => {
+    const list = choosableVoices([
+      iv("Zarvox", "en-US"),
+      iv("Karen", "en-AU"),
+      iv("Daniel", "en-GB"),
+      iv("Samantha", "en-US"),
+      iv("Amélie", "fr-CA"),
+      iv("Bad News", "en-US"),
+    ]);
+    expect(list.map((v) => v.name)).toEqual(["Samantha", "Karen", "Daniel"]);
+  });
+  it("names accents plainly", () => {
+    expect(accentName("en-GB")).toBe("British");
+    expect(accentName("en-AU")).toBe("Australian");
+    expect(accentName("en_IE")).toBe("Irish");
+  });
+  it("finds the picked voice by its id", () => {
+    const voices = [iv("Samantha", "en-US"), iv("Daniel", "en-GB")];
+    expect(findChosenVoice(voices, "com.apple.Daniel")?.name).toBe("Daniel");
+    expect(findChosenVoice(voices, null)).toBeNull();
+  });
+});

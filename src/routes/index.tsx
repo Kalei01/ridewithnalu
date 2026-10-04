@@ -1,8 +1,11 @@
 import { hdotRoadName } from "@/lib/hdot-road-names";
 import { Tagline } from "@/components/brand/Tagline";
+import { VoiceSection } from "@/components/settings/VoiceSection";
+import { readVoiceLabel } from "@/lib/best-voice";
+import { readPushPrefs } from "@/lib/push-client";
 import { createPortal } from "react-dom";
 import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -33,6 +36,12 @@ import {
   TrainFront,
   UserRound,
   X,
+  Bell,
+  ChevronLeft,
+  Info,
+  ShieldCheck,
+  Vibrate,
+  Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -70,6 +79,7 @@ import {
   primeSpeech,
   keepNavigationAudioAlive,
   type TrafficAlertSnapshot,
+  warmVoicesOnFirstTap,
 } from "@/lib/commute-alerts";
 import {
   ALERT_PREFS_KEY,
@@ -735,6 +745,7 @@ function Index() {
   const [mapStopActionBusy, setMapStopActionBusy] = useState(false);
   const mapStopActionBusyRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => warmVoicesOnFirstTap(), []);
   const [accountOpen, setAccountOpen] = useState(false);
   const [restoreSlot, setRestoreSlot] = useState<string | null>(null);
   const [quickPlaceSlot, setQuickPlaceSlot] = useState<string | null>(null);
@@ -6976,37 +6987,97 @@ function QuickPlaceDialog({
   );
 }
 
+type SettingsPageId =
+  | "trip"
+  | "places"
+  | "voice"
+  | "alerts"
+  | "notifications"
+  | "privacy"
+  | "account"
+  | "about";
+
+/** Which Settings page is open; null shows the main list. */
+const SettingsPageContext = createContext<SettingsPageId | null>(null);
+
+/**
+ * One Settings page. On first run (trip setup) it shows inline; otherwise it
+ * shows only while its row in the Settings list is open.
+ */
 function SettingsGroup({
-  title,
-  description,
+  id,
   children,
-  defaultOpen = false,
 }: {
-  title: string;
+  id: SettingsPageId;
+  title?: string;
   description?: string;
   children: ReactNode;
   defaultOpen?: boolean;
 }) {
+  const page = useContext(SettingsPageContext);
+  if (page !== id) return null;
+  // The page title already names the section, so hide each section's own
+  // first heading and top divider here (they still show where used elsewhere).
   return (
-    <details
-      open={defaultOpen}
-      className="group overflow-hidden rounded-2xl border border-border bg-background/30"
-    >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 [&::-webkit-details-marker]:hidden">
-        <span className="min-w-0">
-          <span className="block text-sm font-bold text-foreground">{title}</span>
-          {description && (
-            <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-              {description}
-            </span>
-          )}
-        </span>
-        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-      </summary>
-      <div className="min-w-0 border-t border-border px-4 py-4">{children}</div>
-    </details>
+    <div className="min-w-0 [&>*:first-child]:border-t-0 [&>*:first-child]:pt-0 [&>section:first-child>h3:first-child]:hidden [&>section:first-child>p:first-child]:hidden">
+      {children}
+    </div>
   );
 }
+
+/** A tappable row in the Settings list: icon, name, current status, chevron. */
+function SettingsRow({
+  icon: Icon,
+  title,
+  status,
+  onOpen,
+}: {
+  icon: typeof Settings;
+  title: string;
+  status?: string | null;
+  onOpen: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+          <Icon className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-semibold text-foreground">{title}</span>
+          {status && <span className="block truncate text-sm text-muted-foreground">{status}</span>}
+        </span>
+        <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+      </button>
+    </li>
+  );
+}
+
+function SettingsList({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section className="min-w-0">
+      <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-background/30">
+        {children}
+      </ul>
+    </section>
+  );
+}
+
+const SETTINGS_PAGES: Record<SettingsPageId, { title: string; description: string }> = {
+  trip: { title: "Current trip", description: "Change where you’re starting or going." },
+  places: { title: "Saved places", description: "Home, Work, School, Gym, and your own places." },
+  voice: { title: "Voice", description: "Choose the voice Nalu speaks with." },
+  alerts: { title: "Stop alerts", description: "Sound, vibration, and transfer alerts during a trip." },
+  notifications: { title: "Notifications", description: "Alerts that tell you when to leave." },
+  privacy: { title: "Privacy & data", description: "Analytics and trip diagnostics." },
+  account: { title: "Account", description: "Sign in, sign out, or manage your account." },
+  about: { title: "About Nalu", description: "App information, data sources, and feedback." },
+};
 
 function SetupDialog({
   open,
@@ -7033,9 +7104,17 @@ function SetupDialog({
   const [originLabel, setOriginLabel] = useState("Current location");
   // Distance to the best boarding station; decides walk vs park-and-ride.
   const [stationDistanceM, setStationDistanceM] = useState<number | null>(null);
+  const [page, setPage] = useState<SettingsPageId | null>(null);
+  const { user } = useAuth();
+  const sheetRef = useRef<HTMLDivElement>(null);
+  // Each Settings page opens at its top, not where the list was scrolled to.
+  useEffect(() => {
+    sheetRef.current?.scrollTo({ top: 0 });
+  }, [page]);
 
   useEffect(() => {
     if (open) {
+      setPage(null);
       setDraft(setup);
       setStatus(null);
       setOriginLabel(setup.homeLat !== null ? "Your starting point" : "Current location");
@@ -7308,19 +7387,103 @@ function SetupDialog({
         if (!next) onClose();
       }}
     >
-      <DialogContent className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
+      <DialogContent ref={sheetRef} className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
         <SettingsExpiryBanner />
         <DialogHeader className="text-left">
-          <DialogTitle className="text-2xl">{firstRun ? "WHERE TO?" : "Settings"}</DialogTitle>
+          {!firstRun && page && (
+            <button
+              type="button"
+              onClick={() => setPage(null)}
+              className="-ml-1 mb-1 flex min-h-11 w-fit items-center gap-1 rounded-lg pr-2 text-base font-semibold text-primary"
+            >
+              <ChevronLeft className="size-5" /> Settings
+            </button>
+          )}
+          <DialogTitle className="text-2xl">
+            {firstRun ? "WHERE TO?" : page ? SETTINGS_PAGES[page].title : "Settings"}
+          </DialogTitle>
           <DialogDescription>
             {firstRun
               ? "Where you’re starting and where you’re going. Nalu picks the best station and route for you."
-              : "Keep the essentials up front. Open a section only when you need to change something."}
+              : page
+                ? SETTINGS_PAGES[page].description
+                : "Tap what you’d like to change."}
           </DialogDescription>
         </DialogHeader>
 
+        <SettingsPageContext.Provider value={firstRun ? "trip" : page}>
+        {!firstRun && page === null && (
+          <div className="grid min-w-0 grid-cols-1 gap-5">
+            {permissionBlocked && <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />}
+            <SettingsList label="Your trips">
+              <SettingsRow
+                icon={Navigation}
+                title="Current trip"
+                status={draft.destinationName ? `To ${draft.destinationName}` : "No trip set"}
+                onOpen={() => setPage("trip")}
+              />
+              <SettingsRow
+                icon={MapPin}
+                title="Saved places"
+                status={
+                  savedPlaces.length
+                    ? savedPlaces.map((place) => place.label).slice(0, 4).join(", ")
+                    : "None yet"
+                }
+                onOpen={() => setPage("places")}
+              />
+            </SettingsList>
+            <SettingsList label="Alerts & voice">
+              <SettingsRow
+                icon={Volume2}
+                title="Voice"
+                status={readVoiceLabel() ?? "Phone’s voice"}
+                onOpen={() => setPage("voice")}
+              />
+              <SettingsRow
+                icon={Vibrate}
+                title="Stop alerts"
+                status={(alertPrefs.sound && alertPrefs.haptics
+                    ? "Sound and vibration"
+                    : alertPrefs.sound
+                      ? "Sound only"
+                      : alertPrefs.haptics
+                        ? "Vibration only"
+                        : "Off")}
+                onOpen={() => setPage("alerts")}
+              />
+              <SettingsRow
+                icon={Bell}
+                title="Notifications"
+                status={readPushPrefs().token ? "On for this phone" : "Off"}
+                onOpen={() => setPage("notifications")}
+              />
+            </SettingsList>
+            <SettingsList label="Account & more">
+              <SettingsRow
+                icon={UserRound}
+                title="Account"
+                status={user?.email ?? "Not signed in"}
+                onOpen={() => setPage("account")}
+              />
+              <SettingsRow
+                icon={ShieldCheck}
+                title="Privacy & data"
+                status="Analytics and diagnostics"
+                onOpen={() => setPage("privacy")}
+              />
+              <SettingsRow
+                icon={Info}
+                title="About Nalu"
+                status="Data sources and feedback"
+                onOpen={() => setPage("about")}
+              />
+            </SettingsList>
+          </div>
+        )}
         <div className="grid gap-5">
           <SettingsGroup
+            id="trip"
             title={firstRun ? "Trip setup" : "Current trip"}
             description={
               firstRun
@@ -7447,17 +7610,15 @@ function SetupDialog({
             </div>
           </SettingsGroup>
 
-          {!firstRun && permissionBlocked && (
-            <section className="space-y-2 border-t border-border pt-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Location
-              </p>
-              <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
-            </section>
+          {!firstRun && (
+            <SettingsGroup id="voice">
+              <VoiceSection />
+            </SettingsGroup>
           )}
 
           {!firstRun && (
             <SettingsGroup
+              id="places"
               title="Saved places"
               description="Home, Work, School, Gym, and custom places."
               defaultOpen={false}
@@ -7619,6 +7780,7 @@ function SetupDialog({
 
           {!firstRun && (
             <SettingsGroup
+              id="alerts"
               title="Stop alerts"
               description="Sound, vibration, and transfer alerts during an active trip."
               defaultOpen={false}
@@ -7629,6 +7791,7 @@ function SetupDialog({
 
           {!firstRun && (
             <SettingsGroup
+              id="notifications"
               title="Notifications"
               description="Optional commute alerts and quiet hours."
               defaultOpen={false}
@@ -7639,6 +7802,7 @@ function SetupDialog({
 
           {!firstRun && (
             <SettingsGroup
+              id="privacy"
               title="Privacy & data"
               description="Analytics consent and trip diagnostics."
               defaultOpen={false}
@@ -7649,6 +7813,7 @@ function SetupDialog({
 
           {!firstRun && (
             <SettingsGroup
+              id="account"
               title="Account"
               description="Sign in, sign out, or manage your Nalu account."
               defaultOpen={false}
@@ -7659,6 +7824,7 @@ function SetupDialog({
 
           {!firstRun && (
             <SettingsGroup
+              id="about"
               title="About Nalu"
               description="App information, data sources, feedback, and the Welcome page."
               defaultOpen={false}
@@ -7669,6 +7835,7 @@ function SetupDialog({
 
           {status && <p className="text-sm text-muted-foreground">{status}</p>}
         </div>
+        </SettingsPageContext.Provider>
       </DialogContent>
     </Dialog>
   );
