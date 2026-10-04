@@ -1,0 +1,31 @@
+name: Timetable refresh
+
+# Weekly: load the latest TheBus GTFS timetable into the database.
+# Scheduled workflows run from the repository's default branch.
+on:
+  schedule:
+    - cron: "0 12 * * 0" # Sundays 2:00 AM Hawaii time
+  workflow_dispatch: {}
+
+concurrency:
+  group: gtfs-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - name: Import the timetable
+        env:
+          SUPABASE_URL: https://nsoameosqsnumjivkmyv.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npx -y tsx --tsconfig tsconfig.json scripts/gtfs-refresh.mts

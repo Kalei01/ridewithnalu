@@ -6,7 +6,7 @@ Also follow @AGENTS.md (Lovable sync: never rewrite pushed history; keep `main` 
 
 Quality gate before every push: `bun run test` → `bun run typecheck` → `bun run build`.
 
-Nalu is moving off Lovable. `main` is frozen for Lovable; do new work on the `cloudflare` branch and push there, not to `main`.
+Nalu has moved off Lovable to Cloudflare. `cloudflare` is the working (and default) branch; push there. `main` holds the retired Lovable version.
 
 ## Reviewer subagents (`.claude/agents/`)
 
