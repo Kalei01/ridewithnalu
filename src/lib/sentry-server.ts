@@ -15,6 +15,8 @@ export function storeUrl(dsn: string) {
 }
 
 export async function reportServerError(error: unknown, where: string) {
+  const { recordProblem } = await import("./problems.server");
+  await recordProblem("server", where, error instanceof Error ? error.message : String(error));
   if (!DSN) return;
   try {
     const { endpoint, auth } = storeUrl(DSN);

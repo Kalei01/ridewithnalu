@@ -9,6 +9,20 @@ import { clockToMinutes, obtainPushToken, readPushPrefs, writePushPrefs } from "
 import { savePushSubscription, sendTestPush } from "@/lib/push.functions";
 
 const ASKED_KEY = "nalu-notif-asked-v1";
+const TOUCHED_KEY = "nalu-push-touched-v1";
+const TOUCH_EVERY_MS = 7 * 24 * 3600_000;
+
+function touchDue() {
+  const last = Number(read(TOUCHED_KEY) ?? 0);
+  return !Number.isFinite(last) || Date.now() - last > TOUCH_EVERY_MS;
+}
+function markTouched() {
+  try {
+    window.localStorage.setItem(TOUCHED_KEY, String(Date.now()));
+  } catch {
+    /* private mode */
+  }
+}
 
 const BLOCKED_COPY = {
   "not-configured": "Notifications aren't set up yet.",
@@ -87,7 +101,9 @@ export function NotificationPrompt() {
     const result = await obtainPushToken(prompt);
     if (result.status !== "registered") return result;
     const current = readPushPrefs();
-    if (options.onlyIfChanged && current.token === result.token) return result;
+    // Same token: still refresh the sign-up weekly. The nightly cleanup removes
+    // sign-ups untouched for 90 days, and that would delete this phone's alerts.
+    if (options.onlyIfChanged && current.token === result.token && !touchDue()) return result;
     const categories = Array.from(new Set([...current.categories, "morning_commute" as const]));
     await save({
       data: {
@@ -99,6 +115,7 @@ export function NotificationPrompt() {
       },
     });
     writePushPrefs({ ...current, categories, token: result.token });
+    markTouched();
     return result;
   }
 
