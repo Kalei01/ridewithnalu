@@ -167,7 +167,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { HOLO_FARES } from "@/lib/fares";
 import {
-  AskNalu,
+  AskNaluIfAvailable,
   BeatTheRush,
   EveningPulse,
   MorningPulse,
@@ -615,6 +615,19 @@ function nearbyServiceLabel(stop: NearbyStop) {
       : titleCase(arrival.headsign)
     : "";
   return destination ? `${route} · ${destination}` : route;
+}
+
+/** Short chip title: the station name for rail, the routes that stop here for buses. */
+function nearbyChipTitle(stop: NearbyStop) {
+  if (stop.routeType === 1) return stationLabel(stop.stopName) || "Skyline";
+  const routes = [
+    ...new Set(
+      stop.arrivals
+        .map((arrival) => arrival.route_short_name?.trim() || arrival.route_long_name?.trim())
+        .filter((route): route is string => Boolean(route)),
+    ),
+  ].slice(0, 3);
+  return routes.length ? `Bus ${routes.join(", ")}` : titleCase(stop.stopName);
 }
 
 function vehicleName(leg: Leg) {
@@ -4498,271 +4511,13 @@ function Index() {
             </section>
           )}
 
-          {browseStation && browseFar && !stationExpanded ? (
-            <button
-              type="button"
-              onClick={() => setStationExpanded(true)}
-              className="glass-panel mt-4 flex w-full min-w-0 items-center gap-2 rounded-full px-4 py-3 text-left text-sm"
-              aria-label="Show Skyline station details"
-            >
-              <TrainFront className="size-4 shrink-0 text-primary" />
-              <span className="truncate font-semibold text-foreground">
-                {stationLabel(browseStation.stopName)}
-              </span>
-              <span className="truncate text-muted-foreground">
-                {browseUserPoint
-                  ? ` · ${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min drive`
-                  : ""}
-                {trainsEveryMinutes ? ` · Trains every ${trainsEveryMinutes} min` : ""}
-              </span>
-              <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
-            </button>
-          ) : (
-            <section
-              className="glass-panel mt-4 rounded-lg p-4"
-              aria-labelledby="browse-station-title"
-            >
-              <div className="flex items-center gap-3">
-                <TrainFront className="size-6 shrink-0 text-primary" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">
-                    Closest Skyline station
-                  </p>
-                  <h2
-                    id="browse-station-title"
-                    className="truncate text-xl font-semibold text-foreground"
-                  >
-                    {browseStation
-                      ? `${stationLabel(browseStation.stopName)} Station`
-                      : "Finding your station…"}
-                  </h2>
-                  {browseStation && <LandmarkHint name={browseStation.stopName} />}
-                </div>
-                {browseFar && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Collapse station card"
-                    onClick={() => setStationExpanded(false)}
-                  >
-                    <ChevronDown className="size-4 rotate-180" />
-                  </Button>
-                )}
-              </div>
-              {browseStation && (
-                <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
-                  {stationParking && (
-                    <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
-                      {stationParking.status === "limited"
-                        ? "Limited parking"
-                        : "Park & Ride available"}
-                      {stationParking.note ? ` · ${stationParking.note}` : ""}
-                    </span>
-                  )}
-                  {trainsEveryMinutes && (
-                    <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
-                      Trains every {trainsEveryMinutes} min
-                    </span>
-                  )}
-                </div>
-              )}
-              {browseStation && browseUserPoint && (
-                <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-foreground">
-                  {browseWalkMinutes !== null && browseWalkMinutes <= 18 && (
-                    <span className="browse-eta-chip">
-                      Walk {browseWalkMinutes} min ·{" "}
-                      {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
-                    </span>
-                  )}
-                  {browseWalkMinutes !== null &&
-                    browseWalkMinutes > 18 &&
-                    feederBuses.slice(0, 2).map((bus) => (
-                      <span key={bus.route_short_name} className="browse-eta-chip">
-                        <Bus className="mr-1 inline size-3.5" />
-                        Take TheBus {bus.route_short_name} · {bus.ride_minutes} min ride · leaves{" "}
-                        {clockFromSeconds(bus.depart_seconds)}
-                      </span>
-                    ))}
-                  <span className="browse-eta-chip">
-                    Drive about{" "}
-                    {Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min
-                  </span>
-                </div>
-              )}
-              {browseStation && (
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  HOLO fare {HOLO_FARES.singleRide} includes free transfers between TheBus and
-                  Skyline for {HOLO_FARES.transferWindowHours} hours.
-                </p>
-              )}
-              {browseLocationDenied && browseStation && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Location unavailable · showing a data-derived West Oahu station
-                </p>
-              )}
-              {browseLocationDenied && locationDenied && (
-                <Button
-                  variant="link"
-                  onClick={() => setSettingsOpen(true)}
-                  className="mt-1 h-auto px-0 text-xs text-muted-foreground"
-                >
-                  Location blocked · see how to allow it
-                </Button>
-              )}
-              <Select
-                value={browseStation?.stopId ?? ""}
-                onValueChange={(stopId) => {
-                  const station = browseStations.find((item) => item.stop_id === stopId);
-                  if (!station) return;
-                  rememberBrowseStation({
-                    stopId: station.stop_id,
-                    stopName: station.stop_name ?? "",
-                    lat: Number(station.stop_lat),
-                    lon: Number(station.stop_lon),
-                    ...(browseStation?.userLat !== undefined
-                      ? { userLat: browseStation.userLat }
-                      : {}),
-                    ...(browseStation?.userLon !== undefined
-                      ? { userLon: browseStation.userLon }
-                      : {}),
-                  });
-                }}
-              >
-                <SelectTrigger
-                  className="mt-4 h-12 w-full bg-background"
-                  aria-label="Choose Skyline station"
-                >
-                  <SelectValue placeholder="Choose a station" />
-                </SelectTrigger>
-                <SelectContent>
-                  {browseStations.map((station) => (
-                    <SelectItem key={station.stop_id} value={station.stop_id}>
-                      {stationLabel(station.stop_name)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {browseStation && (
-                <div
-                  className={`mt-4 grid grid-cols-2 gap-3 ${refreshing ? "animate-in fade-in duration-300" : ""}`}
-                  aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
-                >
-                  {browseDeparturesLoading && (
-                    <p className="text-sm text-muted-foreground">Loading departures…</p>
-                  )}
-                  {browseDeparturesFailed && (
-                    <p className="col-span-2 text-sm text-warning">
-                      Rail departure times are not available right now.
-                    </p>
-                  )}
-                  {!browseDeparturesLoading &&
-                    !browseDeparturesFailed &&
-                    browseDirections.length === 0 && (
-                      <p className="col-span-2 text-sm text-muted-foreground">
-                        No rail departures are scheduled from this station right now.
-                      </p>
-                    )}
-                  {browseDirections.map((direction) => {
-                    const first = direction[0];
-                    const second = direction[1];
-                    const towardDowntown =
-                      first?.terminus_lon !== null &&
-                      first?.terminus_lon !== undefined &&
-                      first.terminus_lon > browseStation.lon;
-                    const directionName = towardDowntown ? "Downtown Honolulu" : "Kapolei";
-                    const endpoint =
-                      terminusLabel(first?.direction_terminus) ||
-                      stationLabel(first?.trip_headsign) ||
-                      "the end of the line";
-                    const secondsAway = (first?.departure_seconds ?? 0) - nowSeconds;
-                    const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
-                    const nowDeparture = secondsAway >= -30 && secondsAway < 60;
-                    const soon = secondsAway >= 60 && secondsAway < 20 * 60;
-                    const walk = browseUserPoint
-                      ? walkingEstimate(browseUserPoint, browseStation)
-                      : null;
-                    const walkState = walk
-                      ? walk.minutes + 2 <= minutesAway
-                        ? "ok"
-                        : walk.minutes <= minutesAway
-                          ? "tight"
-                          : "miss"
-                      : null;
-                    return (
-                      <article
-                        key={`${first?.route_id}-${first?.direction_id ?? "x"}`}
-                        className="browse-departure-card nalu-card-surface min-w-0 rounded-lg p-3"
-                      >
-                        <h3 className="text-sm font-semibold text-foreground">
-                          {towardDowntown ? "Eastbound" : "Westbound"}
-                        </h3>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                          to {directionName} · {endpoint}
-                        </p>
-                        {first && (
-                          <div className="mt-3">
-                            <p className="text-2xl font-semibold tabular-nums text-primary">
-                              {nowDeparture ? (
-                                <>
-                                  Now{" "}
-                                  <span className="block text-xs font-normal text-muted-foreground">
-                                    · {clockFromSeconds(first.departure_seconds)}
-                                  </span>
-                                </>
-                              ) : soon ? (
-                                <>
-                                  in {minutesAway} min{" "}
-                                  <span className="block text-xs font-normal text-muted-foreground">
-                                    · {clockFromSeconds(first.departure_seconds)}
-                                  </span>
-                                </>
-                              ) : (
-                                clockFromSeconds(first.departure_seconds)
-                              )}
-                            </p>
-                            {walk && walkState && walk.minutes <= 18 && (
-                              <p
-                                className={`mt-2 text-xs font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}
-                              >
-                                {walk.minutes} min walk
-                                {walkState === "tight"
-                                  ? " · Tight"
-                                  : walkState === "miss"
-                                    ? " · You'll miss this one."
-                                    : ""}
-                              </p>
-                            )}
-                            {second && (
-                              <p className="mt-1.5 text-xs text-muted-foreground">
-                                Miss it? Next train at {clockFromSeconds(second.departure_seconds)}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-              <p className="mt-3 text-[10px] text-muted-foreground">
-                TheBus / DTS
-                {h1HasMeaningfulDelay
-                  ? " · H-1 is delayed, so Skyline may be especially useful"
-                  : ""}
-              </p>
-            </section>
-          )}
-
-          <AskNalu origin={browseUserPoint} />
-
           {browseUserPoint && (
-            <details className="glass-panel mt-3 rounded-lg">
+            <details open className="glass-panel mt-4 rounded-lg">
               <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
                 <Bus className="size-5 text-primary" />
-                <span className="font-semibold text-foreground">Nearby stops & arrivals</span>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {nearbyStops.length} stops
+                <span className="font-semibold text-foreground">Nearby stops</span>
+                <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground">
+                  {nearbyStops.length} {nearbyStops.length === 1 ? "stop" : "stops"}
                 </span>
                 <ChevronDown className="size-4 text-muted-foreground" />
               </summary>
@@ -4778,11 +4533,18 @@ function Index() {
                         }
                         size="sm"
                         onClick={() => setSelectedNearbyStopId(stop.stopId)}
-                        className="h-auto max-w-52 shrink-0 justify-start gap-2 px-3 py-2"
+                        className="h-auto max-w-56 shrink-0 justify-start gap-2 px-3 py-2 text-left"
                         aria-label={`Show ${nearbyServiceLabel(stop)} at ${titleCase(stop.stopName)}`}
                       >
                         <Icon className="size-4 shrink-0" />
-                        <span className="truncate font-semibold">{nearbyServiceLabel(stop)}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold">
+                            {nearbyChipTitle(stop)}
+                          </span>
+                          <span className="block text-[11px] font-medium opacity-80">
+                            {walkingEstimate(browseUserPoint, stop).minutes} min walk
+                          </span>
+                        </span>
                       </Button>
                     );
                   })}
@@ -4793,7 +4555,7 @@ function Index() {
                 {selectedNearbyStop && (
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-semibold text-foreground">
                           {selectedNearbyStop.routeType === 1
                             ? `${stationLabel(selectedNearbyStop.stopName)} Station`
@@ -4806,7 +4568,7 @@ function Index() {
                         </p>
                       </div>
                       {selectedNearbyStop.arrivals[0] && (
-                        <p className="text-lg font-bold tabular-nums text-primary">
+                        <p className="shrink-0 whitespace-nowrap text-lg font-bold tabular-nums text-primary">
                           {Math.max(
                             0,
                             Math.ceil(
@@ -4829,7 +4591,7 @@ function Index() {
                                 ? "Skyline"
                                 : arrival.route_short_name || arrival.route_long_name || "Bus"}
                             </span>
-                            <span className="min-w-0 flex-1 truncate font-medium">
+                            <span className="min-w-0 flex-1 line-clamp-2 font-medium">
                               {arrival.headsign
                                 ? selectedNearbyStop.routeType === 1
                                   ? stationLabel(arrival.headsign)
@@ -4847,6 +4609,9 @@ function Index() {
                         </p>
                       )}
                     </div>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Scheduled times · TheBus / DTS
+                    </p>
                     <details className="walking-map-details mt-3 border-t border-border pt-3">
                       <summary>Show walk to this stop</summary>
                       <div className="map-shell mt-2 overflow-hidden rounded-lg">
@@ -4884,15 +4649,272 @@ function Index() {
             </details>
           )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {browseStation && browseFar && !stationExpanded ? (
+            <button
+              type="button"
+              onClick={() => setStationExpanded(true)}
+              className="glass-panel mt-4 flex w-full min-w-0 items-center gap-2 rounded-full px-4 py-3 text-left text-sm"
+              aria-label="Show Skyline station details"
+            >
+              <TrainFront className="size-4 shrink-0 text-primary" />
+              <span className="truncate font-semibold text-foreground">
+                {stationLabel(browseStation.stopName)}
+              </span>
+              <span className="truncate text-muted-foreground">
+                {browseUserPoint
+                  ? ` · ${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min drive`
+                  : ""}
+                {trainsEveryMinutes ? ` · Trains every ${trainsEveryMinutes} min` : ""}
+              </span>
+              <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
+            </button>
+          ) : (
+            <section
+              className="glass-panel mt-4 rounded-lg p-4"
+              aria-labelledby="browse-station-title"
+            >
+              <div className="flex items-start gap-3">
+                <TrainFront className="mt-5 size-6 shrink-0 text-primary" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">
+                    Skyline station
+                  </p>
+                  <h2 id="browse-station-title" className="text-xl font-semibold text-foreground">
+                    <Select
+                      value={browseStation?.stopId ?? ""}
+                      onValueChange={(stopId) => {
+                        const station = browseStations.find((item) => item.stop_id === stopId);
+                        if (!station) return;
+                        rememberBrowseStation({
+                          stopId: station.stop_id,
+                          stopName: station.stop_name ?? "",
+                          lat: Number(station.stop_lat),
+                          lon: Number(station.stop_lon),
+                          ...(browseStation?.userLat !== undefined
+                            ? { userLat: browseStation.userLat }
+                            : {}),
+                          ...(browseStation?.userLon !== undefined
+                            ? { userLon: browseStation.userLon }
+                            : {}),
+                        });
+                      }}
+                    >
+                      <SelectTrigger
+                        className="h-auto min-h-11 w-full justify-start gap-2 border-0 bg-transparent px-0 py-1 text-left text-xl font-semibold whitespace-normal shadow-none focus:ring-0 focus-visible:ring-2 [&>span]:line-clamp-none [&>span]:whitespace-normal"
+                        aria-label="Choose Skyline station"
+                      >
+                        <SelectValue
+                          placeholder={browseStations.length ? "Choose a station" : "Finding your station…"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {browseStations.map((station) => (
+                          <SelectItem key={station.stop_id} value={station.stop_id}>
+                            {stationLabel(station.stop_name)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </h2>
+                  {browseStation && <LandmarkHint name={browseStation.stopName} />}
+                </div>
+                {browseFar && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Collapse station card"
+                    onClick={() => setStationExpanded(false)}
+                  >
+                    <ChevronDown className="size-4 rotate-180" />
+                  </Button>
+                )}
+              </div>
+              {browseStation && (
+                <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                  {browseUserPoint && browseWalkMinutes !== null && browseWalkMinutes <= 18 && (
+                    <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
+                      Walk {browseWalkMinutes} min ·{" "}
+                      {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
+                    </span>
+                  )}
+                  {browseUserPoint && (
+                    <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
+                      Drive about{" "}
+                      {Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min
+                    </span>
+                  )}
+                  {trainsEveryMinutes && (
+                    <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                      Trains every {trainsEveryMinutes} min
+                    </span>
+                  )}
+                  {stationParking && (
+                    <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
+                      {stationParking.status === "limited"
+                        ? "Limited parking"
+                        : "Park & Ride available"}
+                      {stationParking.note ? ` · ${stationParking.note}` : ""}
+                    </span>
+                  )}
+                </div>
+              )}
+              {browseStation &&
+                browseUserPoint &&
+                browseWalkMinutes !== null &&
+                browseWalkMinutes > 18 &&
+                feederBuses.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold text-foreground">
+                    {feederBuses.slice(0, 2).map((bus) => (
+                      <span
+                        key={bus.route_short_name}
+                        className="rounded-full border border-border px-2 py-0.5"
+                      >
+                        <Bus className="mr-1 inline size-3" />
+                        TheBus {bus.route_short_name} · {bus.ride_minutes} min ride · leaves{" "}
+                        {clockFromSeconds(bus.depart_seconds)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              {browseLocationDenied && browseStation && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Location unavailable · showing a data-derived West Oahu station
+                </p>
+              )}
+              {browseLocationDenied && locationDenied && (
+                <Button
+                  variant="link"
+                  onClick={() => setSettingsOpen(true)}
+                  className="mt-1 h-auto px-0 text-xs text-muted-foreground"
+                >
+                  Location blocked · see how to allow it
+                </Button>
+              )}
+
+              {browseStation && (
+                <div
+                  className={`mt-4 grid grid-cols-2 gap-3 ${refreshing ? "animate-in fade-in duration-300" : ""}`}
+                  aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
+                >
+                  {browseDeparturesLoading && (
+                    <p className="text-sm text-muted-foreground">Loading departures…</p>
+                  )}
+                  {browseDeparturesFailed && (
+                    <p className="col-span-2 text-sm text-warning">
+                      Rail departure times are not available right now.
+                    </p>
+                  )}
+                  {!browseDeparturesLoading &&
+                    !browseDeparturesFailed &&
+                    browseDirections.length === 0 && (
+                      <p className="col-span-2 text-sm text-muted-foreground">
+                        No rail departures are scheduled from this station right now.
+                      </p>
+                    )}
+                  {browseDirections.map((direction) => {
+                    const first = direction[0];
+                    const second = direction[1];
+                    const towardDowntown =
+                      first?.terminus_lon !== null &&
+                      first?.terminus_lon !== undefined &&
+                      first.terminus_lon > browseStation.lon;
+                    const endpoint =
+                      terminusLabel(first?.direction_terminus) ||
+                      stationLabel(first?.trip_headsign) ||
+                      "the end of the line";
+                    const secondsAway = (first?.departure_seconds ?? 0) - nowSeconds;
+                    const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
+                    const nowDeparture = secondsAway >= -30 && secondsAway < 60;
+                    const soon = secondsAway >= 60 && secondsAway < 20 * 60;
+                    const walk = browseUserPoint
+                      ? walkingEstimate(browseUserPoint, browseStation)
+                      : null;
+                    const walkState = walk
+                      ? walk.minutes + 2 <= minutesAway
+                        ? "ok"
+                        : walk.minutes <= minutesAway
+                          ? "tight"
+                          : "miss"
+                      : null;
+                    return (
+                      <article
+                        key={`${first?.route_id}-${first?.direction_id ?? "x"}`}
+                        className="browse-departure-card nalu-card-surface min-w-0 rounded-lg p-3"
+                      >
+                        <h3 className="text-sm font-semibold text-foreground">
+                          {towardDowntown ? "Eastbound" : "Westbound"}
+                        </h3>
+                        <p className="mt-0.5 text-xs text-muted-foreground">to {endpoint}</p>
+                        {first && (
+                          <div className="mt-3">
+                            <p className="text-2xl font-semibold tabular-nums text-primary">
+                              {nowDeparture ? (
+                                <>
+                                  Now{" "}
+                                  <span className="block text-xs font-normal text-muted-foreground">
+                                    {clockFromSeconds(first.departure_seconds)}
+                                  </span>
+                                </>
+                              ) : soon ? (
+                                <>
+                                  in {minutesAway} min{" "}
+                                  <span className="block text-xs font-normal text-muted-foreground">
+                                    {clockFromSeconds(first.departure_seconds)}
+                                  </span>
+                                </>
+                              ) : (
+                                clockFromSeconds(first.departure_seconds)
+                              )}
+                            </p>
+                            {walk && walkState && walk.minutes <= 18 && (
+                              <p
+                                className={`mt-2 text-xs font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}
+                              >
+                                {walk.minutes} min walk
+                                {walkState === "tight"
+                                  ? " · Tight"
+                                  : walkState === "miss"
+                                    ? " · You'll miss this one."
+                                    : ""}
+                              </p>
+                            )}
+                            {second && (
+                              <p className="mt-1.5 text-xs text-muted-foreground">
+                                Miss it? Next train at {clockFromSeconds(second.departure_seconds)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="mt-3 text-[10px] text-muted-foreground">
+                HOLO fare {HOLO_FARES.singleRide} · free TheBus–Skyline transfers for{" "}
+                {HOLO_FARES.transferWindowHours} hours
+              </p>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Scheduled times · TheBus / DTS
+                {h1HasMeaningfulDelay
+                  ? " · H-1 is delayed, so Skyline may be especially useful"
+                  : ""}
+              </p>
+            </section>
+          )}
+
+          <AskNaluIfAvailable origin={browseUserPoint} />
+
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <H1ConditionsCard
               eastbound={eastboundTraffic}
               westbound={westboundTraffic}
               loading={trafficLoading}
               unavailable={trafficUnavailable}
               compact
+              className=""
             />
-            <details className="glass-panel mt-4 rounded-lg">
+            <details className="glass-panel rounded-lg">
               <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
                 <span className="min-w-0 truncate text-sm font-semibold text-foreground">
                   {browseWeatherSummary}

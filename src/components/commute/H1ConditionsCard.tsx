@@ -71,6 +71,7 @@ export function H1ConditionsCard({
   unavailable,
   weatherLine,
   compact = false,
+  className = "mt-4",
 }: {
   eastbound: DriveTime | undefined;
   westbound: DriveTime | undefined;
@@ -78,6 +79,8 @@ export function H1ConditionsCard({
   unavailable: boolean;
   weatherLine?: WeatherLine | null;
   compact?: boolean;
+  /** Outer spacing for the compact card. */
+  className?: string;
 }) {
   const rows = [
     { label: "Eastbound", data: eastbound },
@@ -128,9 +131,9 @@ export function H1ConditionsCard({
 
   if (compact) {
     return (
-      <details className="mt-4 rounded-lg border border-border bg-surface-raised/70">
+      <details className={`${className} rounded-lg border border-border bg-surface-raised/70`}>
         <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
-          <span className="font-semibold text-foreground">H-1 live</span>
+          <span className="whitespace-nowrap font-semibold text-foreground">H-1 live</span>
           <span className="ml-auto flex flex-wrap justify-end gap-2">
             {loading ? (
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
@@ -146,9 +149,9 @@ export function H1ConditionsCard({
                 return (
                   <span
                     key={label}
-                    className={`rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${status?.className ?? "text-muted-foreground"}`}
+                    className={`whitespace-nowrap rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${status?.className ?? "text-muted-foreground"}`}
                   >
-                    {label} · {status?.label ?? "—"}
+                    {label.slice(0, 4)} · {status?.label ?? "—"}
                   </span>
                 );
               })

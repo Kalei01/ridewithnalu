@@ -16,6 +16,11 @@ const globalPoint = z.object({
 
 export type AiResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
+/** Whether a language model is configured, so the UI can hide Ask Nalu when it is not. */
+export const naluAiStatus = createServerFn({ method: "GET" }).handler(async () => ({
+  enabled: Boolean(process.env["OPENAI_API_KEY"] || process.env["LOVABLE_API_KEY"]),
+}));
+
 /** Nalu Morning Pulse: two calm sentences about the rider's usual commute. */
 export const morningPulse = createServerFn({ method: "POST" })
   .inputValidator((input) =>

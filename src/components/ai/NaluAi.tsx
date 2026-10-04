@@ -4,7 +4,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { CalendarCheck, HelpCircle, Sparkles, TrendingUp, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { askNalu, eveningPulse, morningPulse, rushOutlook } from "@/lib/nalu-ai.functions";
+import {
+  askNalu,
+  eveningPulse,
+  morningPulse,
+  naluAiStatus,
+  rushOutlook,
+} from "@/lib/nalu-ai.functions";
 import { pulseClocks } from "@/lib/pulse-time.functions";
 import { isWeekday, isWithinLocalWindow } from "@/lib/intelligence/pulse-time";
 import { speakCommuteAlert } from "@/lib/commute-alerts";
@@ -193,6 +199,18 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
       <p className="mt-2 text-xs font-medium text-muted-foreground">{naluLine}</p>
     </section>
   );
+}
+
+/** Ask Nalu, shown only when the server has a language model configured. */
+export function AskNaluIfAvailable({ origin }: { origin: { lat: number; lon: number } | null }) {
+  const fetchStatus = useServerFn(naluAiStatus);
+  const { data } = useQuery({
+    queryKey: ["nalu-ai-status-v1"],
+    staleTime: Infinity,
+    retry: false,
+    queryFn: () => fetchStatus(),
+  });
+  return data?.enabled ? <AskNalu origin={origin} /> : null;
 }
 
 export function AskNalu({ origin }: { origin: { lat: number; lon: number } | null }) {
