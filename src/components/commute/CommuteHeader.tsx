@@ -25,11 +25,8 @@ export function CommuteHeader({
           <WaveMark className="nalu-honu h-8 w-12" />
           <span className="nalu-brand-title text-lg font-semibold tracking-wide">Nalu</span>
         </Link>
-        <p className="truncate text-sm text-muted-foreground">
-          <span className="font-semibold uppercase text-xs">{heading}</span>
-          <span aria-hidden="true"> · </span>
-          <span className="text-foreground">{timeText}</span>
-        </p>
+        <p className="text-xs font-semibold uppercase text-muted-foreground">{heading}</p>
+        <p className="text-sm text-foreground">{timeText}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {onBrowse && (
