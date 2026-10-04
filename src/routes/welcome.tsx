@@ -188,7 +188,10 @@ function WelcomePage() {
               </a>
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
-              Free. No account needed to start.
+              Free. No account needed to start.{" "}
+              <Link to="/install" className="font-semibold text-primary underline-offset-4 hover:underline">
+                Install it on your phone
+              </Link>
             </p>
           </div>
 

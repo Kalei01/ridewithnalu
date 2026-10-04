@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const emailSignInAvailable = import.meta.env["VITE_EMAIL_SIGN_IN"] === "true";
+
 export function AccountSection({ compact = false }: { compact?: boolean }) {
   const { user, loading } = useAuth();
   const [email, setEmail] = useState("");
@@ -145,6 +147,9 @@ export function AccountSection({ compact = false }: { compact?: boolean }) {
               <LogIn /> Continue with Apple
             </Button>
           )}
+          {/* Email sign-in needs a real email service (Supabase alone sends only
+              2 emails an hour). Hidden until VITE_EMAIL_SIGN_IN=true is set. */}
+          {emailSignInAvailable && (
           <details open={!compact} className="border-t border-border pt-3">
             <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Use email instead</summary>
             <div className="mt-3 grid gap-2">
@@ -185,6 +190,7 @@ export function AccountSection({ compact = false }: { compact?: boolean }) {
               </Button>
             </div>
           </details>
+          )}
         </div>
       )}
       {message && (
