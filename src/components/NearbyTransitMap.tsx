@@ -313,7 +313,7 @@ export default function NearbyTransitMap({
               <div key={`${arrival.time}-${index}`} className="min-w-20 rounded-lg bg-surface-raised px-2 py-1.5">
                 <p className="truncate text-xs font-semibold text-foreground">{arrival.label}</p>
                 <p className="text-sm font-bold tabular-nums text-primary">{arrival.minutesAway} min</p>
-                <p className="text-[10px] tabular-nums text-muted-foreground">{arrival.time}</p>
+                <p className="text-xs tabular-nums text-muted-foreground">{arrival.time}</p>
               </div>
             )) : (
               <p className="text-xs text-muted-foreground">No upcoming scheduled departures.</p>

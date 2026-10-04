@@ -19,7 +19,7 @@ export function DecisionBars({ drive, transit }: { drive: Row; transit: Row }) {
       className="mt-6 space-y-4 border-t border-border/50 pt-5"
       aria-label="Travel time comparison"
     >
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         {byArrival ? "When you'd get there" : "Travel time from now"}
       </p>
       {([drive, transit] as const).map((row, index) => {
@@ -62,7 +62,7 @@ export function DecisionBars({ drive, transit }: { drive: Row; transit: Row }) {
                   : formatDriveMinutes(row.minutes)}
               {!byArrival && row.minutes !== null && row.low !== undefined && row.high !== undefined &&
                 Math.round(row.low) !== Math.round(row.high) && (
-                <span className="block text-[10px] font-normal text-muted-foreground">
+                <span className="block text-xs font-normal text-muted-foreground">
                   {formatMinuteRange(row.low, row.high)}
                 </span>
               )}

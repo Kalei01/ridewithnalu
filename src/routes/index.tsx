@@ -4345,7 +4345,7 @@ function Index() {
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
           <header className="flex min-h-11 items-start justify-between gap-4">
             <div>
-              <p className="mb-1 text-[11px] font-semibold text-recommended">
+              <p className="mb-1 text-xs font-semibold text-recommended">
                 {alohaGreeting(now, profileName)}
               </p>
               <div className="flex items-center gap-1.5">
@@ -4398,7 +4398,7 @@ function Index() {
               <span className="truncate text-sm font-semibold text-foreground">
                 {routineInbound ? "Head Home" : `Head to ${routineDestination.label}`}
               </span>
-              <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-[11px] font-bold text-primary-foreground">
+              <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
                 Start
               </span>
             </button>
@@ -4564,7 +4564,7 @@ function Index() {
                           <span className="block truncate font-semibold">
                             {nearbyChipTitle(stop)}
                           </span>
-                          <span className="block text-[11px] font-medium opacity-80">
+                          <span className="block text-xs font-medium opacity-80">
                             {walkingEstimate(browseUserPoint, stop).minutes} min walk
                           </span>
                         </span>
@@ -4632,7 +4632,7 @@ function Index() {
                         </p>
                       )}
                     </div>
-                    <p className="mt-1 text-[10px] text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       Scheduled times · TheBus / DTS
                     </p>
                     <details className="walking-map-details mt-3 border-t border-border pt-3">
@@ -4753,7 +4753,7 @@ function Index() {
                 )}
               </div>
               {browseStation && (
-                <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold">
                   {browseUserPoint && browseWalkMinutes !== null && browseWalkMinutes <= 18 && (
                     <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
                       Walk {browseWalkMinutes} min ·{" "}
@@ -4786,7 +4786,7 @@ function Index() {
                 browseWalkMinutes !== null &&
                 browseWalkMinutes > 18 &&
                 feederBuses.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold text-foreground">
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-semibold text-foreground">
                     {feederBuses.slice(0, 2).map((bus) => (
                       <span
                         key={bus.route_short_name}
@@ -4913,11 +4913,11 @@ function Index() {
                   })}
                 </div>
               )}
-              <p className="mt-3 text-[10px] text-muted-foreground">
+              <p className="mt-3 text-xs text-muted-foreground">
                 HOLO fare {HOLO_FARES.singleRide} · free TheBus–Skyline transfers for{" "}
                 {HOLO_FARES.transferWindowHours} hours
               </p>
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Scheduled times · TheBus / DTS
                 {h1HasMeaningfulDelay
                   ? " · H-1 is delayed, so Skyline may be especially useful"
@@ -4954,7 +4954,7 @@ function Index() {
                     No weather or air-quality concerns right now.
                   </p>
                 )}
-                <p className="mt-2 text-[10px] text-muted-foreground">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Weather: NWS · Air quality: AirNow / EPA
                 </p>
               </div>
@@ -5184,7 +5184,7 @@ function Index() {
                       </p>
                     )}
                     {drivePlan && drivePlan.bufferMinutes > 0 && (
-                      <p className="mt-2 text-[10px] text-muted-foreground">
+                      <p className="mt-2 text-xs text-muted-foreground">
                         Includes {drivePlan.bufferMinutes} min to park and walk in ·{" "}
                         {driveBasisLabel}
                       </p>
@@ -5212,7 +5212,7 @@ function Index() {
                         )}
                     </div>
                   )}
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     All times are Hawaii Standard Time (UTC−10).
                   </p>
                 </div>
@@ -5271,7 +5271,7 @@ function Index() {
                   <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
                     Nalu is watching
                   </span>
-                  <span className="ml-auto text-[11px] font-semibold text-muted-foreground">
+                  <span className="ml-auto text-xs font-semibold text-muted-foreground">
                     Live conditions
                   </span>
                 </div>
@@ -5282,7 +5282,7 @@ function Index() {
                         key={signal.label}
                         className="rounded-xl border border-border/50 bg-background/35 px-3 py-2.5"
                       >
-                        <p className="text-[11px] font-semibold text-muted-foreground">
+                        <p className="text-xs font-semibold text-muted-foreground">
                           {signal.label}
                         </p>
                         <p
@@ -5317,7 +5317,7 @@ function Index() {
               <details className="mt-3 overflow-hidden rounded-2xl border border-border/60 bg-background/25 text-sm">
                 <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-foreground marker:hidden">
                   <span className="inline-flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground">↻</span>
+                    <span className="text-xs text-muted-foreground">↻</span>
                     What changed?
                   </span>
                 </summary>
@@ -5455,7 +5455,7 @@ function Index() {
                   <span className="block text-base font-black uppercase">
                     Start {selectedMode === "drive" ? "Drive" : transitLabel}
                   </span>
-                  <span className="mt-0.5 block text-[10px] font-black uppercase text-primary-foreground/75">
+                  <span className="mt-0.5 block text-xs font-black uppercase text-primary-foreground/75">
                     {selectedMode === "drive" ? "Live navigation & traffic" : "Live stops & alerts"}
                   </span>
                 </span>
@@ -5736,7 +5736,7 @@ function Index() {
                                     </p>
                                   ))}
                                 {driveAvailable && driveRange && drive && (
-                                  <p className="mt-3 text-[10px] text-muted-foreground">{driveBasisLabel}</p>
+                                  <p className="mt-3 text-xs text-muted-foreground">{driveBasisLabel}</p>
                                 )}
                                 {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
                                   <HdotRoadworkNotice
@@ -5767,7 +5767,7 @@ function Index() {
                                 {driveWeatherLines.map((line) => (
                                   <p key={line.text} className={`mt-3 text-sm ${TONE_CLASS[line.tone]}`}>
                                     {line.text}
-                                    <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
+                                    <span className="ml-1 text-xs text-muted-foreground">{line.source}</span>
                                   </p>
                                 ))}
                 </>
@@ -5804,7 +5804,7 @@ function Index() {
                         <span className="block min-w-0 w-full overflow-hidden">
                           <span className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                             <span className="min-w-0">
-                              <span className="block text-[10px] font-bold uppercase text-muted-foreground">
+                              <span className="block text-xs font-bold uppercase text-muted-foreground">
                                 Option {String.fromCharCode(65 + index)}
                               </span>
                               <span className="mt-1 grid grid-cols-[auto_auto_auto] items-center justify-start gap-2 text-xl font-bold tabular-nums text-foreground">
@@ -5813,7 +5813,7 @@ function Index() {
                                 <span>{clockFromSeconds(option.arrive_seconds)}</span>
                               </span>
                             </span>
-                            <span className="w-fit max-w-full rounded-full border border-border bg-muted/70 px-2.5 py-1 text-left text-[10px] font-bold leading-snug tabular-nums text-muted-foreground sm:text-right">
+                            <span className="w-fit max-w-full rounded-full border border-border bg-muted/70 px-2.5 py-1 text-left text-xs font-bold leading-snug tabular-nums text-muted-foreground sm:text-right">
                               {arrivalDifference > 0
                                 ? `Arrives ${arrivalDifference} min later than current`
                                 : arrivalDifference < 0
@@ -5823,7 +5823,7 @@ function Index() {
                           </span>
                           <span className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-border/70 pt-3 text-sm">
                             <span className="min-w-0">
-                              <span className="block text-[10px] font-semibold uppercase text-muted-foreground">
+                              <span className="block text-xs font-semibold uppercase text-muted-foreground">
                                 Compared to current
                               </span>
                               <span className="mt-1 block break-words font-semibold tabular-nums text-foreground">
@@ -5835,7 +5835,7 @@ function Index() {
                               </span>
                             </span>
                             <span className="shrink-0">
-                              <span className="block text-[10px] font-semibold uppercase text-muted-foreground">
+                              <span className="block text-xs font-semibold uppercase text-muted-foreground">
                                 Total trip
                               </span>
                               <span className="mt-1 block text-lg font-bold tabular-nums text-foreground">
@@ -6129,7 +6129,7 @@ function RailTripBreakdown({
                 {(weatherLines.get(option.legs.indexOf(leg)) ?? []).map((line) => (
                   <p key={line.text} className={`mt-2 text-xs ${TONE_CLASS[line.tone]}`}>
                     {line.text}
-                    <span className="ml-1 text-[10px] text-muted-foreground">{line.source}</span>
+                    <span className="ml-1 text-xs text-muted-foreground">{line.source}</span>
                   </p>
                 ))}
               </div>
@@ -6328,7 +6328,7 @@ function LocationBlockedCard({ onDismiss }: { onDismiss: () => void }) {
       role="status"
     >
       <p className="text-sm font-semibold text-foreground">Location is blocked</p>
-      <p className="mt-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+      <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground">
         {steps.label}
       </p>
       <p className="mt-1.5 text-sm leading-relaxed text-foreground">{steps.body}</p>
@@ -6555,7 +6555,7 @@ function ShortcutGrid({
                 </span>
                 <span className="min-w-0 text-left">
                   <span className="block truncate text-sm font-bold">{label}</span>
-                  <span className="block truncate text-[11px] font-medium text-muted-foreground">
+                  <span className="block truncate text-xs font-medium text-muted-foreground">
                     {place ? place.name : "Set location"}
                   </span>
                 </span>
@@ -7414,7 +7414,7 @@ function AboutSection() {
       </div>
       <div className="h-px bg-border/60" />
 
-      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         What is Nalu
       </p>
       <div className="mt-2 grid gap-2 text-sm leading-relaxed text-muted-foreground">
@@ -7438,7 +7438,7 @@ function AboutSection() {
       </div>
       <div className="mt-6 h-px bg-border/60" />
 
-      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Data sources
       </p>
       <ul className="mt-1">
@@ -7458,7 +7458,7 @@ function AboutSection() {
       </ul>
       <div className="mt-6 h-px bg-border/60" />
 
-      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Privacy
       </p>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -7468,7 +7468,7 @@ function AboutSection() {
       </p>
       <div className="mt-6 h-px bg-border/60" />
 
-      <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Contact
       </p>
       <a

@@ -105,10 +105,10 @@ export function VerdictDomain({
           <span
             className={
               confidence === "high"
-                ? "rounded-full border border-recommended/35 bg-recommended/10 px-2.5 py-1 text-[11px] font-semibold text-recommended"
+                ? "rounded-full border border-recommended/35 bg-recommended/10 px-2.5 py-1 text-xs font-semibold text-recommended"
                 : confidence === "moderate"
-                  ? "rounded-full border border-warning/35 bg-warning/10 px-2.5 py-1 text-[11px] font-semibold text-warning"
-                  : "rounded-full border border-destructive/35 bg-destructive/10 px-2.5 py-1 text-[11px] font-semibold text-destructive"
+                  ? "rounded-full border border-warning/35 bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning"
+                  : "rounded-full border border-destructive/35 bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive"
             }
           >
             {confidence === "high"

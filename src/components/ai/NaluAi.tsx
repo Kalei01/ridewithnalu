@@ -276,7 +276,7 @@ export function AskNalu({ origin }: { origin: { lat: number; lon: number } | nul
             <Sparkles className="size-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Nalu intelligence</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Nalu intelligence</p>
             <h2 id="ask-nalu-title" className="mt-1 text-lg font-black tracking-tight text-foreground">
               Tell Nalu what you’re trying to do.
             </h2>
@@ -405,7 +405,7 @@ export function WeeklyDigestCard() {
           ? `Picking the faster mode saved you about ${digest.minutesSaved} min.`
           : "Your picks matched the faster option all week."}
       </p>
-      <p className="mt-2 text-[10px] text-muted-foreground">Calculated on this device only.</p>
+      <p className="mt-2 text-xs text-muted-foreground">Calculated on this device only.</p>
     </section>
   );
 }

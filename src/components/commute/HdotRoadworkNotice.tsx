@@ -51,10 +51,10 @@ export function HdotRoadworkNotice({
           <span className="mt-0.5 text-sm" aria-hidden="true">🛠️</span>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-foreground">Scheduled roadwork tonight</p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
               {primary.route} {directionLabel(primary.direction)} · {primary.laneSummary}
             </p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{humanSchedule(primary.schedule)}</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{humanSchedule(primary.schedule)}</p>
           </div>
         </div>
       </aside>
@@ -66,7 +66,7 @@ export function HdotRoadworkNotice({
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-warning/12 text-sm" aria-hidden="true">🛠️</span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Scheduled roadwork on your route</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Scheduled roadwork on your route</p>
           <div className="mt-2 space-y-3">
             {scheduled.map((closure, index) => (
               <div key={closure.route + "-" + closure.location + "-" + index}>
@@ -76,25 +76,25 @@ export function HdotRoadworkNotice({
                 <p className="mt-1 text-xs font-semibold text-warning">
                   {closure.laneSummary} · {humanSchedule(closure.schedule)}
                 </p>
-                {closure.work ? <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{closure.work}</p> : null}
+                {closure.work ? <p className="mt-1 text-xs leading-4 text-muted-foreground">{closure.work}</p> : null}
               </div>
             ))}
           </div>
           {liveDriveMinutes != null && (
             <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border/60 pt-3">
               <div className="rounded-xl bg-muted/35 px-3 py-2.5">
-                <p className="text-[10px] font-medium text-muted-foreground">Your live drive time</p>
+                <p className="text-xs font-medium text-muted-foreground">Your live drive time</p>
                 <p className="mt-0.5 text-base font-bold tabular-nums text-foreground">{formatLiveDriveTime(liveDriveMinutes)}</p>
               </div>
               <div className="rounded-xl bg-muted/35 px-3 py-2.5">
-                <p className="text-[10px] font-medium text-muted-foreground">Live traffic</p>
+                <p className="text-xs font-medium text-muted-foreground">Live traffic</p>
                 <p className="mt-0.5 text-base font-bold text-foreground">{trafficLabel(delayMinutes)}</p>
               </div>
             </div>
           )}
           <div className="mt-3 flex items-center justify-between gap-3">
-            <span className="text-[10px] text-muted-foreground">Official Hawaiʻi DOT</span>
-            <a className="text-[11px] font-semibold text-primary underline-offset-2 hover:underline" href="https://hidot.hawaii.gov/highways/roadwork/oahu/" target="_blank" rel="noreferrer">HDOT schedule →</a>
+            <span className="text-xs text-muted-foreground">Official Hawaiʻi DOT</span>
+            <a className="text-xs font-semibold text-primary underline-offset-2 hover:underline" href="https://hidot.hawaii.gov/highways/roadwork/oahu/" target="_blank" rel="noreferrer">HDOT schedule →</a>
           </div>
         </div>
       </div>

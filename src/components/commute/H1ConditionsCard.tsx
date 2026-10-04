@@ -107,7 +107,7 @@ export function H1ConditionsCard({
             </p>
             <p className="mt-0.5 text-xs font-semibold text-muted-foreground">{road}</p>
           </div>
-          <span className="shrink-0 rounded-full bg-warning/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-warning">
+          <span className="shrink-0 rounded-full bg-warning/10 px-2 py-1 text-xs font-bold uppercase tracking-wide text-warning">
             Live alert
           </span>
         </div>
@@ -124,7 +124,7 @@ export function H1ConditionsCard({
         </p>
         {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
         {clearance && <p className="mt-1 text-xs text-muted-foreground">{clearance}</p>}
-        <p className="mt-2 text-[10px] text-muted-foreground">{freshness}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{freshness}</p>
       </div>
     );
   };
@@ -164,7 +164,7 @@ export function H1ConditionsCard({
             {rows.map(({ label, data }) =>
               data ? <Incident key={label} direction={label} data={data} /> : null,
             )}
-            <p className="mt-3 text-[10px] text-muted-foreground">
+            <p className="mt-3 text-xs text-muted-foreground">
               Traffic: TomTom · General road alert — not a trip-specific ETA.
             </p>
           </div>
@@ -182,7 +182,7 @@ export function H1ConditionsCard({
         <h2 id="h1-conditions-title" className="text-lg font-semibold">
           H-1 conditions
         </h2>
-        <span className="shrink-0 text-[10px] text-muted-foreground">TomTom</span>
+        <span className="shrink-0 text-xs text-muted-foreground">TomTom</span>
       </div>
       {loading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
       {unavailable && (
@@ -213,7 +213,7 @@ export function H1ConditionsCard({
       {weatherLine && (
         <p className={`mt-4 text-xs ${TONE_CLASS[weatherLine.tone]}`}>
           {weatherLine.text}
-          <span className="ml-1 text-[10px] text-muted-foreground">{weatherLine.source}</span>
+          <span className="ml-1 text-xs text-muted-foreground">{weatherLine.source}</span>
         </p>
       )}
     </section>

@@ -434,10 +434,10 @@ export default function LiveNavMap(props: LiveNavMapProps) {
           {eta && (
             <div className="nav-hud pointer-events-auto rounded-xl px-3 py-2 text-right" aria-live="polite">
               <p className="text-lg font-black leading-none tabular-nums text-foreground">{eta.arrive}</p>
-              <p className="mt-1 text-[11px] font-bold tabular-nums text-muted-foreground">
+              <p className="mt-1 text-xs font-bold tabular-nums text-muted-foreground">
                 {eta.minutes} min{eta.distance ? ` · ${eta.distance}` : ""}
               </p>
-              {eta.range && <p className="text-[10px] font-semibold tabular-nums text-muted-foreground">{eta.range}</p>}
+              {eta.range && <p className="text-xs font-semibold tabular-nums text-muted-foreground">{eta.range}</p>}
             </div>
           )}
           <Button

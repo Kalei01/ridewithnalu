@@ -83,7 +83,7 @@ export function VerdictCard({
         <details className="mt-5 group">
           <summary className="cursor-pointer list-none text-sm font-semibold text-foreground/95 marker:hidden">
             <span className="inline-flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground transition-transform group-open:rotate-90">▶</span>
+              <span className="text-xs text-muted-foreground transition-transform group-open:rotate-90">▶</span>
               Why?
             </span>
           </summary>

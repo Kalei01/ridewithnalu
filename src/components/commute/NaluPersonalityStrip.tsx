@@ -120,7 +120,7 @@ export function NaluPersonalityStrip({
         N
       </span>
       <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        <p className="text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Nalu
         </p>
         <p className="mt-0.5 text-sm font-medium leading-5 text-foreground">{displayLine}</p>

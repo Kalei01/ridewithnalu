@@ -17,7 +17,7 @@ export function LandmarkHint({ name }: { name: string | null | undefined }) {
   const landmark = landmarkFor(name);
   if (!landmark) return null;
   return (
-    <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground" title={landmark}>
+    <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground" title={landmark}>
       {landmark}
     </p>
   );
