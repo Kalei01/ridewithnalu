@@ -183,6 +183,33 @@ function hdotLocation(clean: string): string {
   return clean.trim();
 }
 
+/**
+ * Split a section into its numbered entries ("1) … 2) …"). A number followed by
+ * ")" inside parentheses, like "(Exit 24) from", is part of the text, not a new
+ * entry.
+ */
+function splitHdotEntries(body: string): string[] {
+  const entries: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < body.length; index += 1) {
+    const char = body[index];
+    if (char === "(") depth += 1;
+    else if (char === ")") depth = Math.max(0, depth - 1);
+    else if (
+      depth === 0 &&
+      index > start &&
+      /\s/.test(body[index - 1] ?? "") &&
+      /^\d{1,2}\)\s/.test(body.slice(index, index + 4))
+    ) {
+      entries.push(body.slice(start, index));
+      start = index;
+    }
+  }
+  entries.push(body.slice(start));
+  return entries;
+}
+
 export function parseHdotOahuRoadwork(html: string, today = honoluluToday()): HdotScheduledClosure[] {
   const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -210,7 +237,7 @@ export function parseHdotOahuRoadwork(html: string, today = honoluluToday()): Hd
     const bodyEnd = sections[i + 1]?.index ?? text.length;
     const body = text.slice(bodyStart, bodyEnd);
 
-    const entries = body.split(/(?=\b\d+\)\s)/g);
+    const entries = splitHdotEntries(body);
     for (const raw of entries) {
       const clean = raw.replace(/^\s*\d+\)\s*/, "").trim();
       if (!clean) continue;

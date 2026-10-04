@@ -5195,7 +5195,9 @@ function Index() {
         >
           <>
             {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
-            {configured && (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
+            {/* No reason line until both searches finish, so a pending search never reads as "no trip". */}
+            {configured && !optionsLoading && !driveLoading &&
+              (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
               <p className="mt-4 text-lg font-medium text-muted-foreground">
                 {verdict === "same"
                   ? "Both options are close once arrival ranges are considered."

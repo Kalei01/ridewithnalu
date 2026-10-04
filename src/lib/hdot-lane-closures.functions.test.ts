@@ -70,7 +70,13 @@ describe("parseHdotOahuRoadwork", () => {
   const page = `<h3>— H-1 Freeway —</h3>
     <p>1) Westbound Kalaeloa to Kunia, closure of two to three lanes from Monday, Sept. 28 through Thursday, Oct. 1, nightly from 8 p.m. to 5 a.m. for paving.</p>
     <p>2) Eastbound full closure of the Punahou Street off-ramp (Exit 23 from the H-1 Freeway) nightly from 8:30 p.m. to 4:30 a.m. for striping.</p>
+    <p>4) Eastbound full closure of the Kinau Street off-ramp (Exit 24) from Friday, Oct. 9 at 9 p.m. for repairs.</p>
     <p>3) Eastbound Kapiolani Boulevard, single lane closure from Sunday, Oct. 4 through Friday, Oct. 9 for drainage work.</p>`;
+
+  it("keeps a parenthesised exit number inside its entry", () => {
+    const kinau = parseHdotOahuRoadwork(page, oct3).find((item) => /Kinau/.test(item.location));
+    expect(kinau?.location).toBe("Eastbound full closure of the Kinau Street off-ramp (Exit 24)");
+  });
 
   it("drops entries whose last date has passed", () => {
     const items = parseHdotOahuRoadwork(page, oct3);

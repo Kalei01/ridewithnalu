@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { formatMinuteRange } from "@/lib/drive/traffic-summary";
 
 type TransitItineraryProps = {
   transitLabel: string;
@@ -19,7 +20,7 @@ export function TransitItinerary({
         <h3 className="text-xl font-bold text-foreground">{transitLabel} itinerary</h3>
         {itineraryRange && (
           <p className="text-sm font-semibold text-muted-foreground">
-            {itineraryRange.low}–{itineraryRange.high} min
+            {formatMinuteRange(itineraryRange.low, itineraryRange.high)}
           </p>
         )}
       </div>
