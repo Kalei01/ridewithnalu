@@ -145,6 +145,7 @@ import {
   nextManeuver,
   smoothBearing,
   turnGlyph,
+  startRoutePhrase,
 } from "@/lib/navigation-voice";
 import { track } from "@/lib/analytics";
 import { NotificationsSection } from "@/components/account/NotificationsSection";
@@ -3751,6 +3752,20 @@ function Index() {
       : // Without a saved Home, the start is wherever the trip was set from.
         "Your starting point";
   const tripArrivalLabel = arrivingHome ? "Home" : destinationLabel;
+  // Say where we're going and the first direction as soon as turn-by-turn
+  // starts, once per trip, so people hear right away that the voice is on.
+  const startAnnounced = useRef(false);
+  useEffect(() => {
+    if (!drivingCommitted) {
+      startAnnounced.current = false;
+      return;
+    }
+    if (startAnnounced.current || !nextTurn) return;
+    startAnnounced.current = true;
+    if (navMuted) return;
+    voiceGuide.current.markStartAnnounced(nextTurn);
+    speakCommuteAlert(startRoutePhrase(tripArrivalLabel, nextTurn), "maneuver");
+  }, [drivingCommitted, nextTurn, navMuted, tripArrivalLabel]);
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
   const plannedInboundAccess = inbound && best?.legs[0]?.kind === "access" ? best.legs[0] : null;
   // The return banner must describe the chosen itinerary, not the stop saved during setup.

@@ -381,6 +381,30 @@ export function speakableRoad(text: string) {
   return out.replace(/\s+([,.])/g, "$1").replace(/\s{2,}/g, " ").trim();
 }
 
+/**
+ * What Nalu says the moment turn-by-turn starts, like Google and Apple Maps:
+ * where it's going and the first direction. Confirms the voice is on.
+ */
+export function startRoutePhrase(
+  destination: string | null | undefined,
+  next: { maneuver: Maneuver; distanceM: number } | null,
+): string {
+  const place = (destination ?? "").split(",")[0]?.trim() ?? "";
+  const opening = !place
+    ? "Starting route."
+    : /^home$/i.test(place)
+      ? "Starting route home."
+      : `Starting route to ${speakableRoad(place)}.`;
+  if (!next || next.maneuver.maneuver.startsWith("ARRIVE")) return opening;
+  const instruction = speakableRoad(next.maneuver.instruction.replace(/\.$/, ""));
+  if (!instruction) return opening;
+  const first = instruction.charAt(0).toUpperCase() + instruction.slice(1);
+  // A first step right where you are ("Head east on…") needs no distance.
+  return next.distanceM < 60
+    ? `${opening} ${first}.`
+    : `${opening} ${spokenDistance(next.distanceM)}, ${lowerFirst(instruction)}.`;
+}
+
 /** A route's version changes whenever the maneuver list changes (reroute). */
 export function routeVersion(maneuvers: Maneuver[]) {
   return maneuvers.map(maneuverKey).join("|");
@@ -404,6 +428,18 @@ export class VoiceGuide {
 
   state(m: Maneuver): ManeuverVoiceState {
     return this.states.get(maneuverKey(m)) ?? "unannounced";
+  }
+
+  /**
+   * The start announcement already said this maneuver: skip the tiers we're
+   * already inside so it isn't repeated seconds later.
+   */
+  markStartAnnounced(next: { maneuver: Maneuver; distanceM: number }, now = Date.now()) {
+    let reached: ManeuverVoiceState | null = null;
+    for (const tier of announcementTiers(null, next.maneuver))
+      if (next.distanceM <= tier.atM && tier.state !== "near_spoken") reached = tier.state;
+    if (reached) this.states.set(maneuverKey(next.maneuver), reached);
+    this.lastSpokenAt = now;
   }
 
   markPassed(m: Maneuver) {
