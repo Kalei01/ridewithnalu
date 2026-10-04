@@ -5231,7 +5231,7 @@ function Index() {
           confidence={verdictConfidence}
           differenceMinutes={activeDecision.differenceMinutes}
           arriveByActive={arriveByActive}
-          driveMinutes={driveTripEstimate.expectedDurationMinutes}
+          driveMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
           driveRange={driveRange}
           transitMinutes={transitTripEstimate.expectedDurationMinutes}
           transitRange={transitRange}

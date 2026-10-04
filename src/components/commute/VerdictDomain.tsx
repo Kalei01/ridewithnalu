@@ -192,14 +192,15 @@ export function VerdictDomain({
         <DecisionBars
           drive={{
             label: "Drive",
-            // Road time, the same number as "Driving" above and in map apps.
+            // Door to door (parking included), so the bars agree with the
+            // "N min faster" headline; the clock is what people compare.
             minutes: driveMinutes,
+            arrive: driveArrivalSeconds !== null ? clockFromSeconds(driveArrivalSeconds) : null,
           }}
           transit={{
             label: transitLabel,
             minutes: transitMinutes,
-            low: transitRange?.low,
-            high: transitRange?.high,
+            arrive: best ? clockFromSeconds(best.arrive_seconds) : null,
           }}
         />
       )}
