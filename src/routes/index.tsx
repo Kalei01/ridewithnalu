@@ -166,6 +166,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { HOLO_FARES } from "@/lib/fares";
+import { MAX_STOP_WALK_M, preferLessWalking } from "@/lib/rail/walk-preference";
 import {
   AskNaluIfAvailable,
   BeatTheRush,
@@ -338,7 +339,7 @@ function optionIdentity(option: Option) {
 
 function mergeTransitOptions(...groups: Option[][]): Option[] {
   const unique = new Map<string, Option>();
-  const saneOptions = filterTransferSanityOptions(groups.flat());
+  const saneOptions = preferLessWalking(filterTransferSanityOptions(groups.flat()));
   for (const option of saneOptions) unique.set(optionIdentity(option), option);
   return Array.from(unique.values())
     .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
@@ -1547,6 +1548,8 @@ function Index() {
             p_dest_lon: tripDirection.to.lon as number,
             p_after_seconds: cursor,
             p_limit: planMode === "arrive-by" ? 8 : 4,
+            p_origin_radius_m: MAX_STOP_WALK_M,
+            p_dest_radius_m: MAX_STOP_WALK_M,
           });
           if (busError) {
             recordTransitRpcError("plan_bus_direct", busError);
@@ -1570,17 +1573,22 @@ function Index() {
           p_dest_lat: tripDirection.to.lat as number,
           p_dest_lon: tripDirection.to.lon as number,
           p_after_seconds: cursor,
-          p_limit: planMode === "arrive-by" ? 8 : 4,
+          // A few extra candidates so a slightly later, shorter-walk trip survives.
+          p_limit: planMode === "arrive-by" ? 8 : 6,
+          p_origin_radius_m: MAX_STOP_WALK_M,
+          p_dest_radius_m: MAX_STOP_WALK_M,
         });
         if (error) {
           generalTransitError = error;
           recordTransitRpcError("plan_transit_general", error);
           return [];
         }
-        return (data ?? []).map((row) => ({
-          ...row,
-          legs: row.legs as unknown as Leg[],
-        })) as Option[];
+        return mergeTransitOptions(
+          (data ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[],
+        );
       };
 
       const fetchOutbound = async (cursor: number): Promise<Option[]> => {
@@ -6105,6 +6113,11 @@ function RailTripBreakdown({
                     {leg.mode === "walk" && legMinutes !== null && (
                       <p className="text-sm font-bold">
                         {formatDistance(legMinutes * 80.47)} · {legMinutes} min walk
+                        {legMinutes >= 15 && (
+                          <span className="ml-1.5 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning">
+                            Long walk
+                          </span>
+                        )}
                       </p>
                     )}
                     <p>{`Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}</p>

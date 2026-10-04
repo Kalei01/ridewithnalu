@@ -2,6 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { Output, stepCountIs, streamText, tool } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { MAX_STOP_WALK_M, preferLessWalking } from "./rail/walk-preference";
 
 export type Pt = { lat: number; lon: number };
 
@@ -514,6 +515,9 @@ export async function bestTransitBetween(
     p_dest_lat: toPoint.lat,
     p_dest_lon: toPoint.lon,
     p_after_seconds: afterSeconds,
+    p_limit: 6,
+    p_origin_radius_m: MAX_STOP_WALK_M,
+    p_dest_radius_m: MAX_STOP_WALK_M,
   };
   type Row = {
     leave_by_seconds: number | null;
@@ -529,7 +533,13 @@ export async function bestTransitBetween(
       params: Record<string, number>,
     ) => Promise<{ data: Row[] | null; error: unknown }>)(fn, args);
     if (error) console.warn(`[ai] pulse ${fn} failed`, error);
-    rows = (data ?? []).filter((row) => Number(row.total_minutes) > 0);
+    rows = preferLessWalking(
+      (data ?? [])
+        .filter((row) => Number(row.total_minutes) > 0)
+        .map((row) => ({ ...row, arrive_seconds: Number(row.arrive_seconds), legs: row.legs ?? [] })) as Array<
+        Row & Parameters<typeof preferLessWalking>[0][number]
+      >,
+    );
     if (rows.length) break;
   }
   const best = rows.sort((a, b) => Number(a.arrive_seconds) - Number(b.arrive_seconds))[0];
