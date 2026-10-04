@@ -15,6 +15,8 @@ export const Route = createFileRoute("/api/public/leave-alerts")({
           return Response.json({ ...(await runLeaveAlerts()), reminders });
         } catch (error) {
           console.error("[leave-alerts]", error instanceof Error ? error.message : error);
+          const { reportServerError } = await import("@/lib/sentry-server");
+          await reportServerError(error, "leave-alerts");
           return Response.json({ error: "Leave alerts failed" }, { status: 500 });
         }
       },
