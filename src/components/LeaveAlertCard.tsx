@@ -61,6 +61,152 @@ function timeInput(seconds: number | null | undefined, fallback: string) {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
+type AlertTrip = {
+  placeKey: string;
+  label: string;
+  toHome: boolean;
+  from: { lat: number; lon: number };
+  to: { lat: number; lon: number };
+};
+
+/**
+ * Sign this phone up for notifications if needed, then save one trip's alert.
+ * Returns the device's alerts afterwards, or null when notifications are blocked.
+ */
+async function saveTripAlert(
+  trip: AlertTrip,
+  arriveMin: number,
+  days: number[],
+  saveSub: ReturnType<typeof useServerFn<typeof savePushSubscription>>,
+  saveAlert: ReturnType<typeof useServerFn<typeof saveLeaveAlert>>,
+): Promise<LocalLeaveAlert[] | null> {
+  const result = await obtainPushToken(true);
+  if (result.status !== "registered") {
+    toast(BLOCKED_COPY[result.status]);
+    return null;
+  }
+  const prefs = readPushPrefs();
+  const categories = Array.from(new Set([...prefs.categories, "morning_commute" as const]));
+  await saveSub({
+    data: {
+      token: result.token,
+      ...(prefs.token && prefs.token !== result.token ? { previousToken: prefs.token } : {}),
+      categories,
+      quietStartMin: clockToMinutes(prefs.quietStart),
+      quietEndMin: clockToMinutes(prefs.quietEnd),
+    },
+  });
+  writePushPrefs({ ...prefs, categories, token: result.token });
+  await saveAlert({
+    data: {
+      token: result.token,
+      placeKey: trip.placeKey,
+      placeLabel: trip.label,
+      toHome: trip.toHome,
+      origin: { lat: trip.from.lat, lon: trip.from.lon },
+      destination: { lat: trip.to.lat, lon: trip.to.lon },
+      arriveMin,
+      days,
+    },
+  });
+  const next = [
+    ...readLeaveAlerts().filter((alert) => alert.placeKey !== trip.placeKey),
+    { placeKey: trip.placeKey, placeLabel: trip.label, arriveMin, days },
+  ];
+  writeLeaveAlerts(next);
+  toast.success(
+    `Alert on: ${describeDays(days)}, to be ${trip.toHome ? "home" : `at ${trip.label}`} by ${minutesClock(arriveMin)}.`,
+  );
+  return next;
+}
+
+/** The alert key for a destination: a saved place's own key, else its rounded spot. */
+export function alertKeyFor(
+  places: SavedPlace[],
+  to: { lat: number; lon: number },
+  toHome: boolean,
+  from?: { lat: number; lon: number },
+) {
+  const near = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) =>
+    Math.hypot((a.lat - b.lat) * 111_000, (a.lon - b.lon) * 104_000) < 200;
+  if (toHome) {
+    const away = from ? places.find((place) => place.kind !== "home" && near(place, from)) : null;
+    return away ? `home-from:${away.id}` : `home-from:${from ? `${from.lat.toFixed(3)},${from.lon.toFixed(3)}` : "here"}`;
+  }
+  const saved = places.find((place) => place.kind !== "home" && near(place, to));
+  return saved ? `${saved.kind}:${saved.id}` : `trip:${to.lat.toFixed(3)},${to.lon.toFixed(3)}`;
+}
+
+/**
+ * "Remind me when to leave" on the trip screen: one tap opens the time and
+ * days for THIS trip, then saves a Time-to-leave alert for it.
+ */
+export function RemindMeButton({
+  trip,
+  defaultTime,
+}: {
+  trip: AlertTrip;
+  defaultTime: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [existing, setExisting] = useState<LocalLeaveAlert | null>(null);
+  const saveSub = useServerFn(savePushSubscription);
+  const saveAlert = useServerFn(saveLeaveAlert);
+  useEffect(() => {
+    setExisting(readLeaveAlerts().find((alert) => alert.placeKey === trip.placeKey) ?? null);
+  }, [trip.placeKey, open]);
+
+  if (existing && !open) {
+    return (
+      <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+        <BellRing className="size-4 text-primary" />
+        Leave alert on: {trip.toHome ? "home" : trip.label} by {minutesClock(existing.arriveMin)},{" "}
+        {describeDays(existing.days)}
+      </p>
+    );
+  }
+  if (!open) {
+    return (
+      <Button type="button" variant="outline" className="mt-3 h-12 w-full gap-2 text-base" onClick={() => setOpen(true)}>
+        <BellRing className="size-4" /> Remind me when to leave
+      </Button>
+    );
+  }
+  const setupTrip: Trip = {
+    placeKey: trip.placeKey,
+    label: trip.label,
+    toHome: trip.toHome,
+    from: trip.from as SavedPlace,
+    to: trip.to as SavedPlace,
+    defaultTime,
+    heading: "",
+  };
+  return (
+    <div className="mt-3 rounded-lg border border-border p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-sm font-semibold text-foreground">Remind me when to leave</p>
+        <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="flex size-11 items-center justify-center text-muted-foreground">
+          <X className="size-4" />
+        </button>
+      </div>
+      <TripSetup
+        trip={setupTrip}
+        busy={busy}
+        onTurnOn={(_, arriveMin, days) => {
+          setBusy(true);
+          void saveTripAlert(trip, arriveMin, days, saveSub, saveAlert)
+            .then((next) => {
+              if (next) setOpen(false);
+            })
+            .catch(() => toast.error("Couldn't turn on the alert. Try again."))
+            .finally(() => setBusy(false));
+        }}
+      />
+    </div>
+  );
+}
+
 function tripsFor(places: SavedPlace[]): Trip[] {
   const home = findByKind(places, "home");
   const away = findByKind(places, "work") ?? places.find((place) => place.kind !== "home") ?? null;
@@ -186,44 +332,8 @@ export function LeaveAlertCard({
     if (busy) return;
     setBusy(true);
     try {
-      const result = await obtainPushToken(true);
-      if (result.status !== "registered") {
-        toast(BLOCKED_COPY[result.status]);
-        return;
-      }
-      const prefs = readPushPrefs();
-      const categories = Array.from(new Set([...prefs.categories, "morning_commute" as const]));
-      await saveSub({
-        data: {
-          token: result.token,
-          ...(prefs.token && prefs.token !== result.token ? { previousToken: prefs.token } : {}),
-          categories,
-          quietStartMin: clockToMinutes(prefs.quietStart),
-          quietEndMin: clockToMinutes(prefs.quietEnd),
-        },
-      });
-      writePushPrefs({ ...prefs, categories, token: result.token });
-      await saveAlert({
-        data: {
-          token: result.token,
-          placeKey: trip.placeKey,
-          placeLabel: trip.label,
-          toHome: trip.toHome,
-          origin: { lat: trip.from.lat, lon: trip.from.lon },
-          destination: { lat: trip.to.lat, lon: trip.to.lon },
-          arriveMin,
-          days,
-        },
-      });
-      const next = [
-        ...alerts.filter((alert) => alert.placeKey !== trip.placeKey),
-        { placeKey: trip.placeKey, placeLabel: trip.label, arriveMin, days },
-      ];
-      writeLeaveAlerts(next);
-      setAlerts(next);
-      toast.success(
-        `Alert on: ${describeDays(days)}, to be ${trip.toHome ? "home" : `at ${trip.label}`} by ${minutesClock(arriveMin)}.`,
-      );
+      const next = await saveTripAlert(trip, arriveMin, days, saveSub, saveAlert);
+      if (next) setAlerts(next);
     } catch {
       toast.error("Couldn't turn on the alert. Try again.");
     } finally {

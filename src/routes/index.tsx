@@ -22,6 +22,7 @@ import {
   Plus,
   LocateFixed,
   Navigation,
+  History,
   Radio,
   RefreshCw,
   RotateCcw,
@@ -166,8 +167,24 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { HOLO_FARES } from "@/lib/fares";
+import {
+  autoOpenAllowed,
+  noteIgnored,
+  noteUsed,
+  predictSlot,
+  readHabits,
+  recordTripOpen,
+} from "@/lib/trip-habits";
+import {
+  POPULAR_PLACES,
+  addRecent,
+  clearRecents,
+  readRecents,
+  removeRecent,
+  type RecentPlace,
+} from "@/lib/places/recents";
 import { InstallNaluCard } from "@/components/InstallNaluCard";
-import { LeaveAlertCard } from "@/components/LeaveAlertCard";
+import { LeaveAlertCard, RemindMeButton, alertKeyFor } from "@/components/LeaveAlertCard";
 import { MAX_STOP_WALK_M, preferLessWalking } from "@/lib/rail/walk-preference";
 import {
   AskNaluIfAvailable,
@@ -4151,6 +4168,17 @@ function Index() {
   }
 
   async function quickStartRoutine() {
+    const routineTarget =
+      findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
+    if (routineTarget) {
+      recordTripOpen(
+        honoluluParts(now).hour >= 12 || honoluluParts(now).hour < 5
+          ? "home"
+          : routineTarget.kind === "custom"
+            ? routineTarget.id
+            : routineTarget.kind,
+      );
+    }
     if (alertPrefs.sound) primeChimeAudio();
     requestCommuteNotificationPermission();
     void refreshTrafficNow();
@@ -4189,8 +4217,9 @@ function Index() {
     chooseDirection(honoluluParts(now).hour >= 12);
   }
 
-  async function quickStartSavedPlace(slot: string) {
+  async function quickStartSavedPlace(slot: string, options: { auto?: boolean } = {}) {
     const destination = resolveShortcut(savedPlaces, slot);
+    if (destination && !options.auto) recordTripOpen(slot);
     if (!destination) {
       if (authLoading || !user || syncReadyUser !== user.id) {
         setRestoreSlot(slot);
@@ -4200,8 +4229,11 @@ function Index() {
       }
       return;
     }
-    if (alertPrefs.sound) primeChimeAudio();
-    requestCommuteNotificationPermission();
+    // Sound and the notification question need a tap; an automatic open has none.
+    if (!options.auto) {
+      if (alertPrefs.sound) primeChimeAudio();
+      requestCommuteNotificationPermission();
+    }
     void refreshTrafficNow();
     if (!navigator.geolocation) {
       toast("Your location isn’t available on this device.", {
@@ -4331,6 +4363,50 @@ function Index() {
       />
     </>
   );
+
+  // Open the trip this person usually takes now, once per visit, only when the
+  // habit is real (see trip-habits), location is already allowed, and they
+  // haven't said "Not now" three times in a row. "Where to?" stays one tap away.
+  const autoOpenTried = useRef(false);
+  useEffect(() => {
+    if (autoOpenTried.current || !hydrated || configured || onboardingOpen || commitment) return;
+    if (savedPlaces.length === 0) return;
+    autoOpenTried.current = true;
+    try {
+      if (window.sessionStorage.getItem("nalu-autoopen-done") === "1") return;
+      window.sessionStorage.setItem("nalu-autoopen-done", "1");
+    } catch {
+      return;
+    }
+    if (!autoOpenAllowed()) return;
+    const slot = predictSlot(readHabits(), Date.now());
+    const place = slot ? resolveShortcut(savedPlaces, slot) : null;
+    if (!slot || !place || !navigator.permissions?.query) return;
+    void navigator.permissions
+      .query({ name: "geolocation" as PermissionName })
+      .then((status) => {
+        if (status.state !== "granted") return;
+        void quickStartSavedPlace(slot, { auto: true });
+        let dismissed = false;
+        toast(`Your usual trip to ${place.label}`, {
+          description: "Opened it for you.",
+          duration: 8000,
+          action: {
+            label: "Not now",
+            onClick: () => {
+              dismissed = true;
+              noteIgnored();
+              endTrip();
+            },
+          },
+          onAutoClose: () => {
+            if (!dismissed) noteUsed();
+          },
+        });
+      })
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, configured, onboardingOpen, commitment, savedPlaces.length]);
 
   if (browseActive) {
     const trafficLoading = eastboundTrafficLoading || westboundTrafficLoading;
@@ -5363,6 +5439,34 @@ function Index() {
             )}
           </>
         </VerdictDomain>
+
+        {!commitment &&
+          tripDirection.from.lat !== null &&
+          tripDirection.from.lon !== null &&
+          tripDirection.to.lat !== null &&
+          tripDirection.to.lon !== null && (
+            <RemindMeButton
+              trip={{
+                placeKey: alertKeyFor(
+                  savedPlaces,
+                  { lat: tripDirection.to.lat, lon: tripDirection.to.lon },
+                  arrivingHome,
+                  { lat: tripDirection.from.lat, lon: tripDirection.from.lon },
+                ),
+                label: tripArrivalLabel,
+                toHome: arrivingHome,
+                from: { lat: tripDirection.from.lat, lon: tripDirection.from.lon },
+                to: { lat: tripDirection.to.lat, lon: tripDirection.to.lon },
+              }}
+              defaultTime={
+                arriveByTarget !== null
+                  ? clockInputValue(arriveByTarget)
+                  : arrivingHome
+                    ? "17:30"
+                    : clockInputValue(activeSavedPlace?.typicalArrivalSeconds ?? 8 * 3600)
+              }
+            />
+          )}
 
         <NaluPersonalityStrip
           loading={optionsLoading || driveLoading}
@@ -6465,6 +6569,77 @@ const DEFAULT_SHORTCUTS = ["home", "work"];
 const MAX_SHORTCUTS = 4;
 
 /** A shortcut slot is a place kind (home/work/school/gym) or a saved place id. */
+/** Recent destinations (this phone only, each removable) and popular Oahu places. */
+function QuickPlaces({ disabled, onPick }: { disabled: boolean; onPick: (place: PointLike) => void }) {
+  const [recents, setRecents] = useState<RecentPlace[]>([]);
+  useEffect(() => setRecents(readRecents()), []);
+  const chip =
+    "flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-border bg-surface-raised px-3 text-sm font-medium text-foreground";
+  return (
+    <div className="grid gap-3">
+      {recents.length > 0 && (
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-xs font-semibold text-muted-foreground">Recent</p>
+            <button
+              type="button"
+              className="min-h-11 px-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                clearRecents();
+                setRecents([]);
+              }}
+            >
+              Clear
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {recents.map((place) => (
+              <span key={`${place.lat},${place.lon}`} className={chip}>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onPick(place)}
+                  className="flex min-w-0 items-center gap-1.5"
+                >
+                  <History className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{place.name}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Remove ${place.name} from recents`}
+                  onClick={() => {
+                    removeRecent(place);
+                    setRecents(readRecents());
+                  }}
+                  className="-mr-2 flex size-8 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      <div>
+        <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Popular on Oʻahu</p>
+        <div className="flex flex-wrap gap-2">
+          {POPULAR_PLACES.map((place) => (
+            <button
+              key={place.name}
+              type="button"
+              disabled={disabled}
+              onClick={() => onPick(place)}
+              className={chip}
+            >
+              <span className="truncate">{place.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function resolveShortcut(places: SavedPlace[], slot: string): SavedPlace | null {
   if ((PLACE_KINDS as string[]).includes(slot) && slot !== "custom") {
     return findByKind(places, slot as PlaceKind);
@@ -7016,6 +7191,14 @@ function SetupDialog({
     // A commute requires exact places. A station is transit access metadata,
     // never a substitute for the rider's Home coordinates.
     const home = findByKind(savedPlaces, "home");
+    if (draft.destinationName && draft.destLat !== null && draft.destLon !== null) {
+      addRecent({
+        name: draft.destinationName,
+        address: draft.destinationAddress,
+        lat: draft.destLat,
+        lon: draft.destLon,
+      });
+    }
     onSave({
       ...draft,
       // Walk when the station is close; otherwise plan park-and-ride driving.
@@ -7151,6 +7334,9 @@ function SetupDialog({
                       value={placeQuery}
                       onChange={(event) => setPlaceQuery(event.target.value)}
                     />
+                    {placeQuery.trim() === "" && (
+                      <QuickPlaces disabled={busy} onPick={(place) => void selectPlace(place)} />
+                    )}
                     {searching && <p className="text-sm text-muted-foreground">Searching…</p>}
                     {suggestions.length > 0 && (
                       <ul className="divide-y divide-border overflow-hidden rounded-lg bg-surface-raised">
