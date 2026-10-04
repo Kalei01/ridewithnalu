@@ -329,6 +329,22 @@ export function announcementTiers(
 }
 const ORDER: ManeuverVoiceState[] = ["unannounced", "far_spoken", "mid_spoken", "near_spoken", "passed"];
 
+/**
+ * The distance as a driver would say it, from the real distance at the moment
+ * Nalu speaks. Tiers decide *when* to speak; this decides *what* distance to
+ * say, so a cue that fires late (after a previous turn, at trip start, or once
+ * GPS settles) never claims "half a mile" for a turn 300 m away.
+ */
+export function spokenDistance(distanceM: number): string {
+  const feet = distanceM * 3.281;
+  if (distanceM < 305) return `In ${Math.max(100, Math.round(feet / 100) * 100)} feet`;
+  if (distanceM < 560) return "In a quarter mile";
+  if (distanceM < 1000) return "In half a mile";
+  if (distanceM < 1450) return "In three quarters of a mile";
+  const miles = Math.round(distanceM / 1609);
+  return miles <= 1 ? "In 1 mile" : `In ${miles} miles`;
+}
+
 const PHONETIC: Array<[RegExp, string]> = [
   // Strip technical codes TomTom sometimes appends: "(7110)", "[HI-93A]", "#12".
   [/\s*[([][^)\]]*\d[^)\]]*[)\]]/g, ""],
@@ -432,10 +448,13 @@ export class VoiceGuide {
     const deeper = tiers[idx + 1];
     if (deeper && next.distanceM <= deeper.atM * 1.5 && tier.state !== "near_spoken") return null;
     const instruction = speakableRoad(next.maneuver.instruction.replace(/\.$/, ""));
+    const isArrival = next.maneuver.maneuver === "ARRIVE" || next.maneuver.maneuver.startsWith("ARRIVE");
     const phrase =
-      tier.state === "near_spoken" && next.maneuver.maneuver === "ARRIVE"
+      tier.state === "near_spoken" && isArrival
         ? "You have arrived at your destination."
-        : `${tier.phrase}, ${lowerFirst(instruction)}.`;
+        : isArrival
+          ? `${spokenDistance(next.distanceM)}, you'll arrive at your destination.`
+          : `${spokenDistance(next.distanceM)}, ${lowerFirst(instruction)}.`;
     const safety = tier.state === "near_spoken" && next.distanceM < SAFETY_BYPASS_M;
     if (!safety && now - this.lastSpokenAt < (this.opts.cooldownMs ?? VOICE_COOLDOWN_MS)) return null;
     this.states.set(key, tier.state);

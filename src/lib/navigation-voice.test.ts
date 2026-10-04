@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  spokenDistance,
   announcementFor,
   announcementTiers,
   FAR_ANNOUNCE_M,
@@ -213,7 +214,7 @@ describe("voice suppression", () => {
     ).toBeNull();
     expect(
       guide.next({ maneuver: turn, distanceM: 200 }, 2_000, { gpsAccuracyM: 20 }),
-    ).toMatch(/half a mile/);
+    ).toMatch(/700 feet/);
   });
 
   it("stays silent when the accepted GPS fix is stale", () => {
@@ -224,7 +225,7 @@ describe("voice suppression", () => {
     ).toBeNull();
     expect(
       guide.next({ maneuver: turn, distanceM: 200 }, 11_000, { fixAgeMs: 1_000 }),
-    ).toMatch(/half a mile/);
+    ).toMatch(/700 feet/);
   });
 
   it("stays silent while rerouting", () => {
@@ -233,5 +234,35 @@ describe("voice suppression", () => {
     expect(
       guide.next({ maneuver: turn, distanceM: 200 }, 1_000, { rerouting: true }),
     ).toBeNull();
+  });
+});
+
+describe("spoken distance matches the real distance", () => {
+  it("says the distance a driver would, from where the car actually is", () => {
+    expect(spokenDistance(83)).toBe("In 300 feet");
+    expect(spokenDistance(259)).toBe("In 800 feet");
+    expect(spokenDistance(326)).toBe("In a quarter mile");
+    expect(spokenDistance(691)).toBe("In half a mile");
+    expect(spokenDistance(1339)).toBe("In three quarters of a mile");
+    expect(spokenDistance(3300)).toBe("In 2 miles");
+  });
+
+  it("never says half a mile for a turn that is close after the previous one", () => {
+    const guide = new VoiceGuide({ stabilizeMs: 0, cooldownMs: 0 });
+    guide.sync([turn]);
+    const phrase = guide.next({ maneuver: turn, distanceM: 326 }, 1_000, { speedMps: 13 });
+    expect(phrase).toMatch(/^In a quarter mile, /);
+  });
+
+  it("announces an upcoming arrival naturally", () => {
+    const arrive = { ...turn, maneuver: "ARRIVE", instruction: "You have arrived" };
+    const guide = new VoiceGuide({ stabilizeMs: 0, cooldownMs: 0 });
+    guide.sync([arrive]);
+    expect(guide.next({ maneuver: arrive, distanceM: 800 }, 1_000, { speedMps: 9 })).toBe(
+      "In half a mile, you'll arrive at your destination.",
+    );
+    expect(guide.next({ maneuver: arrive, distanceM: 85 }, 2_000, { speedMps: 9 })).toBe(
+      "You have arrived at your destination.",
+    );
   });
 });
