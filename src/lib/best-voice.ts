@@ -20,8 +20,7 @@ export function voiceScore(voice: VoiceLike): number {
   // Apple's downloaded high-quality voices, Edge's neural voices.
   if (/\bpremium\b/i.test(name)) score += 60;
   else if (/\benhanced\b/i.test(name)) score += 45;
-  if (/\bnatural\b|\bneural\b|\bonline\b/i.test(name)) score += 50;
-  if (/\bsiri\b/i.test(name)) score += 40;
+  if (/\bnatural\b|\bneural\b/i.test(name)) score += 50;
   // Chrome's and Android's Google voices.
   if (/\bgoogle\b/i.test(name)) score += 35;
   // Apple voices that sound good even in their standard form.

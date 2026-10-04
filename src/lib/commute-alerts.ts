@@ -76,26 +76,50 @@ export function speakCommuteAlert(message: string, priority: VoicePriority = "in
 
 const speechQueue = new VoicePriorityQueue();
 let speechGeneration = 0;
+// Set when a chosen voice fails to speak on this phone; from then on the
+// phone's default voice is used, which always worked.
+let useDefaultVoice = false;
+const VOICE_START_TIMEOUT_MS = 2500;
 
 function speakQueuedRequest(request: { message: string; priority: VoicePriority }) {
   const generation = ++speechGeneration;
 
   try {
     const utterance = new window.SpeechSynthesisUtterance(request.message);
-    const voice = bestVoice();
+    const voice = useDefaultVoice ? null : bestVoice();
     if (voice) utterance.voice = voice;
-    utterance.lang = voice?.lang ?? "en-US";
+    utterance.lang = "en-US";
     utterance.rate = 0.94;
     utterance.volume = 1;
+    let started = false;
 
     const finish = () => {
       if (generation !== speechGeneration) return;
       const next = speechQueue.finish(request);
       if (next) speakQueuedRequest(next);
     };
+    // The chosen voice didn't speak: say the same thing again in the default voice.
+    const retryWithDefault = () => {
+      if (generation !== speechGeneration || started) return;
+      useDefaultVoice = true;
+      speechGeneration += 1;
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        /* nothing to cancel */
+      }
+      speakQueuedRequest(request);
+    };
 
+    utterance.onstart = () => {
+      started = true;
+    };
     utterance.onend = finish;
-    utterance.onerror = finish;
+    utterance.onerror = (event) => {
+      const reason = (event as SpeechSynthesisErrorEvent | undefined)?.error;
+      if (voice && !started && reason !== "interrupted" && reason !== "canceled") retryWithDefault();
+      else finish();
+    };
 
     const primed = playAudioPrimer();
     const speak = () => {
@@ -103,6 +127,7 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
         if (generation !== speechGeneration || speechQueue.getActive() !== request) return;
         window.speechSynthesis.resume();
         window.speechSynthesis.speak(utterance);
+        if (voice) window.setTimeout(retryWithDefault, VOICE_START_TIMEOUT_MS);
       } catch {
         finish();
       }
