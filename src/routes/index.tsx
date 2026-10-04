@@ -1583,7 +1583,41 @@ function Index() {
         })) as Option[];
       };
 
+      const fetchOutbound = async (cursor: number): Promise<Option[]> => {
+        try {
+          const { data, error } = await supabase.rpc("plan_outbound", {
+            p_origin_lat: tripDirection.from.lat as number,
+            p_origin_lon: tripDirection.from.lon as number,
+            p_station: setup.homeStopId,
+            p_dest_stop: setup.destStopId,
+            p_allow_drive: driveAvailable,
+            p_after_seconds: cursor,
+            p_limit: planMode === "arrive-by" ? 8 : 4,
+            p_dest_lat: tripDirection.to.lat as number,
+            p_dest_lon: tripDirection.to.lon as number,
+          });
+          if (error) {
+            recordTransitRpcError("plan_outbound", error);
+            return [];
+          }
+          return (data ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[];
+        } catch (error) {
+          recordTransitRpcError("plan_outbound", error);
+          return [];
+        }
+      };
+
       const fetchPage = async (cursor: number): Promise<Option[]> => {
+        // The direct-bus and Skyline planners answer in about a second, while the
+        // generalized planner can run into its time limit. Start them together so
+        // a slow general search never hides a direct bus that arrives sooner.
+        const busPromise = fetchBusRescue(cursor);
+        const outboundPromise = inbound ? Promise.resolve<Option[]>([]) : fetchOutbound(cursor);
+        const generalPromise = fetchGeneralTransit(cursor);
+
         // When Skyline is outside its published service window, do not let a
         // rail-inclusive planner result hide the remaining TheBus option. The
         // bus rescue is checked first so the UI can honestly compare Drive vs Bus.
@@ -1613,14 +1647,23 @@ function Index() {
         }
 
         if (skylineOutOfService) {
-          const busRescue = await fetchBusRescue(cursor);
+          const busRescue = await busPromise;
           if (busRescue.length) return busRescue;
         }
 
         // Primary path: generalized door-to-door transit. This remains authoritative
         // whenever it produces a usable itinerary.
-        const primaryTransit = await fetchGeneralTransit(cursor);
-        if (primaryTransit.length) return primaryTransit;
+        // Once a fast planner has a trip, give the general planner only a short
+        // grace period; past that it is hitting its time limit, not finding more.
+        const [fastBus, fastOutbound] = await Promise.all([busPromise, outboundPromise]);
+        const primaryTransit =
+          fastBus.length || fastOutbound.length
+            ? await Promise.race([
+                generalPromise,
+                new Promise<Option[]>((resolve) => window.setTimeout(() => resolve([]), 3000)),
+              ])
+            : await generalPromise;
+        if (primaryTransit.length) return mergeTransitOptions(primaryTransit, await busPromise);
 
         // Inbound Skyline trips keep the proven multi-station fallbacks. These are
         // only reached after the generalized planner returns zero options.
@@ -1629,31 +1672,9 @@ function Index() {
           // as a fallback. The generalized planner can legitimately return zero
           // when its door-to-door bus/rail chain cannot be formed, while the
           // configured home station + destination stop has a valid Skyline trip.
-          try {
-            const { data, error } = await supabase.rpc("plan_outbound", {
-              p_origin_lat: tripDirection.from.lat as number,
-              p_origin_lon: tripDirection.from.lon as number,
-              p_station: setup.homeStopId,
-              p_dest_stop: setup.destStopId,
-              p_allow_drive: driveAvailable,
-              p_after_seconds: cursor,
-              p_limit: planMode === "arrive-by" ? 8 : 4,
-              p_dest_lat: tripDirection.to.lat as number,
-              p_dest_lon: tripDirection.to.lon as number,
-            });
-            if (error) {
-              recordTransitRpcError("plan_outbound", error);
-            } else {
-              const outboundOptions = (data ?? []).map((row) => ({
-                ...row,
-                legs: row.legs as unknown as Leg[],
-              })) as Option[];
-              if (outboundOptions.length)
-                return mergeTransitOptions(outboundOptions, primaryTransit);
-            }
-          } catch (error) {
-            recordTransitRpcError("plan_outbound", error);
-          }
+          const outboundOptions = await outboundPromise;
+          if (outboundOptions.length)
+            return mergeTransitOptions(outboundOptions, primaryTransit, await busPromise);
         }
 
         if (inbound) {
@@ -1691,7 +1712,7 @@ function Index() {
               const primary = await fetchAtStation(selectedInboundStation);
               if (primary.length) {
                 fallbackChecked = true;
-                return mergeTransitOptions(primary, primaryTransit);
+                return mergeTransitOptions(primary, primaryTransit, await busPromise);
               }
               primaryAlreadyChecked = true;
             }
@@ -1718,7 +1739,7 @@ function Index() {
             fallbackChecked = true;
 
             if (result.options.length) {
-              return mergeTransitOptions(result.options, primaryTransit);
+              return mergeTransitOptions(result.options, primaryTransit, await busPromise);
             }
           }
 
@@ -1751,7 +1772,7 @@ function Index() {
             })) as Option[];
 
             if (hubOptions.length) {
-              return mergeTransitOptions(hubOptions, primaryTransit);
+              return mergeTransitOptions(hubOptions, primaryTransit, await busPromise);
             }
           }
         }
@@ -1759,7 +1780,7 @@ function Index() {
         // Final transit rescue: if the rail/general planner cannot form an
         // itinerary, search TheBus directly from the actual origin to stops near
         // the actual destination.
-        const busRescue = await fetchBusRescue(cursor);
+        const busRescue = await busPromise;
         if (busRescue.length) return mergeTransitOptions(busRescue, primaryTransit);
 
         if (generalTransitError) throw generalTransitError;
@@ -4517,7 +4538,9 @@ function Index() {
                 <Bus className="size-5 text-primary" />
                 <span className="font-semibold text-foreground">Nearby stops</span>
                 <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground">
-                  {nearbyStops.length} {nearbyStops.length === 1 ? "stop" : "stops"}
+                  {nearbyStopsLoading && !nearbyStops.length
+                    ? "Looking…"
+                    : `${nearbyStops.length} ${nearbyStops.length === 1 ? "stop" : "stops"}`}
                 </span>
                 <ChevronDown className="size-4 text-muted-foreground" />
               </summary>
@@ -5208,7 +5231,7 @@ function Index() {
           confidence={verdictConfidence}
           differenceMinutes={activeDecision.differenceMinutes}
           arriveByActive={arriveByActive}
-          driveMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
+          driveMinutes={driveTripEstimate.expectedDurationMinutes}
           driveRange={driveRange}
           transitMinutes={transitTripEstimate.expectedDurationMinutes}
           transitRange={transitRange}
@@ -5334,7 +5357,7 @@ function Index() {
           period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
           decision={verdict}
           trafficLevel={naluHeroTrafficLevel}
-          driveMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
+          driveMinutes={driveTripEstimate.expectedDurationMinutes}
           transitMinutes={transitTripEstimate.expectedDurationMinutes}
           timeDelta={activeDecision.differenceMinutes ?? null}
           incidents={drive?.incidents ?? []}
@@ -5634,8 +5657,9 @@ function Index() {
             driveMinutes={driveTripEstimate.expectedDurationMinutes}
             arriveByActive={arriveByActive}
             bestTransitMinutes={best ? best.total_minutes : null}
-            transitWinner={verdict === "transit"}
-            driveWinner={verdict === "drive"}
+            // "Faster than" only makes sense when both options exist.
+            transitWinner={verdict === "transit" && driveTripEstimate.availability === "available" && transitTripEstimate.availability === "available"}
+            driveWinner={verdict === "drive" && driveTripEstimate.availability === "available" && transitTripEstimate.availability === "available"}
             lockedMode={lockedMode === "drive" || lockedMode === "transit" ? lockedMode : null}
             formatMinutes={formatDriveMinutes}
             onModeChange={chooseMode}
@@ -5850,15 +5874,15 @@ function Index() {
         </section>
 
         <Button
-          variant="destructive"
+          variant="outline"
           onClick={endTrip}
-          className="end-trip-action mt-2 h-14 w-full text-base font-black uppercase"
+          className="mt-2 h-14 w-full text-base font-semibold"
         >
-          <RotateCcw className="size-5" /> Reset
+          <RotateCcw className="size-5" /> End trip
         </Button>
 
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
-          <span>Schedule data from the agency feed</span>
+          <span>Bus and rail times from TheBus timetable</span>
           <Button
             variant="ghost"
             size="sm"

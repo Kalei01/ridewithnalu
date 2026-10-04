@@ -181,21 +181,19 @@ export function VerdictDomain({
               {driveTotalMinutes !== null ? formatDriveMinutes(driveTotalMinutes) : "—"}
             </p>
           </div>
-          <p className="col-span-3 text-sm font-semibold tabular-nums text-muted-foreground">
-            Arrive {driveWindow}
-            {driveBufferNote && (
-              <span className="mt-1 block text-xs font-medium">{driveBufferNote}.</span>
-            )}
-          </p>
+          {driveBufferNote && (
+            <p className="col-span-3 text-xs font-medium text-muted-foreground">
+              {driveBufferNote}.
+            </p>
+          )}
         </div>
       )}
       {configured && !arriveByActive && (
         <DecisionBars
           drive={{
             label: "Drive",
+            // Road time, the same number as "Driving" above and in map apps.
             minutes: driveMinutes,
-            low: driveRange?.low,
-            high: driveRange?.high,
           }}
           transit={{
             label: transitLabel,

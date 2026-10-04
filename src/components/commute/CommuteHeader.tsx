@@ -26,7 +26,7 @@ export function CommuteHeader({
           <span className="nalu-brand-title text-lg font-semibold tracking-wide">Nalu</span>
         </Link>
         <p className="text-xs font-semibold uppercase text-muted-foreground">{heading}</p>
-        <p className="text-sm text-foreground">{timeText}</p>
+        <p className="whitespace-nowrap text-sm text-foreground">{timeText}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {onBrowse && (

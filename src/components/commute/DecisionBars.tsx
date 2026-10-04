@@ -16,9 +16,7 @@ export function DecisionBars({ drive, transit }: { drive: Row; transit: Row }) {
       className="mt-6 space-y-4 border-t border-border/50 pt-5"
       aria-label="Travel time comparison"
     >
-      <p className="text-[11px] text-muted-foreground">
-        Door to door from now · drive includes parking and walking in
-      </p>
+      <p className="text-[11px] text-muted-foreground">Travel time from now</p>
       {([drive, transit] as const).map((row, index) => {
         const Icon = index === 0 ? Car : TrainFront;
         return (
