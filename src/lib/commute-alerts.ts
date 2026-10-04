@@ -83,6 +83,26 @@ export function speakCommuteAlert(
   }
 }
 
+/** Which English voices this phone offers web apps (names only), for diagnosis. */
+function logVoiceInventory() {
+  try {
+    const voices = window.speechSynthesis.getVoices?.() ?? [];
+    const english = voices.filter((v) => v.lang.toLowerCase().startsWith("en"));
+    const listed = english.map((v) => `${v.name}|${v.lang}${v.default ? "|default" : ""}`).join("; ");
+    debugLog("voices", {
+      total: voices.length,
+      english: english.length,
+      defaults: voices.filter((v) => v.default).map((v) => `${v.name}|${v.lang}`).join("; "),
+      list1: listed.slice(0, 120),
+      list2: listed.slice(120, 240),
+      list3: listed.slice(240, 360),
+      list4: listed.slice(360, 480),
+    });
+  } catch {
+    /* diagnostics only */
+  }
+}
+
 const speechQueue = new VoicePriorityQueue();
 let speechGeneration = 0;
 // Set when a chosen voice fails to speak on this phone; from then on the
@@ -103,6 +123,7 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
     utterance.lang = !voice && isAppleMobile() ? "en" : (voice?.lang ?? "en-US");
     utterance.rate = 0.94;
     debugLog("speech", { phase: "voice", voice: voice ? voice.name : "phone default", lang: utterance.lang });
+    if (immediate) logVoiceInventory();
     utterance.volume = 1;
     let started = false;
 

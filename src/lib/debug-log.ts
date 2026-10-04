@@ -49,8 +49,15 @@ export function sanitize(data?: Record<string, unknown>): Record<string, Value> 
   return out;
 }
 
+// Events from the moment of the Start tap, just before the session begins.
+let pending: Event[] = [];
+
 export function debugLog(type: string, data?: Record<string, unknown>) {
-  if (!sessionId) return;
+  if (!sessionId) {
+    pending.push({ t: Date.now(), type: type.slice(0, 40), data: sanitize(data) });
+    pending = pending.filter((event) => Date.now() - event.t < 10_000).slice(-20);
+    return;
+  }
   buffer.push({ t: Date.now(), type: type.slice(0, 40), data: sanitize(data) });
   if (buffer.length > 400) buffer = buffer.slice(-400);
 }
@@ -79,6 +86,9 @@ export function startDebugSession() {
   timer = window.setInterval(() => void flushDebugLogs("interval"), FLUSH_MS);
   document.addEventListener("visibilitychange", onHide);
   debugLog("session_start");
+  const recent = pending.filter((event) => Date.now() - event.t < 10_000);
+  pending = [];
+  buffer.push(...recent);
 }
 
 export async function endDebugSession(reason: Reason = "trip_end") {
