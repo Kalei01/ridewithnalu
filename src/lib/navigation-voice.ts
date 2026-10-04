@@ -231,6 +231,43 @@ export function isUsableNavigationFix(
   return metersBetween(previous.point, next.point) / elapsedSeconds < 75;
 }
 
+/**
+ * Direction of the route at the point nearest `at`, looking a little ahead so a
+ * curve reads smoothly. Null when the point is more than `maxOffM` from the route.
+ */
+export function routeBearingAt(
+  path: ReadonlyArray<{ lat: number; lon: number }>,
+  at: { lat: number; lon: number },
+  maxOffM = 35,
+): number | null {
+  if (path.length < 2) return null;
+  let bestIndex = -1;
+  let bestDistance = Infinity;
+  for (let i = 0; i < path.length; i += 1) {
+    const d = metersBetween(path[i]!, at);
+    if (d < bestDistance) {
+      bestDistance = d;
+      bestIndex = i;
+    }
+  }
+  if (bestIndex < 0 || bestDistance > maxOffM) return null;
+  // Look ahead ~25 m along the path for a stable heading.
+  let j = bestIndex;
+  let ahead = 0;
+  while (j < path.length - 1 && ahead < 25) {
+    ahead += metersBetween(path[j]!, path[j + 1]!);
+    j += 1;
+  }
+  if (j === bestIndex) return bestIndex > 0 ? bearingBetween(path[bestIndex - 1]!, path[bestIndex]!) : null;
+  return bearingBetween(path[bestIndex]!, path[j]!);
+}
+
+/**
+ * Heading for the heads-up map. Prefers the route's own direction when the
+ * driver is on it (instant and steady, like a car's nav), then the phone's GPS
+ * heading, then the direction between two positions at least 8 m apart.
+ * Returns the bearing and whether the anchor point was used up.
+ */
 export function smoothBearing(
   previous: number | null,
   input: {
@@ -238,6 +275,7 @@ export function smoothBearing(
     speedMps: number | null;
     from: { lat: number; lon: number } | null;
     to: { lat: number; lon: number };
+    routeBearing?: number | null;
   },
 ): number | null {
   const moved = input.from ? metersBetween(input.from, input.to) : 0;
@@ -245,15 +283,18 @@ export function smoothBearing(
   // Stopped at a light or crawling: keep the last good bearing.
   if (slow && moved < 8) return previous;
   const raw =
-    typeof input.gpsHeading === "number" && !Number.isNaN(input.gpsHeading) && !slow
-      ? input.gpsHeading
-      : input.from && moved >= 8
-        ? bearingBetween(input.from, input.to)
-        : null;
+    typeof input.routeBearing === "number"
+      ? input.routeBearing
+      : typeof input.gpsHeading === "number" && !Number.isNaN(input.gpsHeading) && !slow
+        ? input.gpsHeading
+        : input.from && moved >= 8
+          ? bearingBetween(input.from, input.to)
+          : null;
   if (raw === null) return previous;
   if (previous === null) return raw;
   const delta = ((raw - previous + 540) % 360) - 180;
-  return (previous + delta * 0.4 + 360) % 360;
+  // Follow quickly: most of the turn on each update, a touch of smoothing for GPS jitter.
+  return (previous + delta * 0.7 + 360) % 360;
 }
 
 // ---------- Route-versioned voice guidance ----------

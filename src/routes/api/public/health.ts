@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { BUILD_ID } from "@/lib/build-id";
 
 const CACHE_SECONDS = 600;
 
@@ -12,7 +13,8 @@ export const Route = createFileRoute("/api/public/health")({
     handlers: {
       GET: async ({ request }) => {
         const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
-        const key = new Request(new URL("/api/public/health", request.url).toString());
+        // Keyed by build, so a new version never serves the previous one's report.
+        const key = new Request(new URL(`/api/public/health?build=${BUILD_ID}`, request.url).toString());
         const hit = await cache?.match(key).catch(() => undefined);
         if (hit) return hit;
 

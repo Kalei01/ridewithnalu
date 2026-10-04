@@ -161,6 +161,7 @@ import {
   metersBetween,
   nextManeuver,
   smoothBearing,
+  routeBearingAt,
   turnGlyph,
   startRoutePhrase,
   distanceAlongPath,
@@ -2734,16 +2735,21 @@ function Index() {
   const lastNavPoint = useRef<Coords | null>(null);
   useEffect(() => {
     if (!drivingCommitted || !riderPoint) return;
+    const routeBearing = routeBearingAt(navPath, riderPoint);
     setNavBearing((previous) =>
       smoothBearing(previous, {
         gpsHeading: riderHeading,
         speedMps: riderSpeed,
         from: lastNavPoint.current,
         to: riderPoint,
+        routeBearing,
       }),
     );
-    lastNavPoint.current = riderPoint;
-  }, [riderPoint, riderHeading, riderSpeed, drivingCommitted]);
+    // Keep the anchor until the car has moved 8 m, so slow city driving still
+    // yields a direction (positions a second apart can be closer than that).
+    if (!lastNavPoint.current || metersBetween(lastNavPoint.current, riderPoint) >= 8)
+      lastNavPoint.current = riderPoint;
+  }, [riderPoint, riderHeading, riderSpeed, drivingCommitted, navPath]);
   const handleRouteStateChange = useCallback(
     (state: { offRoute: boolean; crossTrackM: number; headingDivergence: number | null }) => {
       if (!drivingCommitted || !riderPoint) return;
@@ -7269,11 +7275,16 @@ function SetupDialog({
     };
   }, [open, setup]);
 
-  // From defaults to the current location the first time a trip is set up.
+  // "Where to?" starts from where you are: find it automatically each time it
+  // opens (the phone asks first if it needs to). Picking another start still
+  // works, and a start picked before GPS answers is never overwritten.
+  const originPicked = useRef(false);
   useEffect(() => {
-    if (!open || setup.homeLat !== null) return;
+    if (!open) return;
+    originPicked.current = false;
+    if (!firstRun && setup.homeLat !== null) return;
     void queryLocationPermission().then((state) => {
-      if (state === "granted") void locateMe();
+      if (state !== "denied") void locateMe({ auto: true });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -7296,7 +7307,8 @@ function SetupDialog({
 
   const { data: stations = [] } = useRailStations(open);
 
-  async function locateMe() {
+  async function locateMe(options: { auto?: boolean } = {}) {
+    if (!options.auto) originPicked.current = false;
     if (!navigator.geolocation) {
       setStatus("This device cannot share its location. Pick a saved place below.");
       return;
@@ -7316,28 +7328,31 @@ function SetupDialog({
     setStatus("Finding where you are…");
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        // The person chose another start while GPS was answering: keep theirs.
+        if (options.auto && originPicked.current) {
+          setBusy(false);
+          setStatus(null);
+          return;
+        }
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
-        const { data, error } = await supabase.rpc("nearest_stop", {
+        const { data } = await supabase.rpc("nearest_stop", {
           p_lat: lat,
           p_lon: lon,
           p_rail_only: true,
         });
         setBusy(false);
-        const nearest = data?.[0];
-        if (error || !nearest) {
-          setStatus("Could not plan from here. Pick a saved place.");
-          return;
-        }
+        // No station nearby (or off Oʻahu): still plan from here, by car and on foot.
+        const nearest = data?.[0] ?? null;
         setDraft((current) => ({
           ...current,
           homeLat: lat,
           homeLon: lon,
-          homeStopId: nearest.stop_id,
-          homeStopName: nearest.stop_name ?? "",
+          homeStopId: nearest?.stop_id ?? "",
+          homeStopName: nearest?.stop_name ?? "",
         }));
         setOriginLabel("Current location");
-        setStationDistanceM(Number(nearest.distance_m));
+        setStationDistanceM(nearest ? Number(nearest.distance_m) : null);
         const accuracy = position.coords.accuracy;
         const precision = Number.isFinite(accuracy)
           ? ` Accurate to about ${formatDistance(accuracy)}.`
@@ -7367,6 +7382,7 @@ function SetupDialog({
 
   /** Use a point as the starting side: remember the door and derive its station. */
   async function applyOrigin(place: PointLike, label?: string) {
+    originPicked.current = true;
     setBusy(true);
     setOriginLabel(label ?? place.name);
     setStatus(null);
@@ -7634,7 +7650,7 @@ function SetupDialog({
                     size="sm"
                     className="shrink-0"
                     disabled={busy}
-                    onClick={locateMe}
+                    onClick={() => void locateMe()}
                   >
                     <LocateFixed className="size-4" /> Locate
                   </Button>

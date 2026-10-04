@@ -240,21 +240,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       corridorLabel: corridor?.label ?? null,
       corridorRoads: corridor?.roads ?? [],
       bypassedRoads,
-      maneuvers: normalizeOrbisInstructions(route?.instructions ?? [])
-        .filter((step) => typeof step.point?.latitude === "number" && typeof step.point?.longitude === "number" && step.maneuver && step.maneuver !== "depart" && step.maneuver !== "arrive")
-        .slice(0, 80)
-        .map((step) => ({
-          lat: step.point?.latitude as number,
-          lon: step.point?.longitude as number,
-          maneuver: step.maneuver as string,
-          instruction: (step.message as string).replace(/<[^>]*>/g, ""),
-          // Street names first; route numbers only through the local-name map.
-          road:
-            localRoadName(step.street ?? null) ??
-            localRoadName(step.roadNumbers?.[0] ?? null) ??
-            step.signpostText ??
-            null,
-        })),
+      maneuvers: buildManeuvers(route?.instructions ?? [], fullPath),
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     };
@@ -392,6 +378,112 @@ type OrbisInstruction = {
   previousRoadInformation?: OrbisRoadInfo;
   nextRoadInformation?: OrbisRoadInfo;
 };
+
+/** Last raw instruction shape seen when no turns could be read (health check diagnosis). */
+export let lastUnreadInstructionShape: string | null = null;
+
+/** A point in any format TomTom uses: {latitude, longitude}, {lat, lon}, or GeoJSON coordinates. */
+function readPoint(value: unknown): { lat: number; lon: number } | null {
+  if (!value || typeof value !== "object") return null;
+  const o = value as Record<string, unknown>;
+  const lat = o["latitude"] ?? o["lat"];
+  const lon = o["longitude"] ?? o["lon"] ?? o["lng"];
+  if (typeof lat === "number" && typeof lon === "number") return { lat, lon };
+  const c = o["coordinates"];
+  if (Array.isArray(c) && typeof c[0] === "number" && typeof c[1] === "number") return { lat: c[1], lon: c[0] };
+  return null;
+}
+
+/** The spot `meters` along the route path, for instructions that only give a distance. */
+function pointAtOffset(path: Array<{ lat: number; lon: number }>, meters: number) {
+  let travelled = 0;
+  for (let i = 1; i < path.length; i += 1) {
+    const a = path[i - 1]!;
+    const b = path[i]!;
+    const dLat = (b.lat - a.lat) * 111_320;
+    const dLon = (b.lon - a.lon) * 111_320 * Math.cos((a.lat * Math.PI) / 180);
+    const step = Math.hypot(dLat, dLon);
+    if (travelled + step >= meters) return b;
+    travelled += step;
+  }
+  return path[path.length - 1] ?? null;
+}
+
+const TURN_WORDS: Record<string, string> = {
+  TURN_LEFT: "Turn left",
+  TURN_RIGHT: "Turn right",
+  SHARP_LEFT: "Make a sharp left",
+  SHARP_RIGHT: "Make a sharp right",
+  BEAR_LEFT: "Bear left",
+  BEAR_RIGHT: "Bear right",
+  KEEP_LEFT: "Keep left",
+  KEEP_RIGHT: "Keep right",
+  MAKE_UTURN: "Make a U-turn",
+  ENTER_MOTORWAY: "Take the ramp",
+  ENTER_FREEWAY: "Take the ramp",
+  TAKE_EXIT: "Take the exit",
+  MOTORWAY_EXIT_LEFT: "Take the exit on the left",
+  MOTORWAY_EXIT_RIGHT: "Take the exit on the right",
+  ROUNDABOUT_CROSS: "Go straight through the roundabout",
+  STRAIGHT: "Continue straight",
+};
+
+/** "TURN_RIGHT", "turnRight", "turn-right" → "TURN_RIGHT". */
+function normalizeManeuver(value: string) {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .replace(/[-\s]+/g, "_")
+    .toUpperCase();
+}
+
+/**
+ * Turn-by-turn steps for the voice and the next-turn arrow. Reads TomTom's
+ * instructions whatever shape their location and wording come in, so a format
+ * change can't silently empty the list (which leaves the voice with nothing to say).
+ */
+export function buildManeuvers(instructions: OrbisInstruction[], path: Array<{ lat: number; lon: number }>) {
+  const steps = instructions.flatMap((raw) => {
+    const any = raw as unknown as Record<string, unknown>;
+    const maneuverRaw = typeof raw.maneuver === "string" ? raw.maneuver : typeof any["maneuverType"] === "string" ? (any["maneuverType"] as string) : null;
+    if (!maneuverRaw) return [];
+    const maneuver = normalizeManeuver(maneuverRaw);
+    if (maneuver.startsWith("DEPART")) return [];
+    const point =
+      readPoint(raw.maneuverPoint) ??
+      readPoint(any["point"]) ??
+      (typeof raw.routeOffsetInMeters === "number" ? pointAtOffset(path, raw.routeOffsetInMeters) : null);
+    if (!point) return [];
+    const street = raw.nextRoadInformation?.streetName?.text ?? raw.previousRoadInformation?.streetName?.text ?? null;
+    const shield = [...(raw.nextRoadInformation?.roadShields ?? []), ...(raw.previousRoadInformation?.roadShields ?? [])]
+      .map((s) => s.roadNumber?.text)
+      .find((t): t is string => Boolean(t));
+    const message =
+      (typeof raw.instructionMessage === "string" && raw.instructionMessage) ||
+      (typeof any["message"] === "string" && (any["message"] as string)) ||
+      (typeof any["instructionText"] === "string" && (any["instructionText"] as string)) ||
+      (maneuver.startsWith("ARRIVE")
+        ? "Arrive at your destination"
+        : `${TURN_WORDS[maneuver] ?? "Continue"}${street ? ` onto ${street}` : ""}`);
+    return [
+      {
+        lat: point.lat,
+        lon: point.lon,
+        maneuver,
+        instruction: message.replace(/<[^>]*>/g, ""),
+        // Street names first; route numbers only through the local-name map.
+        road: localRoadName(street) ?? localRoadName(shield ?? null) ?? null,
+      },
+    ];
+  });
+  if (instructions.length > 0 && steps.length === 0) {
+    const first = instructions[0] as unknown as Record<string, unknown>;
+    lastUnreadInstructionShape = JSON.stringify(
+      Object.fromEntries(Object.entries(first).map(([k, v]) => [k, typeof v === "object" ? Object.keys(v ?? {}) : typeof v])),
+    ).slice(0, 300);
+    console.warn("[drive] no turns could be read from TomTom instructions", lastUnreadInstructionShape);
+  }
+  return steps.slice(0, 80);
+}
 
 function normalizeOrbisInstructions(instructions: OrbisInstruction[]): Array<GuidanceInstruction & { point?: { latitude?: number; longitude?: number }; message?: string }> {
   return instructions.map((instruction) => {

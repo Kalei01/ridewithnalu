@@ -68,6 +68,19 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
         ? { ok: true, detail: `Kapolei → Downtown ${drive.trafficMinutes} min` }
         : { ok: false, detail: "no route returned" };
     }),
+    timed("turn-by-turn directions", async () => {
+      const drive = await lookupDriveTime({
+        fromLat: KAPOLEI.lat,
+        fromLon: KAPOLEI.lon,
+        toLat: DOWNTOWN.lat,
+        toLon: DOWNTOWN.lon,
+      });
+      if (!drive) return { ok: false, detail: "no route returned" };
+      const turns = drive.maneuvers?.length ?? 0;
+      if (turns > 0) return { ok: true, detail: `${turns} turns, first: ${drive.maneuvers[0]?.instruction ?? ""}`.slice(0, 120) };
+      const { lastUnreadInstructionShape } = await import("./drive.functions");
+      return { ok: false, detail: `no turns read; TomTom sent ${lastUnreadInstructionShape ?? "no instructions"}` };
+    }),
     timed("place search (TomTom)", async () => {
       if (!tomtomKey) return { ok: false, detail: "TOMTOM_API_KEY not set" };
       const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent("Ala Moana Center")}.json?key=${tomtomKey}&countrySet=US&limit=1&topLeft=21.75,-158.35&btmRight=21.20,-157.60`;
