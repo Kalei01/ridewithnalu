@@ -122,15 +122,22 @@ export const morningPulse = createServerFn({ method: "POST" })
               ? `${roads.join(" and ") || "Your calculated route"} is adding about ${delay} min right now.`
               : "No material traffic delay is showing on your calculated route right now.";
 
-      if (!railRelevant) {
-        return {
-          ok: true,
-          value: {
-            text: `${trafficSentence} Drive is the practical option for this trip.`,
-            faster: "drive",
-          },
-        };
-      }
+      // Rail is one kind of transit. When no rail trip fits (or rail is not
+      // near both ends), check bus and bus + rail before letting the central
+      // verdict decide; never assume Drive just because Skyline is far away.
+      const transitTrip =
+        railTrip && skylineMinutes !== null
+          ? {
+              leave_by_seconds:
+                railTrip.leave_by_seconds == null ? null : Number(railTrip.leave_by_seconds),
+              depart_seconds: Number(railTrip.depart_seconds),
+              arrive_seconds: Number(railTrip.arrive_seconds),
+              total_minutes: skylineMinutes,
+            }
+          : await ai.bestTransitBetween(data.from, data.to, ai.honoluluSeconds()).catch((error) => {
+              console.warn("[ai] pulse general transit lookup failed", error);
+              return null;
+            });
 
       const { verdict } = createMorningPulseVerdict({
         from: data.from,
@@ -144,15 +151,7 @@ export const morningPulse = createServerFn({ method: "POST" })
               source: "TomTom",
             }
           : null,
-        rail: railTrip && skylineMinutes !== null
-          ? {
-              leave_by_seconds:
-                railTrip.leave_by_seconds == null ? null : Number(railTrip.leave_by_seconds),
-              depart_seconds: Number(railTrip.depart_seconds),
-              arrive_seconds: Number(railTrip.arrive_seconds),
-              total_minutes: skylineMinutes,
-            }
-          : null,
+        rail: transitTrip,
         nowEpochMs: Date.now(),
         // GTFS times are seconds since Honolulu midnight.
         nowSecondsSinceMidnight: ai.honoluluSeconds(),
@@ -262,15 +261,22 @@ export const eveningPulse = createServerFn({ method: "POST" })
             ? `${incident.description || "Traffic is reported"} on ${incidentRoad} is affecting the calculated route.`
             : "No material delay is showing on your calculated route right now.";
 
-      if (!railRelevant) {
-        return {
-          ok: true,
-          value: {
-            text: `${trafficSentence} Drive is the practical option for this trip.`,
-            faster: "drive",
-          },
-        };
-      }
+      // Rail is one kind of transit. When no rail trip fits (or rail is not
+      // near both ends), check bus and bus + rail before letting the central
+      // verdict decide; never assume Drive just because Skyline is far away.
+      const transitTrip =
+        railTrip && skylineMinutes !== null
+          ? {
+              leave_by_seconds:
+                railTrip.leave_by_seconds == null ? null : Number(railTrip.leave_by_seconds),
+              depart_seconds: Number(railTrip.depart_seconds),
+              arrive_seconds: Number(railTrip.arrive_seconds),
+              total_minutes: skylineMinutes,
+            }
+          : await ai.bestTransitBetween(data.from, data.to, ai.honoluluSeconds()).catch((error) => {
+              console.warn("[ai] pulse general transit lookup failed", error);
+              return null;
+            });
 
       const { verdict } = createMorningPulseVerdict({
         from: data.from,
@@ -284,15 +290,7 @@ export const eveningPulse = createServerFn({ method: "POST" })
               source: "TomTom",
             }
           : null,
-        rail: railTrip && skylineMinutes !== null
-          ? {
-              leave_by_seconds:
-                railTrip.leave_by_seconds == null ? null : Number(railTrip.leave_by_seconds),
-              depart_seconds: Number(railTrip.depart_seconds),
-              arrive_seconds: Number(railTrip.arrive_seconds),
-              total_minutes: skylineMinutes,
-            }
-          : null,
+        rail: transitTrip,
         nowEpochMs: Date.now(),
         nowSecondsSinceMidnight: ai.honoluluSeconds(),
       });

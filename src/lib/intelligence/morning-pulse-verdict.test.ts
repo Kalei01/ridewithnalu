@@ -64,4 +64,20 @@ describe("createMorningPulseVerdict", () => {
     expect(verdict.selectedMode).toBe("drive");
     expect(verdict.confidence).toBe("high");
   });
+
+  it("lets a bus-only trip win and names it as Bus", () => {
+    const { verdict } = createMorningPulseVerdict({
+      ...base,
+      drive: { minutes: 60, delayMinutes: 20, roads: ["H-1"], incidents: [] },
+      rail: {
+        leave_by_seconds: 7 * 3600,
+        depart_seconds: 7 * 3600 + 4 * 60,
+        arrive_seconds: 7 * 3600 + 40 * 60,
+        total_minutes: 40,
+        label: "Bus",
+      },
+    });
+    expect(verdict.selectedMode).toBe("transit");
+    expect(verdict.reasons[0]?.text).toContain("Bus gets you there about 20 min sooner");
+  });
 });

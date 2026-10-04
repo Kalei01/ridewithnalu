@@ -39,7 +39,7 @@ function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
       quality,
       impact: "neutral",
       relevance: "route",
-      }, { staleAfterMs: policy.staleAfterMs, now: item.source.fetchedAt ?? Date.now() }),
+      }, { staleAfterMs: policy.staleAfterMs, now: Date.now() }),
   ];
 
   if (item.trafficDelayMinutes !== null) {
@@ -54,7 +54,7 @@ function normalizeTripEvidence(item: TripEstimate): NormalizedEvidence[] {
       quality,
       impact: "negative",
       relevance: "route",
-      }, { staleAfterMs: policy.staleAfterMs, now: item.source.fetchedAt ?? Date.now() }));
+      }, { staleAfterMs: policy.staleAfterMs, now: Date.now() }));
   }
 
   return evidence;

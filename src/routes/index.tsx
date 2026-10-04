@@ -1868,7 +1868,11 @@ function Index() {
 
   const stationCoords = browseStations;
   /* One authoritative rail-station query serves browse, setup, maps and planning. */
-  function stationPoint(name: string | null | undefined): Coords | null {
+  function stationPoint(name: string | null | undefined, stopId?: string | null): Coords | null {
+    // GTFS stop id first; the name is only a fallback for legs without one.
+    const byId = stopId ? stationCoords.find((station) => station.stop_id === stopId) : undefined;
+    if (byId && byId.stop_lat !== null && byId.stop_lon !== null)
+      return { lat: Number(byId.stop_lat), lon: Number(byId.stop_lon) };
     if (!name) return null;
     const wanted = name.trim().toLowerCase();
     const hit = stationCoords.find(
@@ -3057,16 +3061,12 @@ function Index() {
       : null;
 
   const centralTrip = useMemo(() => {
-    if (
-      setup.homeLat === null ||
-      setup.homeLon === null ||
-      setup.destLat === null ||
-      setup.destLon === null
-    )
-      return null;
+    // Follow the actual direction of travel (Work -> Home on the way back).
+    const { from, to } = tripDirection;
+    if (from.lat == null || from.lon == null || to.lat == null || to.lon == null) return null;
 
-    const origin = { latitude: setup.homeLat, longitude: setup.homeLon };
-    const destination = { latitude: setup.destLat, longitude: setup.destLon };
+    const origin = { latitude: from.lat, longitude: from.lon };
+    const destination = { latitude: to.lat, longitude: to.lon };
     const constraint =
       arriveByTarget !== null
         ? { type: "arrive-by" as const, timestamp: arriveByTarget }
@@ -3115,10 +3115,10 @@ function Index() {
       })),
     });
   }, [
-    setup.homeLat,
-    setup.homeLon,
-    setup.destLat,
-    setup.destLon,
+    tripDirection.from.lat,
+    tripDirection.from.lon,
+    tripDirection.to.lat,
+    tripDirection.to.lon,
     arriveByTarget,
     nowSeconds,
     driveTripEstimate,
@@ -3205,8 +3205,8 @@ function Index() {
     const originPoint = reverseTrip ? destPoint : homePoint;
     const arrivalPoint = reverseTrip ? homePoint : destPoint;
     const railLegHere = best.legs.find((leg) => leg.kind === "rail") ?? null;
-    const boardStation = stationPoint(railLegHere?.from);
-    const transferStation = stationPoint(railLegHere?.to);
+    const boardStation = stationPoint(railLegHere?.from, railLegHere?.from_stop_id);
+    const transferStation = stationPoint(railLegHere?.to, railLegHere?.to_stop_id);
     const list: OutdoorMoment[] = [];
 
     best.legs.forEach((leg, legIndex) => {
@@ -3732,7 +3732,7 @@ function Index() {
       }
       if (!name) return null;
       const normalized = name.trim().toLowerCase();
-      const station = stationPoint(name);
+      const station = stationPoint(name, stopId);
       if (station) return station;
       const stop = itineraryStopCoords.find(
         (row) => (row.stop_name ?? "").trim().toLowerCase() === normalized,

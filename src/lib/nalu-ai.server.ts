@@ -487,6 +487,65 @@ export async function railBetween(fromStop: string, fromPoint: Pt, toPoint: Pt, 
   return { originStation: fromStop, destStation: dest.name, trips: rows.slice(0, 2) };
 }
 
+export type PulseTransitTrip = {
+  leave_by_seconds: number | null;
+  depart_seconds: number;
+  arrive_seconds: number;
+  total_minutes: number;
+  /** Rider-facing family, e.g. "Bus", "Rail", "Rail + Bus". */
+  label: string;
+};
+
+/**
+ * Door-to-door public transit of any kind (bus, rail, bus + rail) from the
+ * general planner, with the direct-bus planner as a fallback. Used when the
+ * rail network is not close to both ends of a trip, so a bus-only commute is
+ * still considered instead of assuming Drive.
+ */
+export async function bestTransitBetween(
+  fromPoint: Pt,
+  toPoint: Pt,
+  afterSeconds: number,
+): Promise<PulseTransitTrip | null> {
+  const db = publicDb();
+  const args = {
+    p_origin_lat: fromPoint.lat,
+    p_origin_lon: fromPoint.lon,
+    p_dest_lat: toPoint.lat,
+    p_dest_lon: toPoint.lon,
+    p_after_seconds: afterSeconds,
+  };
+  type Row = {
+    leave_by_seconds: number | null;
+    depart_seconds: number;
+    arrive_seconds: number;
+    total_minutes: number;
+    legs: Array<{ mode?: string }> | null;
+  };
+  let rows: Row[] = [];
+  for (const fn of ["plan_transit_general", "plan_bus_direct"] as const) {
+    const { data, error } = await (db.rpc as unknown as (
+      name: string,
+      params: Record<string, number>,
+    ) => Promise<{ data: Row[] | null; error: unknown }>)(fn, args);
+    if (error) console.warn(`[ai] pulse ${fn} failed`, error);
+    rows = (data ?? []).filter((row) => Number(row.total_minutes) > 0);
+    if (rows.length) break;
+  }
+  const best = rows.sort((a, b) => Number(a.arrive_seconds) - Number(b.arrive_seconds))[0];
+  if (!best) return null;
+  const modes = (best.legs ?? [])
+    .map((leg) => leg.mode)
+    .filter((mode): mode is "bus" | "rail" => mode === "bus" || mode === "rail");
+  return {
+    leave_by_seconds: best.leave_by_seconds == null ? null : Number(best.leave_by_seconds),
+    depart_seconds: Number(best.depart_seconds),
+    arrive_seconds: Number(best.arrive_seconds),
+    total_minutes: Number(best.total_minutes),
+    label: modes.length ? modes.map((mode) => (mode === "rail" ? "Rail" : "Bus")).join(" + ") : "Transit",
+  };
+}
+
 function skylineServiceStatus(afterSeconds: number): "service-active" | "service-ended" {
   // Current published Skyline Segment 2 span: 4:00 AM–10:30 PM daily.
   // Keep this deterministic and separate from trip availability so the UI can

@@ -1,9 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { destinationAccess } from "../destination-access";
 import { decideArrival, decideTrip, verdictMarginMinutes } from "./commute-decision";
 import { driveEstimate, transitEstimate, type TripEstimate } from "./trip-estimate";
 
 const nowMs = Date.parse("2026-09-28T16:00:00-10:00");
+
+// Freshness is judged against the clock, so pin it to the moment these trips describe.
+beforeAll(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(nowMs);
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 const at = (hour: number, minute = 0) => (hour * 60 + minute) * 60;
 const downtown = destinationAccess({ lat: 21.309, lon: -157.862 });
 
@@ -344,5 +353,17 @@ describe("transit uses timetable evidence, not invented slack", () => {
     const car = drive(30, 28, 34); // door: 40 typical, latest 34 + 14 = 48 min
     const decision = decideArrival(car, transit, at(7));
     expect(decision.state).toBe("drive");
+  });
+});
+
+describe("evidence age is measured against the clock", () => {
+  it("treats a drive time fetched long ago as stale at decision time", () => {
+    const fresh = drive(30); // fetched at nowMs, looks current when built
+    vi.setSystemTime(nowMs + 30 * 60_000);
+    try {
+      expect(decideTrip(fresh, rail(60)).state).toBe("uncertain");
+    } finally {
+      vi.setSystemTime(nowMs);
+    }
   });
 });

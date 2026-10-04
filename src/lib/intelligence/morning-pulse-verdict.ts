@@ -18,6 +18,8 @@ type MorningPulseRail = {
   /** Door arrival at the destination. */
   arrive_seconds: number;
   total_minutes: number;
+  /** Rider-facing transit family ("Bus", "Rail + Bus"); defaults to "Transit". */
+  label?: string;
 };
 
 export type MorningPulseVerdictInput = {
@@ -83,6 +85,7 @@ export function createMorningPulseVerdict(input: MorningPulseVerdictInput): Morn
 
   const rail: DecisionModeEstimate = {
     mode: "transit",
+    label: input.rail?.label,
     availability: input.rail ? "available" : "service-unavailable",
     quality: input.rail ? "good" : "unavailable",
     expectedMinutes:
