@@ -1,5 +1,5 @@
 import { audioContext } from "./approach";
-import { bestVoice } from "./best-voice";
+import { bestVoice, isAppleMobile } from "./best-voice";
 import { debugLog } from "./debug-log";
 import { VoicePriorityQueue, type VoicePriority } from "./voice-priority-queue";
 
@@ -98,8 +98,10 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
     const utterance = new window.SpeechSynthesisUtterance(request.message);
     const voice = useDefaultVoice ? null : bestVoice();
     if (voice) utterance.voice = voice;
-    debugLog("speech", { phase: "voice", voice: voice ? voice.name : "phone default" });
-    utterance.lang = "en-US";
+    debugLog("speech", { phase: "voice", voice: voice ? voice.name : "phone default", lang: utterance.lang });
+    // On iPhone, plain "en" lets the phone use the English voice and accent
+    // its owner picked in Settings; "en-US" would force a US voice.
+    utterance.lang = !voice && isAppleMobile() ? "en" : (voice?.lang ?? "en-US");
     utterance.rate = 0.94;
     utterance.volume = 1;
     let started = false;

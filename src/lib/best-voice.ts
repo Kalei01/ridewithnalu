@@ -46,9 +46,20 @@ export function pickBestVoice<T extends VoiceLike>(voices: readonly T[]): T | nu
 let cached: SpeechSynthesisVoice | null = null;
 let listening = false;
 
+/**
+ * iPhone and iPad users choose their own English voice and accent in
+ * Settings, so Nalu leaves the choice to the phone there.
+ */
+export function isAppleMobile() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent ?? "";
+  return /iPhone|iPad|iPod/.test(ua) || (ua.includes("Mac") && (navigator.maxTouchPoints ?? 0) > 1);
+}
+
 /** The best voice available right now, or null to let the phone decide. */
 export function bestVoice(): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  if (isAppleMobile()) return null;
   const synth = window.speechSynthesis;
   if (!listening) {
     listening = true;
