@@ -5400,12 +5400,6 @@ function Index() {
         </ArriveByControls>
 
 
-        {!commitment && !activeRegion().hasTransit && tripDirection.to.lat !== null && tripDirection.to.lon !== null && (
-          <RideCard
-            destination={{ lat: tripDirection.to.lat, lon: tripDirection.to.lon, name: tripArrivalLabel }}
-          />
-        )}
-
         {!commitment && activeRegion().hasTransit && (
           <NightCard
             nowSeconds={nowSeconds}
@@ -5505,9 +5499,11 @@ function Index() {
                   </div>
                   <div className="mt-3 border-t border-border/50 pt-3 text-xs text-muted-foreground">
                     <p>{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
-                    <p className="mt-1">
-                      {sourceFreshnessLabel(transitTripEstimate.source, now.getTime())}
-                    </p>
+                    {activeRegion().hasTransit && (
+                      <p className="mt-1">
+                        {sourceFreshnessLabel(transitTripEstimate.source, now.getTime())}
+                      </p>
+                    )}
                   </div>
                 </div>
               </section>
@@ -5706,6 +5702,12 @@ function Index() {
           </section>
         )}
 
+        {!commitment && !activeRegion().hasTransit && tripDirection.to.lat !== null && tripDirection.to.lon !== null && (
+          <RideCard
+            destination={{ lat: tripDirection.to.lat, lon: tripDirection.to.lon, name: tripArrivalLabel }}
+          />
+        )}
+
         {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
           <section
             className="map-shell mt-3 overflow-hidden rounded-xl"
@@ -5879,7 +5881,7 @@ function Index() {
           </section>
         )}
 
-        {selectedMode === "drive" && (
+        {selectedMode === "drive" && activeRegion().hasTransit && (
           <H1ConditionsCard
             eastbound={eastboundTraffic}
             westbound={westboundTraffic}
@@ -5898,6 +5900,7 @@ function Index() {
           <h2 id="mode-details-title" className="sr-only">
             Trip details
           </h2>
+          {activeRegion().hasTransit && (
           <TravelModeTabs
             selectedMode={selectedMode}
             commitment={Boolean(commitment)}
@@ -5915,6 +5918,7 @@ function Index() {
             formatMinutes={formatDriveMinutes}
             onModeChange={chooseMode}
           />
+          )}
 
           {selectedMode === "transit" && (
             <TransitItinerary
@@ -6133,7 +6137,9 @@ function Index() {
         </Button>
 
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
-          <span>Bus and rail times from TheBus timetable</span>
+          <span>
+            {activeRegion().hasTransit ? "Bus and rail times from TheBus timetable" : "Drive times from TomTom live traffic"}
+          </span>
           <Button
             variant="ghost"
             size="sm"

@@ -1,4 +1,5 @@
 import { Bus, Car, Check, TrainFront } from "lucide-react";
+import { activeRegion } from "@/lib/region";
 import { DecisionBars } from "@/components/commute/DecisionBars";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { clockFromSeconds } from "@/lib/commute-formatting";
@@ -126,7 +127,7 @@ export function VerdictDomain({
           )}
         </div>
       )}
-      {configured && !arriveByActive && !optionsLoading && !driveLoading && (driveMinutes !== null || transitMinutes !== null) && (
+      {configured && activeRegion().hasTransit && !arriveByActive && !optionsLoading && !driveLoading && (driveMinutes !== null || transitMinutes !== null) && (
         // Both trip lengths at a glance, door to door (drive includes parking),
         // so the "N min faster" headline is visible math.
         <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Total trip times">
@@ -211,7 +212,7 @@ export function VerdictDomain({
           )}
         </div>
       )}
-      {configured && !arriveByActive && (
+      {configured && activeRegion().hasTransit && !arriveByActive && (
         <DecisionBars
           drive={{
             label: "Drive",

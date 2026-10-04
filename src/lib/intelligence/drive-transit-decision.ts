@@ -1,3 +1,4 @@
+import { activeRegion } from "@/lib/region";
 import { formatDriveMinutes } from "../drive/traffic-summary";
 
 export type DecisionMode = "drive" | "transit";
@@ -149,7 +150,9 @@ export function decideDriveVsTransit(
       primary: evidence(
         "service_availability",
         winner === "drive"
-          ? "There isn't a transit trip you can take right now"
+          ? activeRegion().hasTransit
+            ? "There isn't a transit trip you can take right now"
+            : "Nalu has driving times here; bus and train times are coming later"
           : "Your car isn't available for this trip",
       ),
       supporting: null,
