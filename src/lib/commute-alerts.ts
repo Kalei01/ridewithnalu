@@ -1,4 +1,5 @@
 import { audioContext } from "./approach";
+import { bestVoice } from "./best-voice";
 import { VoicePriorityQueue, type VoicePriority } from "./voice-priority-queue";
 
 export type TrafficAlertSnapshot = {
@@ -81,7 +82,9 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
 
   try {
     const utterance = new window.SpeechSynthesisUtterance(request.message);
-    utterance.lang = "en-US";
+    const voice = bestVoice();
+    if (voice) utterance.voice = voice;
+    utterance.lang = voice?.lang ?? "en-US";
     utterance.rate = 0.94;
     utterance.volume = 1;
 
@@ -131,6 +134,8 @@ export function clearCommuteSpeech() {
 export function primeSpeech() {
   try {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    // Ask for the voice list now, so the first real alert already has it.
+    bestVoice();
     const utterance = new window.SpeechSynthesisUtterance(" ");
     utterance.volume = 0;
     window.speechSynthesis.speak(utterance);
