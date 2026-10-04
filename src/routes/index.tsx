@@ -1653,14 +1653,14 @@ function Index() {
 
         // Primary path: generalized door-to-door transit. This remains authoritative
         // whenever it produces a usable itinerary.
-        // Once a fast planner has a trip, give the general planner only a short
-        // grace period; past that it is hitting its time limit, not finding more.
+        // Once a fast planner has a trip, the general planner (normally 1-2 s)
+        // gets a grace period; past that it is hitting its time limit.
         const [fastBus, fastOutbound] = await Promise.all([busPromise, outboundPromise]);
         const primaryTransit =
           fastBus.length || fastOutbound.length
             ? await Promise.race([
                 generalPromise,
-                new Promise<Option[]>((resolve) => window.setTimeout(() => resolve([]), 3000)),
+                new Promise<Option[]>((resolve) => window.setTimeout(() => resolve([]), 8000)),
               ])
             : await generalPromise;
         if (primaryTransit.length) return mergeTransitOptions(primaryTransit, await busPromise);
