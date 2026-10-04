@@ -147,6 +147,7 @@ import {
   smoothBearing,
   turnGlyph,
   startRoutePhrase,
+  distanceAlongPath,
 } from "@/lib/navigation-voice";
 import { track } from "@/lib/analytics";
 import { NotificationsSection } from "@/components/account/NotificationsSection";
@@ -3753,20 +3754,6 @@ function Index() {
       : // Without a saved Home, the start is wherever the trip was set from.
         "Your starting point";
   const tripArrivalLabel = arrivingHome ? "Home" : destinationLabel;
-  // Say where we're going and the first direction as soon as turn-by-turn
-  // starts, once per trip, so people hear right away that the voice is on.
-  const startAnnounced = useRef(false);
-  useEffect(() => {
-    if (!drivingCommitted) {
-      startAnnounced.current = false;
-      return;
-    }
-    if (startAnnounced.current || !nextTurn) return;
-    startAnnounced.current = true;
-    if (navMuted) return;
-    voiceGuide.current.markStartAnnounced(nextTurn);
-    speakCommuteAlert(startRoutePhrase(tripArrivalLabel, nextTurn), "maneuver");
-  }, [drivingCommitted, nextTurn, navMuted, tripArrivalLabel]);
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
   const plannedInboundAccess = inbound && best?.legs[0]?.kind === "access" ? best.legs[0] : null;
   // The return banner must describe the chosen itinerary, not the stop saved during setup.
@@ -5614,7 +5601,21 @@ function Index() {
                   // Starting a trip means "tell me everything": unlock chime and speech
                   // inside this tap (iOS Safari), unmute voice and turn every alert on.
                   primeChimeAudio();
-                  primeSpeech();
+                  // Say where we're going and the first direction inside this
+                  // tap: iPhones only let a web app start talking during a tap,
+                  // and it shouldn't wait for a GPS fix.
+                  const route = selectedMode === "drive" ? (liveDrive ?? drive) : null;
+                  if (route) {
+                    const first = route.maneuvers?.[0];
+                    speakCommuteAlert(
+                      startRoutePhrase(
+                        tripArrivalLabel,
+                        first ? { maneuver: first, distanceM: distanceAlongPath(route.path ?? [], first) } : null,
+                      ),
+                      "maneuver",
+                      { immediate: true },
+                    );
+                  } else primeSpeech();
                   requestCommuteNotificationPermission();
                   setNavMuted(false);
                   setAlertPrefs((prev) => ({

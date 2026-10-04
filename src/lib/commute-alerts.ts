@@ -1,5 +1,6 @@
 import { audioContext } from "./approach";
 import { bestVoice } from "./best-voice";
+import { debugLog } from "./debug-log";
 import { VoicePriorityQueue, type VoicePriority } from "./voice-priority-queue";
 
 export type TrafficAlertSnapshot = {
@@ -49,7 +50,15 @@ export function postCommuteNotification(title: string, body: string, tag: string
   }
 }
 
-export function speakCommuteAlert(message: string, priority: VoicePriority = "info") {
+/**
+ * `immediate` speaks right away with no warm-up chime. Use it inside a tap:
+ * iPhones only let a web app start talking during a tap, and a delay breaks that.
+ */
+export function speakCommuteAlert(
+  message: string,
+  priority: VoicePriority = "info",
+  options: { immediate?: boolean } = {},
+) {
   try {
     if (
       typeof window === "undefined" ||
@@ -64,11 +73,11 @@ export function speakCommuteAlert(message: string, priority: VoicePriority = "in
     if (decision.action === "interrupt") {
       speechGeneration += 1;
       window.speechSynthesis.cancel();
-      speakQueuedRequest(decision.request);
+      speakQueuedRequest(decision.request, options.immediate === true);
       return;
     }
 
-    if (decision.action === "start") speakQueuedRequest(decision.request);
+    if (decision.action === "start") speakQueuedRequest(decision.request, options.immediate === true);
   } catch {
     // Speech is best-effort on browsers that suspend audio in the background.
   }
@@ -81,8 +90,9 @@ let speechGeneration = 0;
 let useDefaultVoice = false;
 const VOICE_START_TIMEOUT_MS = 2500;
 
-function speakQueuedRequest(request: { message: string; priority: VoicePriority }) {
+function speakQueuedRequest(request: { message: string; priority: VoicePriority }, immediate = false) {
   const generation = ++speechGeneration;
+  debugLog("speech", { phase: "request", priority: request.priority, chars: request.message.length, immediate });
 
   try {
     const utterance = new window.SpeechSynthesisUtterance(request.message);
@@ -113,15 +123,20 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
 
     utterance.onstart = () => {
       started = true;
+      debugLog("speech", { phase: "start", priority: request.priority });
     };
-    utterance.onend = finish;
+    utterance.onend = () => {
+      debugLog("speech", { phase: "end", priority: request.priority, started });
+      finish();
+    };
     utterance.onerror = (event) => {
       const reason = (event as SpeechSynthesisErrorEvent | undefined)?.error;
+      debugLog("speech", { phase: "error", priority: request.priority, error: reason ?? "unknown", started });
       if (voice && !started && reason !== "interrupted" && reason !== "canceled") retryWithDefault();
       else finish();
     };
 
-    const primed = playAudioPrimer();
+    const primed = immediate ? false : playAudioPrimer();
     const speak = () => {
       try {
         if (generation !== speechGeneration || speechQueue.getActive() !== request) return;

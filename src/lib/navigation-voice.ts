@@ -405,6 +405,26 @@ export function startRoutePhrase(
     : `${opening} ${spokenDistance(next.distanceM)}, ${lowerFirst(instruction)}.`;
 }
 
+/** Distance along the route from its start to the point nearest `target`. */
+export function distanceAlongPath(
+  path: ReadonlyArray<{ lat: number; lon: number }>,
+  target: { lat: number; lon: number },
+): number {
+  if (path.length < 2) return 0;
+  let nearest = 0;
+  let best = Infinity;
+  path.forEach((point, index) => {
+    const d = metersBetween(point, target);
+    if (d < best) {
+      best = d;
+      nearest = index;
+    }
+  });
+  let total = 0;
+  for (let i = 1; i <= nearest; i += 1) total += metersBetween(path[i - 1]!, path[i]!);
+  return total;
+}
+
 /** A route's version changes whenever the maneuver list changes (reroute). */
 export function routeVersion(maneuvers: Maneuver[]) {
   return maneuvers.map(maneuverKey).join("|");

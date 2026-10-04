@@ -34,3 +34,18 @@ describe("markStartAnnounced", () => {
     expect(guide.next({ maneuver: turn, distanceM: 80 }, 60_000, { speedMps: 10 })).toMatch(/turn right/i);
   });
 });
+
+import { distanceAlongPath } from "./navigation-voice";
+
+describe("distanceAlongPath", () => {
+  it("measures along the route to the turn", () => {
+    const path = [
+      { lat: 21.3, lon: -157.85 },
+      { lat: 21.301, lon: -157.85 },
+      { lat: 21.302, lon: -157.85 },
+    ];
+    const d = distanceAlongPath(path, { lat: 21.302, lon: -157.85 });
+    expect(d).toBeGreaterThan(200);
+    expect(d).toBeLessThan(245);
+  });
+});
