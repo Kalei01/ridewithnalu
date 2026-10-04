@@ -62,4 +62,15 @@ describe("spoken alerts", () => {
     speakCommuteAlert("Turn left");
     expect(spoken[2]?.voice).toBeNull();
   });
+
+  it("keeps the iPhone's own voice", async () => {
+    vi.useFakeTimers();
+    const { spoken } = setup(true);
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", maxTouchPoints: 5 });
+    const { speakCommuteAlert } = await import("./commute-alerts");
+    speakCommuteAlert("Turn right");
+    vi.advanceTimersByTime(3000);
+    expect(spoken).toHaveLength(1);
+    expect(spoken[0]?.voice).toBeNull();
+  });
 });
