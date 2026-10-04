@@ -4,7 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { asTier, readPreviewTier, type Tier } from "@/lib/tiers";
 
-const rpc = supabase.rpc as unknown as (name: string) => Promise<{ data: unknown; error: unknown }>;
+// Called through the client object: a detached supabase.rpc loses its `this`
+// and throws, which silently hid Developer mode and the plan check.
+const rpc = (name: string) =>
+  (supabase.rpc as unknown as (this: typeof supabase, fn: string) => Promise<{ data: unknown; error: unknown }>).call(
+    supabase,
+    name,
+  );
 
 /** Is the signed-in person a developer (owner account)? Checked by the database. */
 export function useIsDeveloper(): boolean {

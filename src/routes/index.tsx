@@ -1887,7 +1887,7 @@ function Index() {
         // A valid zero-row response after the targeted fallbacks is a genuine
         // transit miss. Keep the privacy-safe diagnostic path intact.
         try {
-          const diagnoseTransitGeneral = supabase.rpc as unknown as (
+          const diagnoseTransitGeneral = supabase.rpc.bind(supabase) as unknown as (
             functionName: string,
             args: Record<string, number>,
           ) => Promise<{ data: string | null; error: unknown }>;
@@ -1952,7 +1952,7 @@ function Index() {
     staleTime: 60_000,
     retry: false,
     queryFn: async () => {
-      const diagnoseTransitGeneral = supabase.rpc as unknown as (
+      const diagnoseTransitGeneral = supabase.rpc.bind(supabase) as unknown as (
         functionName: string,
         args: Record<string, number>,
       ) => Promise<{ data: string | null; error: unknown }>;
