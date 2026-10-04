@@ -46,9 +46,9 @@ Cloudflare Workers Logs is on in the dashboard; add `observability.enabled` to t
 
 ## 4. Database
 
-- [ ] Get Lovable's export of the current database (schema, data, auth users)
-- [ ] Apply `drizzle/migrations/*` in order to the new project (recreates tables and trip-planner functions)
-- [ ] Import user data: profiles, saved places, push subscriptions
+- [x] Get Lovable's export of the current database (schema, data, auth users), 2026-10-04
+- [x] Apply `drizzle/migrations/*` in order to the new project (0000–0049 in one transaction, 2026-10-04; all 28 functions verified)
+- [x] Import user data: 3 Google accounts with the same ids and identities, 3 profiles, 3 user_preferences, 1 push subscription (counts match Lovable)
 - [ ] Run the GTFS import once (`POST /api/public/import-gtfs` with `Authorization: Bearer <LOVABLE_CRON_SECRET>`; it resumes across calls until done). Repeat whenever TheBus publishes a new feed
 - [ ] Recreate any extensions/settings Lovable's handoff lists (pg_cron, pg_net, storage, edge functions)
 
