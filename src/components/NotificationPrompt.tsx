@@ -59,13 +59,14 @@ export function NotificationPrompt() {
 
   useEffect(() => {
     if (!user) return;
-    if (readPushPrefs().token) return;
-    // Already allowed on this phone (e.g. before Nalu moved address): sign the
-    // phone up quietly, no pop-up needed.
+    // Already allowed on this phone: sign it up quietly, or, if it's signed up,
+    // check its token is still current. Phones renew tokens from time to time,
+    // and a stale one would make alerts stop arriving.
     if ("Notification" in window && Notification.permission === "granted") {
-      void register(false);
+      void register(false, { onlyIfChanged: Boolean(readPushPrefs().token) }).catch(() => undefined);
       return;
     }
+    if (readPushPrefs().token) return;
     if (read(ASKED_KEY) === "1") return;
     if (!("Notification" in window) && !isIos()) return;
     // "Don't Allow" was chosen before; the phone won't ask again, so don't nag.
@@ -82,10 +83,11 @@ export function NotificationPrompt() {
   }
 
   /** Get this phone's token and save it. `prompt: false` never shows a question. */
-  async function register(prompt: boolean) {
+  async function register(prompt: boolean, options: { onlyIfChanged?: boolean } = {}) {
     const result = await obtainPushToken(prompt);
     if (result.status !== "registered") return result;
     const current = readPushPrefs();
+    if (options.onlyIfChanged && current.token === result.token) return result;
     const categories = Array.from(new Set([...current.categories, "morning_commute" as const]));
     await save({
       data: {

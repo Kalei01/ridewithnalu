@@ -3291,7 +3291,7 @@ function Index() {
             previousMode: previousVerdict,
             tossUpMinutes: TOSS_UP_MIN,
           }),
-    [centralTrip, driveTripEstimate, transitTripEstimate, previousVerdict],
+    [centralTrip, driveTripEstimate, transitTripEstimate, previousVerdict, driveAvailable],
   );
 
   const activeDecision =
@@ -3620,6 +3620,8 @@ function Index() {
     currentDecisionSnapshot.busWaitMinutes,
     currentDecisionSnapshot.majorIncident,
     currentDecisionSnapshot.state,
+    transitLabel,
+    verdict,
   ]);
   useEffect(() => {
     if (commitment || !["drive", "transit", "same"].includes(verdict)) return;
@@ -3958,6 +3960,7 @@ function Index() {
     tripOriginLabel,
     tripArrivalLabel,
     itineraryStopCoords,
+    itineraryLegSequences,
     stationCoords,
   ]);
 
@@ -4641,7 +4644,7 @@ function Index() {
           />
 
           <InstallNaluCard />
-          <LeaveAlertCard places={savedPlaces} variant="offer" />
+          {activeRegion().hasTransit && <LeaveAlertCard places={savedPlaces} variant="offer" />}
 
           {browseUserPoint && (
             <section
@@ -5547,7 +5550,9 @@ function Index() {
           </>
         </VerdictDomain>
 
+        {/* Leave alerts run on Oʻahu time and Oʻahu places only. */}
         {!commitment &&
+          activeRegion().hasTransit &&
           tripDirection.from.lat !== null &&
           tripDirection.from.lon !== null &&
           tripDirection.to.lat !== null &&

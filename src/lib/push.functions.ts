@@ -19,11 +19,10 @@ export const savePushSubscription = createServerFn({ method: "POST" })
   .inputValidator((input) => saveSchema.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    if (data.previousToken && data.previousToken !== data.token) {
-      await supabaseAdmin.from("push_subscriptions").delete().eq("token", data.previousToken);
-    }
+    const renewed = data.previousToken && data.previousToken !== data.token ? data.previousToken : null;
     if (data.categories.length === 0) {
       await supabaseAdmin.from("push_subscriptions").delete().eq("token", data.token);
+      if (renewed) await supabaseAdmin.from("push_subscriptions").delete().eq("token", renewed);
       return { ok: true };
     }
     const { error } = await supabaseAdmin.from("push_subscriptions").upsert({
@@ -34,6 +33,13 @@ export const savePushSubscription = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     });
     if (error) throw new Error("Could not save notification settings.");
+    if (renewed) {
+      // The phone got a new token. Move its leave alerts and reminders over
+      // before removing the old one, which would otherwise delete them too.
+      await supabaseAdmin.from("leave_alerts").update({ token: data.token }).eq("token", renewed);
+      await supabaseAdmin.from("scheduled_pushes").update({ token: data.token }).eq("token", renewed);
+      await supabaseAdmin.from("push_subscriptions").delete().eq("token", renewed);
+    }
     return { ok: true };
   });
 

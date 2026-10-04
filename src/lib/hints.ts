@@ -3,6 +3,8 @@
  * shows until it's used once, or after it has been seen on 5 different days,
  * so hints never become permanent clutter.
  */
+import { honoluluDateKey } from "./commute-formatting";
+
 const KEY = "nalu-hints-v1";
 const MAX_DAYS = 5;
 
@@ -24,8 +26,9 @@ function write(state: HintState) {
   }
 }
 
+/** Today's date where the person is (Hawaiʻi or the test region), not UTC. */
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return honoluluDateKey(new Date());
 }
 
 export function shouldShowHint(id: string, state = read(), day = today()): boolean {
