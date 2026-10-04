@@ -46,19 +46,9 @@ export function pickBestVoice<T extends VoiceLike>(voices: readonly T[]): T | nu
 let cached: SpeechSynthesisVoice | null = null;
 let listening = false;
 
-/**
- * iPhone and iPad can report a chosen voice as speaking while no sound comes
- * out, so on Apple devices Nalu keeps the phone's own voice, which always works.
- */
-function isAppleMobile() {
-  const ua = navigator.userAgent;
-  return /iPhone|iPad|iPod/.test(ua) || (ua.includes("Mac") && navigator.maxTouchPoints > 1);
-}
-
 /** The best voice available right now, or null to let the phone decide. */
 export function bestVoice(): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-  if (isAppleMobile()) return null;
   const synth = window.speechSynthesis;
   if (!listening) {
     listening = true;

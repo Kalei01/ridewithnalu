@@ -98,6 +98,7 @@ function speakQueuedRequest(request: { message: string; priority: VoicePriority 
     const utterance = new window.SpeechSynthesisUtterance(request.message);
     const voice = useDefaultVoice ? null : bestVoice();
     if (voice) utterance.voice = voice;
+    debugLog("speech", { phase: "voice", voice: voice ? voice.name : "phone default" });
     utterance.lang = "en-US";
     utterance.rate = 0.94;
     utterance.volume = 1;
