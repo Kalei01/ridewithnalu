@@ -141,7 +141,7 @@ export function VerdictDomain({
               <Icon className={`size-5 shrink-0 ${won ? "text-recommended" : "text-muted-foreground"}`} />
               <span className="min-w-0">
                 <span className="block truncate text-xs text-muted-foreground">{label}</span>
-                <span className="block whitespace-nowrap text-lg font-bold tabular-nums text-foreground">
+                <span className={`block whitespace-nowrap font-bold tabular-nums text-foreground ${(minutes ?? 0) >= 60 ? "text-base" : "text-lg"}`}>
                   {minutes !== null ? formatDriveMinutes(minutes) : "—"}
                 </span>
               </span>
