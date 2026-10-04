@@ -5168,28 +5168,6 @@ function Index() {
               )}
         </ArriveByControls>
 
-        <NaluPersonalityStrip
-          loading={optionsLoading || driveLoading}
-          configured={configured}
-          period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
-          decision={verdict}
-          trafficLevel={naluHeroTrafficLevel}
-          driveMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
-          transitMinutes={transitTripEstimate.expectedDurationMinutes}
-          timeDelta={activeDecision.differenceMinutes ?? null}
-          incidents={drive?.incidents ?? []}
-          // HDOT route segments only say which roads the trip crosses; they are
-          // not closures. Scheduled closures carry a text schedule, so they are
-          // passed without an "active" flag and described as scheduled.
-          activeRoadwork={(drive?.hdotScheduledClosures ?? []).map((closure) => ({
-            route: closure.route,
-            description: closure.location,
-          }))}
-          weather={weather?.moments ?? []}
-          transferMinutes={transitTripEstimate.transferMinutes}
-          waitMinutes={transitTripEstimate.waitMinutes}
-          walkMinutes={transitTripEstimate.walkingMinutes}
-        />
 
         <VerdictDomain
           configured={configured}
@@ -5319,6 +5297,29 @@ function Index() {
             )}
           </>
         </VerdictDomain>
+
+        <NaluPersonalityStrip
+          loading={optionsLoading || driveLoading}
+          configured={configured}
+          period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
+          decision={verdict}
+          trafficLevel={naluHeroTrafficLevel}
+          driveMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
+          transitMinutes={transitTripEstimate.expectedDurationMinutes}
+          timeDelta={activeDecision.differenceMinutes ?? null}
+          incidents={drive?.incidents ?? []}
+          // HDOT route segments only say which roads the trip crosses; they are
+          // not closures. Scheduled closures carry a text schedule, so they are
+          // passed without an "active" flag and described as scheduled.
+          activeRoadwork={(drive?.hdotScheduledClosures ?? []).map((closure) => ({
+            route: closure.route,
+            description: closure.location,
+          }))}
+          weather={weather?.moments ?? []}
+          transferMinutes={transitTripEstimate.transferMinutes}
+          waitMinutes={transitTripEstimate.waitMinutes}
+          walkMinutes={transitTripEstimate.walkingMinutes}
+        />
 
         {/* Keep the trip commitment action directly beneath the verdict so it
             remains visible before route and comparison details. */}

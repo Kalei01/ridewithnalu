@@ -117,30 +117,14 @@ export function VerdictDomain({
                 ? "Fairly confident"
                 : "Low confidence"}
           </span>
-          {differenceMinutes !== null && (
+          {verdict === "same" && differenceMinutes !== null && (
             <span className="text-xs text-muted-foreground">
               {Math.round(differenceMinutes) === 0
                 ? "Nearly identical times"
-                : `${Math.round(differenceMinutes)} min separates the options`}
+                : `About ${formatDriveMinutes(differenceMinutes)} apart`}
             </span>
           )}
         </div>
-      )}
-      {configured && !arriveByActive && (
-        <DecisionBars
-          drive={{
-            label: "Drive",
-            minutes: driveMinutes,
-            low: driveRange?.low,
-            high: driveRange?.high,
-          }}
-          transit={{
-            label: transitLabel,
-            minutes: transitMinutes,
-            low: transitRange?.low,
-            high: transitRange?.high,
-          }}
-        />
       )}
       {(verdict === "transit" || transitStandaloneAvailable) && best && transitRange && (
         <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
@@ -200,6 +184,22 @@ export function VerdictDomain({
             )}
           </p>
         </div>
+      )}
+      {configured && !arriveByActive && (
+        <DecisionBars
+          drive={{
+            label: "Drive",
+            minutes: driveMinutes,
+            low: driveRange?.low,
+            high: driveRange?.high,
+          }}
+          transit={{
+            label: transitLabel,
+            minutes: transitMinutes,
+            low: transitRange?.low,
+            high: transitRange?.high,
+          }}
+        />
       )}
       {children}
     </section>
