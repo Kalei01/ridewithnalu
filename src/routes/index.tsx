@@ -6057,7 +6057,7 @@ function Index() {
         <Button
           variant="outline"
           onClick={endTrip}
-          className="mt-2 h-14 w-full text-base font-semibold"
+          className="mt-2 h-14 w-full border-primary/50 bg-primary/10 text-base font-semibold text-primary hover:bg-primary/15 hover:text-primary"
         >
           <RotateCcw className="size-5" /> End trip
         </Button>
