@@ -45,9 +45,8 @@ function isH3SwallowedErrorBody(body: string): boolean {
 }
 
 const CANONICAL_ORIGIN = "https://ridenalu.com";
-// Flip on once ridenalu.com is confirmed live, so the old address never sends
-// people to a page that doesn't load yet.
-const REDIRECT_OLD_ADDRESS = false;
+// ridenalu.com is confirmed live; the old address now forwards there.
+const REDIRECT_OLD_ADDRESS = true;
 
 /**
  * One public address. Pages on www.ridenalu.com (and, when enabled, the old
