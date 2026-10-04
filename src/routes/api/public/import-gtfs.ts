@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Unzip, AsyncUnzipInflate } from "fflate";
+import { Unzip, UnzipInflate } from "fflate";
 import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
 
 const GTFS_URL = "https://www.thebus.org/transitdata/production/google_transit.zip";
@@ -63,7 +63,9 @@ async function streamZip(
 ) {
   await new Promise<void>((resolve, reject) => {
     const unzip = new Unzip();
-    unzip.register(AsyncUnzipInflate);
+    // Synchronous inflate: AsyncUnzipInflate needs Web Workers, which the
+    // Cloudflare Workers runtime does not provide ("Worker is not defined").
+    unzip.register(UnzipInflate);
     const decoder = new TextDecoder();
     let pending = 0;
     let pushed = false;
