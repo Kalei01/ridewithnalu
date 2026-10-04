@@ -1,3 +1,4 @@
+import { NotificationPrompt } from "@/components/NotificationPrompt";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -105,6 +106,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppRouteGate />
+        <NotificationPrompt />
         <Toaster position="top-center" richColors />
       </AuthProvider>
     </QueryClientProvider>
