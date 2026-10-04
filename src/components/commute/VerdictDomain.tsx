@@ -174,7 +174,7 @@ export function VerdictDomain({
             </p>
           </div>
           <div className="metric-glass">
-            <p className="text-xs text-muted-foreground">Total trip</p>
+            <p className="text-xs text-muted-foreground">Driving</p>
             <p
               className={`mt-1 whitespace-nowrap font-bold leading-tight tabular-nums text-foreground ${(driveTotalMinutes ?? 0) >= 60 ? "text-lg" : "text-2xl"}`}
             >

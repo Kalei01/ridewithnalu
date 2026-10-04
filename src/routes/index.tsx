@@ -2777,7 +2777,7 @@ function Index() {
     [options, arriveByTarget],
   );
   const gtfsExpiry = useDataExpiry();
-  const driveAccess = destinationAccess(driveTo, arrivingHome ? "home" : null);
+  const driveAccess = destinationAccess(driveTo, arrivingHome ? "home" : null, now);
   const futureCandidateSeconds =
     arriveByActive && settledTrafficTarget === arriveByTarget && drive
       ? arriveByTarget - (drive.highMinutes + driveAccess.highMin) * 60
@@ -3039,7 +3039,7 @@ function Index() {
     : null;
   const driveBufferNote =
     driveAccess.highMin > 0
-      ? `Includes ${driveAccess.lowMin}–${driveAccess.highMin} min to park and walk in`
+      ? `Arrival includes about ${driveAccess.typicalMin} min to park and walk in (estimate)`
       : null;
   const driveWindow = driveArrival
     ? `${clockFromSeconds(driveArrival.earliestSeconds)} – ${clockFromSeconds(driveArrival.latestSeconds)}`
@@ -5218,7 +5218,7 @@ function Index() {
           driveArrivalSeconds={driveTripEstimate.arrivalTime ?? driveArrival?.expectedSeconds ?? null}
           driveWindow={driveWindow}
           driveBufferNote={driveBufferNote}
-          driveTotalMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
+          driveTotalMinutes={driveTripEstimate.expectedDurationMinutes}
           driveLeaveSeconds={arriveByActive && drivePlan ? drivePlan.leaveBySeconds : null}
         >
           <>

@@ -43,6 +43,28 @@ const BUFFERS: Record<AccessZone, Omit<DestinationAccess, "zone">> = {
   residential: { label: "Park at the door", lowMin: 0, typicalMin: 1, highMin: 1 },
 };
 
+// Nights (before 6 AM, from 6 PM) and Sundays: downtown, campus and Kakaʻako
+// garages and meters are far emptier, so the walk-in is shorter. Waikīkī stays
+// busy at night and keeps its daytime buffer.
+const QUIET_BUFFERS: Partial<Record<AccessZone, Omit<DestinationAccess, "zone">>> = {
+  downtown: { label: "Downtown parking & walk", lowMin: 2, typicalMin: 4, highMin: 7 },
+  campus: { label: "Campus parking & walk", lowMin: 2, typicalMin: 4, highMin: 6 },
+  "kakaako-ala-moana": { label: "Parking & walk", lowMin: 2, typicalMin: 4, highMin: 6 },
+};
+
+/** Honolulu clock: Sunday all day, or before 6 AM / from 6 PM any day. */
+export function isQuietParkingTime(at: Date): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Pacific/Honolulu",
+    weekday: "short",
+    hour: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(at);
+  const weekday = parts.find((part) => part.type === "weekday")?.value;
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 12);
+  return weekday === "Sun" || hour < 6 || hour >= 18;
+}
+
 export function accessZoneFor(lat: number, lon: number): AccessZone {
   for (const box of ZONES) {
     if (lat >= box.minLat && lat <= box.maxLat && lon >= box.minLon && lon <= box.maxLon)
@@ -51,15 +73,20 @@ export function accessZoneFor(lat: number, lon: number): AccessZone {
   return "suburban";
 }
 
-/** A saved "home" is always residential: the car parks at the door. */
+/**
+ * A saved "home" is always residential: the car parks at the door. Pass the
+ * arrival time to use the shorter night/Sunday buffer where it applies.
+ */
 export function destinationAccess(
   point: { lat: number | null; lon: number | null },
   placeKind?: string | null,
+  at?: Date,
 ): DestinationAccess {
   if (placeKind === "home") return { zone: "residential", ...BUFFERS.residential };
   if (point.lat === null || point.lon === null) return { zone: "suburban", ...BUFFERS.suburban };
   const zone = accessZoneFor(point.lat, point.lon);
-  return { zone, ...BUFFERS[zone] };
+  const quiet = at && isQuietParkingTime(at) ? QUIET_BUFFERS[zone] : undefined;
+  return { zone, ...(quiet ?? BUFFERS[zone]) };
 }
 
 export type ArrivalRange = {
