@@ -4315,7 +4315,7 @@ function Index() {
                 {alohaGreeting(now, profileName)}
               </p>
               <div className="flex items-center gap-1.5">
-                <WaveMark className="h-6 w-auto text-recommended" />
+                <WaveMark className="h-6 w-auto text-foreground" />
                 <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
               </div>
               <div className="mt-1.5 h-px bg-border/70" />
