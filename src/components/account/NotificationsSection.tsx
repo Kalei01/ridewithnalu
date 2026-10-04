@@ -21,6 +21,16 @@ export function NotificationsSection({ places }: { places: SavedPlace[] }) {
   const save = useServerFn(savePushSubscription);
   const test = useServerFn(sendTestPush);
   const [busy, setBusy] = useState(false);
+  // iPhones only allow web notifications from the Home Screen app; until then
+  // the alert card explains that step instead of offering a button that can't work.
+  const [canAsk, setCanAsk] = useState(false);
+  useEffect(() => {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && navigator.maxTouchPoints > 1);
+    const installed =
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setCanAsk(!ios || installed);
+  }, []);
 
   /** Sign this phone up and send one test, so riders can check it works. */
   async function turnOnHere() {
@@ -83,7 +93,7 @@ export function NotificationsSection({ places }: { places: SavedPlace[] }) {
       <h3 id="notif-title" className="flex items-center gap-2 text-sm font-bold text-foreground">
         <BellRing className="size-4 text-primary" /> Notifications
       </h3>
-      {prefs && !prefs.token && (
+      {prefs && !prefs.token && canAsk && (
         <Button type="button" className="h-12 justify-self-start text-base" disabled={busy} onClick={() => void turnOnHere()}>
           Turn on notifications on this phone
         </Button>
