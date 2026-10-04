@@ -129,7 +129,7 @@ export function VerdictDomain({
       {configured && !arriveByActive && !optionsLoading && !driveLoading && (driveMinutes !== null || transitMinutes !== null) && (
         // Both trip lengths at a glance, door to door (drive includes parking),
         // so the "N min faster" headline is visible math.
-        <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Trip times, door to door">
+        <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Total trip times">
           {[
             { key: "drive", label: "Drive", minutes: driveMinutes, won: verdict === "drive", Icon: Car },
             { key: "transit", label: transitLabel, minutes: transitMinutes, won: verdict === "transit", Icon: /rail|skyline/i.test(transitLabel) ? TrainFront : Bus },

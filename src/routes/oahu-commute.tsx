@@ -178,7 +178,7 @@ function OahuCommutePage() {
               <li key={station}>{station}</li>
             ))}
           </ol>
-          <p className="mt-3 text-sm text-muted-foreground">Source: TheBus GTFS timetable, October 2026.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Source: TheBus timetable, October 2026.</p>
         </section>
 
         <section className="mt-12" aria-labelledby="questions">

@@ -696,12 +696,12 @@ function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
   if (source.quality === "unavailable") {
     return source.basis === "live"
       ? "Live traffic · Not available"
-      : "Transit schedule · Not available";
+      : "Bus & Skyline times · Not available";
   }
   if (source.fetchedAt === null) {
     return source.basis === "live"
       ? "Live traffic · Update time unknown"
-      : "Transit schedule · Update time unknown";
+      : "Bus & Skyline times · Update time unknown";
   }
 
   const ageSeconds = Math.max(0, Math.round((nowMs - source.fetchedAt) / 1000));
@@ -717,7 +717,7 @@ function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
       ? "Live traffic"
       : source.name.includes("TheBus")
         ? "Bus schedule"
-        : "Transit schedule";
+        : "Bus & Skyline times";
 
   if (source.basis === "future-estimate") label = "Future traffic estimate";
 
@@ -6602,7 +6602,7 @@ function AlertPrefsSection({
     {
       id: "keepOnTransfer",
       label: "Keep alerts while changing rides",
-      hint: "Stay visible when the trip moves to the next leg.",
+      hint: "Keep showing alerts when you switch to another bus or train.",
     },
   ];
   return (
@@ -7867,7 +7867,7 @@ function SetupDialog({
 
 const DATA_SOURCES = [
   {
-    label: "Transit schedules: TheBus / Oahu Transit Services (thebus.org)",
+    label: "Bus and Skyline times: TheBus / Oahu Transit Services (thebus.org)",
     href: "https://www.thebus.org",
   },
   { label: "Live bus arrivals: TheBus HEA API", href: "https://hea.thebus.org" },
@@ -7880,7 +7880,7 @@ const DATA_SOURCES = [
 ];
 
 const ABOUT_FEATURES = [
-  "Compares driving, TheBus and Skyline door to door, with live traffic.",
+  "Compares driving, TheBus and Skyline for the whole trip, walking and parking included, with live traffic.",
   "Tells you when to leave, and can alert you before it’s time to go.",
   "Turn-by-turn voice directions for drives.",
   "Live bus locations, and an alert when your stop is next.",

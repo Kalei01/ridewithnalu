@@ -58,7 +58,7 @@ export function DataExpiryNotice() {
       <p>
         {expired
           ? "Transit data is out of date · times may be off"
-          : "Transit schedules are getting old · times may be off"}
+          : "Bus and Skyline times are getting old · times may be off"}
       </p>
       {!expired && (
         <button
