@@ -1,4 +1,5 @@
 import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
+import { Tagline } from "@/components/brand/Tagline";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
@@ -162,7 +163,7 @@ function WelcomePage() {
 
         <section className="grid flex-1 items-center gap-10 py-10 lg:grid-cols-[1.1fr_.9fr] lg:gap-16">
           <div>
-            <p className="text-base font-bold text-primary">Ride it. Drive it. Just go.</p>
+            <Tagline size="md" />
             <h1 className="mt-4 max-w-2xl text-5xl font-black leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
               Your commute, <span className="text-[var(--nalu-platinum-2)]">figured out.</span>
             </h1>

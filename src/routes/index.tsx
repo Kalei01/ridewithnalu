@@ -1,4 +1,5 @@
 import { hdotRoadName } from "@/lib/hdot-road-names";
+import { Tagline } from "@/components/brand/Tagline";
 import { createPortal } from "react-dom";
 import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -4495,10 +4496,6 @@ function Index() {
                 <WaveMark className="h-6 w-auto text-foreground" />
                 <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
               </div>
-              <div className="mt-1.5 h-px bg-border/70" />
-              <p className="mt-1 text-xs font-semibold text-muted-foreground">
-                Ride it. Drive it. Just go.
-              </p>
             </div>
             <div className="flex max-w-[65%] flex-wrap items-center justify-end gap-1">
               <p className="w-full text-right text-xs font-medium text-foreground">{timeText}</p>
@@ -4529,6 +4526,7 @@ function Index() {
               </Button>
             </div>
           </header>
+          <Tagline className="mt-2" />
 
           <CommutePageNav current="browse" onBrowse={() => setPageView("browse")} />
 
