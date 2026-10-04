@@ -649,3 +649,31 @@ a[href*="lovable.dev"][class*="badge"],
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* Live TheBus position on the trip map. */
+.nalu-live-bus {
+  display: inline-flex;
+  min-width: 36px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border: 2px solid var(--color-foreground);
+  border-radius: 999px;
+  background: var(--color-warning, #f5b941);
+  color: #111;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 0 0 0 oklch(0.8 0.15 80 / 55%);
+  animation: nalu-live-bus-pulse 2s ease-out infinite;
+}
+
+@keyframes nalu-live-bus-pulse {
+  0% { box-shadow: 0 0 0 0 oklch(0.8 0.15 80 / 55%); }
+  100% { box-shadow: 0 0 0 12px oklch(0.8 0.15 80 / 0%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nalu-live-bus { animation: none; }
+}

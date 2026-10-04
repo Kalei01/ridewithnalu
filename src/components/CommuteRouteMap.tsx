@@ -41,6 +41,8 @@ type CommuteRouteMapProps = {
   trafficSections?: TrafficSection[];
   focusSection?: number | null;
   incidents?: MapIncident[];
+  /** Live GPS position of the bus you're waiting for, from TheBus. */
+  busPoint?: { lat: number; lon: number; label: string } | null;
 };
 
 type Basemap = "standard" | "satellite";
@@ -102,6 +104,7 @@ export default function CommuteRouteMap({
   trafficSections,
   focusSection = null,
   incidents,
+  busPoint = null,
 }: CommuteRouteMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const nodeRef = useRef<HTMLDivElement | null>(null);
@@ -425,6 +428,35 @@ export default function CommuteRouteMap({
     }).addTo(map);
     map.flyToBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 16, duration: 0.6 });
   }, [spotlight]);
+
+  const busMarkerRef = useRef<L.Marker | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!busPoint) {
+      busMarkerRef.current?.remove();
+      busMarkerRef.current = null;
+      return;
+    }
+    const label = busPoint.label.replace(/[<>&"]/g, "");
+    const icon = L.divIcon({
+      className: "nalu-marker-shell",
+      html: `<span class="nalu-live-bus" aria-hidden="true">${label}</span>`,
+      iconSize: [44, 26],
+      iconAnchor: [22, 13],
+    });
+    if (busMarkerRef.current) {
+      busMarkerRef.current.setLatLng([busPoint.lat, busPoint.lon]);
+      busMarkerRef.current.setIcon(icon);
+      return;
+    }
+    busMarkerRef.current = L.marker([busPoint.lat, busPoint.lon], { icon, zIndexOffset: 900 })
+      .bindTooltip(`Bus ${label} · live position`, { direction: "top", offset: [0, -12] })
+      .addTo(map);
+  }, [busPoint?.lat, busPoint?.lon, busPoint?.label]);
+  useEffect(() => () => {
+    busMarkerRef.current?.remove();
+  }, []);
 
   const liveMarkerRef = useRef<L.CircleMarker | null>(null);
   const headingMarkerRef = useRef<L.Marker | null>(null);

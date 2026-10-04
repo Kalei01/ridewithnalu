@@ -5620,6 +5620,15 @@ function Index() {
                       points={mapPoints}
                       livePoint={riderPoint}
                       liveHeading={riderHeading}
+                      busPoint={
+                        selectedMode === "transit" && confirmedBusArrival?.vehicle
+                          ? {
+                              lat: confirmedBusArrival.vehicle.lat,
+                              lon: confirmedBusArrival.vehicle.lon,
+                              label: confirmedBusArrival.routeShortName || "Bus",
+                            }
+                          : null
+                      }
                       followLive={Boolean(commitment)}
                       {...(selectedMode !== "drive" && transitMapSegments.length > 0
                         ? { segments: transitMapSegments }
@@ -6085,6 +6094,13 @@ function RailTripBreakdown({
                       refreshing={liveBusRefreshing}
                       compact
                     />
+                    {liveArrival?.vehicle && pointByName(leg.from) && (
+                      <p className="mt-1 text-sm font-semibold text-warning">
+                        Bus is about{" "}
+                        {formatDistance(distanceM(liveArrival.vehicle, pointByName(leg.from)!))} from
+                        your stop · shown on the map
+                      </p>
+                    )}
                     <p className="mt-2 flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
                       <span>Get off at: {transitStopName(leg, "to")}</span>
                       <span className="shrink-0 tabular-nums">

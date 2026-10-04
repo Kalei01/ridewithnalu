@@ -25,6 +25,8 @@ export type BusArrival = {
   minutesAway: number;
   isLive: boolean;
   canceled: boolean;
+  /** Where the bus is right now, from TheBus GPS. Null when not reported. */
+  vehicle: { id: string; lat: number; lon: number } | null;
 };
 
 export type BusArrivalsResult = {
@@ -97,6 +99,15 @@ function clock(seconds: number) {
   }).format(new Date(Date.UTC(2020, 0, 1, hour, minute)));
 }
 
+/** TheBus reports 0,0 (or nothing) when it has no GPS fix; only trust points on Oʻahu. */
+function vehiclePosition(block: string): BusArrival["vehicle"] {
+  const lat = Number(text(block, "latitude"));
+  const lon = Number(text(block, "longitude"));
+  const onOahu = lat > 21.2 && lat < 21.75 && lon > -158.3 && lon < -157.6;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !onOahu) return null;
+  return { id: text(block, "vehicle"), lat, lon };
+}
+
 export const busArrivals = createServerFn({ method: "POST" })
   .inputValidator((input) => inputSchema.parse(input))
   .handler(async ({ data }): Promise<BusArrivalsResult> => {
@@ -151,6 +162,7 @@ export const busArrivals = createServerFn({ method: "POST" })
               minutesAway: Math.max(0, Math.ceil((predictedSeconds - nowSeconds) / 60)),
               isLive,
               canceled: text(block, "canceled") === "1",
+              vehicle: isLive ? vehiclePosition(block) : null,
             },
           ];
         })
