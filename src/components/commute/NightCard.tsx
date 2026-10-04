@@ -79,11 +79,14 @@ export function NightCard({
     return (
       <section className="mt-4 rounded-2xl border border-warning/40 bg-warning/10 p-4" aria-label="Night service">
         <p className="flex items-center gap-2 text-lg font-bold text-foreground">
-          <Moon className="size-5 text-warning" /> No more buses or Skyline tonight
+          <Moon className="size-5 text-warning" />{" "}
+          {first
+            ? `Next bus or train: leave at ${clockFromSeconds(first.leave_by_seconds ?? first.depart_seconds)}`
+            : "No more buses or Skyline tonight"}
         </p>
         <p className="mt-1 text-base leading-7 text-muted-foreground">
           {first
-            ? `The first trip leaves at ${clockFromSeconds(first.leave_by_seconds ?? first.depart_seconds)}${firstRide(first) ? ` (${firstRide(first)})` : ""}.`
+            ? `${firstRide(first) ? `${firstRide(first)}. ` : ""}That's a long wait from now.`
             : "Nalu didn't find a bus or train for this trip until morning."}
           {links ? " To go now, a ride opens with this destination filled in:" : ""}
         </p>

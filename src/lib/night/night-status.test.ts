@@ -20,9 +20,9 @@ describe("night mode", () => {
   });
 
   it("says nothing runs tonight when the first trip is hours away", () => {
-    const status = nightStatus(h(1, 30), [trip(h(4, 50))], true);
+    const status = nightStatus(h(1, 30), [trip(h(3, 26))], true);
     expect(status).toMatchObject({ kind: "none_tonight" });
-    expect(status.kind === "none_tonight" && status.first?.leave_by_seconds).toBe(h(4, 50));
+    expect(status.kind === "none_tonight" && status.first?.leave_by_seconds).toBe(h(3, 26));
   });
 
   it("says nothing runs tonight when the planner found no trip at all", () => {

@@ -22,8 +22,8 @@ export function isNightTime(nowSeconds: number) {
   return s >= 21 * 3600 || s < 5 * 3600;
 }
 
-/** A trip that leaves more than this long from now isn't "tonight". */
-const TONIGHT_SECONDS = 2 * 3600;
+/** At night, a first trip more than an hour away is a long wait worth saying so. */
+const TONIGHT_SECONDS = 60 * 60;
 /** The next trip leaving this much later than one means that one was the last. */
 const LAST_GAP_SECONDS = 2 * 3600;
 
