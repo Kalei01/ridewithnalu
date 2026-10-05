@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { BellRing } from "lucide-react";
 import { toast } from "sonner";
 import { LeaveAlertCard } from "@/components/LeaveAlertCard";
+import { EmailOptIn } from "@/components/account/EmailOptIn";
 import { Button } from "@/components/ui/button";
 import { obtainPushToken, readPushPrefs, writePushPrefs, clockToMinutes, type PushPrefs } from "@/lib/push-client";
 import { savePushSubscription, sendTestPush } from "@/lib/push.functions";
@@ -99,6 +100,7 @@ export function NotificationsSection({ places }: { places: SavedPlace[] }) {
         </Button>
       )}
       <LeaveAlertCard places={places} variant="settings" />
+      <EmailOptIn />
       {prefs?.token && (
         <Button
           variant="outline"

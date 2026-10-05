@@ -21,6 +21,7 @@ import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 import { Route as ApiPublicImportGtfsRouteImport } from './routes/api/public/import-gtfs'
 import { Route as ApiPublicLeaveAlertsRouteImport } from './routes/api/public/leave-alerts'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push-dispatch'
+import { Route as ApiPublicUnsubscribeRouteImport } from './routes/api/public/unsubscribe'
 import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 
 const IndexRoute = IndexRouteImport.update({
@@ -83,6 +84,11 @@ const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   path: '/api/public/push-dispatch',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicUnsubscribeRoute = ApiPublicUnsubscribeRouteImport.update({
+  id: '/api/public/unsubscribe',
+  path: '/api/public/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicVersionRoute = ApiPublicVersionRouteImport.update({
   id: '/api/public/version',
   path: '/api/public/version',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
+  '/api/public/unsubscribe': typeof ApiPublicUnsubscribeRoute
   '/api/public/version': typeof ApiPublicVersionRoute
 }
 export interface FileRoutesByTo {
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
+  '/api/public/unsubscribe': typeof ApiPublicUnsubscribeRoute
   '/api/public/version': typeof ApiPublicVersionRoute
 }
 export interface FileRoutesById {
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
+  '/api/public/unsubscribe': typeof ApiPublicUnsubscribeRoute
   '/api/public/version': typeof ApiPublicVersionRoute
 }
 export interface FileRouteTypes {
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
+    | '/api/public/unsubscribe'
     | '/api/public/version'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
+    | '/api/public/unsubscribe'
     | '/api/public/version'
   id:
     | '__root__'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
+    | '/api/public/unsubscribe'
     | '/api/public/version'
   fileRoutesById: FileRoutesById
 }
@@ -196,6 +208,7 @@ export interface RootRouteChildren {
   ApiPublicImportGtfsRoute: typeof ApiPublicImportGtfsRoute
   ApiPublicLeaveAlertsRoute: typeof ApiPublicLeaveAlertsRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
+  ApiPublicUnsubscribeRoute: typeof ApiPublicUnsubscribeRoute
   ApiPublicVersionRoute: typeof ApiPublicVersionRoute
 }
 
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPushDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/unsubscribe': {
+      id: '/api/public/unsubscribe'
+      path: '/api/public/unsubscribe'
+      fullPath: '/api/public/unsubscribe'
+      preLoaderRoute: typeof ApiPublicUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/version': {
       id: '/api/public/version'
       path: '/api/public/version'
@@ -308,6 +328,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicImportGtfsRoute: ApiPublicImportGtfsRoute,
   ApiPublicLeaveAlertsRoute: ApiPublicLeaveAlertsRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
+  ApiPublicUnsubscribeRoute: ApiPublicUnsubscribeRoute,
   ApiPublicVersionRoute: ApiPublicVersionRoute,
 }
 export const routeTree = rootRouteImport
