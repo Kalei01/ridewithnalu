@@ -29,6 +29,7 @@ export type GuidePath =
   | "/guides/honolulu-airport-without-driving"
   | "/guides/uh-manoa-without-parking"
   | "/guides/skyline-rail-guide"
+  | "/guides/skyline-park-and-ride"
   | "/guides/late-night-commuting"
   | "/guides/honolulu-marathon-traffic-2026"
   | "/guides/nalu-vs-google-maps"
@@ -41,6 +42,7 @@ export type GuideSlug =
   | "airport"
   | "uh"
   | "skyline"
+  | "parking"
   | "lateNight"
   | "marathon"
   | "compare"
@@ -89,11 +91,19 @@ export const GUIDES: Record<GuideSlug, GuideMeta> = {
   },
   skyline: {
     path: "/guides/skyline-rail-guide",
-    seoTitle: "Skyline Rail Guide: Hours, Stations, Fares, Parking | Nalu",
+    seoTitle: "Skyline Rail Guide: Hours, Stations and Fares | Nalu",
     description:
-      "Skyline rail on Oʻahu: 13 stations from East Kapolei to Kalihi, trains every 10 minutes most of the day, HOLO fares, free park-and-ride lots and airport access.",
+      "Skyline rail on Oʻahu: 13 stations from East Kapolei to Kalihi, trains every 10 minutes most of the day, HOLO fares, park-and-ride lots and airport access.",
     name: "Skyline rail guide",
     summary: "Hours, all 13 stations with travel times, fares, HOLO cards, parking and luggage.",
+  },
+  parking: {
+    path: "/guides/skyline-park-and-ride",
+    seoTitle: "Skyline Station Parking: All 4 Park-and-Ride Lots | Nalu",
+    description:
+      "Free Skyline park-and-ride lots at Keoneʻae, Honouliuli, Hālawa and Kahauiki: how many stalls each has, where to enter, the 24-hour limit and the train times.",
+    name: "Skyline station parking",
+    summary: "All four free park-and-ride lots: stalls, entrances and train times from each one.",
   },
   lateNight: {
     path: "/guides/late-night-commuting",
@@ -141,6 +151,7 @@ export const GUIDES_HUB = {
 /** Display order on the hub. */
 export const GUIDE_ORDER: GuideSlug[] = [
   "skyline",
+  "parking",
   "kapolei",
   "ewa",
   "mililani",

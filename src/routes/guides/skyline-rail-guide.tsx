@@ -60,9 +60,9 @@ function SkylineGuidePage() {
   return (
     <GuideLayout
       breadcrumb="Skyline rail guide"
-      title="Skyline rail guide: hours, stations, fares and parking"
+      title="Skyline rail guide: hours, stations and fares"
       faqs={FAQS}
-      related={["airport", "kapolei", "uh"]}
+      related={["parking", "airport", "kapolei"]}
       intro={
         <>
           <p>
@@ -153,6 +153,13 @@ function SkylineGuidePage() {
           Hawaii News Now reported in May 2026 that the Keoneʻae lot fills by around 8 AM on
           weekdays. If you start later, consider Honouliuli, a bus to the station, or being dropped
           off. TheBus does not serve Honouliuli station, so you need to drive or be dropped off there.
+        </p>
+        <p>
+          Entrances, train times from each lot and which lot suits where you start are in{" "}
+          <Link to="/guides/skyline-park-and-ride" className="font-medium text-primary underline underline-offset-4">
+            Skyline station parking
+          </Link>
+          .
         </p>
       </GuideSection>
 

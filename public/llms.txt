@@ -17,6 +17,7 @@ You enter where you're going. Nalu compares a live-traffic driving time with The
 - [Oʻahu roadwork this week: every planned freeway and highway lane closure from the state HDOT schedule, checked about every 30 minutes](https://ridenalu.com/roadwork)
 - [Oʻahu commute guides: Skyline, TheBus and driving (hub)](https://ridenalu.com/guides)
 - [Skyline rail guide: hours, stations, fares, parking](https://ridenalu.com/guides/skyline-rail-guide)
+- [Skyline station parking: the four free park-and-ride lots, stalls, entrances and train times](https://ridenalu.com/guides/skyline-park-and-ride)
 - [Kapolei to downtown Honolulu: drive H-1 or Skyline plus bus](https://ridenalu.com/guides/kapolei-to-downtown)
 - [ʻEwa Beach to downtown Honolulu: bus, rail or drive](https://ridenalu.com/guides/ewa-beach-to-downtown)
 - [Mililani and Central Oʻahu to downtown Honolulu](https://ridenalu.com/guides/mililani-to-town)

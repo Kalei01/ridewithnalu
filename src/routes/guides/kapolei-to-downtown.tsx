@@ -45,7 +45,7 @@ function KapoleiGuidePage() {
       breadcrumb="Kapolei to downtown"
       title="Kapolei to downtown Honolulu: drive, or Skyline and the bus?"
       faqs={FAQS}
-      related={["skyline", "ewa", "mililani"]}
+      related={["skyline", "parking", "ewa"]}
       intro={
         <p>
           From Kapolei or East Kapolei you can drive H-1 into town, or take Skyline from Kualakaʻi
