@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { removeMapSafely } from "@/lib/leaflet-safe";
 import L from "leaflet";
 
 type WalkingMicroMapProps = {
@@ -60,7 +61,7 @@ export default function WalkingMicroMap({ from, to }: WalkingMicroMapProps) {
     map.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: 16, animate: false });
     window.requestAnimationFrame(() => map.invalidateSize({ animate: false }));
     return () => {
-      map.remove();
+      removeMapSafely(map);
     };
   }, [from.lat, from.lon, from.label, to.lat, to.lon, to.label]);
 

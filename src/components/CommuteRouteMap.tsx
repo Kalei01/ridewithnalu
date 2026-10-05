@@ -1,4 +1,5 @@
 import "./map-2.css";
+import { removeMapSafely } from "@/lib/leaflet-safe";
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { LocateFixed, Map, Maximize, Satellite } from "lucide-react";
@@ -218,7 +219,7 @@ export default function CommuteRouteMap({
 
     return () => {
       resizeObserver.disconnect();
-      map.remove();
+      removeMapSafely(map);
       mapRef.current = null;
       tileLayerRef.current = null;
       routeLayerRef.current = null;

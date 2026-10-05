@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { removeMapSafely } from "@/lib/leaflet-safe";
 import L from "leaflet";
 import { LocateFixed, Map, Maximize, Satellite, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -109,7 +110,7 @@ export default function NearbyTransitMap({
     mapRef.current = map;
 
     return () => {
-      map.remove();
+      removeMapSafely(map);
       mapRef.current = null;
       tileLayerRef.current = null;
       markersRef.current = null;
