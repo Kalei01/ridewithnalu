@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { markWelcomeSeen } from "@/lib/welcome-seen";
+import { tripHref, type GuideDestination } from "./destinations";
 import { Link } from "@tanstack/react-router";
 import { GUIDES, LAST_UPDATED, type GuideSlug } from "./guides";
 import type { GuideFaq } from "./guide-head";
@@ -19,6 +21,7 @@ export function GuideLayout({
   related,
   children,
   showHubCrumb = true,
+  destination,
 }: {
   breadcrumb: string;
   eyebrow?: string;
@@ -29,6 +32,8 @@ export function GuideLayout({
   related: GuideSlug[];
   children: ReactNode;
   showHubCrumb?: boolean;
+  /** Where the "live answer" button starts a trip to, when the guide has one. */
+  destination?: GuideDestination;
 }) {
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -68,7 +73,7 @@ export function GuideLayout({
 
         <div className="mt-10 grid gap-10">{children}</div>
 
-        <OpenNaluCta />
+        <OpenNaluCta destination={destination} />
 
         {faqs.length > 0 && (
           <section className="mt-12" aria-labelledby="faq">
@@ -124,8 +129,14 @@ export function GuideLayout({
   );
 }
 
-/** The one call to action every guide carries. */
-export function OpenNaluCta() {
+/**
+ * The one call to action every guide carries. It goes straight to the planner
+ * (never the introduction), with the guide's trip already started when the
+ * guide has a clear destination.
+ */
+export function OpenNaluCta({ destination }: { destination?: GuideDestination | undefined }) {
+  const className =
+    "liquid-primary-action mt-5 inline-flex min-h-14 items-center justify-center rounded-2xl px-6 text-base font-bold";
   return (
     <section className="mt-12 rounded-2xl border border-border bg-card/60 p-5 sm:p-6" aria-labelledby="open-nalu">
       <h2 id="open-nalu" className="text-xl font-bold">
@@ -135,12 +146,15 @@ export function OpenNaluCta() {
         Nalu checks live traffic and TheBus and Skyline timetables for your exact trip, then tells you
         whether to drive or ride and when to leave. Free, no account needed.
       </p>
-      <Link
-        to="/"
-        className="liquid-primary-action mt-5 inline-flex min-h-14 items-center justify-center rounded-2xl px-6 text-base font-bold"
-      >
-        Open Nalu for your live answer
-      </Link>
+      {destination ? (
+        <a href={tripHref(destination)} onClick={markWelcomeSeen} className={className}>
+          Check your trip to {destination.name}
+        </a>
+      ) : (
+        <Link to="/" onClick={markWelcomeSeen} className={className}>
+          Open Nalu for your live answer
+        </Link>
+      )}
     </section>
   );
 }

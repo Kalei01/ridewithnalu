@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { GUIDES } from "@/components/guides/guides";
+import { DOWNTOWN } from "@/components/guides/destinations";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/components/guides/GuideLayout";
 
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/guides/ewa-beach-to-downtown")({
 function EwaGuidePage() {
   return (
     <GuideLayout
+      destination={DOWNTOWN}
       breadcrumb="ʻEwa Beach to downtown"
       title="ʻEwa Beach to downtown Honolulu: bus, rail or drive"
       faqs={FAQS}

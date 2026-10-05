@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { GUIDES } from "@/components/guides/guides";
+import { UH_MANOA } from "@/components/guides/destinations";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/components/guides/GuideLayout";
 
@@ -53,6 +54,7 @@ export const Route = createFileRoute("/guides/uh-manoa-without-parking")({
 function UhGuidePage() {
   return (
     <GuideLayout
+      destination={UH_MANOA}
       breadcrumb="UH Mānoa without parking"
       title="Getting to UH Mānoa without parking"
       faqs={FAQS}

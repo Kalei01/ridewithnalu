@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { GUIDES } from "@/components/guides/guides";
+import { HNL_AIRPORT } from "@/components/guides/destinations";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/components/guides/GuideLayout";
 
@@ -54,6 +55,7 @@ export const Route = createFileRoute("/guides/honolulu-airport-without-driving")
 function AirportGuidePage() {
   return (
     <GuideLayout
+      destination={HNL_AIRPORT}
       breadcrumb="Airport without driving"
       title="Getting to Honolulu airport (HNL) without driving"
       faqs={FAQS}
