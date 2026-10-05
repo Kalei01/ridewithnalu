@@ -26,7 +26,7 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "Where can I park for Skyline from Mililani?",
-    a: "The city's free park-and-ride lots are at Keoneʻae (UH West Oʻahu), Honouliuli (Hoʻopili) and Hālawa (Aloha Stadium). There is no park-and-ride at Waiawa (Pearl Highlands), so from Mililani a bus or a drop-off to Waiawa is usually simpler.",
+    a: "The city's free park-and-ride lots are at Keoneʻae (UH West Oʻahu), Honouliuli (Hoʻopili), Hālawa (Aloha Stadium) and Kahauiki (Kalihi Transit Center). There is no park-and-ride at Waiawa (Pearl Highlands), so from Mililani a bus or a drop-off to Waiawa is usually simpler.",
   },
 ];
 

@@ -6,8 +6,8 @@ import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/comp
 // Sources (checked October 2026): TheBus GTFS timetable valid Sept 28 to Dec 5, 2026
 // (station order, minutes between stations, first and last trains, frequency, bus
 // connections); thebus.org fare table; City and County of Honolulu Skyline pages
-// (park-and-ride, luggage and bike rules); Hawaii News Now, May 8, 2026 (Keoneʻae
-// parking); Honolulu Star-Advertiser, March 3, 2026 (Segment 3 schedule).
+// (park-and-ride, luggage and bike rules) and station pages (stall counts, checked
+// October 5, 2026); Hawaii News Now, May 8, 2026 (Keoneʻae parking); Honolulu Star-Advertiser, March 3, 2026 (Segment 3 schedule).
 const META = GUIDES.skyline;
 
 const FAQS: GuideFaq[] = [
@@ -25,7 +25,7 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "Where can I park for Skyline?",
-    a: "The city runs free park-and-ride lots for transit riders at Keoneʻae (UH West Oʻahu), Honouliuli (Hoʻopili) and Hālawa (Aloha Stadium) stations, with a 24-hour limit. The Keoneʻae lot has been filling by about 8 AM on weekdays.",
+    a: "The city runs free park-and-ride lots for transit riders at four stations: Keoneʻae (UH West Oʻahu), Honouliuli (Hoʻopili), Hālawa (Aloha Stadium) and Kahauiki (Kalihi Transit Center), with a 24-hour limit. The Keoneʻae lot has been filling by about 8 AM on weekdays.",
   },
   {
     q: "Can I bring a suitcase on Skyline?",
@@ -53,7 +53,7 @@ const STATIONS: Array<[string, string, string, string]> = [
   ["Makalapa (Pearl Harbor–Hickam)", "24", "", ""],
   ["Lelepaua (Daniel K. Inouye International Airport)", "28", "W Line, 40, 42, 51", ""],
   ["Āhua (Lagoon Drive)", "32", "A Line, U Line, W Line, 40, 42, 51", ""],
-  ["Kahauiki (Kalihi Transit Center)", "34", "1, 2, 52, C, 40, 42, 51 and others", ""],
+  ["Kahauiki (Kalihi Transit Center)", "34", "1, 2, 52, C, 40, 42, 51 and others", "Park-and-ride"],
 ];
 
 function SkylineGuidePage() {
@@ -144,14 +144,15 @@ function SkylineGuidePage() {
 
       <GuideSection id="parking" title="Parking at stations">
         <p>
-          The city lists free park-and-ride lots for transit riders at three stations: Keoneʻae
-          (UH West Oʻahu), Honouliuli (Hoʻopili) and Hālawa (Aloha Stadium). Parking is limited to
-          24 hours.
+          The city lists free park-and-ride lots for transit riders at four stations: Keoneʻae
+          (UH West Oʻahu, 304 stalls), Honouliuli (Hoʻopili, 344 stalls), Hālawa (Aloha Stadium,
+          590 stalls) and Kahauiki (Kalihi Transit Center, 95 stalls). Parking is limited to 24
+          hours.
         </p>
         <p>
-          Hawaii News Now reported in May 2026 that the Keoneʻae lot, with a little over 300 stalls,
-          fills by around 8 AM on weekdays. If you start later, consider Honouliuli, a bus to the
-          station, or being dropped off.
+          Hawaii News Now reported in May 2026 that the Keoneʻae lot fills by around 8 AM on
+          weekdays. If you start later, consider Honouliuli, a bus to the station, or being dropped
+          off. TheBus does not serve Honouliuli station, so you need to drive or be dropped off there.
         </p>
       </GuideSection>
 
