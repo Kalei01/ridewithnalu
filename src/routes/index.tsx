@@ -228,6 +228,8 @@ import {
   rainLine,
   sourceFreshnessLabel,
   vehicleName,
+  alternativeOptions,
+  moreTransfersLabel,
 } from "@/lib/commute-model";
 import { SettingsPageId, SetupDialog } from "@/components/settings/SetupDialog";
 import { useRailStations } from "@/hooks/use-rail-stations";
@@ -1231,8 +1233,9 @@ function Index() {
     },
   });
 
-  // Options arrive in earliest-door-arrival order. A slightly later trip is
-  // available by choice, but is never silently preferred.
+  // Options arrive in earliest-door-arrival order, except that trips whose extra
+  // transfers save too little (extraTransfers) come after the simpler ones: the
+  // pick is the earliest simpler trip, and those stay available by choice.
   const earliest = options[0];
   const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null);
   useEffect(() => {
@@ -2179,7 +2182,13 @@ function Index() {
   const arriveByActive = planMode === "arrive-by" && arriveByTarget !== null;
   const arriveByPassed = arriveByActive && arriveByTarget < nowSeconds;
   const transitPick = useMemo(
-    () => (arriveByTarget === null ? null : latestTransitArrival(options, arriveByTarget)),
+    () => {
+      if (arriveByTarget === null) return null;
+      // Prefer trips without transfers that aren't worth it; fall back to them
+      // only when nothing else makes the arrival time.
+      const preferred = latestTransitArrival(options.filter((option) => !option.extraTransfers), arriveByTarget);
+      return preferred.feasible ? preferred : latestTransitArrival(options, arriveByTarget);
+    },
     [options, arriveByTarget],
   );
   const gtfsExpiry = useDataExpiry();
@@ -5403,9 +5412,7 @@ function Index() {
           {selectedMode === "transit" && options.length > 1 && (
             <AlternativeDepartures>
               <ol className="mt-5 grid min-w-0 max-w-full gap-3">
-                {options
-                  .filter((option) => !best || optionIdentity(option) !== optionIdentity(best))
-                  .slice(0, 3)
+                {alternativeOptions(options, best)
                   .map((option, index) => {
                     const arrivalDifference = best
                       ? Math.round((option.arrive_seconds - best.arrive_seconds) / 60)
@@ -5444,6 +5451,9 @@ function Index() {
                                   : arrivalDifference < 0
                                     ? `Arrives ${Math.abs(arrivalDifference)} min earlier than current`
                                     : "Same arrival as current"}
+                                {option.extraTransfers && best
+                                  ? ` · ${moreTransfersLabel(option, best)}`
+                                  : ""}
                               </span>
                             </span>
                             <span className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-border/70 pt-3 text-sm">
@@ -5482,6 +5492,7 @@ function Index() {
                                   />
                                 )}
                                 <span className="shrink-0 font-bold text-foreground">
+                                  {option.legs[0]?.mode === "drive" ? "Drive + " : ""}
                                   {isRailDeparture ? "Rail" : "Bus"}
                                 </span>
                                 <span className="truncate">{vehicleName(primaryTransitLeg)}</span>

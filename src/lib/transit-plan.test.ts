@@ -189,6 +189,25 @@ describe("transit trip planner: drive to the station + Skyline", () => {
     expect(options.some((o) => o.arrive_seconds === 28140)).toBe(true); // the car-free 91 stays
   });
 
+  it("lists a drive + rail trip that saves too little over the bus as an alternative, not the pick", async () => {
+    // Same trip at 6:41 AM: the 91 arrives 8:04; drive to Keoneʻae → Skyline → Route 1 arrives 7:58,
+    // only 6 minutes sooner for an extra transfer. Shown second, never chosen.
+    const NOW_LATER = 24060; // 6:41 AM
+    const bus91Later = { leave_by_seconds: 24360, depart_seconds: 25560, arrive_seconds: 29040, total_minutes: 78, legs: [leg("access", "walk", null, "Your location", "FORT WEAVER RD + RENTON RD", 24360, 25560), leg("connect", "bus", "91", "FORT WEAVER RD + RENTON RD", "S KING ST + BETHEL ST", 25560, 28920), leg("egress", "walk", null, "S KING ST + BETHEL ST", "Your destination", 28920, 29040)] };
+    const driveRailRoute1 = { leave_by_seconds: 24720, depart_seconds: 25320, arrive_seconds: 28680, total_minutes: 66, legs: [leg("access", "drive", null, "Your location", KEONEAE.stop_name, 24720, 25320, KEONEAE.stop_id), leg("rail", "rail", null, KEONEAE.stop_name, "KAHAUIKI KALIHI TRANSIT CENTER STATION", 25320, 27240), leg("connect", "bus", "1", "KAMEHAMEHA HWY + OPP MIDDLE ST", "S HOTEL ST + BETHEL ST", 27480, 28560), leg("egress", "walk", null, "S HOTEL ST + BETHEL ST", "Your destination", 28560, 28680)] };
+    answer({
+      plan_transit_general: ok([bus91Later]),
+      plan_outbound: (args) => (args["p_station"] === KEONEAE.stop_id ? ok([driveRailRoute1]) : ok([])),
+    });
+    driveTime.mockResolvedValue({ trafficMinutes: 12 });
+    const options = await planTransitTrip(trip({ lat: 21.32203, lon: -158.03366 }, NOW_LATER));
+    expect(options[0]?.arrive_seconds).toBe(29040); // the 91 is the pick
+    expect(options[0]?.extraTransfers).toBeUndefined();
+    const alternative = options.find((o) => o.arrive_seconds === 28680);
+    expect(alternative?.extraTransfers).toBe(true); // still listed, 6 min sooner
+    expect(alternative?.legs.map((l) => l.mode)).toEqual(["drive", "rail", "bus", "walk"]);
+  });
+
   it("drops drive-to-station trips when live traffic is unavailable, rather than guessing", async () => {
     planners();
     driveTime.mockResolvedValue(null);

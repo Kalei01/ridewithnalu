@@ -75,6 +75,11 @@ export type Option = {
   arrive_seconds: number;
   total_minutes: number;
   legs: Leg[];
+  /**
+   * Arrives sooner than a simpler trip, but its extra transfers save less than
+   * MIN_SAVING_PER_EXTRA_TRANSFER_MIN each. Shown as an alternative, never the pick.
+   */
+  extraTransfers?: true;
 };
 
 /** Departure time alone is not unique: distinct routes can leave together. */
@@ -85,13 +90,26 @@ export function optionIdentity(option: Option) {
 export function mergeTransitOptions(...groups: Option[][]): Option[] {
   const unique = new Map<string, Option>();
   // Never plan a drive to a station with no park-and-ride lot.
-  const saneOptions = preferFewerTransfers(
-    preferLessWalking(filterTransferSanityOptions(dropDriveToStationsWithoutParking(groups.flat()))),
+  const saneOptions = preferLessWalking(
+    filterTransferSanityOptions(dropDriveToStationsWithoutParking(groups.flat())),
   );
-  for (const option of saneOptions) unique.set(optionIdentity(option), option);
-  return Array.from(unique.values())
-    .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
-    .slice(0, 8);
+  // Trips whose extra transfers don't save enough are kept as alternatives,
+  // listed after the simpler trips so they are never the pick.
+  const preferred = new Set(preferFewerTransfers(saneOptions));
+  for (const option of saneOptions) {
+    const { extraTransfers: _previous, ...plain } = option;
+    unique.set(
+      optionIdentity(option),
+      preferred.has(option) ? plain : { ...plain, extraTransfers: true },
+    );
+  }
+  const byArrival = (a: Option, b: Option) =>
+    a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds;
+  const all = Array.from(unique.values());
+  const simpler = all.filter((option) => !option.extraTransfers).sort(byArrival);
+  const tagged = all.filter((option) => option.extraTransfers).sort(byArrival);
+  // Keep room for the earliest extra-transfer trip so it can still be shown.
+  return [...simpler.slice(0, tagged.length ? 7 : 8), ...tagged].slice(0, 8);
 }
 
 export const STORAGE_KEY = "nalu-setup-v3";
@@ -421,4 +439,32 @@ export function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
   if (source.basis === "future-estimate") label = "Future traffic estimate";
 
   return `${label} · Updated ${age}${source.quality === "stale" ? " · Stale" : ""}`;
+}
+
+const rideCount = (option: Option) =>
+  option.legs.filter((leg) => leg.mode === "bus" || leg.mode === "rail").length;
+
+/** "1 more transfer" for a trip shown as an alternative to `best`. */
+export function moreTransfersLabel(option: Option, best: Option): string {
+  const extra = Math.max(1, rideCount(option) - rideCount(best));
+  return `${extra} more transfer${extra === 1 ? "" : "s"}`;
+}
+
+/**
+ * Up to three alternatives to the trip on screen. The earliest extra-transfer
+ * trip always gets a place, so a faster trip with more transfers is shown
+ * rather than pushed out of sight by simpler ones.
+ */
+export function alternativeOptions(
+  options: Option[],
+  best: Option | null | undefined,
+  limit = 3,
+): Option[] {
+  const others = options.filter(
+    (option) => !best || optionIdentity(option) !== optionIdentity(best),
+  );
+  const shown = others.slice(0, limit);
+  const tagged = others.find((option) => option.extraTransfers);
+  if (!tagged || shown.includes(tagged)) return shown;
+  return [...others.filter((option) => !option.extraTransfers).slice(0, limit - 1), tagged];
 }
