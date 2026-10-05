@@ -148,7 +148,7 @@ export function AccountSection({ compact = false }: { compact?: boolean }) {
             </Button>
           )}
           {/* Email sign-in needs a real email service (Supabase alone sends only
-              2 emails an hour). Hidden until VITE_EMAIL_SIGN_IN=true is set. */}
+              2 emails an hour). Sent through Resend; VITE_EMAIL_SIGN_IN=true turns it on. */}
           {emailSignInAvailable && (
           <details open={!compact} className="border-t border-border pt-3">
             <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Use email instead</summary>
