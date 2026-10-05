@@ -1,7 +1,7 @@
 import { LegalFooter } from "@/components/LegalFooter";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { HDOT_OAHU_ROADWORK_URL } from "@/lib/hdot-lane-closures.functions";
-import { directionLabel, groupRoadwork } from "@/lib/roadwork";
+import { directionLabel, groupRoadwork, tidyClosure } from "@/lib/roadwork";
 import { getOahuRoadwork } from "@/lib/roadwork.functions";
 import { SITE_URL } from "@/lib/site";
 
@@ -140,19 +140,30 @@ function RoadworkPage() {
               {group.code ? <span className="ml-2 text-base font-medium text-muted-foreground">({group.code})</span> : null}
             </h2>
             <ul className="mt-4 grid gap-3">
-              {group.closures.map((closure, index) => (
-                <li key={`${closure.location}-${index}`} className="rounded-2xl border border-border p-4">
-                  <p className="text-lg font-semibold leading-7">
-                    {[directionLabel(closure.direction), closure.location].filter(Boolean).join(" · ")}
-                  </p>
-                  <p className="mt-1 text-base leading-7">
-                    {closure.laneSummary} · {closure.schedule}
-                  </p>
-                  {closure.work ? (
-                    <p className="mt-1 text-base leading-7 text-muted-foreground">For {closure.work}</p>
-                  ) : null}
-                </li>
-              ))}
+              {group.closures.map((closure, index) => {
+                const tidy = tidyClosure(closure);
+                return (
+                  <li key={`${closure.location}-${index}`} className="rounded-2xl border border-border p-4">
+                    <p className="text-base font-semibold text-muted-foreground">
+                      {[tidy.place, directionLabel(closure.direction)].filter(Boolean).join(" · ")}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold leading-7">{tidy.what}</p>
+                    <p className="mt-1 text-base leading-7">
+                      {tidy.lanes} · {tidy.when}
+                    </p>
+                    {tidy.why || tidy.link ? (
+                      <p className="mt-1 text-base leading-7 text-muted-foreground">
+                        {tidy.why ? <>For {tidy.why.charAt(0).toLowerCase() + tidy.why.slice(1)}. </> : null}
+                        {tidy.link ? (
+                          <a href={tidy.link} className="font-semibold text-primary underline underline-offset-4" rel="noopener nofollow">
+                            More details
+                          </a>
+                        ) : null}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         ))}
