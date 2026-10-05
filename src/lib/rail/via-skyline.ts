@@ -112,8 +112,12 @@ export async function planViaSkyline(input: {
       toRadiusM: 400,
       limit: 3,
     });
-    // The two earliest ways to reach the station are enough to find the next trains.
-    const firsts = [...toStation].sort((a, b) => a.arrive_seconds - b.arrive_seconds).slice(0, 2);
+    // The two earliest arrival times at the station are enough to find the next
+    // trains; ways in that arrive at the same minute would repeat the same search.
+    const firsts = [...toStation]
+      .sort((a, b) => a.arrive_seconds - b.arrive_seconds || b.leave_by_seconds - a.leave_by_seconds)
+      .filter((option, index, sorted) => index === 0 || option.arrive_seconds !== sorted[index - 1]!.arrive_seconds)
+      .slice(0, 2);
     const joined = await Promise.all(
       firsts.map(async (first) => {
         const onward = await input.search({

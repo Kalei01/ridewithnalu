@@ -71,3 +71,16 @@ describe("bus → Skyline → bus", () => {
     expect(failing).toEqual([]);
   });
 });
+
+describe("bridge search cost", () => {
+  it("searches onward once per distinct station arrival time", async () => {
+    const sameArrival = { ...toStation, leave_by_seconds: toStation.leave_by_seconds + 300 };
+    const search = vi.fn(async ({ to }: { to: { lat: number } }) =>
+      to.lat === Number(KAHAUIKI.stop_lat) ? [toStation, sameArrival] : [fromStation],
+    );
+    const trips = await planViaSkyline({ origin: DOWNTOWN, destination: EWA_BEACH, stations: STATIONS, afterSeconds: 61200, walkRadiusM: 1600, search });
+    expect(search).toHaveBeenCalledTimes(2);
+    // Of two ways in arriving together, keep the one that leaves later.
+    expect(trips[0]?.leave_by_seconds).toBe(sameArrival.leave_by_seconds);
+  });
+});
