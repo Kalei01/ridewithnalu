@@ -136,7 +136,7 @@ export function GuideLayout({
  */
 export function OpenNaluCta({ destination }: { destination?: GuideDestination | undefined }) {
   const className =
-    "liquid-primary-action mt-5 inline-flex min-h-14 items-center justify-center rounded-2xl px-6 text-base font-bold";
+    "liquid-primary-action mt-5 inline-flex min-h-14 items-center justify-center rounded-2xl px-6 text-center text-base font-bold";
   return (
     <section className="mt-12 rounded-2xl border border-border bg-card/60 p-5 sm:p-6" aria-labelledby="open-nalu">
       <h2 id="open-nalu" className="text-xl font-bold">
