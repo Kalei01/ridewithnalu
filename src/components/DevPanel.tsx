@@ -140,6 +140,21 @@ export function DevPanel() {
                 <p className="text-xs text-muted-foreground">
                   Accounts {usage.accounts} (+{usage.new_accounts_week} this week) · paying {usage.paying}
                 </p>
+                {usage.weekly_by_ref && Object.keys(usage.weekly_by_ref).length > 0 && (
+                  <div className="mt-3 border-t border-border pt-2">
+                    <p className="text-xs font-semibold">Where this week's users came from</p>
+                    <ul className="mt-1 grid gap-0.5 text-xs text-muted-foreground">
+                      {Object.entries(usage.weekly_by_ref)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([ref, n]) => (
+                          <li key={ref} className="flex justify-between tabular-nums">
+                            <span>{ref === "direct" ? "No link tag" : `?ref=${ref}`}</span>
+                            <span>{n}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="mt-1 text-sm text-muted-foreground">Counting…</p>

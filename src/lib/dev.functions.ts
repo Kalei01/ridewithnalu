@@ -80,6 +80,8 @@ export type UsageStats = {
   accounts: number;
   new_accounts_week: number;
   paying: number;
+  /** Weekly users by the first link tag they arrived with; "direct" means no tag. */
+  weekly_by_ref?: Record<string, number>;
 };
 
 /** Developer-only: weekly users, sign-ups and paying count. */

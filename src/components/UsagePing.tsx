@@ -6,6 +6,7 @@ import { useRealTier } from "@/hooks/use-tier";
 import { debugDeviceId } from "@/lib/debug-log";
 import { honoluluDateKey } from "@/lib/commute-formatting";
 import { recordAppOpen } from "@/lib/usage.functions";
+import { captureRef } from "@/lib/ref-source";
 
 const KEY = "nalu-counted-day-v1";
 /** Set once an owner signs in on this phone, so it's never counted again. */
@@ -35,6 +36,8 @@ export function UsagePing() {
       .catch(() => undefined);
   }, [user?.id]);
   useEffect(() => {
+    // Remember the link tag right away, before the URL changes.
+    const ref = captureRef();
     const day = honoluluDateKey(new Date());
     let counted: string | null = null;
     try {
@@ -45,7 +48,7 @@ export function UsagePing() {
     if (counted === `${day}|${tier}`) return;
     const timer = window.setTimeout(() => {
       if (ownerPhone()) return;
-      void record({ data: { device: debugDeviceId(), tier } })
+      void record({ data: { device: debugDeviceId(), tier, ...(ref ? { ref } : {}) } })
         .then(() => {
           try {
             window.localStorage.setItem(KEY, `${day}|${tier}`);
