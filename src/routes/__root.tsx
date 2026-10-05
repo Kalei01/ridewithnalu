@@ -27,6 +27,8 @@ import { AuthProvider, useAuth } from "../hooks/use-auth";
 import { Toaster } from "../components/ui/sonner";
 import { initGoogleAnalytics, trackGooglePageView } from "../lib/google-analytics";
 import { onAnalyticsConsentChange } from "../lib/analytics";
+import { WelcomeLanding } from "../components/welcome/WelcomeLanding";
+import { RETURNING_VISITOR_SCRIPT, hasSeenWelcome, introductionHidden, markIntroductionShown } from "../lib/welcome-seen";
 
 function NotFoundComponent() {
   return (
@@ -92,6 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/icons/nalu-icon.svg", type: "image/svg+xml" },
       { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png", sizes: "180x180" },
     ],
+    scripts: [{ children: RETURNING_VISITOR_SCRIPT }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -101,7 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head><HeadContent /></head>
       <body>{children}<Scripts /></body>
     </html>
@@ -137,8 +140,6 @@ function RootComponent() {
   );
 }
 
-export const WELCOME_SEEN_KEY = "nalu-welcome-seen-v1";
-
 const PUBLIC_PAGES = new Set(["/welcome", "/install", "/oahu-commute", "/roadwork", "/privacy", "/terms", "/disclaimer"]);
 
 /** Pages anyone (and any search engine) can read without the app's sign-in check. */
@@ -147,45 +148,42 @@ export function isPublicContentPath(pathname: string): boolean {
   return PUBLIC_PAGES.has(path) || path === "/guides" || path.startsWith("/guides/");
 }
 
+function LoadingScreen() {
+  return (
+    <main className="min-h-[100dvh] bg-background text-foreground" aria-label="Loading Nalu">
+      <div className="mx-auto flex min-h-[100dvh] max-w-5xl items-center justify-center px-5">
+        <div className="max-w-sm text-center">
+          <p className="text-2xl font-black tracking-tight">Nalu</p>
+          <p className="mt-2 text-base text-muted-foreground">
+            Drive, TheBus or Skyline: the fastest way across Oʻahu right now, and when to leave.
+          </p>
+          <p className="mt-4 text-sm text-muted-foreground">Getting things ready…</p>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 function AppRouteGate() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const router = useRouter();
   const { user, loading } = useAuth();
-  // A shared trip link opens the trip itself, not the Welcome page. Read once:
-  // the trip screen removes the link from the address bar right after.
-  const [sharedTrip] = useState(
-    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("to"),
-  );
+  // A shared trip link opens the trip itself, not the introduction. Read once,
+  // after hydration (the server can't see it): the trip screen removes the
+  // link from the address bar right after. The head script hides the
+  // introduction for these links until then.
+  const [sharedTrip, setSharedTrip] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("to")) setSharedTrip(true);
+  }, []);
   // null = not yet read from storage (avoids hydration mismatch)
   const [welcomeSeen, setWelcomeSeen] = useState<boolean | null>(null);
 
   useEffect(() => {
-    let seen = true;
-    try {
-      seen = window.localStorage.getItem(WELCOME_SEEN_KEY) === "1";
-    } catch {
-      seen = true;
-    }
+    const seen = hasSeenWelcome();
     setWelcomeSeen(seen);
+    // Recorded here, after reading, because a child's effect would run first.
+    if (!seen && pathname === "/" && !introductionHidden()) markIntroductionShown();
   }, [pathname]);
-
-  useEffect(() => {
-    // Browse is the signed-in home, but Welcome remains directly accessible.
-    // This lets signed-in users revisit the public product introduction from Settings.
-
-    // First visit for a signed-out user shows Welcome once; afterwards "/" opens Browse.
-    if (!loading && !user && welcomeSeen === false && pathname === "/" && !sharedTrip) {
-      try {
-        if (window.localStorage.getItem(WELCOME_SEEN_KEY) === "1") {
-          setWelcomeSeen(true);
-          return;
-        }
-      } catch {
-        /* fall through */
-      }
-      void router.navigate({ to: "/welcome", replace: true });
-    }
-  }, [loading, user, welcomeSeen, pathname, router, sharedTrip]);
 
   useEffect(() => {
     initGoogleAnalytics();
@@ -201,29 +199,26 @@ function AppRouteGate() {
   // engines and AI assistants an empty "Getting things ready" screen.
   if (isPublicContentPath(pathname)) return <Outlet />;
 
-  const routingToWelcome = pathname === "/" && welcomeSeen !== true && !sharedTrip;
-  if (loading || routingToWelcome) {
+  // A first signed-out visit to "/" shows the introduction in place, with no
+  // redirect, so search engines and new visitors get a real page at "/".
+  // While the browser hasn't been checked yet (always the case on the server),
+  // the introduction is rendered; the head script swaps it for the loading
+  // screen in a returning visitor's browser, so they never see it flash.
+  const showIntroduction = pathname === "/" && !sharedTrip && !user && welcomeSeen !== true;
+  if (showIntroduction) {
     return (
-      <main className="min-h-[100dvh] bg-background text-foreground" aria-label="Loading Nalu">
-        <div className="mx-auto flex min-h-[100dvh] max-w-5xl items-center justify-center px-5">
-          <div className="max-w-sm text-center">
-            <h1 className="text-2xl font-black tracking-tight">Nalu</h1>
-            <p className="mt-2 text-base text-muted-foreground">
-              Drive, TheBus or Skyline: the fastest way across Oʻahu right now, and when to leave.
-            </p>
-            <p className="mt-4 text-sm text-muted-foreground">Getting things ready…</p>
-            <p className="mt-6 text-sm">
-              <a href="/welcome" className="underline underline-offset-4">What Nalu does</a>
-              {" · "}
-              <a href="/guides" className="underline underline-offset-4">Oʻahu commute guides</a>
-              {" · "}
-              <a href="/roadwork" className="underline underline-offset-4">Roadwork this week</a>
-            </p>
-          </div>
+      <>
+        <div className="nalu-returning-only">
+          <LoadingScreen />
         </div>
-      </main>
+        <div className="nalu-first-visit-only">
+          <WelcomeLanding onStart={() => setWelcomeSeen(true)} markSeenOnMount={false} />
+        </div>
+      </>
     );
   }
+
+  if (loading) return <LoadingScreen />;
 
   return <Outlet />;
 }

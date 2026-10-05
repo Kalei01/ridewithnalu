@@ -251,24 +251,22 @@ const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 
 import { planTransitTrip } from "@/lib/transit-plan";
 
+const HOME_TITLE = "Nalu: Drive, TheBus or Skyline? Oʻahu Commute App";
+const HOME_DESCRIPTION =
+  "Free Oʻahu commute app: Nalu checks live traffic, TheBus and Skyline for your trip and tells you whether to drive or ride, and when to leave.";
+
 /** One shared empty list, so memos keyed on stations stay stable before they load. */
 const NO_STATIONS: import("@/lib/commute-model").RailStation[] = [];
 
 export const Route = createFileRoute("/")({
+  // First-time visitors and search engines see the introduction here (see
+  // AppRouteGate in __root.tsx); returning visitors get the app.
   head: () => ({
     meta: [
-      { title: "Nalu | Rail or drive on Oʻahu?" },
-      {
-        name: "description",
-        content:
-          "Rail or drive? Compare Skyline, TheBus, and traffic for your Oʻahu commute. Nalu helps you choose and arrive on time.",
-      },
-      { property: "og:title", content: "Nalu | Rail or drive on Oʻahu?" },
-      {
-        property: "og:description",
-        content:
-          "Ride it. Drive it. Just go. Nalu checks Oʻahu traffic, TheBus and Skyline and tells you what to take and when to leave.",
-      },
+      { title: HOME_TITLE },
+      { name: "description", content: HOME_DESCRIPTION },
+      { property: "og:title", content: HOME_TITLE },
+      { property: "og:description", content: HOME_DESCRIPTION },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Nalu" },
       { property: "og:url", content: SITE_URL + "/" },
@@ -277,12 +275,8 @@ export const Route = createFileRoute("/")({
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Nalu | Rail or drive on Oʻahu?" },
-      {
-        name: "twitter:description",
-        content:
-          "Ride it. Drive it. Just go. The Oʻahu commute answer for TheBus, Skyline and driving.",
-      },
+      { name: "twitter:title", content: HOME_TITLE },
+      { name: "twitter:description", content: HOME_DESCRIPTION },
       { name: "twitter:image", content: SITE_URL + "/social-card.png" },
     ],
     links: [{ rel: "canonical", href: SITE_URL + "/" }],
@@ -291,18 +285,41 @@ export const Route = createFileRoute("/")({
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          name: "Nalu",
-          url: SITE_URL + "/",
-          image: SITE_URL + "/social-card.png",
-          description: "Nalu compares rail, bus, and driving for Oʻahu commutes.",
-          applicationCategory: "TravelApplication",
-          operatingSystem: "Web",
-          areaServed: { "@type": "Place", name: "Oʻahu, Hawaiʻi" },
-          featureList: [
-            "Skyline and TheBus trip planning",
-            "Drive and transit comparison",
-            "Arrive By planning",
+          "@graph": [
+            {
+              "@type": "WebSite",
+              "@id": SITE_URL + "/#website",
+              name: "Nalu",
+              url: SITE_URL + "/",
+              description: "An Oʻahu commute app that tells you whether to drive or take TheBus or Skyline, and when to leave.",
+            },
+            {
+              "@type": "Organization",
+              "@id": SITE_URL + "/#organization",
+              name: "Nalu",
+              url: SITE_URL + "/",
+              logo: SITE_URL + "/icons/icon-512.png",
+            },
+            {
+              "@type": "SoftwareApplication",
+              "@id": SITE_URL + "/#app",
+              name: "Nalu",
+              url: SITE_URL + "/",
+              image: SITE_URL + "/social-card.png",
+              description: HOME_DESCRIPTION,
+              applicationCategory: "TravelApplication",
+              operatingSystem: "Web",
+              areaServed: { "@type": "Place", name: "Oʻahu, Hawaiʻi" },
+              isAccessibleForFree: true,
+              offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+              publisher: { "@id": SITE_URL + "/#organization" },
+              featureList: [
+                "Drive or transit decision for your trip",
+                "When to leave, and time-to-leave alerts",
+                "TheBus and Skyline trip planning with transfers",
+                "Arrive By planning",
+              ],
+            },
           ],
         }),
       },

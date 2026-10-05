@@ -677,3 +677,16 @@ a[href*="lovable.dev"][class*="badge"],
 @media (prefers-reduced-motion: reduce) {
   .nalu-live-bus { animation: none; }
 }
+
+/* First visit to "/" (see AppRouteGate): the introduction is server-rendered;
+   the head script marks returning visitors so they see the loading screen
+   instead of a flash of the introduction. */
+.nalu-returning-only {
+  display: none;
+}
+html[data-nalu-returning] .nalu-returning-only {
+  display: block;
+}
+html[data-nalu-returning] .nalu-first-visit-only {
+  display: none;
+}
