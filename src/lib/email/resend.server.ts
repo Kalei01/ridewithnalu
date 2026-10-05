@@ -1,4 +1,4 @@
-import { FROM, type RenderedEmail } from "./layout";
+import { FROM, REPLY_TO, type RenderedEmail } from "./layout";
 
 export type SendResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -12,6 +12,8 @@ export async function sendEmail(to: string, email: RenderedEmail, unsubUrl: stri
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: FROM,
+        // Replies reach a real inbox (hello@ forwards to the owner through Cloudflare).
+        reply_to: REPLY_TO,
         to: [to],
         subject: email.subject,
         html: email.html,

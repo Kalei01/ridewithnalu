@@ -8100,10 +8100,10 @@ function AboutSection() {
         Contact
       </p>
       <a
-        href="mailto:HelloNalu14@gmail.com"
+        href="mailto:hello@ridenalu.com"
         className="mt-2 inline-block text-sm text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
       >
-        HelloNalu14@gmail.com
+        hello@ridenalu.com
       </a>
       <Button
         type="button"
@@ -8235,7 +8235,7 @@ function FeedbackForm({
           {sent && <p className="text-xs text-muted-foreground">Thanks, we read everything.</p>}
           {failed && (
             <p className="text-xs text-muted-foreground">
-              Couldn't send · try HelloNalu14@gmail.com
+              Couldn't send · try hello@ridenalu.com
             </p>
           )}
         </div>
