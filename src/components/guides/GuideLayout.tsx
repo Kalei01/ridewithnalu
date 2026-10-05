@@ -205,10 +205,13 @@ export function GuideList({ items }: { items: ReactNode[] }) {
 
 /** Simple responsive table; scrolls inside its own box on narrow phones. */
 export function GuideTable({ caption, head, rows }: { caption: string; head: string[]; rows: ReactNode[][] }) {
+  // The caption sits outside the scrolling box so it never gets clipped when a
+  // wide table scrolls sideways on a phone.
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full min-w-[20rem] border-collapse text-left text-base">
-        <caption className="px-4 pt-3 text-left text-base font-semibold text-foreground">{caption}</caption>
+    <figure className="rounded-2xl border border-border">
+      <figcaption className="px-4 pt-3 text-base font-semibold text-foreground">{caption}</figcaption>
+      <div className="overflow-x-auto">
+      <table aria-label={caption} className="w-full min-w-[20rem] border-collapse text-left text-base">
         <thead>
           <tr className="border-b border-border">
             {head.map((cell) => (
@@ -236,7 +239,8 @@ export function GuideTable({ caption, head, rows }: { caption: string; head: str
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </figure>
   );
 }
 
