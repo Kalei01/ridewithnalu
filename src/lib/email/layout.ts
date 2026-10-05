@@ -12,7 +12,7 @@ export const REPLY_TO = "hello@ridenalu.com";
  * US email law (CAN-SPAM) needs a postal address in marketing emails.
  * Empty until the owner picks one (a PO box works); see needsAddress().
  */
-export const MAILING_ADDRESS = "";
+export const MAILING_ADDRESS = "91-1160 Kamakana Street, ʻEwa Beach, HI 96706";
 
 /** One row in a list: a bold title, an optional line under it, and an optional "when" line. */
 export type EmailItem = { title: string; body?: string; meta?: string };

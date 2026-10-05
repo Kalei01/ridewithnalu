@@ -1,0 +1,34 @@
+name: IndexNow
+
+# After a deploy, tell Bing (and the other IndexNow search engines) which
+# pages exist, so new and updated pages are picked up within hours, not weeks.
+# ChatGPT search and Microsoft Copilot use Bing's index.
+on:
+  push:
+    branches: [cloudflare]
+    paths: ["public/sitemap.xml", "src/routes/**", "public/llms*.txt"]
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for this commit to be live
+        run: |
+          short=$(git rev-parse --short=7 HEAD)
+          for i in $(seq 1 40); do
+            curl -fsS https://ridenalu.com/api/public/version | grep -q "$short" && exit 0
+            sleep 20
+          done
+          echo "Deploy not live after 13 minutes; pinging anyway."
+      - name: Send sitemap URLs to IndexNow
+        env:
+          INDEXNOW_KEY: "d752ec682ab5808d9b0b7cef0c7ba834"
+        run: |
+          urls=$(grep -o '<loc>[^<]*</loc>' public/sitemap.xml | sed 's#</\?loc>##g' | python3 -c "import json,sys;print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))")
+          body=$(python3 -c "import json,os,sys;print(json.dumps({'host':'ridenalu.com','key':os.environ['INDEXNOW_KEY'],'keyLocation':'https://ridenalu.com/'+os.environ['INDEXNOW_KEY']+'.txt','urlList':json.loads(sys.argv[1])}))" "$urls")
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST https://api.indexnow.org/indexnow -H 'Content-Type: application/json; charset=utf-8' -d "$body")
+          echo "IndexNow answered HTTP $code"
+          case "$code" in 200|202) ;; *) exit 1 ;; esac
