@@ -400,12 +400,14 @@ export function WeeklyDigestCard() {
         {digest.trips} trip{digest.trips === 1 ? "" : "s"} ({digest.driveTrips} drive,{" "}
         {digest.transitTrips} transit) · about {digest.averageMinutes} min each.
       </p>
-      <p className="mt-1 text-sm text-primary">
-        {digest.minutesSaved > 0
-          ? `Picking the faster mode saved you about ${digest.minutesSaved} min.`
-          : "Your picks matched the faster option all week."}
-      </p>
-      <p className="mt-2 text-xs text-muted-foreground">Calculated on this device only.</p>
+      {digest.minutesSaved > 0 ? (
+        <p className="mt-1 text-sm text-primary">
+          Picking the faster way saved you about {digest.minutesSaved} min, based on Nalu's estimates when you left.
+        </p>
+      ) : digest.comparedTrips > 0 ? (
+        <p className="mt-1 text-sm text-muted-foreground">No time difference to report this week.</p>
+      ) : null}
+      <p className="mt-2 text-xs text-muted-foreground">Calculated on this phone. With Nalu emails on, only these totals (never places) are sent for your Sunday email.</p>
     </section>
   );
 }

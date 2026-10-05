@@ -2,6 +2,7 @@ import { DevPanel } from "@/components/DevPanel";
 import { startAutoUpdate } from "@/lib/app-update";
 import { UpgradeSheet } from "@/components/UpgradeSheet";
 import { UsagePing } from "@/components/UsagePing";
+import { WeeklyStatsSync } from "@/components/WeeklyStatsSync";
 import { startErrorReporting } from "@/lib/sentry-client";
 import { NotificationPrompt } from "@/components/NotificationPrompt";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -119,6 +120,7 @@ function RootComponent() {
         <DevPanel />
         <UpgradeSheet />
         <UsagePing />
+        <WeeklyStatsSync />
         <Toaster
           position="top-center"
           richColors

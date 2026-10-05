@@ -23,6 +23,7 @@ import { Route as ApiPublicLeaveAlertsRouteImport } from './routes/api/public/le
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push-dispatch'
 import { Route as ApiPublicUnsubscribeRouteImport } from './routes/api/public/unsubscribe'
 import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
+import { Route as ApiPublicWeeklyEmailRouteImport } from './routes/api/public/weekly-email'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -94,6 +95,11 @@ const ApiPublicVersionRoute = ApiPublicVersionRouteImport.update({
   path: '/api/public/version',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWeeklyEmailRoute = ApiPublicWeeklyEmailRouteImport.update({
+  id: '/api/public/weekly-email',
+  path: '/api/public/weekly-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/unsubscribe': typeof ApiPublicUnsubscribeRoute
   '/api/public/version': typeof ApiPublicVersionRoute
+  '/api/public/weekly-email': typeof ApiPublicWeeklyEmailRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/unsubscribe': typeof ApiPublicUnsubscribeRoute
   '/api/public/version': typeof ApiPublicVersionRoute
+  '/api/public/weekly-email': typeof ApiPublicWeeklyEmailRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/unsubscribe': typeof ApiPublicUnsubscribeRoute
   '/api/public/version': typeof ApiPublicVersionRoute
+  '/api/public/weekly-email': typeof ApiPublicWeeklyEmailRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/api/public/push-dispatch'
     | '/api/public/unsubscribe'
     | '/api/public/version'
+    | '/api/public/weekly-email'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/api/public/push-dispatch'
     | '/api/public/unsubscribe'
     | '/api/public/version'
+    | '/api/public/weekly-email'
   id:
     | '__root__'
     | '/'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/api/public/push-dispatch'
     | '/api/public/unsubscribe'
     | '/api/public/version'
+    | '/api/public/weekly-email'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicUnsubscribeRoute: typeof ApiPublicUnsubscribeRoute
   ApiPublicVersionRoute: typeof ApiPublicVersionRoute
+  ApiPublicWeeklyEmailRoute: typeof ApiPublicWeeklyEmailRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -312,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicVersionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/weekly-email': {
+      id: '/api/public/weekly-email'
+      path: '/api/public/weekly-email'
+      fullPath: '/api/public/weekly-email'
+      preLoaderRoute: typeof ApiPublicWeeklyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -330,6 +350,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicUnsubscribeRoute: ApiPublicUnsubscribeRoute,
   ApiPublicVersionRoute: ApiPublicVersionRoute,
+  ApiPublicWeeklyEmailRoute: ApiPublicWeeklyEmailRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

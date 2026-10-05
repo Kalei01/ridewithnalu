@@ -320,3 +320,46 @@ export function bigDayEmail(event: BigDayEvent): EmailContent {
     ps: "Whether you're going to the event or just getting to work, Nalu can help you find the easiest way there.",
   };
 }
+
+/** Weekly totals the phone sends; the same numbers as the in-app "Your week" card. */
+export type WeekStats = {
+  trips: number;
+  driveTrips: number;
+  transitTrips: number;
+  minutesSaved: number;
+  averageMinutes: number;
+};
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** Sunday evening: a short look back at the rider's week with Nalu. */
+export function weekWithNaluEmail(stats: WeekStats): EmailContent {
+  const saved = stats.minutesSaved > 0;
+  const split = [
+    stats.driveTrips ? `${stats.driveTrips} by car` : null,
+    stats.transitTrips ? `${stats.transitTrips} by bus or rail` : null,
+  ].filter(Boolean);
+  const items: EmailItem[] = [
+    { title: plural(stats.trips, "trip", "trips"), ...(split.length ? { body: split.join(", ") } : {}) },
+    { title: `About ${plural(stats.averageMinutes, "minute", "minutes")} per trip`, body: "From start to finish, on average" },
+  ];
+  if (saved) {
+    items.push({
+      title: `About ${plural(stats.minutesSaved, "minute", "minutes")} saved`,
+      body: "Compared with the other option, based on Nalu's estimates when you left",
+    });
+  }
+  return {
+    subject: saved
+      ? `Your week with Nalu: about ${plural(stats.minutesSaved, "minute", "minutes")} saved`
+      : `Your week with Nalu: ${plural(stats.trips, "trip", "trips")}`,
+    preheader: "A quick look at the trips you took with Nalu this week.",
+    heading: "Your week with Nalu",
+    intro: "Here's a quick look at the trips you took with Nalu this week.",
+    lists: [{ title: "This week", items }],
+    outro: "Nalu only counts trips you start and end in the app, so your real total may be higher.",
+    button: { label: "Plan my next trip", url: `${SITE}/?ref=email_weekly` },
+    signoff: ["Have a good week ahead,", TEAM],
+    ps: "These totals are worked out on your phone. Nalu receives only the numbers, never where you went.",
+  };
+}

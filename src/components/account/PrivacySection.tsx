@@ -46,6 +46,11 @@ export function PrivacySection() {
         </li>
         <li>Home, work and other saved addresses are never included in usage stats.</li>
         <li>
+          If you turn on Nalu emails, your phone sends only weekly trip totals (number of trips,
+          average length, minutes saved) for your Sunday email, never places. Totals are deleted
+          after 8 weeks.
+        </li>
+        <li>
           Traffic and route lookups send only the start and end points needed to plan the trip.
         </li>
         <li>

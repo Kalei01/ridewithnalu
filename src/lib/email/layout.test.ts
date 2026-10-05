@@ -181,3 +181,21 @@ describe("big day email", () => {
     expect(html).toContain('href="https://example.org/closures"');
   });
 });
+
+describe("weekly time-saved email", () => {
+  it("leads with minutes saved when there are some", async () => {
+    const { weekWithNaluEmail, renderEmail, unsubscribeUrl } = await import("./layout");
+    const content = weekWithNaluEmail({ trips: 4, driveTrips: 3, transitTrips: 1, minutesSaved: 25, averageMinutes: 32 });
+    expect(content.subject).toBe("Your week with Nalu: about 25 minutes saved");
+    const email = renderEmail(content, unsubscribeUrl("3f2b8c1e-0000-4000-8000-000000000001"));
+    expect(email.text).toContain("3 by car, 1 by bus or rail");
+    expect(email.text).toContain("based on Nalu's estimates when you left");
+  });
+
+  it("doesn't mention savings when there were none", async () => {
+    const { weekWithNaluEmail } = await import("./layout");
+    const content = weekWithNaluEmail({ trips: 1, driveTrips: 1, transitTrips: 0, minutesSaved: 0, averageMinutes: 28 });
+    expect(content.subject).toBe("Your week with Nalu: 1 trip");
+    expect(JSON.stringify(content)).not.toContain("saved");
+  });
+});

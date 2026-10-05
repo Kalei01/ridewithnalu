@@ -53,3 +53,33 @@ export const setEmailOptIn = createServerFn({ method: "POST" })
     }
     return { on: row.opted_in, welcomeSent: sent.ok };
   });
+
+const statsSchema = z.object({
+  week: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  trips: z.number().int().min(0).max(500),
+  driveTrips: z.number().int().min(0).max(500),
+  transitTrips: z.number().int().min(0).max(500),
+  minutesSaved: z.number().int().min(0).max(10000),
+  averageMinutes: z.number().int().min(0).max(1440),
+});
+
+/**
+ * The phone's weekly totals for the Sunday email. Numbers only, never places.
+ * The database keeps them only if this rider turned emails on.
+ */
+export const saveWeeklyStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => statsSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const rpc = await adminRpc();
+    const { data: saved } = await rpc("weekly_stats_save", {
+      p_user: context.userId,
+      p_week: data.week,
+      p_trips: data.trips,
+      p_drive: data.driveTrips,
+      p_transit: data.transitTrips,
+      p_saved: data.minutesSaved,
+      p_average: data.averageMinutes,
+    });
+    return { saved: saved === true };
+  });
