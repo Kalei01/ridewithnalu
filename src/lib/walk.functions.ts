@@ -1,5 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
+import { rateLimit } from "./rate-limit.server";
 import { z } from "zod";
+
+// Per-visitor limits on paid lookups (see rate-limit.server.ts).
+const walkLimit = rateLimit("walk", 150);
 
 const schema = z.object({
   fromLat: z.number(),
@@ -16,6 +20,7 @@ export const WALK_LIMIT_MINUTES = 20;
  * is a real estimate, not a straight line. Null when unavailable.
  */
 export const walkTime = createServerFn({ method: "POST" })
+  .middleware([walkLimit])
   .validator((input) => schema.parse(input))
   .handler(async ({ data }): Promise<{ minutes: number; meters: number } | null> => {
     const key = process.env["TOMTOM_API_KEY"] ?? "";

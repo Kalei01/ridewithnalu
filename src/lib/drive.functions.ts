@@ -1,9 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
+import { rateLimit } from "./rate-limit.server";
 import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
 import { incidentAffectsTrip, localRoadName } from "./traffic-incidents";
 import { lookupHdotLaneClosureRoutes, type HdotLaneClosureRoute, type HdotScheduledClosure, lookupHdotScheduledClosures } from "./hdot-lane-closures.functions";
+
+// Per-visitor limits on paid lookups (see rate-limit.server.ts).
+const driveLimit = rateLimit("drive", 150);
 
 function tomtomKey() {
   return process.env["TOMTOM_API_KEY"] ?? "";
@@ -256,6 +260,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
 }
 
 export const driveTime = createServerFn({ method: "POST" })
+  .middleware([driveLimit])
   .validator((input) => schema.parse(input))
   .handler(async ({ data }) => lookupDriveTime(data));
 

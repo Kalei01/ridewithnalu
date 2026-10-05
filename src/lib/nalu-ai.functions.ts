@@ -1,8 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
+import { rateLimit } from "./rate-limit.server";
 import { z } from "zod";
 import { lookupDriveTime } from "./drive.functions";
 import { createMorningPulseVerdict } from "./intelligence/morning-pulse-verdict";
 import { isRailGeographicallyRelevant } from "./intelligence/pulse-geography";
+
+// Per-visitor limits on paid lookups (see rate-limit.server.ts).
+const aiLimit = rateLimit("ai", 40);
 
 const point = z.object({
   lat: z.number().min(21).max(22),
@@ -23,6 +27,7 @@ export const naluAiStatus = createServerFn({ method: "GET" }).handler(async () =
 
 /** Nalu Morning Pulse: two calm sentences about the rider's usual commute. */
 export const morningPulse = createServerFn({ method: "POST" })
+  .middleware([aiLimit])
   .inputValidator((input) =>
     z
       .object({
@@ -180,6 +185,7 @@ export const morningPulse = createServerFn({ method: "POST" })
   });
 
 export const eveningPulse = createServerFn({ method: "POST" })
+  .middleware([aiLimit])
   .inputValidator((input) =>
     z
       .object({
@@ -319,6 +325,7 @@ export const eveningPulse = createServerFn({ method: "POST" })
 
 /** Ask Nalu: natural-language, multi-stop trip planning. */
 export const askNalu = createServerFn({ method: "POST" })
+  .middleware([aiLimit])
   .inputValidator((input) =>
     z.object({
       query: z.string().min(4).max(400),
@@ -338,6 +345,7 @@ export const askNalu = createServerFn({ method: "POST" })
 
 /** Beat the Rush: is congestion building faster than usual on this commute? */
 export const rushOutlook = createServerFn({ method: "POST" })
+  .middleware([aiLimit])
   .inputValidator((input) => z.object({ from: globalPoint, to: globalPoint }).parse(input))
   .handler(async ({ data }) => {
     const ai = await import("./nalu-ai.server");
@@ -363,6 +371,7 @@ export const rushOutlook = createServerFn({ method: "POST" })
 
 /** Mid-commute rescue: evaluate alternate corridors and a Skyline hub when delay spikes. */
 export const rescueAdvice = createServerFn({ method: "POST" })
+  .middleware([aiLimit])
   .inputValidator((input) =>
     z
       .object({

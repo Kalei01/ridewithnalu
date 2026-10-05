@@ -1,6 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
+import { rateLimit } from "./rate-limit.server";
 import { REGIONS, type RegionId } from "./region";
 import { z } from "zod";
+
+// Per-visitor limits on paid lookups (see rate-limit.server.ts).
+const geocodeLimit = rateLimit("geocode", 150);
+const searchLimit = rateLimit("search", 300);
+const reverseLimit = rateLimit("reverse", 150);
 
 const regionField = z.enum(["oahu", "sf"]).optional();
 const schema = z.object({ address: z.string().min(3).max(200), region: regionField });
@@ -96,6 +102,7 @@ async function tomtomSearch(
 
 /** Geocodes free text inside Oahu, preferring named places for non-address queries. */
 export const geocodeAddress = createServerFn({ method: "POST" })
+  .middleware([geocodeLimit])
   .validator((input) => schema.parse(input))
   .handler(async ({ data }) => {
     const key = TOMTOM_KEY ?? "";
@@ -205,6 +212,7 @@ function autocompleteSearchQuery(query: string) {
   return normalized;
 }
 export const searchPlaces = createServerFn({ method: "POST" })
+  .middleware([searchLimit])
   .validator((input) => searchSchema.parse(input))
   .handler(async ({ data }): Promise<{ results: PlaceSuggestion[] }> => {
     const key = TOMTOM_KEY ?? "";
@@ -339,6 +347,7 @@ const reverseSchema = z.object({ lat: z.number(), lon: z.number() });
  * confirm the exact spot the phone detected before saving it.
  */
 export const reverseGeocode = createServerFn({ method: "POST" })
+  .middleware([reverseLimit])
   .validator((input) => reverseSchema.parse(input))
   .handler(async ({ data }): Promise<{ found: boolean; label: string | null }> => {
     const key = TOMTOM_KEY ?? "";

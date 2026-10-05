@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import { rateLimit } from "./rate-limit.server";
 import { z } from "zod";
 import { localPulseClock } from "./intelligence/pulse-time";
+
+// Per-visitor limits on paid lookups (see rate-limit.server.ts).
+const pulseLimit = rateLimit("pulse", 150);
 
 const coordinate = z.object({
   lat: z.number().min(-90).max(90),
@@ -59,6 +63,7 @@ async function resolveTimeZone(point: z.infer<typeof coordinate>, fallbackTimeZo
 }
 
 export const pulseClocks = createServerFn({ method: "POST" })
+  .middleware([pulseLimit])
   .inputValidator((input) => inputSchema.parse(input))
   .handler(async ({ data }) => {
     const [homeZone, workZone] = await Promise.all([
