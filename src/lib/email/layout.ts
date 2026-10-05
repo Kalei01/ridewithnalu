@@ -5,7 +5,7 @@
  */
 export const SITE = "https://ridenalu.com";
 export const LOGO_URL = `${SITE}/icons/icon-192.png`;
-export const FROM = "Nalu <noreply@ridenalu.com>";
+export const FROM = "Nalu <hello@ridenalu.com>";
 export const REPLY_TO = "hello@ridenalu.com";
 
 /**
