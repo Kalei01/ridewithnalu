@@ -1,4 +1,4 @@
-import { MAILING_ADDRESS, renderEmail, unsubscribeUrl, weekWithNaluEmail } from "./layout";
+import { renderEmail, unsubscribeUrl, weekWithNaluEmail } from "./layout";
 import { honoluluWeekStart } from "@/lib/trip-log";
 
 type Rpc = (name: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
@@ -18,7 +18,6 @@ export const WEEKLY_BATCH = 80;
 
 /** Sunday evening: send "Your week with Nalu" to riders who opted in and took a trip. */
 export async function sendWeeklyEmails(now = Date.now()) {
-  if (!MAILING_ADDRESS) return { skipped: "mailing address not set", sent: 0, failed: 0 };
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { sendEmail } = await import("./resend.server");
   const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as Rpc;

@@ -1,4 +1,4 @@
-import { FROM, REPLY_TO, type RenderedEmail } from "./layout";
+import { FROM, REPLY_TO, canSendMarketing, type RenderedEmail } from "./layout";
 
 export type SendResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -31,4 +31,10 @@ export async function sendEmail(to: string, email: RenderedEmail, unsubUrl: stri
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Resend request failed" };
   }
+}
+
+/** For marketing emails only: refuses to send until a postal address is set. */
+export async function sendMarketingEmail(to: string, email: RenderedEmail, unsubUrl: string): Promise<SendResult> {
+  if (!canSendMarketing()) return { ok: false, error: "Marketing emails need a postal address (MAILING_ADDRESS)" };
+  return sendEmail(to, email, unsubUrl);
 }

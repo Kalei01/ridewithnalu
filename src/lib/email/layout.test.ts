@@ -199,3 +199,16 @@ describe("weekly time-saved email", () => {
     expect(JSON.stringify(content)).not.toContain("saved");
   });
 });
+
+describe("account vs marketing emails", () => {
+  it("keeps marketing emails off while no postal address is set", async () => {
+    const { canSendMarketing, MAILING_ADDRESS } = await import("./layout");
+    expect(canSendMarketing()).toBe(MAILING_ADDRESS.trim().length > 0);
+  });
+
+  it("keeps the weekly summary free of promotion", async () => {
+    const { weekWithNaluEmail } = await import("./layout");
+    const content = weekWithNaluEmail({ trips: 2, driveTrips: 2, transitTrips: 0, minutesSaved: 10, averageMinutes: 30 });
+    expect(content.button.label).toBe("Open Nalu");
+  });
+});

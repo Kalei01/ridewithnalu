@@ -9,10 +9,17 @@ export const FROM = "Nalu <hello@ridenalu.com>";
 export const REPLY_TO = "hello@ridenalu.com";
 
 /**
- * US email law (CAN-SPAM) needs a postal address in marketing emails.
- * Empty until the owner picks one (a PO box works); see needsAddress().
+ * US email law (CAN-SPAM) requires a postal address only in marketing emails.
+ * Nalu currently sends account emails only (sign-in, welcome, the rider's own
+ * weekly summary), which don't need one. Marketing emails (big-day heads-ups,
+ * news) stay off until this is set to a PO box; see canSendMarketing().
  */
-export const MAILING_ADDRESS = "91-1160 Kamakana Street, ʻEwa Beach, HI 96706";
+export const MAILING_ADDRESS = "";
+
+/** Marketing emails (bigDayEmail, weekAheadEmail, announcements) need a postal address first. */
+export function canSendMarketing(): boolean {
+  return MAILING_ADDRESS.trim().length > 0;
+}
 
 /** One row in a list: a bold title, an optional line under it, and an optional "when" line. */
 export type EmailItem = { title: string; body?: string; meta?: string };
@@ -235,7 +242,7 @@ export type RoadClosure = { road: string; where: string; when: string };
 /** Longer weeks get a "plus N more" line instead of a wall of text. */
 export const WEEK_LIST_MAX = 6;
 
-/** Sunday "your week ahead" email. Draft: not wired to sending yet. */
+/** Sunday "your week ahead" email. Marketing: send only when canSendMarketing(). Draft, not wired yet. */
 export function weekAheadEmail(closures: RoadClosure[]): EmailContent {
   const shared = {
     button: { label: "See my route", url: `${SITE}/?ref=email_week` },
@@ -289,7 +296,7 @@ export type BigDayEvent = {
   infoUrl?: string;
 };
 
-/** Heads-up before a big traffic day. Draft: not wired to sending yet. */
+/** Heads-up before a big traffic day. Marketing: send only when canSendMarketing(). Draft, not wired yet. */
 export function bigDayEmail(event: BigDayEvent): EmailContent {
   const where = event.area ? ` around ${event.area}` : "";
   const name = event.name.charAt(0).toUpperCase() + event.name.slice(1);
@@ -333,7 +340,10 @@ export type WeekStats = {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** Sunday evening: a short look back at the rider's week with Nalu. */
+/**
+ * Sunday evening: the rider's own weekly summary. Kept as a plain account
+ * summary (their numbers, no promotion), so it needs no postal address.
+ */
 export function weekWithNaluEmail(stats: WeekStats): EmailContent {
   const saved = stats.minutesSaved > 0;
   const split = [
@@ -359,7 +369,7 @@ export function weekWithNaluEmail(stats: WeekStats): EmailContent {
     intro: "Here's a quick look at the trips you took with Nalu this week.",
     lists: [{ title: "This week", items }],
     outro: "Nalu only counts trips you start and end in the app, so your real total may be higher.",
-    button: { label: "Plan my next trip", url: `${SITE}/?ref=email_weekly` },
+    button: { label: "Open Nalu", url: `${SITE}/?ref=email_weekly` },
     signoff: ["Have a good week ahead,", TEAM],
     ps: "These totals are worked out on your phone. Nalu receives only the numbers, never where you went.",
   };
