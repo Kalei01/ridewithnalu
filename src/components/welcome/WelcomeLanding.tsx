@@ -158,8 +158,8 @@ export function WelcomeLanding({
               ))}
             </ul>
             <p className="mt-4 text-sm text-muted-foreground">
-              Driving includes parking at the other end. Without a car, the bus still gets you
-              there.
+              The drive includes about 10 minutes to park and walk in downtown. Without a car, the
+              bus still gets you there.
             </p>
           </div>
         </section>

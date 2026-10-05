@@ -141,7 +141,7 @@ describe("turn-by-turn voice", () => {
 describe("destination access", () => {
   it("gives downtown a larger buffer than home", () => {
     expect(destinationAccess({ lat: 21.309, lon: -157.862 }).zone).toBe("downtown");
-    expect(destinationAccess({ lat: 21.35, lon: -158.0 }, "home").typicalMin).toBe(1);
+    expect(destinationAccess({ lat: 21.35, lon: -158.0 }, "home").typicalMin).toBe(0);
   });
   it("shortens downtown parking at night and on Sundays, not in Waikiki", () => {
     const weekdayMorning = new Date("2026-10-06T18:30:00Z"); // Tue 8:30 AM HST
@@ -151,10 +151,21 @@ describe("destination access", () => {
     expect(destinationAccess(downtown, null, weekdayMorning).typicalMin).toBe(10);
     expect(destinationAccess(downtown, null, weekdayNight).typicalMin).toBe(4);
     expect(destinationAccess(downtown, null, sundayNoon).typicalMin).toBe(4);
-    expect(destinationAccess({ lat: 21.278, lon: -157.828 }, null, weekdayNight).typicalMin).toBe(10);
-    expect(destinationAccess({ lat: 21.4, lon: -158.0 }, null, weekdayMorning).typicalMin).toBe(2);
+    expect(destinationAccess({ lat: 21.278, lon: -157.828 }, null, weekdayNight).typicalMin).toBe(
+      10,
+    );
+    expect(destinationAccess({ lat: 21.4, lon: -158.0 }, null, weekdayMorning).typicalMin).toBe(0);
   });
-  it("builds a door-to-door window", () => {
+  it("adds nothing for a home in Mānoa: the drive time is the driving time", () => {
+    // 3380 Mānoa Road, a weekday morning.
+    const manoa = destinationAccess(
+      { lat: 21.3213, lon: -157.80498 },
+      null,
+      new Date("2026-10-06T18:00:00Z"),
+    );
+    expect([manoa.lowMin, manoa.typicalMin, manoa.highMin]).toEqual([0, 0, 0]);
+  });
+  it("builds an arrival window", () => {
     const access = destinationAccess({ lat: 21.309, lon: -157.862 });
     const range = arrivalRange(0, { low: 30, expected: 33, high: 38 }, access);
     expect(range.earliestSeconds).toBe((30 + 7) * 60);
@@ -215,36 +226,29 @@ describe("context-aware voice timing", () => {
   });
 });
 
-
 describe("voice suppression", () => {
   it("stays silent while GPS accuracy is poor", () => {
     const guide = new VoiceGuide({ stabilizeMs: 0, cooldownMs: 0 });
     guide.sync([turn]);
-    expect(
-      guide.next({ maneuver: turn, distanceM: 200 }, 1_000, { gpsAccuracyM: 41 }),
-    ).toBeNull();
-    expect(
-      guide.next({ maneuver: turn, distanceM: 200 }, 2_000, { gpsAccuracyM: 20 }),
-    ).toMatch(/700 feet/);
+    expect(guide.next({ maneuver: turn, distanceM: 200 }, 1_000, { gpsAccuracyM: 41 })).toBeNull();
+    expect(guide.next({ maneuver: turn, distanceM: 200 }, 2_000, { gpsAccuracyM: 20 })).toMatch(
+      /700 feet/,
+    );
   });
 
   it("stays silent when the accepted GPS fix is stale", () => {
     const guide = new VoiceGuide({ stabilizeMs: 0, cooldownMs: 0 });
     guide.sync([turn]);
-    expect(
-      guide.next({ maneuver: turn, distanceM: 200 }, 10_000, { fixAgeMs: 5_001 }),
-    ).toBeNull();
-    expect(
-      guide.next({ maneuver: turn, distanceM: 200 }, 11_000, { fixAgeMs: 1_000 }),
-    ).toMatch(/700 feet/);
+    expect(guide.next({ maneuver: turn, distanceM: 200 }, 10_000, { fixAgeMs: 5_001 })).toBeNull();
+    expect(guide.next({ maneuver: turn, distanceM: 200 }, 11_000, { fixAgeMs: 1_000 })).toMatch(
+      /700 feet/,
+    );
   });
 
   it("stays silent while rerouting", () => {
     const guide = new VoiceGuide({ stabilizeMs: 0, cooldownMs: 0 });
     guide.sync([turn]);
-    expect(
-      guide.next({ maneuver: turn, distanceM: 200 }, 1_000, { rerouting: true }),
-    ).toBeNull();
+    expect(guide.next({ maneuver: turn, distanceM: 200 }, 1_000, { rerouting: true })).toBeNull();
   });
 });
 

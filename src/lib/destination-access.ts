@@ -1,20 +1,16 @@
 /**
- * Door-to-door access buffers: the time between the car stopping moving and
- * the commuter actually standing at the door (garage queue, circling for a
- * stall, elevator, walk from the structure). Road time never includes this.
+ * Parking allowances: the time between the car stopping and the commuter
+ * standing at the door (garage queue, circling for a stall, elevator, walk
+ * from the structure), only in the areas where that genuinely takes time.
+ * Road time never includes this. Transit trips already count their walk from
+ * the stop, so a drive downtown counts its walk from the garage.
  *
  * Zones are coarse Oʻahu geography, not route or station data.
  */
 
 import { regionTimeZone } from "@/lib/region";
 export type AccessZone =
-  | "downtown"
-  | "kakaako-ala-moana"
-  | "waikiki"
-  | "campus"
-  | "urban"
-  | "suburban"
-  | "residential";
+  "downtown" | "kakaako-ala-moana" | "waikiki" | "campus" | "urban" | "suburban" | "residential";
 
 export type DestinationAccess = {
   zone: AccessZone;
@@ -40,9 +36,13 @@ const BUFFERS: Record<AccessZone, Omit<DestinationAccess, "zone">> = {
   campus: { label: "Campus parking & walk", lowMin: 7, typicalMin: 10, highMin: 13 },
   "kakaako-ala-moana": { label: "Parking structure & walk", lowMin: 5, typicalMin: 7, highMin: 10 },
   waikiki: { label: "Waikīkī parking & walk", lowMin: 7, typicalMin: 10, highMin: 14 },
-  urban: { label: "Parking & walk", lowMin: 2, typicalMin: 4, highMin: 6 },
-  suburban: { label: "Surface lot & walk", lowMin: 1, typicalMin: 2, highMin: 4 },
-  residential: { label: "Park at the door", lowMin: 0, typicalMin: 1, highMin: 1 },
+  // Everywhere else the car parks at or near the door (a driveway, the
+  // street, a store's own lot), so nothing is added: the drive time is the
+  // live driving time, the same thing map apps show. Adding a few minutes
+  // "just in case" here inflated drives to homes across Honolulu.
+  urban: { label: "Park at your destination", lowMin: 0, typicalMin: 0, highMin: 0 },
+  suburban: { label: "Park at your destination", lowMin: 0, typicalMin: 0, highMin: 0 },
+  residential: { label: "Park at the door", lowMin: 0, typicalMin: 0, highMin: 0 },
 };
 
 // Nights (before 6 AM, from 6 PM) and Sundays: downtown, campus and Kakaʻako

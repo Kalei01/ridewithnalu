@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { directionLabel, groupRoadwork } from "./roadwork";
+import { directionLabel, groupRoadwork, roadworkSummary } from "./roadwork";
 
 const closure = (route: string, location = "somewhere") => ({
   route,
@@ -27,6 +27,20 @@ describe("roadwork page grouping", () => {
     ]);
     expect(groups[0]?.closures).toHaveLength(2);
     expect(groups[1]?.code).toBe("H-201");
+  });
+
+  it("sums the week up in one line for Browse, freeways first", () => {
+    expect(
+      roadworkSummary([
+        closure("Kamehameha Highway"),
+        closure("H-1", "a"),
+        closure("H-201"),
+        closure("H-1", "b"),
+        closure("Farrington Highway"),
+      ]),
+    ).toBe("5 planned closures · H-1, Moanalua Freeway, Farrington Highway and 1 more");
+    expect(roadworkSummary([closure("H-2")])).toBe("1 planned closure · H-2");
+    expect(roadworkSummary([])).toBe("No planned lane closures listed");
   });
 
   it("capitalizes directions", () => {

@@ -39,6 +39,7 @@ import {
   type TripChoiceKey,
 } from "@/components/commute/TripChoiceCards";
 import { needsCar, parkingNote, transitChoices, tripSteps } from "@/lib/trip-choices";
+import { RoadworkTile } from "@/components/commute/RoadworkTile";
 import { TransitItinerary } from "@/components/commute/TransitItinerary";
 import { DriveDetails } from "@/components/commute/DriveDetails";
 import { AlternativeDepartures } from "@/components/commute/AlternativeDepartures";
@@ -2479,7 +2480,7 @@ function Index() {
     : null;
   const driveBufferNote =
     driveAccess.highMin > 0
-      ? `Arrival includes about ${driveAccess.typicalMin} min to park and walk in (estimate)`
+      ? `Includes about ${driveAccess.typicalMin} min to park and walk in`
       : null;
   const driveWindow = driveArrival
     ? `${clockFromSeconds(driveArrival.earliestSeconds)} – ${clockFromSeconds(driveArrival.latestSeconds)}`
@@ -2909,7 +2910,7 @@ function Index() {
       title: "Drive",
       steps: drive?.corridorLabel
         ? `Via ${drive.corridorLabel.replace(/^Via\s+/i, "")}`
-        : "Door to door",
+        : "Driving",
       minutes: driveChoiceMinutes,
       timeLabel:
         arriveByActive && drivePlan
@@ -2927,6 +2928,12 @@ function Index() {
         driveTripEstimate.availability === "car-unavailable"
           ? (carAwayReason ?? "No car for this trip")
           : "Can’t check traffic right now",
+      note:
+        driveTripEstimate.expectedDurationMinutes !== null &&
+        driveDoorToDoorMinutes !== null &&
+        driveDoorToDoorMinutes > driveTripEstimate.expectedDurationMinutes
+          ? `${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes)} of driving, plus about ${Math.round(driveDoorToDoorMinutes - driveTripEstimate.expectedDurationMinutes)} min to park and walk in.`
+          : null,
       pick: naluPick === "drive",
       locked: lockedChoice === "drive",
     },
@@ -4552,6 +4559,7 @@ function Index() {
                     </p>
                   </div>
                 </details>
+                <RoadworkTile className="sm:col-span-2" />
               </div>
             </>
           )}
@@ -5465,8 +5473,8 @@ function Index() {
                     driveDoorToDoorMinutes !== null &&
                     driveDoorToDoorMinutes > driveTripEstimate.expectedDurationMinutes && (
                       <p className="mt-2 text-sm text-muted-foreground">
-                        Door to door: {Math.round(driveTripEstimate.expectedDurationMinutes)} min
-                        driving in live traffic, plus about{" "}
+                        {Math.round(driveTripEstimate.expectedDurationMinutes)} min of driving in
+                        live traffic, plus about{" "}
                         {Math.round(
                           driveDoorToDoorMinutes - driveTripEstimate.expectedDurationMinutes,
                         )}{" "}
