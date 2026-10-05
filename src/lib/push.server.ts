@@ -88,7 +88,7 @@ export async function sendToSubscription(
     const lovableKey = process.env["LOVABLE_API_KEY"];
     const connectionKey = process.env["FIREBASE_MESSAGING_API_KEY"];
     if (!lovableKey || !connectionKey) throw new Error("Push notifications are not configured.");
-    response = await fetch(`${GATEWAY_URL}/v1/projects/_/messages:send`, {
+    response = await fetch(`${GATEWAY_URL}/v1/projects/_/messages:send`, { signal: AbortSignal.timeout(8000),
       method: "POST",
       headers: {
         Authorization: `Bearer ${lovableKey}`,

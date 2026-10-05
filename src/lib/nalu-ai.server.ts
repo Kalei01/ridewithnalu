@@ -56,6 +56,8 @@ export function friendlyAiError(error: unknown): string {
 
 export async function aiObject<T extends z.ZodTypeAny>(system: string, prompt: string, schema: T) {
   const result = streamText({
+    // A stuck AI request shouldn't hold the answer open forever.
+    abortSignal: AbortSignal.timeout(30_000),
     model: model(),
     system,
     prompt,
@@ -82,6 +84,7 @@ export async function geocodeOahu(query: string): Promise<(Pt & { label: string 
   });
   const res = await fetch(
     `https://api.tomtom.com/search/2/search/${encodeURIComponent(query)}.json?${params}`,
+    { signal: AbortSignal.timeout(5000) },
   );
   if (!res.ok) throw new Error(`Place search failed (${res.status}).`);
   const body = (await res.json()) as {
@@ -209,7 +212,7 @@ async function trafficIncidentsForRoute(routePoints: Pt[], key: string): Promise
   });
 
   try {
-    const response = await fetch("https://api.tomtom.com/traffic/services/5/incidentDetails?" + params.toString());
+    const response = await fetch("https://api.tomtom.com/traffic/services/5/incidentDetails?" + params.toString(), { signal: AbortSignal.timeout(6000) });
     if (!response.ok) {
       console.warn("[traffic] incident lookup failed", response.status);
       return [];
@@ -293,7 +296,7 @@ export async function routeOptions(
     instructionPhonetics: "ipa",
   };
 
-  const res = await fetch(url, {
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000),
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -637,6 +640,8 @@ export async function runAskNalu(
     minute: "2-digit",
   }).format(new Date());
   const result = streamText({
+    // A stuck AI request shouldn't hold the answer open forever.
+    abortSignal: AbortSignal.timeout(30_000),
     model: model(),
     stopWhen: stepCountIs(50),
     system:

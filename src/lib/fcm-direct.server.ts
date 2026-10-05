@@ -78,7 +78,7 @@ async function accessToken(sa: ServiceAccount, nowMs: number): Promise<string> {
   if (cachedToken && cachedToken.email === sa.client_email && cachedToken.expiresAt > nowMs) {
     return cachedToken.token;
   }
-  const response = await fetch(TOKEN_URL, {
+  const response = await fetch(TOKEN_URL, { signal: AbortSignal.timeout(8000),
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({

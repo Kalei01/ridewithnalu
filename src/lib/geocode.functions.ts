@@ -77,7 +77,7 @@ async function tomtomSearch(
         ...params,
       });
       const url = `https://api.tomtom.com/search/2/${endpoint}/${encodeURIComponent(query)}.json?${search}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (!response.ok) {
         const body = await response.text();
         console.error(`TomTom ${endpoint} failed [${response.status}]: ${body}`);
@@ -352,7 +352,7 @@ export const reverseGeocode = createServerFn({ method: "POST" })
         `https://api.tomtom.com/search/2/reverseGeocode/${data.lat},${data.lon}.json` +
         `?key=${key}&radius=100&language=en-US`;
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
         if (!response.ok) {
           console.error(`TomTom reverse geocode failed [${response.status}]`);
           return { found: false, label: null };

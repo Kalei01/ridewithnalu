@@ -27,7 +27,7 @@ export function startAutoUpdate() {
     checking = true;
     lastCheck = Date.now();
     try {
-      const response = await fetch("/api/public/version", { cache: "no-store" });
+      const response = await fetch("/api/public/version", { signal: AbortSignal.timeout(5000), cache: "no-store" });
       if (!response.ok) return;
       const { build } = (await response.json()) as { build?: string };
       if (build && build !== BUILD_ID && !onTrip()) window.location.reload();

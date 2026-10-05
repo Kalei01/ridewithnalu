@@ -7,7 +7,7 @@ export async function sendEmail(to: string, email: RenderedEmail, unsubUrl: stri
   const key = process.env["RESEND_API_KEY"];
   if (!key) return { ok: false, error: "RESEND_API_KEY is not set" };
   try {
-    const response = await fetch("https://api.resend.com/emails", {
+    const response = await fetch("https://api.resend.com/emails", { signal: AbortSignal.timeout(8000),
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({

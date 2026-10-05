@@ -109,7 +109,7 @@ async function getHourly(lat: number, lon: number): Promise<HourlyPeriod[] | nul
       const headers = { "User-Agent": USER_AGENT, Accept: "application/geo+json" };
       const pointsResponse = await fetch(
         `https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,
-        { headers },
+        { signal: AbortSignal.timeout(5000), headers },
       );
       if (!pointsResponse.ok) return null;
       const pointsPayload = (await pointsResponse.json()) as {
@@ -118,7 +118,7 @@ async function getHourly(lat: number, lon: number): Promise<HourlyPeriod[] | nul
       const hourlyUrl = pointsPayload.properties?.forecastHourly;
       if (!hourlyUrl) return null;
 
-      const hourlyResponse = await fetch(hourlyUrl, { headers });
+      const hourlyResponse = await fetch(hourlyUrl, { signal: AbortSignal.timeout(5000), headers });
       if (!hourlyResponse.ok) return null;
       const hourlyPayload = (await hourlyResponse.json()) as {
         properties?: { periods?: HourlyPeriod[] };
@@ -165,7 +165,7 @@ async function getAir(lat: number, lon: number): Promise<AirQuality | null> {
       const url =
         `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json` +
         `&latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&distance=25&API_KEY=${apiKey}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (!response.ok) return null;
       const payload = (await response.json()) as Array<{
         Category?: { Number?: number };

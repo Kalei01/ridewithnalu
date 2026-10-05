@@ -135,7 +135,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       instructionPhonetics: "ipa",
     };
 
-    const response = await fetch(routeUrl, {
+    const response = await fetch(routeUrl, { signal: AbortSignal.timeout(8000),
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -172,7 +172,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     let typicalSeconds = trafficSeconds;
     if (!data.departureTime) {
       try {
-        const historicalResponse = await fetch(routeUrl, {
+        const historicalResponse = await fetch(routeUrl, { signal: AbortSignal.timeout(8000),
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -279,7 +279,7 @@ async function fetchIncidents(
     `&fields=${encodeURIComponent(fields)}&language=en-GB&timeValidityFilter=present`;
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!response.ok) {
       console.error(`TomTom incidents failed [${response.status}]: ${await response.text()}`);
       return { onRoute: [], offRoute: [] };

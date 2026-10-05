@@ -84,7 +84,7 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
     timed("place search (TomTom)", async () => {
       if (!tomtomKey) return { ok: false, detail: "TOMTOM_API_KEY not set" };
       const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent("Ala Moana Center")}.json?key=${tomtomKey}&countrySet=US&limit=1&topLeft=21.75,-158.35&btmRight=21.20,-157.60`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!response.ok) return { ok: false, detail: `TomTom returned ${response.status}` };
       const payload = (await response.json()) as { results?: unknown[] };
       return { ok: (payload.results?.length ?? 0) > 0, detail: `${payload.results?.length ?? 0} results` };
@@ -93,7 +93,7 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
       if (!mapboxToken) return { ok: false, detail: "map key missing from the build" };
       const response = await fetch(
         `https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1?access_token=${mapboxToken}`,
-        { headers: { Referer: "https://ridenalu.com/" } },
+        { signal: AbortSignal.timeout(8000), headers: { Referer: "https://ridenalu.com/" } },
       );
       return response.ok
         ? { ok: true, detail: "map style loads" }

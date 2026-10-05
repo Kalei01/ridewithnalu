@@ -23,7 +23,7 @@ export const walkTime = createServerFn({ method: "POST" })
     const points = `${data.fromLat},${data.fromLon}:${data.toLat},${data.toLon}`;
     const url = `https://api.tomtom.com/routing/1/calculateRoute/${points}/json?travelMode=pedestrian&routeType=shortest&key=${key}`;
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!response.ok) {
         console.warn(`[walk] TomTom pedestrian routing returned ${response.status}`);
         return null;

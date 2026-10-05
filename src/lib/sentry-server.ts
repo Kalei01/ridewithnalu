@@ -21,7 +21,7 @@ export async function reportServerError(error: unknown, where: string) {
   try {
     const { endpoint, auth } = storeUrl(DSN);
     const err = error instanceof Error ? error : new Error(String(error));
-    await fetch(endpoint, {
+    await fetch(endpoint, { signal: AbortSignal.timeout(3000),
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Sentry-Auth": auth },
       body: JSON.stringify({

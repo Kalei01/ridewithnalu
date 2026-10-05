@@ -30,7 +30,7 @@ async function resolveTimeZone(point: z.infer<typeof coordinate>, fallbackTimeZo
       const url =
         `https://api.tomtom.com/search/2/reverseGeocode/${point.lat},${point.lon}.json` +
         `?key=${encodeURIComponent(key)}&radius=100&language=en-US&dateTime=${encodeURIComponent(new Date().toISOString())}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (!response.ok) {
         console.warn("[pulse-time] TomTom timezone lookup failed", response.status);
         return { timezone: fallbackTimeZone, source: "fallback" as const };
