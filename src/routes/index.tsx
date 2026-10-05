@@ -3525,56 +3525,6 @@ function Index() {
     }
   }
 
-  async function quickStartRoutine() {
-    if (!gate.tripCheck()) return;
-    const routineTarget =
-      findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
-    if (routineTarget) {
-      recordTripOpen(
-        honoluluParts(now).hour >= 12 || honoluluParts(now).hour < 5
-          ? "home"
-          : routineTarget.kind === "custom"
-            ? routineTarget.id
-            : routineTarget.kind,
-      );
-    }
-    if (alertPrefs.sound) primeChimeAudio();
-    requestCommuteNotificationPermission();
-    void refreshTrafficNow();
-    const home = findByKind(savedPlaces, "home");
-    const destination =
-      findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
-    if (!home || !destination) {
-      setOnboardingOpen(true);
-      return;
-    }
-    let stops: Awaited<ReturnType<typeof findTripStops>>;
-    try {
-      stops = await findTripStops(home, destination);
-    } catch (error) {
-      console.error("Quick start stop lookup failed", error);
-      stops = { rail: undefined, out: undefined, back: undefined };
-    }
-    const { rail, out, back } = stops;
-    saveSetup({
-      ...emptySetup,
-      homeStopId: rail?.stop_id ?? "",
-      homeStopName: rail?.stop_name ?? "",
-      homeLat: home.lat,
-      homeLon: home.lon,
-      destinationName: destination.name,
-      destinationAddress: destination.address,
-      destLat: destination.lat,
-      destLon: destination.lon,
-      destStopId: out?.stop_id ?? "",
-      destStopName: out?.stop_name ?? "",
-      destStopWalkM: Number(out?.distance_m ?? 0),
-      destReturnStopId: back?.stop_id ?? "",
-      destReturnStopName: back?.stop_name ?? "",
-      destReturnWalkM: Number(back?.distance_m ?? 0),
-    });
-    chooseDirection(honoluluParts(now).hour >= 12);
-  }
 
   async function quickStartSavedPlace(slot: string, options: { auto?: boolean } = {}) {
     if (!options.auto && !gate.tripCheck()) return;
@@ -3823,12 +3773,6 @@ function Index() {
       Math.max(eastboundTraffic?.delayMinutes ?? 0, westboundTraffic?.delayMinutes ?? 0) > 10;
 
     const profileName = profileFirstName(user);
-    // Routine window: work mornings (5:00 AM–11:59 AM), home from noon on —
-    // overnight hours count as heading home.
-    const routineHour = honoluluParts(now).hour;
-    const routineInbound = routineHour >= 12 || routineHour < 5;
-    const routineDestination =
-      findByKind(savedPlaces, "work") ?? savedPlaces.find((place) => place.kind !== "home") ?? null;
     return (
       <main className="browse-radiance min-h-dvh px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
         <div className="mx-auto flex w-full max-w-[440px] flex-col">
@@ -3880,20 +3824,7 @@ function Index() {
 
           <CommutePageNav current="browse" onBrowse={() => setPageView("browse")} />
 
-          {activeRegion().hasTransit && findByKind(savedPlaces, "home") && routineDestination && (
-            <button
-              type="button"
-              onClick={() => void quickStartRoutine()}
-              className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/10 px-3.5 py-3 text-left shadow-sm backdrop-blur-md transition-colors hover:bg-primary/15"
-            >
-              <span className="truncate text-sm font-semibold text-foreground">
-                {routineInbound ? "Head Home" : `Head to ${routineDestination.label}`}
-              </span>
-              <span className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
-                Start
-              </span>
-            </button>
-          )}
+          {/* The Home/Work shortcut cards below already start these trips in one tap. */}
 
           <DataExpiryNotice />
           {!online && (

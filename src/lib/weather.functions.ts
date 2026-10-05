@@ -53,6 +53,13 @@ type HourlyPeriod = {
 };
 
 const forecastCache = new Map<string, { at: number; periods: HourlyPeriod[] }>();
+/** NWS grid lookups ("points") almost never change, so skip that slow step for a day. */
+const POINTS_TTL_MS = 24 * 60 * 60_000;
+const pointsCache = new Map<string, { at: number; hourlyUrl: string }>();
+/** If NWS is slow or down, a forecast up to 3 hours old beats "Weather unavailable". */
+const STALE_FORECAST_MS = 3 * 60 * 60_000;
+/** NWS often takes several seconds per step; give each step room before giving up. */
+const NWS_TIMEOUT_MS = 10_000;
 const airCache = new Map<string, { at: number; air: AirQuality | null }>();
 
 // Share identical in-flight provider requests so concurrent commute moments do not
@@ -96,6 +103,14 @@ function heatIndexF(tempF: number, humidity: number): number {
   return hi;
 }
 
+/**
+ * On Cloudflare, cache the NWS answer at the edge so every visitor nearby
+ * shares it instead of each waiting on NWS. Ignored outside Cloudflare.
+ */
+function edgeCached(init: RequestInit, seconds: number): RequestInit {
+  return { ...init, cf: { cacheTtl: seconds, cacheEverything: true } } as RequestInit;
+}
+
 async function getHourly(lat: number, lon: number): Promise<HourlyPeriod[] | null> {
   const key = coordKey(lat, lon);
   const cached = forecastCache.get(key);
@@ -104,32 +119,43 @@ async function getHourly(lat: number, lon: number): Promise<HourlyPeriod[] | nul
   const existing = forecastInflight.get(key);
   if (existing) return existing;
 
+  const staleOrNull = () =>
+    cached && Date.now() - cached.at < STALE_FORECAST_MS ? cached.periods : null;
+
   const request = (async () => {
     try {
       const headers = { "User-Agent": USER_AGENT, Accept: "application/geo+json" };
-      const pointsResponse = await fetch(
-        `https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,
-        { signal: AbortSignal.timeout(5000), headers },
-      );
-      if (!pointsResponse.ok) return null;
-      const pointsPayload = (await pointsResponse.json()) as {
-        properties?: { forecastHourly?: string };
-      };
-      const hourlyUrl = pointsPayload.properties?.forecastHourly;
-      if (!hourlyUrl) return null;
+      let hourlyUrl = pointsCache.get(key);
+      if (!hourlyUrl || Date.now() - hourlyUrl.at > POINTS_TTL_MS) {
+        const pointsResponse = await fetch(
+          `https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,
+          edgeCached({ signal: AbortSignal.timeout(NWS_TIMEOUT_MS), headers }, 24 * 60 * 60),
+        );
+        if (!pointsResponse.ok) return staleOrNull();
+        const pointsPayload = (await pointsResponse.json()) as {
+          properties?: { forecastHourly?: string };
+        };
+        const url = pointsPayload.properties?.forecastHourly;
+        if (!url) return staleOrNull();
+        hourlyUrl = { at: Date.now(), hourlyUrl: url };
+        setBoundedCache(pointsCache, key, hourlyUrl);
+      }
 
-      const hourlyResponse = await fetch(hourlyUrl, { signal: AbortSignal.timeout(5000), headers });
-      if (!hourlyResponse.ok) return null;
+      const hourlyResponse = await fetch(
+        hourlyUrl.hourlyUrl,
+        edgeCached({ signal: AbortSignal.timeout(NWS_TIMEOUT_MS), headers }, 15 * 60),
+      );
+      if (!hourlyResponse.ok) return staleOrNull();
       const hourlyPayload = (await hourlyResponse.json()) as {
         properties?: { periods?: HourlyPeriod[] };
       };
       const periods = hourlyPayload.properties?.periods ?? [];
-      if (!periods.length) return null;
+      if (!periods.length) return staleOrNull();
       setBoundedCache(forecastCache, key, { at: Date.now(), periods });
       return periods;
     } catch (error) {
       console.error("NWS forecast unavailable", error);
-      return null;
+      return staleOrNull();
     } finally {
       forecastInflight.delete(key);
     }
