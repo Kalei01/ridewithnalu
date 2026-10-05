@@ -251,6 +251,9 @@ const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 
 import { planTransitTrip } from "@/lib/transit-plan";
 
+/** One shared empty list, so memos keyed on stations stay stable before they load. */
+const NO_STATIONS: import("@/lib/commute-model").RailStation[] = [];
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -778,7 +781,7 @@ function Index() {
   }, [hydrated, configured]);
 
   syncStateRef.current = { savedPlaces, alertPrefs, planMode, arriveByInput, setup, configured };
-  const { data: browseStations = [] } = useRailStations(hydrated);
+  const { data: browseStations = NO_STATIONS } = useRailStations(hydrated);
   // plan_inbound's station is the *arrival* station. The setup station is
   // nearest the selected origin, so resolve a new one for westbound trips.
   const { data: inboundStation } = useQuery({
@@ -1248,19 +1251,23 @@ function Index() {
 
   const stationCoords = browseStations;
   /* One authoritative rail-station query serves browse, setup, maps and planning. */
-  function stationPoint(name: string | null | undefined, stopId?: string | null): Coords | null {
-    // GTFS stop id first; the name is only a fallback for legs without one.
-    const byId = stopId ? stationCoords.find((station) => station.stop_id === stopId) : undefined;
-    if (byId && byId.stop_lat !== null && byId.stop_lon !== null)
-      return { lat: Number(byId.stop_lat), lon: Number(byId.stop_lon) };
-    if (!name) return null;
-    const wanted = name.trim().toLowerCase();
-    const hit = stationCoords.find(
-      (station) => (station.stop_name ?? "").trim().toLowerCase() === wanted,
-    );
-    if (!hit || hit.stop_lat === null || hit.stop_lon === null) return null;
-    return { lat: Number(hit.stop_lat), lon: Number(hit.stop_lon) };
-  }
+  // Stable between renders so the map and timeline memos only recompute when stations change.
+  const stationPoint = useCallback(
+    (name: string | null | undefined, stopId?: string | null): Coords | null => {
+      // GTFS stop id first; the name is only a fallback for legs without one.
+      const byId = stopId ? stationCoords.find((station) => station.stop_id === stopId) : undefined;
+      if (byId && byId.stop_lat !== null && byId.stop_lon !== null)
+        return { lat: Number(byId.stop_lat), lon: Number(byId.stop_lon) };
+      if (!name) return null;
+      const wanted = name.trim().toLowerCase();
+      const hit = stationCoords.find(
+        (station) => (station.stop_name ?? "").trim().toLowerCase() === wanted,
+      );
+      if (!hit || hit.stop_lat === null || hit.stop_lon === null) return null;
+      return { lat: Number(hit.stop_lat), lon: Number(hit.stop_lon) };
+    },
+    [stationCoords],
+  );
 
   // GTFS stop ids identify a stop; names are ambiguous and are for display only.
   const itineraryStopIds = useMemo(
@@ -2447,14 +2454,21 @@ function Index() {
     decisionHistoryRef.current?.key === decisionKey ? decisionHistoryRef.current.snapshot : null;
   // ---- Outdoor conditions --------------------------------------------------
   // Every moment of this trip spent outside: where it happens, when, how long.
-  const homePoint =
-    setup.homeLat !== null && setup.homeLon !== null
-      ? { lat: setup.homeLat, lon: setup.homeLon }
-      : null;
-  const destPoint =
-    setup.destLat !== null && setup.destLon !== null
-      ? { lat: setup.destLat, lon: setup.destLon }
-      : null;
+  // Memoized so trip memos below don't recompute on every render.
+  const homePoint = useMemo(
+    () =>
+      setup.homeLat !== null && setup.homeLon !== null
+        ? { lat: setup.homeLat, lon: setup.homeLon }
+        : null,
+    [setup.homeLat, setup.homeLon],
+  );
+  const destPoint = useMemo(
+    () =>
+      setup.destLat !== null && setup.destLon !== null
+        ? { lat: setup.destLat, lon: setup.destLon }
+        : null,
+    [setup.destLat, setup.destLon],
+  );
 
   const centralTrip = useMemo(() => {
     // Follow the actual direction of travel (Work -> Home on the way back).
