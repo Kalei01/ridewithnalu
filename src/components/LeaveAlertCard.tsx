@@ -251,10 +251,12 @@ function TripSetup({
   trip,
   busy,
   onTurnOn,
+  centered = false,
 }: {
   trip: Trip;
   busy: boolean;
   onTurnOn: (trip: Trip, arriveMin: number, days: number[]) => void;
+  centered?: boolean;
 }) {
   const [time, setTime] = useState(trip.defaultTime);
   const [days, setDays] = useState<number[]>(WEEKDAYS);
@@ -268,17 +270,18 @@ function TripSetup({
   }
 
   return (
-    <div className="grid gap-3">
-      <label className="grid gap-1 text-sm font-medium text-foreground">
+    <div className="grid gap-4">
+      <label className={`grid gap-1.5 text-sm font-medium text-muted-foreground ${centered ? "justify-items-center text-center" : ""}`}>
         Be {trip.toHome ? "home" : `at ${trip.label}`} by
         <Input
           type="time"
           value={time}
           onChange={(event) => setTime(event.target.value)}
-          className="h-12 max-w-40 bg-background text-base"
+          className={`h-14 bg-background text-xl font-semibold ${centered ? "w-full max-w-56 text-center" : "max-w-40"}`}
         />
       </label>
-      <div role="group" aria-label="Days" className="flex flex-wrap gap-1.5">
+      {/* Seven equal columns keep the whole week on one row on any phone. */}
+      <div role="group" aria-label="Days" className="grid grid-cols-7 gap-1">
         {[1, 2, 3, 4, 5, 6, 7].map((day) => {
           const on = days.includes(day);
           return (
@@ -292,7 +295,7 @@ function TripSetup({
                   on ? current.filter((value) => value !== day) : [...current, day].sort(),
                 )
               }
-              className={`size-11 rounded-full text-sm font-bold ${on ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"}`}
+              className={`aspect-square w-full max-w-12 !min-h-0 justify-self-center rounded-full text-sm font-bold ${on ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground"}`}
             >
               {DAY_LETTERS[day]}
             </button>
@@ -306,7 +309,7 @@ function TripSetup({
           if (arriveMin !== null && days.length && allowedByPlan()) onTurnOn(trip, arriveMin, days);
         }}
         disabled={busy || days.length === 0}
-        className="h-12 text-base"
+        className="h-12 w-full text-base"
       >
         Turn on alert
       </Button>
@@ -402,7 +405,7 @@ export function LeaveAlertCard({
     return (
       <section
         aria-label="Time to leave alert"
-        className="relative mt-4 rounded-lg border border-primary/30 bg-primary/10 p-4 pr-12"
+        className="relative mt-4 rounded-2xl border border-primary/30 bg-primary/10 px-4 pb-5 pt-6 text-center"
       >
         <button
           type="button"
@@ -412,18 +415,20 @@ export function LeaveAlertCard({
         >
           <X className="size-4" />
         </button>
-        <p className="flex items-center gap-2 text-base font-semibold text-foreground">
-          <BellRing className="size-4 text-primary" /> {followUp ? "Want one for the trip home too?" : trip.heading}
+        <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/15 text-primary" aria-hidden="true">
+          <BellRing className="size-5" />
+        </span>
+        <p className="mx-auto mt-3 max-w-xs px-6 text-lg font-semibold leading-snug text-foreground">
+          {followUp ? "Want one for the trip home too?" : trip.heading}
         </p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          Nalu checks traffic and the bus and Skyline times, then sends one alert about 10 minutes
-          before you need to go.
+        <p className="mx-auto mt-1.5 max-w-xs text-sm leading-6 text-muted-foreground">
+          One alert about 10 minutes before you need to go, based on live traffic and bus and Skyline times.
         </p>
         {needsInstall ? (
           installNote
         ) : (
-          <div className="mt-3">
-            <TripSetup trip={trip} busy={busy} onTurnOn={(t, a, d) => void turnOn(t, a, d)} />
+          <div className="mt-5 text-left">
+            <TripSetup trip={trip} busy={busy} centered onTurnOn={(t, a, d) => void turnOn(t, a, d)} />
           </div>
         )}
       </section>
