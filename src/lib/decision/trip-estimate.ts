@@ -235,8 +235,9 @@ export function transitEstimate(input: {
   const transitModes = option.legs
     .map((leg) => leg.mode)
     .filter((mode): mode is "bus" | "rail" => mode === "bus" || mode === "rail");
+  const hasDrive = option.legs.some((leg) => leg.mode === "drive");
   const transitLabel = transitModes.length
-    ? transitModes.map((mode) => mode === "rail" ? "Rail" : "Bus").join(" + ")
+    ? [...(hasDrive ? ["Drive"] : []), ...transitModes.map((mode) => mode === "rail" ? "Rail" : "Bus")].join(" + ")
     : "Walk";
   const transitMode: TransitMode =
     hasRail && hasBus && hasWalk ? "walk+rail+bus"

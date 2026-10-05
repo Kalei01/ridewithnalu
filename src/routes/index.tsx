@@ -1256,13 +1256,17 @@ function Index() {
     commitment?.mode === "transit" && lockedOptionRef.current ? lockedOptionRef.current : liveBest;
   lockedItineraryCandidate.current = liveBest ?? null;
 
-  const transitLabel = best?.legs.some((leg) => leg.mode === "rail")
+  const transitModesLabel = best?.legs.some((leg) => leg.mode === "rail")
     ? best.legs.some((leg) => leg.mode === "bus")
       ? "Rail + Bus"
       : "Rail"
     : best?.legs.some((leg) => leg.mode === "bus")
       ? "Bus"
       : "Transit";
+  // A trip that starts by driving to the station says so: it needs a car.
+  const transitLabel = best?.legs.some((leg) => leg.mode === "drive")
+    ? `Drive + ${transitModesLabel}`
+    : transitModesLabel;
   const transitUsesRail = best?.legs.some((leg) => leg.mode === "rail") ?? false;
   const transitUsesBus = best?.legs.some((leg) => leg.mode === "bus") ?? false;
 
@@ -3021,7 +3025,7 @@ function Index() {
       const busWait = Math.round(transitTripEstimate.busWaitMinutes ?? 0);
       if (railWait >= 5)
         signals.push({
-          label: transitLabel + " wait",
+          label: "Train wait",
           value: `${railWait} min`,
           tone: railWait >= 10 ? "alert" : "neutral",
         });
@@ -3053,7 +3057,7 @@ function Index() {
       }
       const railWait = Math.round(transitTripEstimate.railWaitMinutes ?? 0);
       if (railWait >= 5)
-        signals.push({ label: transitLabel + " wait", value: `${railWait} min`, tone: "neutral" });
+        signals.push({ label: "Train wait", value: `${railWait} min`, tone: "neutral" });
     }
 
     return signals.slice(0, 4);

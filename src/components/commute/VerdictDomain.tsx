@@ -75,7 +75,7 @@ export function VerdictDomain({
           : verdict === "same"
             ? "Too close to call"
             : verdict === "transit"
-              ? `Take ${transitLabel}${differenceMinutes !== null ? ` · ${formatDriveMinutes(Math.abs(differenceMinutes))} faster` : ""}`
+              ? `${transitLabel.startsWith("Drive + ") ? transitLabel : `Take ${transitLabel}`}${differenceMinutes !== null ? ` · ${formatDriveMinutes(Math.abs(differenceMinutes))} faster` : ""}`
               : `Drive${differenceMinutes !== null ? ` · ${formatDriveMinutes(Math.abs(differenceMinutes))} faster` : ""}`;
 
   return (
