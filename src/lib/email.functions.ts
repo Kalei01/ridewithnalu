@@ -25,7 +25,9 @@ export const getEmailOptIn = createServerFn({ method: "GET" })
     const email = emailOf(context.claims as Record<string, unknown>);
     const rpc = await adminRpc();
     const { data } = await rpc("email_prefs_get", { p_user: context.userId });
-    return { on: firstRow(data)?.opted_in ?? false, email };
+    const row = firstRow(data);
+    // chosen: they've answered yes or no before, so Nalu doesn't ask again.
+    return { on: row?.opted_in ?? false, chosen: row !== null, email };
   });
 
 /** Turn Nalu emails on or off. The first time on, send the welcome email. */

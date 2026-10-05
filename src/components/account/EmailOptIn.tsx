@@ -35,8 +35,7 @@ export function EmailOptIn() {
     try {
       const result = await write({ data: { on: next } });
       setOn(result.on);
-      if (result.on) toast(result.welcomeSent ? "Emails are on. Check your inbox for a welcome note." : "Emails are on.");
-      else toast("Emails are off.");
+      toast(result.on ? "Emails are on." : "Emails are off.");
     } catch {
       setOn(!next);
       toast.error("Couldn't save that. Try again.");
@@ -52,10 +51,10 @@ export function EmailOptIn() {
           Email me commute heads-ups
         </label>
         <p className="text-sm text-muted-foreground">
-          Roadwork on your route and big traffic days, at most once a week. Sent to {user.email}.
+          Your week with Nalu and big traffic days, at most once a week. Sent to {user.email}, the email you signed in with.
         </p>
       </div>
-      <Switch id={id} checked={on} disabled={busy} onCheckedChange={(v) => void change(v)} className="mt-1 shrink-0" />
+      <Switch id={id} checked={on} disabled={busy} onCheckedChange={(v) => void change(v)} className="mt-0.5" />
     </div>
   );
 }
