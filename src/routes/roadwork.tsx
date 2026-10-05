@@ -112,7 +112,7 @@ function RoadworkPage() {
           <h1 className="text-4xl font-black tracking-tight sm:text-5xl">Oʻahu roadwork this week</h1>
           <p className="mt-5 text-lg leading-8 text-muted-foreground">
             {data.ok && count > 0
-              ? `${count} planned lane ${count === 1 ? "closure" : "closures"} on Oʻahu freeways and highways, from the state's HDOT weekly schedule.`
+              ? `${count} planned ${count === 1 ? "closure" : "closures"} on Oʻahu freeways and highways, from the state's HDOT weekly schedule.`
               : data.ok
                 ? "The state's HDOT weekly schedule lists no upcoming lane closures right now."
                 : "The state's HDOT schedule couldn't be loaded just now."}
