@@ -5,6 +5,8 @@ import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
 import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
 import { type PlanMode } from "@/components/commute/ArriveByControls";
 import { MAX_STOP_WALK_M } from "@/lib/rail/walk-preference";
+import { isParkAndRide, metresBetween, nearestParkAndRide } from "@/lib/rail/park-and-ride";
+import { driveTime } from "@/lib/drive.functions";
 import { honoluluIsoDow } from "@/lib/commute-formatting";
 import {
   Coords,
@@ -166,14 +168,14 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
     );
   };
 
-  const fetchOutbound = async (cursor: number): Promise<Option[]> => {
+  const fetchOutboundAt = async (station: string, allowDrive: boolean, cursor: number): Promise<Option[]> => {
     try {
       const { data, error } = await supabase.rpc("plan_outbound", {
         p_origin_lat: tripDirection.from.lat as number,
         p_origin_lon: tripDirection.from.lon as number,
-        p_station: setup.homeStopId,
+        p_station: station,
         p_dest_stop: setup.destStopId,
-        p_allow_drive: driveAvailable,
+        p_allow_drive: allowDrive,
         p_after_seconds: cursor,
         p_limit: planMode === "arrive-by" ? 8 : 4,
         p_dest_lat: tripDirection.to.lat as number,
@@ -191,6 +193,24 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
       recordTransitRpcError("plan_outbound", error);
       return [];
     }
+  };
+
+  // Drive to the station only where there is somewhere to park: the home
+  // station when it has a park-and-ride lot, otherwise the nearest station
+  // that does (e.g. ʻEwa Beach: walk to Kualakaʻi, or drive to Keoneʻae).
+  const fetchOutbound = async (cursor: number): Promise<Option[]> => {
+    const home = setup.homeStopId;
+    const homeHasParking = isParkAndRide(home);
+    const parkStation = driveAvailable && !homeHasParking ? nearestParkAndRide(tripDirection.from, browseStations) : null;
+    const queries = [fetchOutboundAt(home, driveAvailable && homeHasParking, cursor)];
+    if (parkStation && parkStation.stop_id !== home) queries.push(fetchOutboundAt(parkStation.stop_id, true, cursor));
+    return retimeDriveAccess((await Promise.all(queries)).flat(), {
+      origin: tripDirection.from,
+      stations: browseStations,
+      now,
+      nowSeconds,
+      leaveNow: planMode !== "arrive-by",
+    });
   };
 
   const fetchPage = async (cursor: number): Promise<Option[]> => {
@@ -243,7 +263,17 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
             new Promise<Option[]>((resolve) => window.setTimeout(() => resolve([]), 8000)),
           ])
         : await generalPromise;
-    if (primaryTransit.length) return mergeTransitOptions(primaryTransit, await busPromise);
+    // Drive to a station + Skyline is a real alternative to the walk-and-ride
+    // trips, not just a fallback: from ʻEwa Beach the 91 bus alone is found by
+    // the general planner, while driving to the station and riding Skyline gets
+    // there sooner. Merge both; the shared filters still drop one-stop rail hops
+    // and trips whose extra transfers don't save enough time.
+    if (primaryTransit.length)
+      return mergeTransitOptions(
+        primaryTransit,
+        await busPromise,
+        dropWalkableDriveAccess(fastOutbound, tripDirection.from, browseStations),
+      );
 
     // Inbound Skyline trips keep the proven multi-station fallbacks. These are
     // only reached after the generalized planner returns zero options.
@@ -351,9 +381,10 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
           },
         })) as Option[];
 
-        if (hubOptions.length) {
-          return mergeTransitOptions(hubOptions, primaryTransit, await busPromise);
-        }
+        // The parking filter can drop every hub trip; then fall through to the
+        // bus rescue and error reporting below instead of returning nothing.
+        const hubKept = hubOptions.length ? mergeTransitOptions(hubOptions, primaryTransit, await busPromise) : [];
+        if (hubKept.length) return hubKept;
       }
     }
 
@@ -465,4 +496,112 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
   if (!result.complete && result.options.length > 0)
     throw new Error("Arrival timetable search reached its safe page limit.");
   return result.options;
+}
+
+/** plan_outbound's drive estimate is ceil(metres / 670.6) + 3 minutes, so 6+ minutes means well past walking range. */
+const MIN_DRIVE_ACCESS_MINUTES_WITHOUT_COORDS = 6;
+
+/**
+ * plan_outbound offers "drive to the station" whenever a car is allowed, even
+ * to a station a rider would normally walk to. Keep a drive-to-station trip
+ * only when the station is beyond walking range (MAX_STOP_WALK_M); otherwise
+ * the walk-and-ride trips from the general planner already cover it.
+ */
+export function dropWalkableDriveAccess(
+  options: Option[],
+  origin: { lat: number | null; lon: number | null },
+  stations: RailStation[],
+): Option[] {
+  return options.filter((option) => {
+    const access = option.legs[0];
+    if (!access || access.mode !== "drive") return true;
+    const station = stations.find((s) => s.stop_id === access.to_stop_id);
+    if (station?.stop_lat != null && station.stop_lon != null && origin.lat != null && origin.lon != null) {
+      return (
+        metresBetween({ lat: origin.lat, lon: origin.lon }, { lat: Number(station.stop_lat), lon: Number(station.stop_lon) }) >
+        MAX_STOP_WALK_M
+      );
+    }
+    return (access.minutes ?? 0) >= MIN_DRIVE_ACCESS_MINUTES_WITHOUT_COORDS;
+  });
+}
+
+/** The planner's allowance to park and reach the platform after driving (as in its SQL estimate). */
+const PARK_AND_BOARD_MINUTES = 3;
+
+/**
+ * The planner times "drive to the station" from straight-line distance with no
+ * traffic. Before such a trip can be compared with driving all the way (which
+ * uses live traffic), re-time the drive with the same live traffic source and
+ * drop trains that can no longer be reached. If live traffic is unavailable,
+ * drop the drive-to-station trips rather than decide on a guess.
+ */
+export async function retimeDriveAccess(
+  options: Option[],
+  input: {
+    origin: { lat: number | null; lon: number | null };
+    stations: RailStation[];
+    now: Date;
+    nowSeconds: number;
+    leaveNow: boolean;
+  },
+): Promise<Option[]> {
+  const driveFirst = (option: Option) => option.legs[0]?.mode === "drive";
+  const drives = options.filter(driveFirst);
+  if (!drives.length) return options;
+
+  // Leaving now: one live lookup per station. Arrive by: each trip is timed for
+  // its own departure (the server caches lookups in short time buckets).
+  const keyFor = (option: Option) =>
+    input.leaveNow ? (option.legs[0]?.to_stop_id ?? "") : `${option.legs[0]?.to_stop_id ?? ""}@${option.leave_by_seconds ?? ""}`;
+  const lookups = new Map<string, { stopId: string; leave: number }>();
+  for (const option of drives) {
+    lookups.set(keyFor(option), { stopId: option.legs[0]?.to_stop_id ?? "", leave: option.leave_by_seconds ?? input.nowSeconds });
+  }
+
+  const liveMinutes = new Map<string, number>();
+  const { origin } = input;
+  await Promise.all(
+    [...lookups].map(async ([key, { stopId, leave }]) => {
+      const station = input.stations.find((s) => s.stop_id === stopId);
+      if (!station || station.stop_lat == null || station.stop_lon == null || origin.lat == null || origin.lon == null) return;
+      const departureTime =
+        input.leaveNow || leave <= input.nowSeconds
+          ? undefined
+          : new Date(input.now.getTime() + (leave - input.nowSeconds) * 1000).toISOString();
+      try {
+        const result = await driveTime({
+          data: {
+            fromLat: origin.lat,
+            fromLon: origin.lon,
+            toLat: Number(station.stop_lat),
+            toLon: Number(station.stop_lon),
+            ...(departureTime ? { departureTime } : {}),
+          },
+        });
+        if (result && Number.isFinite(result.trafficMinutes)) liveMinutes.set(key, result.trafficMinutes);
+      } catch {
+        /* no live time: the trip is dropped below */
+      }
+    }),
+  );
+
+  return options.flatMap((option) => {
+    if (!driveFirst(option)) return [option];
+    const [access, ...rest] = option.legs;
+    const live = liveMinutes.get(keyFor(option));
+    if (!access || live === undefined || access.arrive_seconds == null) return [];
+    const minutes = Math.ceil(live) + PARK_AND_BOARD_MINUTES;
+    const leave = access.arrive_seconds - minutes * 60;
+    // Leaving now: a train you can't reach in time isn't an option.
+    if (input.leaveNow && leave < input.nowSeconds - 60) return [];
+    return [
+      {
+        ...option,
+        leave_by_seconds: leave,
+        total_minutes: Math.round((option.arrive_seconds - leave) / 60),
+        legs: [{ ...access, depart_seconds: leave, minutes }, ...rest],
+      },
+    ];
+  });
 }

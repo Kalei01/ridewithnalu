@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const rpc = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...args: unknown[]) => rpc(...args) } }));
 vi.mock("@/lib/debug-log", () => ({ debugLog: vi.fn() }));
+const driveTime = vi.fn();
+vi.mock("@/lib/drive.functions", () => ({ driveTime: (...args: unknown[]) => driveTime(...args) }));
 
 const { planTransitTrip } = await import("./transit-plan");
 const { emptySetup } = await import("./commute-model");
@@ -131,5 +133,102 @@ describe("transit trip planner: bus → Skyline → bus", () => {
     expect(options[0]?.arrive_seconds).toBe(67140); // 6:39 PM via Skyline
     expect(options[0]?.legs.filter((l) => l.mode === "bus" || l.mode === "rail").map((l) => l.mode)).toEqual(["bus", "rail", "bus"]);
     expect(options.some((o) => o.arrive_seconds === 68940)).toBe(true); // the 42 alone is still listed
+  });
+});
+
+describe("transit trip planner: drive to the station + Skyline", () => {
+  beforeEach(() => {
+    rpc.mockReset();
+    driveTime.mockReset();
+  });
+
+  const KUALAKAI = { stop_id: "10047", stop_name: "KUALAKA'I EAST KAPOLEI STATION", stop_lat: 21.345574, stop_lon: -158.050995 };
+  const KEONEAE = { stop_id: "10046", stop_name: "KEONE'AE U.H. WEST OAHU STATION", stop_lat: 21.358532, stop_lon: -158.051188 };
+  const leg = (kind: string, mode: string, route: string | null, from: string, to: string, a: number, b: number, toStop: string | null = null) => ({ kind, mode, route_short: route, route_long: null, headsign: null, from, to, to_stop_id: toStop, minutes: Math.round((b - a) / 60), depart_seconds: a, arrive_seconds: b });
+  const trip = (from: { lat: number; lon: number }, nowSeconds: number) =>
+    context({
+      nowSeconds,
+      scheduleAfterSeconds: nowSeconds,
+      browseStations: [KUALAKAI, KEONEAE],
+      setup: { ...emptySetup, homeStopId: KUALAKAI.stop_id },
+      tripDirection: { inbound: false, reverseTrip: false, departingFromSavedHome: false, arrivingAtSavedHome: false, from, to: { lat: 21.30937, lon: -157.86318 } },
+    });
+
+  // ʻEwa Beach (91-1160 Kamakana St) to 55 Merchant St, Monday Oct 5, 2026 at 6:17 AM. The
+  // general planner only found the 91 bus (arrive 7:49); drive + Skyline trips used to be
+  // discarded, and the only station tried was the nearest one, Kualakaʻi, which has no lot.
+  const NOW = 22620; // 6:17 AM
+  const bus91 = { leave_by_seconds: 23160, depart_seconds: 24360, arrive_seconds: 28140, total_minutes: 83, legs: [leg("access", "walk", null, "Your location", "FORT WEAVER RD + RENTON RD", 23160, 24360), leg("connect", "bus", "91", "FORT WEAVER RD + RENTON RD", "S KING ST + BETHEL ST", 24360, 28020), leg("egress", "walk", null, "S KING ST + BETHEL ST", "Your destination", 28020, 28140)] };
+  // Drive to Kualakaʻi (no park-and-ride): must never be offered.
+  const driveToKualakai = { leave_by_seconds: 23520, depart_seconds: 24000, arrive_seconds: 27420, total_minutes: 65, legs: [leg("access", "drive", null, "Your location", KUALAKAI.stop_name, 23520, 24000, KUALAKAI.stop_id), leg("rail", "rail", null, KUALAKAI.stop_name, "KAHAUIKI KALIHI TRANSIT CENTER STATION", 24000, 26040), leg("connect", "bus", "42", "KAMEHAMEHA HWY + OPP MIDDLE ST", "S KING ST + BETHEL ST", 26280, 27300), leg("egress", "walk", null, "S KING ST + BETHEL ST", "Your destination", 27300, 27420)] };
+  // Drive to Keoneʻae (UH West Oʻahu, park-and-ride), 6:44 train, 42 bus, arrive 7:39.
+  const driveToKeoneae = { leave_by_seconds: 23640, depart_seconds: 24240, arrive_seconds: 27540, total_minutes: 65, legs: [leg("access", "drive", null, "Your location", KEONEAE.stop_name, 23640, 24240, KEONEAE.stop_id), leg("rail", "rail", null, KEONEAE.stop_name, "KAHAUIKI KALIHI TRANSIT CENTER STATION", 24240, 26160), leg("connect", "bus", "42", "KAMEHAMEHA HWY + OPP MIDDLE ST", "S KING ST + BETHEL ST", 26400, 27420), leg("egress", "walk", null, "S KING ST + BETHEL ST", "Your destination", 27420, 27540)] };
+  const planners = () =>
+    answer({
+      plan_transit_general: ok([bus91]),
+      plan_outbound: (args) => (args["p_station"] === KEONEAE.stop_id ? ok([driveToKeoneae]) : ok([driveToKualakai])),
+    });
+
+  it("drives only to a station with parking, timed with live traffic, and keeps the bus", async () => {
+    planners();
+    driveTime.mockResolvedValue({ trafficMinutes: 12 });
+    const options = await planTransitTrip(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
+    const outboundCalls = rpc.mock.calls.filter(([name]) => name === "plan_outbound").map(([, a]) => a as Record<string, unknown>);
+    expect(outboundCalls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ p_station: KUALAKAI.stop_id, p_allow_drive: false }),
+        expect.objectContaining({ p_station: KEONEAE.stop_id, p_allow_drive: true }),
+      ]),
+    );
+    expect(options[0]?.arrive_seconds).toBe(27540); // 7:39 AM via UH West Oʻahu
+    expect(options[0]?.legs.map((l) => l.mode)).toEqual(["drive", "rail", "bus", "walk"]);
+    expect(options[0]?.legs[0]?.to_stop_id).toBe(KEONEAE.stop_id);
+    expect(options[0]?.legs[0]?.minutes).toBe(15); // 12 min live traffic + 3 to park and board
+    expect(options[0]?.leave_by_seconds).toBe(24240 - 15 * 60); // leave 6:29
+    expect(options.some((o) => o.legs[0]?.to_stop_id === KUALAKAI.stop_id && o.legs[0]?.mode === "drive")).toBe(false);
+    expect(options.some((o) => o.arrive_seconds === 28140)).toBe(true); // the car-free 91 stays
+  });
+
+  it("drops drive-to-station trips when live traffic is unavailable, rather than guessing", async () => {
+    planners();
+    driveTime.mockResolvedValue(null);
+    const options = await planTransitTrip(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
+    expect(options.some((o) => o.legs.some((l) => l.mode === "drive"))).toBe(false);
+    expect(options[0]?.arrive_seconds).toBe(28140);
+  });
+
+  it("drops a train that live traffic says you can't reach in time", async () => {
+    planners();
+    driveTime.mockResolvedValue({ trafficMinutes: 30 }); // 6:17 + 33 min is after the 6:44 train
+    const options = await planTransitTrip(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
+    expect(options.some((o) => o.legs.some((l) => l.mode === "drive"))).toBe(false);
+  });
+
+  it("doesn't suggest driving to a park-and-ride station within walking distance", async () => {
+    // About 600 m from Keoneʻae, which has a lot: walk to the 6:44 train, don't drive.
+    const walkKeoneae = { ...driveToKeoneae, leave_by_seconds: 23760, legs: [leg("access", "walk", null, "Your location", KEONEAE.stop_name, 23760, 24240), ...driveToKeoneae.legs.slice(1)] };
+    answer({ plan_transit_general: ok([walkKeoneae]), plan_outbound: ok([driveToKeoneae]) });
+    driveTime.mockResolvedValue({ trafficMinutes: 2 });
+    const options = await planTransitTrip(
+      context({
+        nowSeconds: NOW,
+        scheduleAfterSeconds: NOW,
+        browseStations: [KUALAKAI, KEONEAE],
+        setup: { ...emptySetup, homeStopId: KEONEAE.stop_id },
+        tripDirection: { inbound: false, reverseTrip: false, departingFromSavedHome: false, arrivingAtSavedHome: false, from: { lat: 21.3535, lon: -158.0512 }, to: { lat: 21.30937, lon: -157.86318 } },
+      }),
+    );
+    expect(options.some((o) => o.legs.some((l) => l.mode === "drive"))).toBe(false);
+    expect(options[0]?.legs[0]?.mode).toBe("walk");
+  });
+
+  it("doesn't tell someone a short walk from the station to drive there", async () => {
+    // About 1 km from Kualakaʻi: walk 13 min to the 6:40 train, or "drive 5 min" to the same train.
+    const walkRail = { leave_by_seconds: 23220, depart_seconds: 24000, arrive_seconds: 27420, total_minutes: 70, legs: [leg("access", "walk", null, "Your location", KUALAKAI.stop_name, 23220, 24000), ...driveToKualakai.legs.slice(1)] };
+    answer({ plan_transit_general: ok([walkRail]), plan_outbound: ok([driveToKualakai]) });
+    driveTime.mockResolvedValue({ trafficMinutes: 3 });
+    const options = await planTransitTrip(trip({ lat: 21.3366, lon: -158.0505 }, NOW));
+    expect(options.some((o) => o.legs.some((l) => l.mode === "drive"))).toBe(false);
+    expect(options[0]?.legs[0]?.mode).toBe("walk");
   });
 });

@@ -28,6 +28,16 @@ type TransitOptionLike = { arrive_seconds: number; leave_by_seconds: number | nu
 
 const isRide = (leg: Leg) => leg.mode === "bus" || leg.mode === "rail";
 
+/** Driving to a station needs a car; a walk-and-ride trip doesn't. */
+export const needsCar = (option: TransitOptionLike) => option.legs.some((leg) => leg.mode === "drive");
+
+/**
+ * Driving counts as no walking, so without this a car trip would always "win"
+ * the walking comparison. A trip that needs a car never pushes out one that
+ * doesn't; the rider may not want to (or be able to) take the car.
+ */
+const mayReplace = (other: TransitOptionLike, option: TransitOptionLike) => !needsCar(other) || needsCar(option);
+
 export function totalWalkMinutes(option: TransitOptionLike): number {
   return option.legs.reduce((sum, leg) => sum + (leg.mode === "walk" ? (leg.minutes ?? 0) : 0), 0);
 }
@@ -54,7 +64,9 @@ export function preferLessWalking<T extends TransitOptionLike>(options: T[]): T[
 
   const bySignature = new Map<string, T>();
   for (const option of pool) {
-    const key = rideSignature(option);
+    const ridesKey = rideSignature(option);
+    // Keep the walk and drive versions of the same trains apart.
+    const key = ridesKey && (needsCar(option) ? `car|${ridesKey}` : ridesKey);
     const kept = bySignature.get(key);
     if (
       !key ||
@@ -72,6 +84,7 @@ export function preferLessWalking<T extends TransitOptionLike>(options: T[]): T[
       !unique.some(
         (other) =>
           other !== option &&
+          mayReplace(other, option) &&
           other.arrive_seconds <= option.arrive_seconds + SIMILAR_ARRIVAL_SECONDS &&
           totalWalkMinutes(other) <= totalWalkMinutes(option) - MEANINGFUL_WALK_SAVING_MIN,
       ),
@@ -94,6 +107,7 @@ export function preferFewerTransfers<T extends TransitOptionLike>(options: T[]):
       !options.some((simpler) => {
         const extra = rideCount(option) - rideCount(simpler);
         if (simpler === option || extra <= 0 || rideCount(simpler) === 0) return false;
+        if (!mayReplace(simpler, option)) return false;
         const savedMinutes = (simpler.arrive_seconds - option.arrive_seconds) / 60;
         return savedMinutes < MIN_SAVING_PER_EXTRA_TRANSFER_MIN * extra;
       }),
