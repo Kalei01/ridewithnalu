@@ -1,5 +1,4 @@
-import { Bus, Car, Check, TrainFront } from "lucide-react";
-import { activeRegion } from "@/lib/region";
+import { Check } from "lucide-react";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { clockFromSeconds } from "@/lib/commute-formatting";
 import type { ReactNode } from "react";
@@ -35,6 +34,7 @@ export function VerdictDomain({
   driveBufferNote,
   driveTotalMinutes,
   driveLeaveSeconds = null,
+  comparison,
   children,
 }: {
   configured: boolean;
@@ -60,6 +60,8 @@ export function VerdictDomain({
   driveTotalMinutes: number | null;
   /** Arrive By leave time for the drive; null means leave now. */
   driveLeaveSeconds?: number | null;
+  /** Drive / Park & ride / No car, side by side, so the headline's math is on screen. */
+  comparison?: ReactNode;
   children?: ReactNode;
 }) {
   const headline = !configured
@@ -75,7 +77,7 @@ export function VerdictDomain({
           : verdict === "same"
             ? "Too close to call"
             : verdict === "transit"
-              ? `${transitLabel.startsWith("Drive + ") ? transitLabel : `Take ${transitLabel}`}${differenceMinutes !== null ? ` · ${formatDriveMinutes(Math.abs(differenceMinutes))} faster` : ""}`
+              ? `${transitLabel === "Park & ride" ? transitLabel : `Take ${transitLabel}`}${differenceMinutes !== null ? ` · ${formatDriveMinutes(Math.abs(differenceMinutes))} faster` : ""}`
               : `Drive${differenceMinutes !== null ? ` · ${formatDriveMinutes(Math.abs(differenceMinutes))} faster` : ""}`;
 
   return (
@@ -87,11 +89,12 @@ export function VerdictDomain({
         <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
           <Check className="size-4 stroke-[3]" />
         </span>
-        <span className="text-xs font-semibold">
-          {commitment ? "On this trip" : "Nalu says"}
-        </span>
+        <span className="text-xs font-semibold">{commitment ? "On this trip" : "Nalu says"}</span>
       </div>
-      <h1 id="verdict-title" className="max-w-[390px] text-4xl font-bold leading-none text-foreground">
+      <h1
+        id="verdict-title"
+        className="max-w-[390px] text-4xl font-bold leading-none text-foreground"
+      >
         {headline}
       </h1>
       {transitStandaloneAvailable && (
@@ -124,34 +127,6 @@ export function VerdictDomain({
                 : `About ${formatDriveMinutes(differenceMinutes)} apart`}
             </span>
           )}
-        </div>
-      )}
-      {configured && activeRegion().hasTransit && !arriveByActive && !optionsLoading && !driveLoading && (driveMinutes !== null || transitMinutes !== null) && (
-        // Both trip lengths at a glance, door to door (drive includes parking),
-        // so the "N min faster" headline is visible math.
-        <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Total trip times">
-          {[
-            { key: "drive", label: "Drive", minutes: driveMinutes, arrive: driveArrivalSeconds, won: verdict === "drive", Icon: Car },
-            { key: "transit", label: transitLabel, minutes: transitMinutes, arrive: best ? best.arrive_seconds : null, won: verdict === "transit", Icon: /rail|skyline/i.test(transitLabel) ? TrainFront : Bus },
-          ].map(({ key, label, minutes, arrive, won, Icon }) => (
-            <div
-              key={key}
-              className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${won ? "border-recommended/50 bg-recommended/10" : "border-border bg-background/40"}`}
-            >
-              <Icon className={`size-5 shrink-0 ${won ? "text-recommended" : "text-muted-foreground"}`} />
-              <span className="min-w-0">
-                <span className="block truncate text-xs text-muted-foreground">{label}</span>
-                <span className={`block whitespace-nowrap font-bold tabular-nums text-foreground ${(minutes ?? 0) >= 60 ? "text-base" : "text-lg"}`}>
-                  {minutes !== null ? formatDriveMinutes(minutes) : "—"}
-                </span>
-                {minutes !== null && arrive !== null && (
-                  <span className="block whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-                    arrive {clockFromSeconds(arrive)}
-                  </span>
-                )}
-              </span>
-            </div>
-          ))}
         </div>
       )}
       {(verdict === "transit" || transitStandaloneAvailable) && best && transitRange && (
@@ -190,7 +165,9 @@ export function VerdictDomain({
       {verdict === "drive" && driveAvailable && (
         <div className="mt-6 grid grid-cols-3 gap-2 border-t border-border/70 pt-5">
           <div className="metric-glass">
-            <p className="text-xs text-muted-foreground">{driveLeaveSeconds !== null ? "Leave by" : "Leave"}</p>
+            <p className="text-xs text-muted-foreground">
+              {driveLeaveSeconds !== null ? "Leave by" : "Leave"}
+            </p>
             <p className="mt-1 text-xl font-bold tabular-nums text-recommended">
               {driveLeaveSeconds !== null ? clockFromSeconds(driveLeaveSeconds) : "Now"}
             </p>
@@ -202,7 +179,7 @@ export function VerdictDomain({
             </p>
           </div>
           <div className="metric-glass">
-            <p className="text-xs text-muted-foreground">Driving</p>
+            <p className="text-xs text-muted-foreground">Door to door</p>
             <p
               className={`mt-1 whitespace-nowrap font-bold leading-tight tabular-nums text-foreground ${(driveTotalMinutes ?? 0) >= 60 ? "text-lg" : "text-2xl"}`}
             >
@@ -216,6 +193,7 @@ export function VerdictDomain({
           )}
         </div>
       )}
+      {comparison}
       {children}
     </section>
   );

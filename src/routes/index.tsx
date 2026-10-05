@@ -33,7 +33,12 @@ import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { NightCard } from "@/components/commute/NightCard";
 import { CommuteHeader } from "@/components/commute/CommuteHeader";
 import { CommutePageNav } from "@/components/commute/CommutePageNav";
-import { TravelModeTabs } from "@/components/commute/TravelModeTabs";
+import {
+  TripChoiceCards,
+  type TripChoice,
+  type TripChoiceKey,
+} from "@/components/commute/TripChoiceCards";
+import { needsCar, parkingNote, transitChoices, tripSteps } from "@/lib/trip-choices";
 import { TransitItinerary } from "@/components/commute/TransitItinerary";
 import { DriveDetails } from "@/components/commute/DriveDetails";
 import { AlternativeDepartures } from "@/components/commute/AlternativeDepartures";
@@ -293,7 +298,8 @@ export const Route = createFileRoute("/")({
               "@id": SITE_URL + "/#website",
               name: "Nalu",
               url: SITE_URL + "/",
-              description: "An Oʻahu commute app that tells you whether to drive or take TheBus or Skyline, and when to leave.",
+              description:
+                "An Oʻahu commute app that tells you whether to drive or take TheBus or Skyline, and when to leave.",
             },
             {
               "@type": "Organization",
@@ -1251,8 +1257,21 @@ function Index() {
       return;
     setSelectedDeparture(null);
   }, [inbound, options, selectedDeparture, commitment]);
+  // The way to travel the rider tapped (Drive / Park & ride / No car). It is
+  // kept when that departure leaves, so a rider without a car is never moved
+  // onto a car trip, and cleared for a new destination.
+  const [chosenCard, setChosenCard] = useState<TripChoiceKey | null>(null);
+  const choicePicks = transitChoices(options, planMode === "arrive-by" ? arriveByTarget : null);
+  const chosenCardOption =
+    chosenCard === "noCar"
+      ? choicePicks.noCar.option
+      : chosenCard === "parkAndRide"
+        ? choicePicks.parkAndRide.option
+        : null;
   const liveBest =
-    options.find((option) => optionIdentity(option) === selectedDeparture) ?? earliest;
+    options.find((option) => optionIdentity(option) === selectedDeparture) ??
+    chosenCardOption ??
+    earliest;
   // While riding, the itinerary on screen is the one boarded — including its
   // transfers — not whatever is fastest to leave now.
   const best =
@@ -1266,9 +1285,9 @@ function Index() {
     : best?.legs.some((leg) => leg.mode === "bus")
       ? "Bus"
       : "Transit";
-  // A trip that starts by driving to the station says so: it needs a car.
+  // A trip that uses the car with transit is "Park & ride" everywhere.
   const transitLabel = best?.legs.some((leg) => leg.mode === "drive")
-    ? `Drive + ${transitModesLabel}`
+    ? "Park & ride"
     : transitModesLabel;
   const transitUsesRail = best?.legs.some((leg) => leg.mode === "rail") ?? false;
   const transitUsesBus = best?.legs.some((leg) => leg.mode === "bus") ?? false;
@@ -2181,16 +2200,16 @@ function Index() {
   // mode, using the same TomTom drive time and GTFS itineraries as Leave now.
   const arriveByActive = planMode === "arrive-by" && arriveByTarget !== null;
   const arriveByPassed = arriveByActive && arriveByTarget < nowSeconds;
-  const transitPick = useMemo(
-    () => {
-      if (arriveByTarget === null) return null;
-      // Prefer trips without transfers that aren't worth it; fall back to them
-      // only when nothing else makes the arrival time.
-      const preferred = latestTransitArrival(options.filter((option) => !option.extraTransfers), arriveByTarget);
-      return preferred.feasible ? preferred : latestTransitArrival(options, arriveByTarget);
-    },
-    [options, arriveByTarget],
-  );
+  const transitPick = useMemo(() => {
+    if (arriveByTarget === null) return null;
+    // Prefer trips without transfers that aren't worth it; fall back to them
+    // only when nothing else makes the arrival time.
+    const preferred = latestTransitArrival(
+      options.filter((option) => !option.extraTransfers),
+      arriveByTarget,
+    );
+    return preferred.feasible ? preferred : latestTransitArrival(options, arriveByTarget);
+  }, [options, arriveByTarget]);
   const gtfsExpiry = useDataExpiry();
   const driveAccess = destinationAccess(driveTo, arrivingHome ? "home" : null, now);
   const futureCandidateSeconds =
@@ -2316,12 +2335,13 @@ function Index() {
       ? null
       : decideArrival(arrivalDriveEstimate, arrivalTransitEstimate, arriveByTarget);
 
-  // In arrive-by mode the itinerary shown is the latest one that still makes it.
+  // In arrive-by mode the itinerary shown is the latest one that still makes it,
+  // unless the rider tapped a way to travel (that card keeps its own trip).
   const arriveByLeaveBy =
     arriveByActive && transitPick?.option ? optionIdentity(transitPick.option) : null;
   useEffect(() => {
-    if (arriveByLeaveBy !== null) setSelectedDeparture(arriveByLeaveBy);
-  }, [arriveByLeaveBy]);
+    if (arriveByLeaveBy !== null && chosenCard === null) setSelectedDeparture(arriveByLeaveBy);
+  }, [arriveByLeaveBy, chosenCard]);
 
   // A saved place with a typical arrival time pre-fills the target once.
   const activeSavedPlace = useMemo(() => {
@@ -2421,6 +2441,11 @@ function Index() {
     failed: driveFailed,
     majorIncident: Boolean(drive?.incidents[0]),
   });
+  // The drive time riders see is door to door (road time in live traffic plus
+  // parking and the walk in), the same number the verdict uses. Road time alone
+  // is only shown labelled as such.
+  const driveDoorToDoorMinutes =
+    driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes;
   const transitTripEstimate = transitEstimate({
     option: best ?? null,
     nowSeconds,
@@ -2822,6 +2847,104 @@ function Index() {
       : (commitment?.mode ??
         (optionsLoading || driveLoading ? "uncertain" : (activeDecision?.state ?? "uncertain")));
   const verdict: UiDecisionState = canonicalVerdict as UiDecisionState;
+
+  useEffect(() => {
+    setChosenCard(null);
+  }, [tripDirection.to.lat, tripDirection.to.lon, inbound]);
+
+  // Drive / Park & ride / No car, side by side inside the verdict card. Both
+  // transit choices come from the planner's own ordered list; tapping one
+  // selects that trip. Leaving now, every row counts from now to arrival (drive
+  // door to door), the same numbers the headline compares; for Arrive By each
+  // row shows its trip length and when to leave.
+  const choiceKeyFor = (option: Option | null | undefined): TripChoiceKey =>
+    option && needsCar(option) ? "parkAndRide" : "noCar";
+  const selectedChoice: TripChoiceKey = selectedMode === "drive" ? "drive" : choiceKeyFor(best);
+  // Nalu's pick is its own answer, so it doesn't move when a rider taps a row.
+  const computedPick: TripChoiceKey | null =
+    verdict === "drive" ? "drive" : verdict === "transit" ? choiceKeyFor(best) : null;
+  const [naluPick, setNaluPick] = useState<TripChoiceKey | null>(null);
+  useEffect(() => {
+    if (chosenCard === null && !commitment) setNaluPick(computedPick);
+  }, [computedPick, chosenCard, commitment]);
+  const lockedChoice: TripChoiceKey | null =
+    lockedMode === "drive" ? "drive" : lockedMode === "transit" ? choiceKeyFor(best) : null;
+  const transitChoice = (key: "parkAndRide" | "noCar"): TripChoice => {
+    const group = key === "parkAndRide" ? choicePicks.parkAndRide : choicePicks.noCar;
+    // A committed trip shows the boarded itinerary, not a fresher option.
+    const option = lockedChoice === key && best ? best : group.option;
+    return {
+      key,
+      title: key === "parkAndRide" ? "Park & ride" : "No car",
+      steps: option ? tripSteps(option) : null,
+      minutes: option
+        ? arriveByActive
+          ? option.total_minutes
+          : Math.max(0, Math.round((option.arrive_seconds - nowSeconds) / 60))
+        : null,
+      timeLabel: option
+        ? arriveByActive
+          ? `Leave ${clockFromSeconds(option.leave_by_seconds)}`
+          : `Arrive ${clockFromSeconds(option.arrive_seconds)}`
+        : null,
+      late: arriveByActive && option !== null && !group.makesIt && lockedChoice !== key,
+      status: option ? "ready" : optionsLoading ? "loading" : "empty",
+      emptyText: optionsFailed
+        ? "Can’t check transit right now"
+        : key === "noCar"
+          ? "No trip without a car right now"
+          : "No park & ride trip right now",
+      note: key === "parkAndRide" ? parkingNote(option, honoluluIsoDow(now)) : null,
+      pick: naluPick === key,
+      locked: lockedChoice === key,
+    };
+  };
+  const driveChoiceMinutes =
+    arriveByActive && drivePlan
+      ? Math.round((drivePlan.arriveSeconds - drivePlan.leaveBySeconds) / 60)
+      : driveDoorToDoorMinutes;
+  const tripChoices: TripChoice[] = [
+    {
+      key: "drive",
+      title: "Drive",
+      steps: drive?.corridorLabel
+        ? `Via ${drive.corridorLabel.replace(/^Via\s+/i, "")}`
+        : "Door to door",
+      minutes: driveChoiceMinutes,
+      timeLabel:
+        arriveByActive && drivePlan
+          ? `Leave ${clockFromSeconds(drivePlan.leaveBySeconds)}`
+          : driveTripEstimate.arrivalTime !== null
+            ? `Arrive ${clockFromSeconds(driveTripEstimate.arrivalTime)}`
+            : null,
+      late: arriveByActive && drivePlan !== null && !drivePlan.feasible,
+      status: driveLoading
+        ? "loading"
+        : driveTripEstimate.availability === "available"
+          ? "ready"
+          : "empty",
+      emptyText:
+        driveTripEstimate.availability === "car-unavailable"
+          ? (carAwayReason ?? "No car for this trip")
+          : "Can’t check traffic right now",
+      pick: naluPick === "drive",
+      locked: lockedChoice === "drive",
+    },
+    // Park & ride only when there is a sensible trip to a station with a lot.
+    ...(choicePicks.parkAndRide.option || lockedChoice === "parkAndRide"
+      ? [transitChoice("parkAndRide")]
+      : []),
+    transitChoice("noCar"),
+  ];
+  function chooseTrip(key: TripChoiceKey) {
+    if (commitment) return;
+    setChosenCard(key);
+    if (key === "drive") return chooseMode("drive");
+    const option = (key === "parkAndRide" ? choicePicks.parkAndRide : choicePicks.noCar).option;
+    if (!option) return;
+    chooseMode("transit");
+    setSelectedDeparture(optionIdentity(option));
+  }
   const driveTrafficUnavailable = driveTripEstimate.availability === "data-error";
   const transitStandaloneAvailable =
     driveTrafficUnavailable && transitTripEstimate.availability === "available" && Boolean(best);
@@ -2947,10 +3070,10 @@ function Index() {
   // The verdict only steers the view until the commuter commits; after that the
   // locked mode stays on screen for the rest of the trip.
   useEffect(() => {
-    if (commitment) return;
+    if (commitment || chosenCard !== null) return;
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "transit") setSelectedMode("transit");
-  }, [verdict, inbound, commitment]);
+  }, [verdict, inbound, commitment, chosenCard]);
   const reasoning = commitment
     ? "Your selected trip stays locked while conditions update."
     : railClosedForEvening
@@ -3554,7 +3677,6 @@ function Index() {
       setMapStopActionBusy(false);
     }
   }
-
 
   async function quickStartSavedPlace(slot: string, options: { auto?: boolean } = {}) {
     if (!options.auto && !gate.tripCheck()) return;
@@ -4734,8 +4856,19 @@ function Index() {
           }
           driveWindow={driveWindow}
           driveBufferNote={driveBufferNote}
-          driveTotalMinutes={driveTripEstimate.expectedDurationMinutes}
+          driveTotalMinutes={driveDoorToDoorMinutes}
           driveLeaveSeconds={arriveByActive && drivePlan ? drivePlan.leaveBySeconds : null}
+          comparison={
+            activeRegion().hasTransit ? (
+              <TripChoiceCards
+                choices={tripChoices}
+                selectedKey={selectedChoice}
+                commitment={Boolean(commitment)}
+                formatMinutes={formatDriveMinutes}
+                onSelect={chooseTrip}
+              />
+            ) : null
+          }
         >
           <>
             {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
@@ -4832,10 +4965,8 @@ function Index() {
                   )}
                   {verdict === "same" && (
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Driving is about{" "}
-                      {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit
-                      is about{" "}
-                      {formatDriveMinutes(transitTripEstimate.expectedDurationMinutes ?? 0)}.
+                      Driving is about {formatDriveMinutes(driveDoorToDoorMinutes ?? 0)}; transit is
+                      about {formatDriveMinutes(transitTripEstimate.expectedDurationMinutes ?? 0)}.
                     </p>
                   )}
                   {verdict === "uncertain" && (
@@ -4883,7 +5014,7 @@ function Index() {
           period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
           decision={verdict}
           trafficLevel={naluHeroTrafficLevel}
-          driveMinutes={driveTripEstimate.expectedDurationMinutes}
+          driveMinutes={driveDoorToDoorMinutes}
           transitMinutes={transitTripEstimate.expectedDurationMinutes}
           timeDelta={activeDecision.differenceMinutes ?? null}
           incidents={drive?.incidents ?? []}
@@ -5268,34 +5399,6 @@ function Index() {
           <h2 id="mode-details-title" className="sr-only">
             Trip details
           </h2>
-          {activeRegion().hasTransit && (
-            <TravelModeTabs
-              selectedMode={selectedMode}
-              commitment={Boolean(commitment)}
-              transitLabel={transitLabel}
-              transitUsesRail={transitUsesRail}
-              transitUsesBus={transitUsesBus}
-              transitMinutes={transitTripEstimate.expectedDurationMinutes}
-              driveMinutes={driveTripEstimate.expectedDurationMinutes}
-              arriveByActive={arriveByActive}
-              bestTransitMinutes={best ? best.total_minutes : null}
-              // "Faster than" only makes sense when both options exist.
-              transitWinner={
-                verdict === "transit" &&
-                driveTripEstimate.availability === "available" &&
-                transitTripEstimate.availability === "available"
-              }
-              driveWinner={
-                verdict === "drive" &&
-                driveTripEstimate.availability === "available" &&
-                transitTripEstimate.availability === "available"
-              }
-              lockedMode={lockedMode === "drive" || lockedMode === "transit" ? lockedMode : null}
-              formatMinutes={formatDriveMinutes}
-              onModeChange={chooseMode}
-            />
-          )}
-
           {selectedMode === "transit" && (
             <TransitItinerary
               transitLabel={transitLabel}
@@ -5348,8 +5451,8 @@ function Index() {
                     </div>
                     <p className="text-4xl font-bold tabular-nums text-foreground">
                       {driveAvailable
-                        ? driveTripEstimate.expectedDurationMinutes !== null
-                          ? Math.round(driveTripEstimate.expectedDurationMinutes)
+                        ? driveDoorToDoorMinutes !== null
+                          ? Math.round(driveDoorToDoorMinutes)
                           : driveLoading
                             ? "…"
                             : "—"
@@ -5357,6 +5460,19 @@ function Index() {
                       <span className="ml-1 text-base">min</span>
                     </p>
                   </div>
+                  {driveAvailable &&
+                    driveTripEstimate.expectedDurationMinutes !== null &&
+                    driveDoorToDoorMinutes !== null &&
+                    driveDoorToDoorMinutes > driveTripEstimate.expectedDurationMinutes && (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Door to door: {Math.round(driveTripEstimate.expectedDurationMinutes)} min
+                        driving in live traffic, plus about{" "}
+                        {Math.round(
+                          driveDoorToDoorMinutes - driveTripEstimate.expectedDurationMinutes,
+                        )}{" "}
+                        min to park and walk in.
+                      </p>
+                    )}
                   {verdict !== "drive" &&
                     (drive?.corridorLabel ? (
                       <RouteCorridor label={drive.corridorLabel} size="compact" />
@@ -5412,97 +5528,99 @@ function Index() {
           {selectedMode === "transit" && options.length > 1 && (
             <AlternativeDepartures>
               <ol className="mt-5 grid min-w-0 max-w-full gap-3">
-                {alternativeOptions(options, best)
-                  .map((option, index) => {
-                    const arrivalDifference = best
-                      ? Math.round((option.arrive_seconds - best.arrive_seconds) / 60)
-                      : 0;
-                    const departureDifference = best
-                      ? Math.round((option.leave_by_seconds - best.leave_by_seconds) / 60)
-                      : 0;
-                    const primaryTransitLeg = option.legs.find(
-                      (leg) => leg.mode === "bus" || leg.mode === "rail",
-                    );
-                    const isRailDeparture = primaryTransitLeg?.mode === "rail";
-                    return (
-                      <li key={optionIdentity(option)} className="min-w-0 max-w-full">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setSelectedDeparture(optionIdentity(option))}
-                          aria-label={`Leave at ${clockFromSeconds(option.leave_by_seconds)} and arrive at ${clockFromSeconds(option.arrive_seconds)}`}
-                          className="alternative-option group h-auto min-w-0 max-w-full overflow-hidden whitespace-normal rounded-lg p-4 text-left transition-all active:scale-[0.99]"
-                        >
-                          <span className="block min-w-0 w-full overflow-hidden">
-                            <span className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                              <span className="min-w-0">
-                                <span className="block text-xs font-bold uppercase text-muted-foreground">
-                                  Option {String.fromCharCode(65 + index)}
-                                </span>
-                                <span className="mt-1 grid grid-cols-[auto_auto_auto] items-center justify-start gap-2 text-xl font-bold tabular-nums text-foreground">
-                                  <span>{clockFromSeconds(option.leave_by_seconds)}</span>
-                                  <ArrowRight className="size-4 shrink-0 text-recommended transition-transform group-hover:translate-x-0.5" />
-                                  <span>{clockFromSeconds(option.arrive_seconds)}</span>
-                                </span>
+                {alternativeOptions(options, best).map((option, index) => {
+                  const arrivalDifference = best
+                    ? Math.round((option.arrive_seconds - best.arrive_seconds) / 60)
+                    : 0;
+                  const departureDifference = best
+                    ? Math.round((option.leave_by_seconds - best.leave_by_seconds) / 60)
+                    : 0;
+                  const primaryTransitLeg = option.legs.find(
+                    (leg) => leg.mode === "bus" || leg.mode === "rail",
+                  );
+                  const isRailDeparture = primaryTransitLeg?.mode === "rail";
+                  return (
+                    <li key={optionIdentity(option)} className="min-w-0 max-w-full">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setSelectedDeparture(optionIdentity(option))}
+                        aria-label={`Leave at ${clockFromSeconds(option.leave_by_seconds)} and arrive at ${clockFromSeconds(option.arrive_seconds)}`}
+                        className="alternative-option group h-auto min-w-0 max-w-full overflow-hidden whitespace-normal rounded-lg p-4 text-left transition-all active:scale-[0.99]"
+                      >
+                        <span className="block min-w-0 w-full overflow-hidden">
+                          <span className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                            <span className="min-w-0">
+                              <span className="block text-xs font-bold uppercase text-muted-foreground">
+                                Option {String.fromCharCode(65 + index)}
                               </span>
-                              <span className="w-fit max-w-full rounded-full border border-border bg-muted/70 px-2.5 py-1 text-left text-xs font-bold leading-snug tabular-nums text-muted-foreground sm:text-right">
-                                {arrivalDifference > 0
-                                  ? `Arrives ${arrivalDifference} min later than current`
-                                  : arrivalDifference < 0
-                                    ? `Arrives ${Math.abs(arrivalDifference)} min earlier than current`
-                                    : "Same arrival as current"}
-                                {option.extraTransfers && best
-                                  ? ` · ${moreTransfersLabel(option, best)}`
-                                  : ""}
+                              <span className="mt-1 grid grid-cols-[auto_auto_auto] items-center justify-start gap-2 text-xl font-bold tabular-nums text-foreground">
+                                <span>{clockFromSeconds(option.leave_by_seconds)}</span>
+                                <ArrowRight className="size-4 shrink-0 text-recommended transition-transform group-hover:translate-x-0.5" />
+                                <span>{clockFromSeconds(option.arrive_seconds)}</span>
                               </span>
                             </span>
-                            <span className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-border/70 pt-3 text-sm">
-                              <span className="min-w-0">
-                                <span className="block text-xs font-semibold uppercase text-muted-foreground">
-                                  Compared to current
-                                </span>
-                                <span className="mt-1 block break-words font-semibold tabular-nums text-foreground">
-                                  {departureDifference > 0
-                                    ? `Leaves ${departureDifference} min later`
-                                    : departureDifference < 0
-                                      ? `Leaves ${Math.abs(departureDifference)} min earlier`
-                                      : "Same departure time"}
-                                </span>
-                              </span>
-                              <span className="shrink-0">
-                                <span className="block text-xs font-semibold uppercase text-muted-foreground">
-                                  Total trip
-                                </span>
-                                <span className="mt-1 block text-lg font-bold tabular-nums text-foreground">
-                                  {formatDriveMinutes(option.total_minutes)}
-                                </span>
-                              </span>
+                            <span className="w-fit max-w-full rounded-full border border-border bg-muted/70 px-2.5 py-1 text-left text-xs font-bold leading-snug tabular-nums text-muted-foreground sm:text-right">
+                              {arrivalDifference > 0
+                                ? `Arrives ${arrivalDifference} min later than current`
+                                : arrivalDifference < 0
+                                  ? `Arrives ${Math.abs(arrivalDifference)} min earlier than current`
+                                  : "Same arrival as current"}
+                              {option.extraTransfers && best
+                                ? ` · ${moreTransfersLabel(option, best)}`
+                                : ""}
                             </span>
-                            {primaryTransitLeg && (
-                              <span className="mt-3 flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md bg-recommended/5 px-3 py-2 text-xs text-muted-foreground">
-                                {isRailDeparture ? (
-                                  <TrainFront
-                                    className="size-4 shrink-0 text-recommended"
-                                    aria-hidden="true"
-                                  />
-                                ) : (
-                                  <Bus
-                                    className="size-4 shrink-0 text-recommended"
-                                    aria-hidden="true"
-                                  />
-                                )}
-                                <span className="shrink-0 font-bold text-foreground">
-                                  {option.legs[0]?.mode === "drive" ? "Drive + " : ""}
-                                  {isRailDeparture ? "Rail" : "Bus"}
-                                </span>
-                                <span className="truncate">{vehicleName(primaryTransitLeg)}</span>
-                              </span>
-                            )}
                           </span>
-                        </Button>
-                      </li>
-                    );
-                  })}
+                          <span className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-border/70 pt-3 text-sm">
+                            <span className="min-w-0">
+                              <span className="block text-xs font-semibold uppercase text-muted-foreground">
+                                Compared to current
+                              </span>
+                              <span className="mt-1 block break-words font-semibold tabular-nums text-foreground">
+                                {departureDifference > 0
+                                  ? `Leaves ${departureDifference} min later`
+                                  : departureDifference < 0
+                                    ? `Leaves ${Math.abs(departureDifference)} min earlier`
+                                    : "Same departure time"}
+                              </span>
+                            </span>
+                            <span className="shrink-0">
+                              <span className="block text-xs font-semibold uppercase text-muted-foreground">
+                                Total trip
+                              </span>
+                              <span className="mt-1 block text-lg font-bold tabular-nums text-foreground">
+                                {formatDriveMinutes(option.total_minutes)}
+                              </span>
+                            </span>
+                          </span>
+                          {primaryTransitLeg && (
+                            <span className="mt-3 flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md bg-recommended/5 px-3 py-2 text-xs text-muted-foreground">
+                              {isRailDeparture ? (
+                                <TrainFront
+                                  className="size-4 shrink-0 text-recommended"
+                                  aria-hidden="true"
+                                />
+                              ) : (
+                                <Bus
+                                  className="size-4 shrink-0 text-recommended"
+                                  aria-hidden="true"
+                                />
+                              )}
+                              <span className="shrink-0 font-bold text-foreground">
+                                {option.legs.some((leg) => leg.mode === "drive")
+                                  ? "Park & ride"
+                                  : isRailDeparture
+                                    ? "Rail"
+                                    : "Bus"}
+                              </span>
+                              <span className="truncate">{vehicleName(primaryTransitLeg)}</span>
+                            </span>
+                          )}
+                        </span>
+                      </Button>
+                    </li>
+                  );
+                })}
               </ol>
             </AlternativeDepartures>
           )}

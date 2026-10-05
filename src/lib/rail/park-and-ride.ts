@@ -12,10 +12,23 @@ export const PARK_AND_RIDE_STOP_IDS: ReadonlySet<string> = new Set([
   "10030", // Kahauiki (Kalihi Transit Center)
 ]);
 
-export const isParkAndRide = (stopId: string | null | undefined) => Boolean(stopId && PARK_AND_RIDE_STOP_IDS.has(stopId));
+/** How riders know each park-and-ride station. */
+export const PARK_AND_RIDE_NAMES: Readonly<Record<string, string>> = {
+  "10046": "UH West Oʻahu",
+  "10045": "Honouliuli",
+  "10055": "Hālawa",
+  "10030": "Kahauiki",
+};
+
+export const isParkAndRide = (stopId: string | null | undefined) =>
+  Boolean(stopId && PARK_AND_RIDE_STOP_IDS.has(stopId));
 
 type Point = { lat: number | null; lon: number | null };
-type Station = { stop_id: string; stop_lat: number | string | null; stop_lon: number | string | null };
+type Station = {
+  stop_id: string;
+  stop_lat: number | string | null;
+  stop_lon: number | string | null;
+};
 
 /** Straight-line metres between two points (good enough at Oʻahu's scale). */
 export function metresBetween(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
@@ -30,14 +43,20 @@ export function nearestParkAndRide<T extends Station>(origin: Point, stations: T
   const from = { lat: origin.lat, lon: origin.lon };
   let best: { station: T; metres: number } | null = null;
   for (const station of stations) {
-    if (!isParkAndRide(station.stop_id) || station.stop_lat == null || station.stop_lon == null) continue;
-    const metres = metresBetween(from, { lat: Number(station.stop_lat), lon: Number(station.stop_lon) });
+    if (!isParkAndRide(station.stop_id) || station.stop_lat == null || station.stop_lon == null)
+      continue;
+    const metres = metresBetween(from, {
+      lat: Number(station.stop_lat),
+      lon: Number(station.stop_lon),
+    });
     if (!best || metres < best.metres) best = { station, metres };
   }
   return best?.station ?? null;
 }
 
-type DriveAccessOption = { legs: Array<{ kind?: string; mode: string; to_stop_id?: string | null | undefined }> };
+type DriveAccessOption = {
+  legs: Array<{ kind?: string; mode: string; to_stop_id?: string | null | undefined }>;
+};
 
 /** Drop trips that start by driving to a station with no park-and-ride lot. */
 export function dropDriveToStationsWithoutParking<T extends DriveAccessOption>(options: T[]): T[] {
