@@ -36,11 +36,15 @@ function context(overrides: Record<string, unknown> = {}) {
     scheduleAfterSeconds: 8 * 3600,
     setup: { ...emptySetup },
     tripDirection: {
+      inbound: false,
+      reverseTrip: false,
+      departingFromSavedHome: false,
+      arrivingAtSavedHome: false,
       from: { lat: 21.3365, lon: -158.0854 },
       to: { lat: 21.2911, lon: -157.843 },
     },
     ...overrides,
-  } as Parameters<typeof planTransitTrip>[0];
+  } as unknown as Parameters<typeof planTransitTrip>[0];
 }
 
 /** Each planner answers from this table; anything else returns no rows. */
@@ -79,12 +83,12 @@ describe("transit trip planner", () => {
   it("after midnight, also searches yesterday's late-night service", async () => {
     answer({
       plan_bus_direct: (args) =>
-        args.p_service_day_offset === -1 ? ok([option(86400 + 1800, "C")]) : ok([]),
+        args["p_service_day_offset"] === -1 ? ok([option(86400 + 1800, "C")]) : ok([]),
     });
     const options = await planTransitTrip(context({ nowSeconds: 1800, scheduleAfterSeconds: 1800 }));
     const offsets = rpc.mock.calls
       .filter(([name]) => name === "plan_bus_direct")
-      .map(([, args]) => (args as Record<string, unknown>).p_service_day_offset);
+      .map(([, args]) => (args as Record<string, unknown>)["p_service_day_offset"]);
     expect(offsets).toEqual(expect.arrayContaining([0, -1]));
     // TheBus writes 24:30 for 12:30 AM; Nalu shifts it back onto today's clock.
     expect(options[0]?.depart_seconds).toBe(1800);
