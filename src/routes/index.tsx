@@ -1,58 +1,34 @@
-import { TEST_REGION_POPULAR, activeRegion, regionContains, regionTimeZone } from "@/lib/region";
+import { activeRegion, regionTimeZone } from "@/lib/region";
 import { hdotRoadName } from "@/lib/hdot-road-names";
 import { Tagline } from "@/components/brand/Tagline";
 import { useGate } from "@/hooks/use-gate";
-import { VoiceSection } from "@/components/settings/VoiceSection";
 import { SettingsHint } from "@/components/SettingsHint";
 import { RideCard } from "@/components/commute/RideCard";
 import { WalkCard } from "@/components/commute/WalkCard";
-import { readVoiceLabel } from "@/lib/best-voice";
-import { APP_VERSION } from "@/lib/site";
-import { readPushPrefs } from "@/lib/push-client";
-import { createPortal } from "react-dom";
-import { ClientOnly, Link, createFileRoute } from "@tanstack/react-router";
-import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { ClientOnly, createFileRoute } from "@tanstack/react-router";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { debugLog, endDebugSession, flushDebugLogs, startDebugSession } from "@/lib/debug-log";
 import {
   ArrowRight,
-  BriefcaseBusiness,
   Bus,
   Car,
-  Check,
   ChevronDown,
   ChevronRight,
   Footprints,
-  House,
-  Dumbbell,
-  GraduationCap,
-  MapPin,
-  Pencil,
   Plus,
-  LocateFixed,
   Navigation,
-  History,
   Radio,
   RefreshCw,
   RotateCcw,
   Search,
   Settings,
   TrainFront,
-  UserRound,
-  X,
-  Bell,
-  ChevronLeft,
-  Info,
-  ShieldCheck,
-  Vibrate,
-  Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
-
 import { supabase } from "@/integrations/supabase/client";
-import { reverseGeocode, searchPlaces, type PlaceSuggestion } from "@/lib/geocode.functions";
+import { reverseGeocode } from "@/lib/geocode.functions";
 import { RouteCorridor } from "@/components/commute/RouteCorridor";
 import { NightCard } from "@/components/commute/NightCard";
 import { CommuteHeader } from "@/components/commute/CommuteHeader";
@@ -61,17 +37,15 @@ import { TravelModeTabs } from "@/components/commute/TravelModeTabs";
 import { TransitItinerary } from "@/components/commute/TransitItinerary";
 import { DriveDetails } from "@/components/commute/DriveDetails";
 import { AlternativeDepartures } from "@/components/commute/AlternativeDepartures";
-import { DataExpiryNotice, SettingsExpiryBanner, useDataExpiry } from "@/components/commute/DataExpiry";
+import { DataExpiryNotice, useDataExpiry } from "@/components/commute/DataExpiry";
 import { HdotRoadworkNotice } from "@/components/commute/HdotRoadworkNotice";
 import { ApproachBanner, NavShell } from "@/components/commute/LiveTripControls";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
-import { busArrivals, type BusArrival, type BusArrivalsResult } from "@/lib/bus-arrivals.functions";
-import { confirmedLiveBus } from "@/lib/bus-match";
-import { outdoorConditions, type MomentConditions } from "@/lib/weather.functions";
+import { busArrivals } from "@/lib/bus-arrivals.functions";
+import { outdoorConditions } from "@/lib/weather.functions";
 import {
   incidentImpactText,
-  incidentText,
   incidentHeadline,
   incidentDetailText,
   trafficDelayText,
@@ -97,28 +71,17 @@ import {
   type AlertPrefs,
   type ApproachState,
 } from "@/lib/approach";
-import {
-  detectLocationPlatform,
-  isPermissionDeniedError,
-  queryLocationPermission,
-} from "@/lib/location-permission";
+import { isPermissionDeniedError } from "@/lib/location-permission";
 import {
   clockInputValue,
-  commutePresets,
   findByKind,
   kindLabel,
   hasValidCoordinates,
-  makeSavedPlace,
   migrateSavedPlaces,
   parseSavedPlaces,
   parseClockInput,
-  removePlace,
-  swapHomeWork,
-  upsertPlace,
   LEGACY_SAVED_PLACES_KEY,
   SAVED_PLACES_KEY,
-  PLACE_KINDS,
-  type PlaceKind,
   type SavedPlace,
 } from "@/lib/saved-places";
 import { latestRailArrival as latestTransitArrival } from "@/lib/leave-by";
@@ -131,22 +94,21 @@ import {
 import { carAvailableForDrive } from "@/lib/car-state";
 import { inboundPlannerCoordinates, resolveTripDirection } from "@/lib/trip-direction";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
-import { decideArrival, verdictMarginMinutes, type DecisionState } from "@/lib/decision/commute-decision";
+import {
+  decideArrival,
+  verdictMarginMinutes,
+  type DecisionState,
+} from "@/lib/decision/commute-decision";
 import { createNaluVerdict } from "@/lib/intelligence/verdict-engine";
 import { NaluPersonalityStrip, WaveMark } from "@/components/commute/NaluPersonalityStrip";
 import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
-import { driveEstimate, transitEstimate, type EstimateSource } from "@/lib/decision/trip-estimate";
+import { driveEstimate, transitEstimate } from "@/lib/decision/trip-estimate";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
-import {
-  filterTransferSanityOptions,
-  findInboundOptions,
-  hubAccessFallback,
-} from "@/lib/rail/inbound-fallback";
+import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
 import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
 import { ArriveByControls, type PlanMode } from "@/components/commute/ArriveByControls";
 import { VerdictDomain } from "@/components/commute/VerdictDomain";
-import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
-import { AccountSection } from "@/components/account/AccountSection";
+import { LandmarkHint } from "@/components/commute/TransitNotices";
 import {
   AccountButton,
   AccountDialog,
@@ -167,18 +129,7 @@ import {
   distanceAlongPath,
 } from "@/lib/navigation-voice";
 import { track } from "@/lib/analytics";
-import { NotificationsSection } from "@/components/account/NotificationsSection";
-import { PrivacySection } from "@/components/account/PrivacySection";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -186,8 +137,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { HOLO_FARES } from "@/lib/fares";
 import {
   autoOpenAllowed,
@@ -197,17 +146,9 @@ import {
   readHabits,
   recordTripOpen,
 } from "@/lib/trip-habits";
-import {
-  POPULAR_PLACES,
-  addRecent,
-  clearRecents,
-  readRecents,
-  removeRecent,
-  type RecentPlace,
-} from "@/lib/places/recents";
 import { InstallNaluCard } from "@/components/InstallNaluCard";
 import { LeaveAlertCard, RemindMeButton, alertKeyFor } from "@/components/LeaveAlertCard";
-import { MAX_STOP_WALK_M, preferLessWalking } from "@/lib/rail/walk-preference";
+import { MAX_STOP_WALK_M } from "@/lib/rail/walk-preference";
 import {
   AskNaluIfAvailable,
   BeatTheRush,
@@ -228,7 +169,6 @@ import {
 import {
   alohaGreeting,
   clockFromSeconds,
-  directionLabel,
   distanceM,
   formatDistance,
   honoluluDateKey,
@@ -241,13 +181,78 @@ import {
   transitStopName,
   walkingEstimate,
 } from "@/lib/commute-formatting";
-
-const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 import type { NearbyMapStop } from "@/components/NearbyTransitMap";
 import { SITE_URL } from "@/lib/site";
+import {
+  ACTIVE_TRIP_KEY,
+  ARRIVE_BY_KEY,
+  BROWSE_LOCATION_DENIED_KEY,
+  BROWSE_STATION_KEY,
+  BrowseDeparture,
+  BrowseStation,
+  BusStopTarget,
+  COMMIT_KEY,
+  CarPlace,
+  Commitment,
+  Coords,
+  DIRECTION_KEY,
+  DOWNTOWN_POINT,
+  DecisionSnapshot,
+  DirectionOverride,
+  KAPOLEI_POINT,
+  LEGACY_STORAGE_PREFIX,
+  LIVE_ROUTE_CACHE_KEY,
+  LOCATION_DENIED_KEY,
+  LOCKED_OPTION_KEY,
+  Leg,
+  NearbyArrival,
+  NearbyStop,
+  OVERRIDE_MS,
+  Option,
+  OutdoorMoment,
+  PARKED_KEY,
+  PLAN_MODE_KEY,
+  ParkedCar,
+  RailLineStation,
+  RailStation,
+  SETUP_DISMISSED_KEY,
+  STORAGE_KEY,
+  Setup,
+  TOSS_UP_MIN,
+  TransitLegSequence,
+  UiDecisionState,
+  changedMinutes,
+  emptySetup,
+  heatLine,
+  mergeTransitOptions,
+  nearbyChipTitle,
+  nearbyServiceLabel,
+  optionIdentity,
+  parseCommitment,
+  profileFirstName,
+  rainLine,
+  sourceFreshnessLabel,
+  vehicleName,
+} from "@/lib/commute-model";
+import { SettingsPageId, SetupDialog } from "@/components/settings/SetupDialog";
+import { useRailStations } from "@/hooks/use-rail-stations";
+import {
+  RailTripBreakdown,
+  WalkingMicroMap,
+  matchLiveArrival,
+} from "@/components/commute/RailTripBreakdown";
+import {
+  QuickPlaceDialog,
+  ShortcutGrid,
+  resolveShortcut,
+  shortcutIcon,
+  shortcutLabel,
+} from "@/components/places/Shortcuts";
+import { HoldToEndButton, NavBottomCard } from "@/components/commute/TripControls";
+
+const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
-const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -275,7 +280,8 @@ export const Route = createFileRoute("/")({
       { name: "twitter:title", content: "Nalu | Rail or drive on Oʻahu?" },
       {
         name: "twitter:description",
-        content: "Ride it. Drive it. Just go. The Oʻahu commute answer for TheBus, Skyline and driving.",
+        content:
+          "Ride it. Drive it. Just go. The Oʻahu commute answer for TheBus, Skyline and driving.",
       },
       { name: "twitter:image", content: SITE_URL + "/social-card.png" },
     ],
@@ -304,432 +310,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Index,
 });
-
-type Setup = {
-  homeStopId: string;
-  homeStopName: string;
-  homeLat: number | null;
-  homeLon: number | null;
-  destinationName: string;
-  destinationAddress: string;
-  destLat: number | null;
-  destLon: number | null;
-  /** Arriving stop: served by routes coming from the rail transfer points. */
-  destStopId: string;
-  destStopName: string;
-  destStopWalkM: number | null;
-  /** Boarding stop for the trip home: served by routes heading back toward the rail line. */
-  destReturnStopId: string;
-  destReturnStopName: string;
-  destReturnWalkM: number | null;
-  allowDrive: boolean;
-};
-
-type Leg = {
-  kind: "access" | "rail" | "connect" | "egress";
-  mode: "walk" | "drive" | "bus" | "rail";
-  route_short: string | null;
-  route_long: string | null;
-  headsign: string | null;
-  /** Display names only; identity comes from the GTFS stop ids below. */
-  from: string | null;
-  to: string | null;
-  from_stop_id?: string | null | undefined;
-  to_stop_id?: string | null | undefined;
-  depart_seconds: number | null;
-  arrive_seconds: number | null;
-  minutes: number | null;
-};
-
-type RailLineStation = {
-  stop_id: string;
-  stop_name: string | null;
-  stop_lat: number | null;
-  stop_lon: number | null;
-  line_sequence: number;
-};
-
-type TransitLegSequence = {
-  legIndex: number;
-  mode: "bus" | "rail";
-  points: Array<{ stopId: string; stopName: string; lat: number; lon: number }>;
-};
-
-/** Anything with a name and a point: a suggestion, a saved place, or a draft. */
-type PointLike = { name: string; address: string; lat: number; lon: number };
-
-type BusStopTarget = {
-  stopId: string;
-  scheduled: Array<{
-    routeShortName: string | null;
-    headsign: string | null;
-    scheduledSeconds: number;
-  }>;
-};
-
-type Option = {
-  leave_by_seconds: number;
-  depart_seconds: number;
-  arrive_seconds: number;
-  total_minutes: number;
-  legs: Leg[];
-};
-
-/** Departure time alone is not unique: distinct routes can leave together. */
-function optionIdentity(option: Option) {
-  return `${option.leave_by_seconds}:${option.depart_seconds}:${option.arrive_seconds}:${option.total_minutes}:${option.legs.map((leg) => `${leg.mode}:${leg.route_short ?? ""}:${leg.from_stop_id ?? leg.from ?? ""}:${leg.to_stop_id ?? leg.to ?? ""}`).join("|")}`;
-}
-
-function mergeTransitOptions(...groups: Option[][]): Option[] {
-  const unique = new Map<string, Option>();
-  const saneOptions = preferLessWalking(filterTransferSanityOptions(groups.flat()));
-  for (const option of saneOptions) unique.set(optionIdentity(option), option);
-  return Array.from(unique.values())
-    .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
-    .slice(0, 8);
-}
-
-const STORAGE_KEY = "nalu-setup-v3";
-const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
-const BROWSE_STATION_KEY = "nalu-browse-station-v1";
-const BROWSE_LOCATION_DENIED_KEY = "nalu-browse-location-denied-v1";
-const LOCATION_DENIED_KEY = "nalu-location-denied-v1";
-const KAPOLEI_POINT = { lat: 21.3358, lon: -158.0798 };
-const DOWNTOWN_POINT = { lat: 21.3099, lon: -157.8644 };
-const DIRECTION_KEY = "nalu-direction-v1";
-const PARKED_KEY = "nalu-parked-v1";
-const OVERRIDE_MS = 2 * 60 * 60 * 1000;
-
-type RailStation = {
-  stop_id: string;
-  stop_name: string | null;
-  stop_lat: number | null;
-  stop_lon: number | null;
-};
-
-/**
- * One canonical rail-station query. Browse, the setup picker, the maps and trip
- * planning all read the same cached GTFS station list.
- */
-function useRailStations(enabled: boolean) {
-  return useQuery({
-    queryKey: ["rail-stations"],
-    enabled,
-    staleTime: 6 * 60 * 60_000,
-    queryFn: async (): Promise<RailStation[]> => {
-      const { data, error } = await supabase.rpc("rail_stations");
-      if (error) throw error;
-      return (data ?? []) as RailStation[];
-    },
-  });
-}
-
-/** Minutes of padding on the rail chain, and how much a transfer can slip. */
-const RAIL_BUFFER_MIN = 3;
-const RAIL_SLIP_MIN = 4;
-/** Under this gap, neither option really wins. */
-const TOSS_UP_MIN = 5;
-/** A long wait for the first train tips the choice toward the car. */
-const LONG_WAIT_MIN = 25;
-const ACTIVE_TRIP_KEY = "nalu-active-trip-v1";
-const PLAN_MODE_KEY = "nalu-plan-mode-v1";
-const ARRIVE_BY_KEY = "nalu-arrive-by-v1";
-const COMMIT_KEY = "nalu-committed-mode-v1";
-const LOCKED_OPTION_KEY = "nalu-locked-itinerary-v1";
-const LIVE_ROUTE_CACHE_KEY = "nalu-live-route-v1";
-
-/** The mode a commuter has committed to for the trip underway. */
-type Commitment = { mode: "transit" | "drive"; at: number };
-
-type UiDecisionState = "drive" | "transit" | "same" | "none" | "uncertain";
-type DecisionSnapshot = {
-  key: string;
-  state: "drive" | "transit" | "same";
-  driveMinutes: number | null;
-  transitMinutes: number | null;
-  driveDelayMinutes: number | null;
-  railWaitMinutes: number | null;
-  busWaitMinutes: number | null;
-  majorIncident: boolean;
-};
-
-function changedMinutes(now: number | null, previous: number | null) {
-  if (now === null || previous === null) return null;
-  const delta = Math.round(now - previous);
-  return Math.abs(delta) >= 2 ? delta : null;
-}
-
-function parseCommitment(raw: string | null): Commitment | null {
-  if (!raw) return null;
-  try {
-    const value = JSON.parse(raw) as { mode?: "rail" | "transit" | "drive"; at?: number };
-    const mode = value.mode === "rail" ? "transit" : value.mode;
-    if (mode !== "transit" && mode !== "drive") return null;
-    return { mode, at: typeof value.at === "number" ? value.at : Date.now() };
-  } catch {
-    return null;
-  }
-}
-
-const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
-
-type DirectionOverride = { inbound: boolean; at: number };
-/** Where the car is today for park-and-ride trips: at home or left at a station. */
-type CarPlace = "home" | "station";
-type ParkedCar = { date: string; station: string; place?: CarPlace };
-type BrowseStation = {
-  stopId: string;
-  stopName: string;
-  lat: number;
-  lon: number;
-  userLat?: number;
-  userLon?: number;
-};
-type BrowseDeparture = {
-  departure_seconds: number;
-  departure_time: string;
-  route_id: string;
-  route_long_name: string;
-  route_short_name: string;
-  stop_name: string;
-  trip_headsign: string;
-  direction_id: number | null;
-  trip_id: string;
-  direction_terminus: string;
-  ride_minutes: number;
-  terminus_lon: number | null;
-};
-
-type NearbyArrival = {
-  departure_seconds: number;
-  departure_time: string;
-  route_short_name: string | null;
-  route_long_name: string | null;
-  headsign: string | null;
-};
-
-type NearbyStop = {
-  stopId: string;
-  stopName: string;
-  lat: number;
-  lon: number;
-  routeType: number;
-  distanceM: number;
-  arrivals: NearbyArrival[];
-};
-
-type Coords = { lat: number; lon: number };
-
-/** A stretch of the trip spent outside, with where and when it happens. */
-type OutdoorMoment = {
-  id: string;
-  /** Index of the leg this sits under; -2 is the drive comparison. */
-  legIndex: number;
-  kind:
-    | "wait-feeder"
-    | "drive-station"
-    | "platform"
-    | "transfer-walk"
-    | "wait-connect"
-    | "final-walk"
-    | "drive-route";
-  lat: number;
-  lon: number;
-  offsetMinutes: number;
-  outdoorMinutes: number;
-  minutes?: number;
-  label?: string | null;
-};
-
-/** Rain is worth a word above 40%, or above 50% when the rider is driving. */
-function rainLine(moment: OutdoorMoment, reading: MomentConditions): string | null {
-  const chance = reading.precipPercent;
-  if (chance === null) return null;
-  const driving = moment.kind === "drive-station" || moment.kind === "drive-route";
-  if (chance <= (driving ? 50 : 40)) return null;
-  switch (moment.kind) {
-    case "wait-feeder":
-      return "Rain likely while waiting for your bus";
-    case "drive-station":
-      return `Light rain at ${moment.label || "the station"} when you arrive`;
-    case "platform":
-      return "Showers likely on the platform";
-    case "transfer-walk":
-      return `Rain during your ${moment.minutes ?? 0} min walk between rides`;
-    case "wait-connect":
-      return moment.label
-        ? `Showers possible while waiting for ${/^[A-Z]?\d{1,3}[A-Z]?$/i.test(moment.label) ? `Route ${moment.label}` : titleCase(moment.label)}`
-        : "Showers possible while waiting for your bus";
-    case "final-walk":
-      return `Rain likely during your ${moment.minutes ?? 0} min walk`;
-    case "drive-route":
-      return "Rain on the H-1 · allow extra time";
-    default:
-      return null;
-  }
-}
-
-/** Heat and humidity always arrive as a single line, never two. */
-function heatLine(moment: OutdoorMoment, reading: MomentConditions): WeatherLine | null {
-  // Driving is indoors; heat only matters where the rider is standing outside.
-  if (moment.kind === "drive-station" || moment.kind === "drive-route") return null;
-  const feels = reading.heatIndexF;
-  const humid = (reading.humidityPercent ?? 0) > 75;
-  const hot = feels !== null && feels > 88;
-  if (hot && humid) {
-    return {
-      text: `Hot and humid · feels like ${feels}°F · limit time outdoors`,
-      tone: "heat",
-      source: "NWS",
-    };
-  }
-  if (hot) {
-    const where =
-      moment.kind === "wait-feeder"
-        ? "Hot at bus stop"
-        : moment.kind === "platform"
-          ? "Hot on the platform"
-          : "Hot";
-    return { text: `${where} · feels like ${feels}°F`, tone: "heat", source: "NWS" };
-  }
-  if (humid) {
-    return {
-      text: feels !== null ? `Humid · feels like ${feels}°F` : "Humid outside right now",
-      tone: "rain",
-      source: "NWS",
-    };
-  }
-  return null;
-}
-
-function readJson<T>(key: string): T | null {
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
-  } catch {
-    return null;
-  }
-}
-
-const emptySetup: Setup = {
-  homeStopId: "",
-  homeStopName: "",
-  homeLat: null,
-  homeLon: null,
-  destinationName: "",
-  destinationAddress: "",
-  destLat: null,
-  destLon: null,
-  destStopId: "",
-  destStopName: "",
-  destStopWalkM: null,
-  destReturnStopId: "",
-  destReturnStopName: "",
-  destReturnWalkM: null,
-  allowDrive: false,
-};
-
-/** First name from the signed-in profile: full name, then given name, then username. */
-function profileFirstName(
-  user: { user_metadata?: Record<string, unknown>; email?: string | null } | null,
-) {
-  const meta = user?.user_metadata ?? {};
-  const fullName = typeof meta["full_name"] === "string" ? meta["full_name"].trim() : "";
-  if (fullName) return fullName.split(/\s+/)[0];
-  const given = typeof meta["given_name"] === "string" ? meta["given_name"].trim() : "";
-  if (given) return given;
-  const username =
-    typeof meta["preferred_username"] === "string" ? meta["preferred_username"].trim() : "";
-  if (username) return username.split(/[.@]/)[0];
-  const email = typeof user?.email === "string" ? user.email : "";
-  if (email) return email.split("@")[0];
-  return undefined;
-}
-
-function nearbyServiceLabel(stop: NearbyStop) {
-  const arrival = stop.arrivals[0];
-  if (!arrival) return stop.routeType === 1 ? "Skyline" : "No arrivals";
-  const route =
-    stop.routeType === 1
-      ? "Skyline"
-      : arrival.route_short_name?.trim() || arrival.route_long_name?.trim() || "Bus";
-  const destination = arrival.headsign
-    ? stop.routeType === 1
-      ? stationLabel(arrival.headsign)
-      : titleCase(arrival.headsign)
-    : "";
-  return destination ? `${route} · ${destination}` : route;
-}
-
-/** Short chip title: the station name for rail, the routes that stop here for buses. */
-function nearbyChipTitle(stop: NearbyStop) {
-  if (stop.routeType === 1) return stationLabel(stop.stopName) || "Skyline";
-  const routes = [
-    ...new Set(
-      stop.arrivals
-        .map((arrival) => arrival.route_short_name?.trim() || arrival.route_long_name?.trim())
-        .filter((route): route is string => Boolean(route)),
-    ),
-  ].slice(0, 3);
-  return routes.length ? `Bus ${routes.join(", ")}` : titleCase(stop.stopName);
-}
-
-function vehicleName(leg: Leg) {
-  if (leg.mode === "rail") {
-    const line = stationLabel(leg.route_long) || "Skyline";
-    return leg.headsign ? `${line} (toward ${stationLabel(leg.headsign)})` : line;
-  }
-  if (leg.mode === "bus") {
-    // "Route 42" for TheBus numbers; named lines ("W LINE") read as names.
-    const short = leg.route_short?.trim() ?? "";
-    const label = !short ? "Bus" : /^[A-Z]?\d{1,3}[A-Z]?$/i.test(short) ? `Route ${short}` : titleCase(short);
-    return leg.headsign ? `${label} (toward ${titleCase(leg.headsign)})` : label;
-  }
-  const verb = leg.mode === "drive" ? "Drive" : "Walk";
-  // Name both ends: the last leg is only "home" when the trip ends at home.
-  const to = titleCase(leg.to);
-  if (!to) return leg.kind === "egress" ? `${verb} home` : verb;
-  return `${verb} to ${to}`;
-}
-
-function modeIcon(mode: Leg["mode"]) {
-  if (mode === "rail") return TrainFront;
-  if (mode === "bus") return Bus;
-  if (mode === "drive") return Car;
-  return Footprints;
-}
-
-function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
-  if (source.quality === "unavailable") {
-    return source.basis === "live"
-      ? "Live traffic · Not available"
-      : "Bus & Skyline times · Not available";
-  }
-  if (source.fetchedAt === null) {
-    return source.basis === "live"
-      ? "Live traffic · Update time unknown"
-      : "Bus & Skyline times · Update time unknown";
-  }
-
-  const ageSeconds = Math.max(0, Math.round((nowMs - source.fetchedAt) / 1000));
-  const age =
-    ageSeconds < 10
-      ? "just now"
-      : ageSeconds < 60
-        ? `${ageSeconds} sec ago`
-        : `${Math.round(ageSeconds / 60)} min ago`;
-
-  let label =
-    source.basis === "live"
-      ? "Live traffic"
-      : source.name.includes("TheBus")
-        ? "Bus schedule"
-        : "Bus & Skyline times";
-
-  if (source.basis === "future-estimate") label = "Future traffic estimate";
-
-  return `${label} · Updated ${age}${source.quality === "stale" ? " · Stale" : ""}`;
-}
 
 function Index() {
   const { user, loading: authLoading, signedInAt } = useAuth();
@@ -1662,7 +1242,10 @@ function Index() {
         return fetchGeneralTransitDay(cursor, 0);
       };
 
-      const fetchGeneralTransitDay = async (cursor: number, dayOffset: number): Promise<Option[]> => {
+      const fetchGeneralTransitDay = async (
+        cursor: number,
+        dayOffset: number,
+      ): Promise<Option[]> => {
         const { data, error } = await supabase.rpc("plan_transit_general", {
           p_origin_lat: tripDirection.from.lat as number,
           p_origin_lon: tripDirection.from.lon as number,
@@ -2438,7 +2021,9 @@ function Index() {
   // "Get off in 2 stops" alerts are part of Plus.
   const ridingAlerts = gate.allows("riding_alerts");
   const showApproach =
-    ridingAlerts && Boolean(approach) && approachDismissed !== `${approach?.key}-${approach?.state}`;
+    ridingAlerts &&
+    Boolean(approach) &&
+    approachDismissed !== `${approach?.key}-${approach?.state}`;
 
   // Real driving time between the two points that matter for this direction.
   const driveFrom = tripDirection.from;
@@ -3531,7 +3116,6 @@ function Index() {
 
   const driveWeatherLines = weatherLines.get(-2) ?? [];
 
-
   // Canonical decision state is Drive vs Transit. The UI still uses "rail"
   // as its transit-view key for compatibility with the existing transit panels;
   // this adapter keeps that legacy UI vocabulary out of the decision engine.
@@ -3543,9 +3127,7 @@ function Index() {
   const verdict: UiDecisionState = canonicalVerdict as UiDecisionState;
   const driveTrafficUnavailable = driveTripEstimate.availability === "data-error";
   const transitStandaloneAvailable =
-    driveTrafficUnavailable &&
-    transitTripEstimate.availability === "available" &&
-    Boolean(best);
+    driveTrafficUnavailable && transitTripEstimate.availability === "available" && Boolean(best);
   const naluHeroTrafficLevel: "light" | "moderate" | "heavy" | "severe" =
     driveTripEstimate.majorIncident || (driveTripEstimate.trafficDelayMinutes ?? 0) >= 20
       ? "severe"
@@ -3709,7 +3291,9 @@ function Index() {
             : activeDecision.primary.text;
 
   const verdictConfidence: "high" | "moderate" | "low" =
-    activeDecision.confidence === "high" || activeDecision.confidence === "moderate" || activeDecision.confidence === "low"
+    activeDecision.confidence === "high" ||
+    activeDecision.confidence === "moderate" ||
+    activeDecision.confidence === "low"
       ? activeDecision.confidence
       : "low";
 
@@ -3881,8 +3465,6 @@ function Index() {
     });
     return rows;
   }, [best, arrivingHome, setup.destinationName, setup.destinationAddress]);
-
-
 
   const commuteMapPoints = useMemo(() => {
     if (!best || !homePoint || !destPoint) return [];
@@ -4097,8 +3679,6 @@ function Index() {
   // Drive mode traces the real road geometry TomTom used for the ETA.
   const driveMapPath = selectedMode === "drive" ? drive?.path : undefined;
   const driveTrafficSections = selectedMode === "drive" ? drive?.trafficSections : undefined;
-
-
 
   // Browse mode gets one line only, read at wherever the rider is standing now.
   const { data: browseWeather } = useQuery({
@@ -4497,13 +4077,26 @@ function Index() {
     const url = new URL(window.location.href);
     url.searchParams.delete("to");
     url.searchParams.delete("name");
-    window.history.replaceState(window.history.state, "", url.pathname + (url.search || "") + url.hash);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      url.pathname + (url.search || "") + url.hash,
+    );
     try {
       window.sessionStorage.setItem("nalu-autoopen-done", "1");
     } catch {
       /* ignore */
     }
-    startTripToPlace({ label: shared.name, name: shared.name, address: shared.name, lat: shared.lat, lon: shared.lon }, { auto: true });
+    startTripToPlace(
+      {
+        label: shared.name,
+        name: shared.name,
+        address: shared.name,
+        lat: shared.lat,
+        lon: shared.lon,
+      },
+      { auto: true },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, commitment]);
 
@@ -4915,294 +4508,301 @@ function Index() {
           {/* Skyline, H-1 and Oʻahu weather: off in the SF test. */}
           {activeRegion().hasTransit && (
             <>
-          {browseStation && browseFar && !stationExpanded ? (
-            <button
-              type="button"
-              onClick={() => setStationExpanded(true)}
-              className="glass-panel mt-4 flex w-full min-w-0 items-center gap-2 rounded-full px-4 py-3 text-left text-sm"
-              aria-label="Show Skyline station details"
-            >
-              <TrainFront className="size-4 shrink-0 text-primary" />
-              <span className="truncate font-semibold text-foreground">
-                {stationLabel(browseStation.stopName)}
-              </span>
-              <span className="truncate text-muted-foreground">
-                {browseUserPoint
-                  ? ` · ${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min drive`
-                  : ""}
-                {trainsEveryMinutes ? ` · Trains every ${trainsEveryMinutes} min` : ""}
-              </span>
-              <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
-            </button>
-          ) : (
-            <section
-              className="glass-panel mt-4 rounded-lg p-4"
-              aria-labelledby="browse-station-title"
-            >
-              <div className="flex items-start gap-3">
-                <TrainFront className="mt-5 size-6 shrink-0 text-primary" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">
-                    Skyline station
-                  </p>
-                  <h2 id="browse-station-title" className="text-xl font-semibold text-foreground">
-                    <Select
-                      value={browseStation?.stopId ?? ""}
-                      onValueChange={(stopId) => {
-                        const station = browseStations.find((item) => item.stop_id === stopId);
-                        if (!station) return;
-                        rememberBrowseStation({
-                          stopId: station.stop_id,
-                          stopName: station.stop_name ?? "",
-                          lat: Number(station.stop_lat),
-                          lon: Number(station.stop_lon),
-                          ...(browseStation?.userLat !== undefined
-                            ? { userLat: browseStation.userLat }
-                            : {}),
-                          ...(browseStation?.userLon !== undefined
-                            ? { userLon: browseStation.userLon }
-                            : {}),
-                        });
-                      }}
-                    >
-                      <SelectTrigger
-                        className="h-auto min-h-11 w-full justify-start gap-2 border-0 bg-transparent px-0 py-1 text-left text-xl font-semibold whitespace-normal shadow-none focus:ring-0 focus-visible:ring-2 [&>span]:line-clamp-none [&>span]:whitespace-normal"
-                        aria-label="Choose Skyline station"
+              {browseStation && browseFar && !stationExpanded ? (
+                <button
+                  type="button"
+                  onClick={() => setStationExpanded(true)}
+                  className="glass-panel mt-4 flex w-full min-w-0 items-center gap-2 rounded-full px-4 py-3 text-left text-sm"
+                  aria-label="Show Skyline station details"
+                >
+                  <TrainFront className="size-4 shrink-0 text-primary" />
+                  <span className="truncate font-semibold text-foreground">
+                    {stationLabel(browseStation.stopName)}
+                  </span>
+                  <span className="truncate text-muted-foreground">
+                    {browseUserPoint
+                      ? ` · ${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min drive`
+                      : ""}
+                    {trainsEveryMinutes ? ` · Trains every ${trainsEveryMinutes} min` : ""}
+                  </span>
+                  <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
+                </button>
+              ) : (
+                <section
+                  className="glass-panel mt-4 rounded-lg p-4"
+                  aria-labelledby="browse-station-title"
+                >
+                  <div className="flex items-start gap-3">
+                    <TrainFront className="mt-5 size-6 shrink-0 text-primary" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">
+                        Skyline station
+                      </p>
+                      <h2
+                        id="browse-station-title"
+                        className="text-xl font-semibold text-foreground"
                       >
-                        <SelectValue
-                          placeholder={browseStations.length ? "Choose a station" : "Finding your station…"}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {browseStations.map((station) => (
-                          <SelectItem key={station.stop_id} value={station.stop_id}>
-                            {stationLabel(station.stop_name)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </h2>
-                  {browseStation && <LandmarkHint name={browseStation.stopName} />}
-                </div>
-                {browseFar && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Collapse station card"
-                    onClick={() => setStationExpanded(false)}
-                  >
-                    <ChevronDown className="size-4 rotate-180" />
-                  </Button>
-                )}
-              </div>
-              {browseStation && (
-                <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold">
-                  {browseUserPoint && browseWalkMinutes !== null && browseWalkMinutes <= 18 && (
-                    <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
-                      Walk {browseWalkMinutes} min ·{" "}
-                      {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
-                    </span>
-                  )}
-                  {browseUserPoint && (
-                    <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
-                      Drive about{" "}
-                      {Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min
-                    </span>
-                  )}
-                  {trainsEveryMinutes && (
-                    <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
-                      Trains every {trainsEveryMinutes} min
-                    </span>
-                  )}
-                  {stationParking && (
-                    <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
-                      {stationParking.status === "limited"
-                        ? "Limited parking"
-                        : "Park & Ride available"}
-                      {stationParking.note ? ` · ${stationParking.note}` : ""}
-                    </span>
-                  )}
-                </div>
-              )}
-              {browseStation &&
-                browseUserPoint &&
-                browseWalkMinutes !== null &&
-                browseWalkMinutes > 18 &&
-                feederBuses.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-semibold text-foreground">
-                    {feederBuses.slice(0, 2).map((bus) => (
-                      <span
-                        key={bus.route_short_name}
-                        className="rounded-full border border-border px-2 py-0.5"
+                        <Select
+                          value={browseStation?.stopId ?? ""}
+                          onValueChange={(stopId) => {
+                            const station = browseStations.find((item) => item.stop_id === stopId);
+                            if (!station) return;
+                            rememberBrowseStation({
+                              stopId: station.stop_id,
+                              stopName: station.stop_name ?? "",
+                              lat: Number(station.stop_lat),
+                              lon: Number(station.stop_lon),
+                              ...(browseStation?.userLat !== undefined
+                                ? { userLat: browseStation.userLat }
+                                : {}),
+                              ...(browseStation?.userLon !== undefined
+                                ? { userLon: browseStation.userLon }
+                                : {}),
+                            });
+                          }}
+                        >
+                          <SelectTrigger
+                            className="h-auto min-h-11 w-full justify-start gap-2 border-0 bg-transparent px-0 py-1 text-left text-xl font-semibold whitespace-normal shadow-none focus:ring-0 focus-visible:ring-2 [&>span]:line-clamp-none [&>span]:whitespace-normal"
+                            aria-label="Choose Skyline station"
+                          >
+                            <SelectValue
+                              placeholder={
+                                browseStations.length ? "Choose a station" : "Finding your station…"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {browseStations.map((station) => (
+                              <SelectItem key={station.stop_id} value={station.stop_id}>
+                                {stationLabel(station.stop_name)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </h2>
+                      {browseStation && <LandmarkHint name={browseStation.stopName} />}
+                    </div>
+                    {browseFar && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Collapse station card"
+                        onClick={() => setStationExpanded(false)}
                       >
-                        <Bus className="mr-1 inline size-3" />
-                        TheBus {bus.route_short_name} · {bus.ride_minutes} min ride · leaves{" "}
-                        {clockFromSeconds(bus.depart_seconds)}
-                      </span>
-                    ))}
+                        <ChevronDown className="size-4 rotate-180" />
+                      </Button>
+                    )}
                   </div>
-                )}
-              {browseLocationDenied && browseStation && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Location unavailable · showing a data-derived West Oahu station
-                </p>
-              )}
-              {browseLocationDenied && locationDenied && (
-                <Button
-                  variant="link"
-                  onClick={() => openSettingsList()}
-                  className="mt-1 h-auto px-0 text-xs text-muted-foreground"
-                >
-                  Location blocked · see how to allow it
-                </Button>
-              )}
-
-              {browseStation && (
-                <div
-                  className={`mt-4 grid grid-cols-2 gap-3 ${refreshing ? "animate-in fade-in duration-300" : ""}`}
-                  aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
-                >
-                  {browseDeparturesLoading && (
-                    <p className="text-sm text-muted-foreground">Loading departures…</p>
+                  {browseStation && (
+                    <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold">
+                      {browseUserPoint && browseWalkMinutes !== null && browseWalkMinutes <= 18 && (
+                        <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
+                          Walk {browseWalkMinutes} min ·{" "}
+                          {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
+                        </span>
+                      )}
+                      {browseUserPoint && (
+                        <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
+                          Drive about{" "}
+                          {Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))}{" "}
+                          min
+                        </span>
+                      )}
+                      {trainsEveryMinutes && (
+                        <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                          Trains every {trainsEveryMinutes} min
+                        </span>
+                      )}
+                      {stationParking && (
+                        <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
+                          {stationParking.status === "limited"
+                            ? "Limited parking"
+                            : "Park & Ride available"}
+                          {stationParking.note ? ` · ${stationParking.note}` : ""}
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {browseDeparturesFailed && (
-                    <p className="col-span-2 text-sm text-warning">
-                      Rail departure times are not available right now.
+                  {browseStation &&
+                    browseUserPoint &&
+                    browseWalkMinutes !== null &&
+                    browseWalkMinutes > 18 &&
+                    feederBuses.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-semibold text-foreground">
+                        {feederBuses.slice(0, 2).map((bus) => (
+                          <span
+                            key={bus.route_short_name}
+                            className="rounded-full border border-border px-2 py-0.5"
+                          >
+                            <Bus className="mr-1 inline size-3" />
+                            TheBus {bus.route_short_name} · {bus.ride_minutes} min ride · leaves{" "}
+                            {clockFromSeconds(bus.depart_seconds)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  {browseLocationDenied && browseStation && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Location unavailable · showing a data-derived West Oahu station
                     </p>
                   )}
-                  {!browseDeparturesLoading &&
-                    !browseDeparturesFailed &&
-                    browseDirections.length === 0 && (
-                      <p className="col-span-2 text-sm text-muted-foreground">
-                        No rail departures are scheduled from this station right now.
+                  {browseLocationDenied && locationDenied && (
+                    <Button
+                      variant="link"
+                      onClick={() => openSettingsList()}
+                      className="mt-1 h-auto px-0 text-xs text-muted-foreground"
+                    >
+                      Location blocked · see how to allow it
+                    </Button>
+                  )}
+
+                  {browseStation && (
+                    <div
+                      className={`mt-4 grid grid-cols-2 gap-3 ${refreshing ? "animate-in fade-in duration-300" : ""}`}
+                      aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
+                    >
+                      {browseDeparturesLoading && (
+                        <p className="text-sm text-muted-foreground">Loading departures…</p>
+                      )}
+                      {browseDeparturesFailed && (
+                        <p className="col-span-2 text-sm text-warning">
+                          Rail departure times are not available right now.
+                        </p>
+                      )}
+                      {!browseDeparturesLoading &&
+                        !browseDeparturesFailed &&
+                        browseDirections.length === 0 && (
+                          <p className="col-span-2 text-sm text-muted-foreground">
+                            No rail departures are scheduled from this station right now.
+                          </p>
+                        )}
+                      {browseDirections.map((direction) => {
+                        const first = direction[0];
+                        const second = direction[1];
+                        const towardDowntown =
+                          first?.terminus_lon !== null &&
+                          first?.terminus_lon !== undefined &&
+                          first.terminus_lon > browseStation.lon;
+                        const endpoint =
+                          terminusLabel(first?.direction_terminus) ||
+                          stationLabel(first?.trip_headsign) ||
+                          "the end of the line";
+                        const secondsAway = (first?.departure_seconds ?? 0) - nowSeconds;
+                        const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
+                        const nowDeparture = secondsAway >= -30 && secondsAway < 60;
+                        const soon = secondsAway >= 60 && secondsAway < 20 * 60;
+                        const walk = browseUserPoint
+                          ? walkingEstimate(browseUserPoint, browseStation)
+                          : null;
+                        const walkState = walk
+                          ? walk.minutes + 2 <= minutesAway
+                            ? "ok"
+                            : walk.minutes <= minutesAway
+                              ? "tight"
+                              : "miss"
+                          : null;
+                        return (
+                          <article
+                            key={`${first?.route_id}-${first?.direction_id ?? "x"}`}
+                            className="browse-departure-card nalu-card-surface min-w-0 rounded-lg p-3"
+                          >
+                            <h3 className="text-sm font-semibold text-foreground">
+                              {towardDowntown ? "Eastbound" : "Westbound"}
+                            </h3>
+                            <p className="mt-0.5 text-xs text-muted-foreground">to {endpoint}</p>
+                            {first && (
+                              <div className="mt-3">
+                                <p className="text-2xl font-semibold tabular-nums text-primary">
+                                  {nowDeparture ? (
+                                    <>
+                                      Now{" "}
+                                      <span className="block text-xs font-normal text-muted-foreground">
+                                        {clockFromSeconds(first.departure_seconds)}
+                                      </span>
+                                    </>
+                                  ) : soon ? (
+                                    <>
+                                      in {minutesAway} min{" "}
+                                      <span className="block text-xs font-normal text-muted-foreground">
+                                        {clockFromSeconds(first.departure_seconds)}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    clockFromSeconds(first.departure_seconds)
+                                  )}
+                                </p>
+                                {walk && walkState && walk.minutes <= 18 && (
+                                  <p
+                                    className={`mt-2 text-xs font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}
+                                  >
+                                    {walk.minutes} min walk
+                                    {walkState === "tight"
+                                      ? " · Tight"
+                                      : walkState === "miss"
+                                        ? " · You'll miss this one."
+                                        : ""}
+                                  </p>
+                                )}
+                                {second && (
+                                  <p className="mt-1.5 text-xs text-muted-foreground">
+                                    Miss it? Next train at{" "}
+                                    {clockFromSeconds(second.departure_seconds)}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    HOLO fare {HOLO_FARES.singleRide} · free TheBus–Skyline transfers for{" "}
+                    {HOLO_FARES.transferWindowHours} hours
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Scheduled times · TheBus / DTS
+                    {h1HasMeaningfulDelay
+                      ? " · H-1 is delayed, so Skyline may be especially useful"
+                      : ""}
+                  </p>
+                </section>
+              )}
+
+              {gate.allows("ask_nalu") && <AskNaluIfAvailable origin={browseUserPoint} />}
+
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <H1ConditionsCard
+                  eastbound={eastboundTraffic}
+                  westbound={westboundTraffic}
+                  loading={trafficLoading}
+                  unavailable={trafficUnavailable}
+                  compact
+                  className=""
+                />
+                <details className="glass-panel rounded-lg">
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                    <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                      {browseWeatherSummary}
+                    </span>
+                    <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
+                  </summary>
+                  <div className="border-t border-border px-4 py-3">
+                    {browseWeatherLine ? (
+                      <p className={`text-sm ${TONE_CLASS[browseWeatherLine.tone]}`}>
+                        {browseWeatherLine.text}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No weather or air-quality concerns right now.
                       </p>
                     )}
-                  {browseDirections.map((direction) => {
-                    const first = direction[0];
-                    const second = direction[1];
-                    const towardDowntown =
-                      first?.terminus_lon !== null &&
-                      first?.terminus_lon !== undefined &&
-                      first.terminus_lon > browseStation.lon;
-                    const endpoint =
-                      terminusLabel(first?.direction_terminus) ||
-                      stationLabel(first?.trip_headsign) ||
-                      "the end of the line";
-                    const secondsAway = (first?.departure_seconds ?? 0) - nowSeconds;
-                    const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
-                    const nowDeparture = secondsAway >= -30 && secondsAway < 60;
-                    const soon = secondsAway >= 60 && secondsAway < 20 * 60;
-                    const walk = browseUserPoint
-                      ? walkingEstimate(browseUserPoint, browseStation)
-                      : null;
-                    const walkState = walk
-                      ? walk.minutes + 2 <= minutesAway
-                        ? "ok"
-                        : walk.minutes <= minutesAway
-                          ? "tight"
-                          : "miss"
-                      : null;
-                    return (
-                      <article
-                        key={`${first?.route_id}-${first?.direction_id ?? "x"}`}
-                        className="browse-departure-card nalu-card-surface min-w-0 rounded-lg p-3"
-                      >
-                        <h3 className="text-sm font-semibold text-foreground">
-                          {towardDowntown ? "Eastbound" : "Westbound"}
-                        </h3>
-                        <p className="mt-0.5 text-xs text-muted-foreground">to {endpoint}</p>
-                        {first && (
-                          <div className="mt-3">
-                            <p className="text-2xl font-semibold tabular-nums text-primary">
-                              {nowDeparture ? (
-                                <>
-                                  Now{" "}
-                                  <span className="block text-xs font-normal text-muted-foreground">
-                                    {clockFromSeconds(first.departure_seconds)}
-                                  </span>
-                                </>
-                              ) : soon ? (
-                                <>
-                                  in {minutesAway} min{" "}
-                                  <span className="block text-xs font-normal text-muted-foreground">
-                                    {clockFromSeconds(first.departure_seconds)}
-                                  </span>
-                                </>
-                              ) : (
-                                clockFromSeconds(first.departure_seconds)
-                              )}
-                            </p>
-                            {walk && walkState && walk.minutes <= 18 && (
-                              <p
-                                className={`mt-2 text-xs font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}
-                              >
-                                {walk.minutes} min walk
-                                {walkState === "tight"
-                                  ? " · Tight"
-                                  : walkState === "miss"
-                                    ? " · You'll miss this one."
-                                    : ""}
-                              </p>
-                            )}
-                            {second && (
-                              <p className="mt-1.5 text-xs text-muted-foreground">
-                                Miss it? Next train at {clockFromSeconds(second.departure_seconds)}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-              <p className="mt-3 text-xs text-muted-foreground">
-                HOLO fare {HOLO_FARES.singleRide} · free TheBus–Skyline transfers for{" "}
-                {HOLO_FARES.transferWindowHours} hours
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Scheduled times · TheBus / DTS
-                {h1HasMeaningfulDelay
-                  ? " · H-1 is delayed, so Skyline may be especially useful"
-                  : ""}
-              </p>
-            </section>
-          )}
-
-          {gate.allows("ask_nalu") && <AskNaluIfAvailable origin={browseUserPoint} />}
-
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <H1ConditionsCard
-              eastbound={eastboundTraffic}
-              westbound={westboundTraffic}
-              loading={trafficLoading}
-              unavailable={trafficUnavailable}
-              compact
-              className=""
-            />
-            <details className="glass-panel rounded-lg">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
-                <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-                  {browseWeatherSummary}
-                </span>
-                <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
-              </summary>
-              <div className="border-t border-border px-4 py-3">
-                {browseWeatherLine ? (
-                  <p className={`text-sm ${TONE_CLASS[browseWeatherLine.tone]}`}>
-                    {browseWeatherLine.text}
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No weather or air-quality concerns right now.
-                  </p>
-                )}
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Weather: NWS · Air quality: AirNow / EPA
-                </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Weather: NWS · Air quality: AirNow / EPA
+                    </p>
+                  </div>
+                </details>
               </div>
-            </details>
-          </div>
             </>
           )}
         </div>
@@ -5272,7 +4872,6 @@ function Index() {
           ))}
         </div>
 
-
         <DataExpiryNotice />
         {!online && (
           <p
@@ -5292,186 +4891,182 @@ function Index() {
           onTimeChange={chooseArriveBy}
         >
           {arriveByPassed && (
-                <div
-                  role="alert"
-                  className="mt-3 rounded-lg border border-warning/50 bg-warning/10 px-3 py-2.5"
-                >
-                  <p className="text-sm font-bold text-warning">
-                    That arrival time has already passed today.
+            <div
+              role="alert"
+              className="mt-3 rounded-lg border border-warning/50 bg-warning/10 px-3 py-2.5"
+            >
+              <p className="text-sm font-bold text-warning">
+                That arrival time has already passed today.
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Here are the earliest times still possible if you leave now.
+              </p>
+            </div>
+          )}
+          {activeSavedPlace?.typicalArrivalSeconds !== null &&
+            activeSavedPlace?.typicalArrivalSeconds !== undefined &&
+            !arrivingHome && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Your usual time at {activeSavedPlace.label}:{" "}
+                {clockFromSeconds(activeSavedPlace.typicalArrivalSeconds)}
+              </p>
+            )}
+
+          {arriveByTarget === null ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Pick the time you need to be there and Nalu works backwards.
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-3">
+              <div className="rounded-lg border border-border bg-background/50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="flex items-center gap-2 text-sm font-bold text-foreground">
+                    <TrainFront className="size-4 text-primary" /> Rail
                   </p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Here are the earliest times still possible if you leave now.
-                  </p>
+                  {transitPick?.option && (
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      {transitPick.option.total_minutes} min total
+                    </p>
+                  )}
                 </div>
-              )}
-              {activeSavedPlace?.typicalArrivalSeconds !== null &&
-                activeSavedPlace?.typicalArrivalSeconds !== undefined &&
-                !arrivingHome && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Your usual time at {activeSavedPlace.label}:{" "}
-                    {clockFromSeconds(activeSavedPlace.typicalArrivalSeconds)}
+                {transitPick?.option && !arriveByPassed ? (
+                  <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
+                    Leave by {clockFromSeconds(transitPick.option.leave_by_seconds)}
+                    <span className="ml-2 text-sm font-medium text-muted-foreground">
+                      · arrive {clockFromSeconds(transitPick.option.arrive_seconds)}
+                    </span>
+                  </p>
+                ) : railClosedForEvening ? (
+                  <p className="mt-2 text-sm text-warning">
+                    Rail is closed for the evening. Today's service ended at{" "}
+                    {todayHours
+                      ? clockFromSeconds(todayHours.last_seconds)
+                      : "the scheduled end time"}
+                    .
+                  </p>
+                ) : railNotRunningYet ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Rail is not running yet. Today's service starts at{" "}
+                    {todayHours
+                      ? clockFromSeconds(todayHours.first_seconds)
+                      : "the scheduled start time"}
+                    .
+                  </p>
+                ) : optionsLoading ? (
+                  <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
+                ) : optionsFailed ? (
+                  <p className="mt-2 text-sm text-warning">
+                    Rail information is not available right now.
+                  </p>
+                ) : transitPick?.earliestOption ? (
+                  <p className="mt-2 text-sm text-warning">
+                    {arriveByPassed
+                      ? "Earliest option: "
+                      : `Rail can't get you there by ${clockFromSeconds(arriveByTarget)}. Earliest option: `}
+                    leave at {clockFromSeconds(transitPick.earliestOption.leave_by_seconds)} ·
+                    arrive {clockFromSeconds(transitPick.earliestOption.arrive_seconds)}.
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {todayHours
+                      ? nowSeconds >= Number(todayHours.last_seconds)
+                        ? `Rail is closed for the evening. Today's service ended at ${clockFromSeconds(todayHours.last_seconds)}.`
+                        : nowSeconds < Number(todayHours.first_seconds)
+                          ? `Rail is not running yet. Today's service starts at ${clockFromSeconds(todayHours.first_seconds)}.`
+                          : `No rail service for this trip at that time. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.`
+                      : "No rail service for this trip today."}
                   </p>
                 )}
+              </div>
 
-              {arriveByTarget === null ? (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  Pick the time you need to be there and Nalu works backwards.
-                </p>
-              ) : (
-                <div className="mt-4 grid gap-3">
-                  <div className="rounded-lg border border-border bg-background/50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="flex items-center gap-2 text-sm font-bold text-foreground">
-                        <TrainFront className="size-4 text-primary" /> Rail
-                      </p>
-                      {transitPick?.option && (
-                        <p className="text-xs font-semibold text-muted-foreground">
-                          {transitPick.option.total_minutes} min total
-                        </p>
-                      )}
-                    </div>
-                    {transitPick?.option && !arriveByPassed ? (
-                      <p className="mt-2 text-lg font-bold tabular-nums text-foreground">
-                        Leave by {clockFromSeconds(transitPick.option.leave_by_seconds)}
-                        <span className="ml-2 text-sm font-medium text-muted-foreground">
-                          · arrive {clockFromSeconds(transitPick.option.arrive_seconds)}
-                        </span>
-                      </p>
-                    ) : railClosedForEvening ? (
-                      <p className="mt-2 text-sm text-warning">
-                        Rail is closed for the evening. Today's service ended at{" "}
-                        {todayHours
-                          ? clockFromSeconds(todayHours.last_seconds)
-                          : "the scheduled end time"}
-                        .
-                      </p>
-                    ) : railNotRunningYet ? (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Rail is not running yet. Today's service starts at{" "}
-                        {todayHours
-                          ? clockFromSeconds(todayHours.first_seconds)
-                          : "the scheduled start time"}
-                        .
-                      </p>
-                    ) : optionsLoading ? (
-                      <p className="mt-2 text-sm text-muted-foreground">Checking the timetable…</p>
-                    ) : optionsFailed ? (
-                      <p className="mt-2 text-sm text-warning">
-                        Rail information is not available right now.
-                      </p>
-                    ) : transitPick?.earliestOption ? (
-                      <p className="mt-2 text-sm text-warning">
-                        {arriveByPassed
-                          ? "Earliest option: "
-                          : `Rail can't get you there by ${clockFromSeconds(arriveByTarget)}. Earliest option: `}
-                        leave at {clockFromSeconds(transitPick.earliestOption.leave_by_seconds)} ·
-                        arrive {clockFromSeconds(transitPick.earliestOption.arrive_seconds)}.
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {todayHours
-                          ? nowSeconds >= Number(todayHours.last_seconds)
-                            ? `Rail is closed for the evening. Today's service ended at ${clockFromSeconds(todayHours.last_seconds)}.`
-                            : nowSeconds < Number(todayHours.first_seconds)
-                              ? `Rail is not running yet. Today's service starts at ${clockFromSeconds(todayHours.first_seconds)}.`
-                              : `No rail service for this trip at that time. Service runs ${clockFromSeconds(todayHours.first_seconds)} to ${clockFromSeconds(todayHours.last_seconds)} today.`
-                          : "No rail service for this trip today."}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="rounded-lg border border-border bg-background/50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="flex items-center gap-2 text-sm font-bold text-foreground">
-                        <Car className="size-4 text-primary" /> Drive
-                      </p>
-                      {drive && driveAvailable && (
-                        <p className="text-xs font-semibold text-muted-foreground">
-                          {formatDriveMinutes(drive.trafficMinutes)} driving
-                        </p>
-                      )}
-                    </div>
-                    {drive && driveAvailable && driveArrival && !drivePlan && (
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-sm font-bold tabular-nums text-foreground">
-                          Arrive {driveWindow}
-                        </summary>
-                        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                          <li>
-                            Driving {drive.lowMinutes}–{drive.highMinutes} min, usually{" "}
-                            {drive.trafficMinutes}
-                          </li>
-                          {driveBufferNote && <li>{driveBufferNote}</li>}
-                        </ul>
-                      </details>
-                    )}
-                    {drivePlan?.feasible && !arriveByPassed ? (
-                      <div className="mt-2">
-                        <p className="text-lg font-bold tabular-nums text-foreground">
-                          Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
-                          <span className="ml-2 text-sm font-medium text-muted-foreground">
-                            · arrive around {clockFromSeconds(drivePlan.arriveSeconds)}
-                          </span>
-                        </p>
-                        {!drivePlan.protected && (
-                          <p className="mt-1 text-xs text-warning">Traffic could make you late.</p>
-                        )}
-                      </div>
-                    ) : drivePlan ? (
-                      <p className="mt-2 text-sm text-warning">
-                        {arriveByPassed
-                          ? "Earliest drive option"
-                          : `Too late to arrive by ${clockFromSeconds(arriveByTarget)}`}{" "}
-                        · leave {clockFromSeconds(drivePlan.leaveBySeconds)} · arrive around{" "}
-                        {clockFromSeconds(drivePlan.earliestArriveSeconds)}.
-                      </p>
-                    ) : !driveAvailable ? (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {carAwayReason ?? "Driving is not available for this trip."}
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {driveLoading
-                          ? "Checking live traffic…"
-                          : "Live traffic is not available right now."}
-                      </p>
-                    )}
-                    {drivePlan && drivePlan.bufferMinutes > 0 && (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Includes {drivePlan.bufferMinutes} min to park and walk in ·{" "}
-                        {driveBasisLabel}
-                      </p>
-                    )}
-                  </div>
-
-                  {arriveByComparison && (
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      <p className="font-semibold text-foreground">
-                        {arriveByComparison.primary.text}
-                      </p>
-                      {arriveByComparison.driveMarginMinutes !== null &&
-                        arriveByComparison.driveMarginMinutes >= 0 && (
-                          <p>
-                            Drive: about {formatDriveMinutes(arriveByComparison.driveMarginMinutes)} to
-                            spare.
-                          </p>
-                        )}
-                      {arriveByComparison.railMarginMinutes !== null &&
-                        arriveByComparison.railMarginMinutes >= 0 && (
-                          <p>
-                            {transitLabel}: about {formatDriveMinutes(arriveByComparison.railMarginMinutes)} to
-                            spare.
-                          </p>
-                        )}
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    All times are Hawaii Standard Time (UTC−10).
+              <div className="rounded-lg border border-border bg-background/50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="flex items-center gap-2 text-sm font-bold text-foreground">
+                    <Car className="size-4 text-primary" /> Drive
                   </p>
+                  {drive && driveAvailable && (
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      {formatDriveMinutes(drive.trafficMinutes)} driving
+                    </p>
+                  )}
+                </div>
+                {drive && driveAvailable && driveArrival && !drivePlan && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-sm font-bold tabular-nums text-foreground">
+                      Arrive {driveWindow}
+                    </summary>
+                    <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      <li>
+                        Driving {drive.lowMinutes}–{drive.highMinutes} min, usually{" "}
+                        {drive.trafficMinutes}
+                      </li>
+                      {driveBufferNote && <li>{driveBufferNote}</li>}
+                    </ul>
+                  </details>
+                )}
+                {drivePlan?.feasible && !arriveByPassed ? (
+                  <div className="mt-2">
+                    <p className="text-lg font-bold tabular-nums text-foreground">
+                      Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
+                      <span className="ml-2 text-sm font-medium text-muted-foreground">
+                        · arrive around {clockFromSeconds(drivePlan.arriveSeconds)}
+                      </span>
+                    </p>
+                    {!drivePlan.protected && (
+                      <p className="mt-1 text-xs text-warning">Traffic could make you late.</p>
+                    )}
+                  </div>
+                ) : drivePlan ? (
+                  <p className="mt-2 text-sm text-warning">
+                    {arriveByPassed
+                      ? "Earliest drive option"
+                      : `Too late to arrive by ${clockFromSeconds(arriveByTarget)}`}{" "}
+                    · leave {clockFromSeconds(drivePlan.leaveBySeconds)} · arrive around{" "}
+                    {clockFromSeconds(drivePlan.earliestArriveSeconds)}.
+                  </p>
+                ) : !driveAvailable ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {carAwayReason ?? "Driving is not available for this trip."}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {driveLoading
+                      ? "Checking live traffic…"
+                      : "Live traffic is not available right now."}
+                  </p>
+                )}
+                {drivePlan && drivePlan.bufferMinutes > 0 && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Includes {drivePlan.bufferMinutes} min to park and walk in · {driveBasisLabel}
+                  </p>
+                )}
+              </div>
+
+              {arriveByComparison && (
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">{arriveByComparison.primary.text}</p>
+                  {arriveByComparison.driveMarginMinutes !== null &&
+                    arriveByComparison.driveMarginMinutes >= 0 && (
+                      <p>
+                        Drive: about {formatDriveMinutes(arriveByComparison.driveMarginMinutes)} to
+                        spare.
+                      </p>
+                    )}
+                  {arriveByComparison.railMarginMinutes !== null &&
+                    arriveByComparison.railMarginMinutes >= 0 && (
+                      <p>
+                        {transitLabel}: about{" "}
+                        {formatDriveMinutes(arriveByComparison.railMarginMinutes)} to spare.
+                      </p>
+                    )}
                 </div>
               )}
+              <p className="text-xs text-muted-foreground">
+                All times are Hawaii Standard Time (UTC−10).
+              </p>
+            </div>
+          )}
         </ArriveByControls>
-
 
         {!commitment && activeRegion().hasTransit && (
           <NightCard
@@ -5497,14 +5092,18 @@ function Index() {
           confidence={verdictConfidence}
           differenceMinutes={activeDecision.differenceMinutes}
           arriveByActive={arriveByActive}
-          driveMinutes={driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes}
+          driveMinutes={
+            driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes
+          }
           driveRange={driveRange}
           transitMinutes={transitTripEstimate.expectedDurationMinutes}
           transitRange={transitRange}
           best={best ?? null}
           transitWindow={transitWindow}
           driveAvailable={Boolean(drive && driveRange && driveArrival)}
-          driveArrivalSeconds={driveTripEstimate.arrivalTime ?? driveArrival?.expectedSeconds ?? null}
+          driveArrivalSeconds={
+            driveTripEstimate.arrivalTime ?? driveArrival?.expectedSeconds ?? null
+          }
           driveWindow={driveWindow}
           driveBufferNote={driveBufferNote}
           driveTotalMinutes={driveTripEstimate.expectedDurationMinutes}
@@ -5513,14 +5112,16 @@ function Index() {
           <>
             {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
             {/* No reason line until both searches finish, so a pending search never reads as "no trip". */}
-            {configured && !optionsLoading && !driveLoading &&
+            {configured &&
+              !optionsLoading &&
+              !driveLoading &&
               (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
-              <p className="mt-4 text-lg font-medium text-muted-foreground">
-                {verdict === "same"
-                  ? "Both options are close once arrival ranges are considered."
-                  : activeDecision.primary.text}
-              </p>
-            )}
+                <p className="mt-4 text-lg font-medium text-muted-foreground">
+                  {verdict === "same"
+                    ? "Both options are close once arrival ranges are considered."
+                    : activeDecision.primary.text}
+                </p>
+              )}
             {configured && (verdict === "transit" || verdict === "drive") && reasoning && (
               <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>
             )}
@@ -5604,8 +5205,9 @@ function Index() {
                   {verdict === "same" && (
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       Driving is about{" "}
-                      {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit is
-                      about {formatDriveMinutes(transitTripEstimate.expectedDurationMinutes ?? 0)}.
+                      {formatDriveMinutes(driveTripEstimate.expectedDurationMinutes ?? 0)}; transit
+                      is about{" "}
+                      {formatDriveMinutes(transitTripEstimate.expectedDurationMinutes ?? 0)}.
                     </p>
                   )}
                   {verdict === "uncertain" && (
@@ -5619,23 +5221,32 @@ function Index() {
           </>
         </VerdictDomain>
 
-        {configured && !commitment && !optionsLoading && !driveLoading &&
+        {configured &&
+          !commitment &&
+          !optionsLoading &&
+          !driveLoading &&
           (verdict === "drive" || verdict === "transit" || verdict === "same") && (
-          <div className="mt-3 flex justify-center">
-            <ShareButton
-              label="Share this answer"
-              text={shareText({
-                verdict,
-                transitLabel,
-                destination: tripArrivalLabel,
-                minutesFaster: activeDecision.differenceMinutes ?? null,
-                leaveSeconds: verdict === "drive" ? driveTripEstimate.leaveTime : transitTripEstimate.leaveTime,
-                arriveSeconds: verdict === "drive" ? driveTripEstimate.arrivalTime : transitTripEstimate.arrivalTime,
-              })}
-              url={shareUrl(shareableDestination)}
-            />
-          </div>
-        )}
+            <div className="mt-3 flex justify-center">
+              <ShareButton
+                label="Share this answer"
+                text={shareText({
+                  verdict,
+                  transitLabel,
+                  destination: tripArrivalLabel,
+                  minutesFaster: activeDecision.differenceMinutes ?? null,
+                  leaveSeconds:
+                    verdict === "drive"
+                      ? driveTripEstimate.leaveTime
+                      : transitTripEstimate.leaveTime,
+                  arriveSeconds:
+                    verdict === "drive"
+                      ? driveTripEstimate.arrivalTime
+                      : transitTripEstimate.arrivalTime,
+                })}
+                url={shareUrl(shareableDestination)}
+              />
+            </div>
+          )}
 
         {/* Nalu's one-line take sits right under the answer it explains. */}
         <NaluPersonalityStrip
@@ -5691,7 +5302,6 @@ function Index() {
             />
           )}
 
-
         {/* Keep the trip commitment action directly beneath the verdict so it
             remains visible before route and comparison details. */}
         {configured && (
@@ -5740,7 +5350,9 @@ function Index() {
                     tripArrivalLabel,
                     lockedMode === "drive" ? "drive" : transitLabel,
                     liveEta?.arriveSeconds ??
-                      (lockedMode === "drive" ? driveTripEstimate.arrivalTime : transitTripEstimate.arrivalTime),
+                      (lockedMode === "drive"
+                        ? driveTripEstimate.arrivalTime
+                        : transitTripEstimate.arrivalTime),
                   )}
                 />
                 <HoldToEndButton
@@ -5779,7 +5391,12 @@ function Index() {
                     speakCommuteAlert(
                       startRoutePhrase(
                         tripArrivalLabel,
-                        first ? { maneuver: first, distanceM: distanceAlongPath(route.path ?? [], first) } : null,
+                        first
+                          ? {
+                              maneuver: first,
+                              distanceM: distanceAlongPath(route.path ?? [], first),
+                            }
+                          : null,
                       ),
                       "maneuver",
                       { immediate: true },
@@ -5831,11 +5448,18 @@ function Index() {
             />
           )}
 
-        {!commitment && !activeRegion().hasTransit && tripDirection.to.lat !== null && tripDirection.to.lon !== null && (
-          <RideCard
-            destination={{ lat: tripDirection.to.lat, lon: tripDirection.to.lon, name: tripArrivalLabel }}
-          />
-        )}
+        {!commitment &&
+          !activeRegion().hasTransit &&
+          tripDirection.to.lat !== null &&
+          tripDirection.to.lon !== null && (
+            <RideCard
+              destination={{
+                lat: tripDirection.to.lat,
+                lon: tripDirection.to.lon,
+                name: tripArrivalLabel,
+              }}
+            />
+          )}
 
         {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
           <section
@@ -6017,23 +5641,31 @@ function Index() {
             Trip details
           </h2>
           {activeRegion().hasTransit && (
-          <TravelModeTabs
-            selectedMode={selectedMode}
-            commitment={Boolean(commitment)}
-            transitLabel={transitLabel}
-            transitUsesRail={transitUsesRail}
-            transitUsesBus={transitUsesBus}
-            transitMinutes={transitTripEstimate.expectedDurationMinutes}
-            driveMinutes={driveTripEstimate.expectedDurationMinutes}
-            arriveByActive={arriveByActive}
-            bestTransitMinutes={best ? best.total_minutes : null}
-            // "Faster than" only makes sense when both options exist.
-            transitWinner={verdict === "transit" && driveTripEstimate.availability === "available" && transitTripEstimate.availability === "available"}
-            driveWinner={verdict === "drive" && driveTripEstimate.availability === "available" && transitTripEstimate.availability === "available"}
-            lockedMode={lockedMode === "drive" || lockedMode === "transit" ? lockedMode : null}
-            formatMinutes={formatDriveMinutes}
-            onModeChange={chooseMode}
-          />
+            <TravelModeTabs
+              selectedMode={selectedMode}
+              commitment={Boolean(commitment)}
+              transitLabel={transitLabel}
+              transitUsesRail={transitUsesRail}
+              transitUsesBus={transitUsesBus}
+              transitMinutes={transitTripEstimate.expectedDurationMinutes}
+              driveMinutes={driveTripEstimate.expectedDurationMinutes}
+              arriveByActive={arriveByActive}
+              bestTransitMinutes={best ? best.total_minutes : null}
+              // "Faster than" only makes sense when both options exist.
+              transitWinner={
+                verdict === "transit" &&
+                driveTripEstimate.availability === "available" &&
+                transitTripEstimate.availability === "available"
+              }
+              driveWinner={
+                verdict === "drive" &&
+                driveTripEstimate.availability === "available" &&
+                transitTripEstimate.availability === "available"
+              }
+              lockedMode={lockedMode === "drive" || lockedMode === "transit" ? lockedMode : null}
+              formatMinutes={formatDriveMinutes}
+              onModeChange={chooseMode}
+            />
           )}
 
           {selectedMode === "transit" && (
@@ -6080,168 +5712,170 @@ function Index() {
               content={
                 <>
                   <div className="flex items-end justify-between gap-4">
-                                  <div>
-                                    <h3 className="text-xl font-bold text-foreground">Drive details</h3>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                      {tripOriginLabel} to {tripArrivalLabel}
-                                    </p>
-                                  </div>
-                                  <p className="text-4xl font-bold tabular-nums text-foreground">
-                                    {driveAvailable
-                                      ? driveTripEstimate.expectedDurationMinutes !== null
-                                        ? Math.round(driveTripEstimate.expectedDurationMinutes)
-                                        : driveLoading
-                                          ? "…"
-                                          : "—"
-                                      : "—"}
-                                    <span className="ml-1 text-base">min</span>
-                                  </p>
-                                </div>
-                                {verdict !== "drive" &&
-                                  (drive?.corridorLabel ? (
-                                    <RouteCorridor label={drive.corridorLabel} size="compact" />
-                                  ) : (
-                                    <p className="mt-4 text-sm font-medium text-foreground">
-                                      Drive straight from {tripOriginLabel} to {tripArrivalLabel} — no stop at a rail
-                                      station.
-                                    </p>
-                                  ))}
-                                {driveAvailable && driveRange && drive && (
-                                  <p className="mt-3 text-xs text-muted-foreground">{driveBasisLabel}</p>
-                                )}
-                                {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
-                                  <HdotRoadworkNotice
-                                    scheduledClosures={drive?.hdotScheduledClosures ?? []}
-                                    variant="commute"
-                                    liveDriveMinutes={drive?.trafficMinutes ?? null}
-                                    delayMinutes={drive?.delayMinutes ?? null}
-                                  />
-                                )}
-                                {!driveAvailable && carAwayReason && (
-                                  <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>
-                                )}
-                                {driveAvailable && driveFailed && (
-                                  <p className="mt-4 text-sm text-muted-foreground">
-                                    Live traffic is not available right now.
-                                  </p>
-                                )}
-                                {driveAvailable && drive?.incidents[0] && verdict !== "drive" && !incidentDecides && (
-                                  <div className="mt-4 border-l-2 border-warning pl-3">
-                                    <p className="text-base font-bold text-foreground">
-                                      {trafficDelayText(drive.incidents[0], drive.delayMinutes)}
-                                    </p>
-                                    <p className="mt-1 text-xs font-medium text-muted-foreground">
-                                      {incidentImpactText(drive.incidents[0])}
-                                    </p>
-                                  </div>
-                                )}
-                                {driveWeatherLines.map((line) => (
-                                  <p key={line.text} className={`mt-3 text-sm ${TONE_CLASS[line.tone]}`}>
-                                    {line.text}
-                                    <span className="ml-1 text-xs text-muted-foreground">{line.source}</span>
-                                  </p>
-                                ))}
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground">Drive details</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {tripOriginLabel} to {tripArrivalLabel}
+                      </p>
+                    </div>
+                    <p className="text-4xl font-bold tabular-nums text-foreground">
+                      {driveAvailable
+                        ? driveTripEstimate.expectedDurationMinutes !== null
+                          ? Math.round(driveTripEstimate.expectedDurationMinutes)
+                          : driveLoading
+                            ? "…"
+                            : "—"
+                        : "—"}
+                      <span className="ml-1 text-base">min</span>
+                    </p>
+                  </div>
+                  {verdict !== "drive" &&
+                    (drive?.corridorLabel ? (
+                      <RouteCorridor label={drive.corridorLabel} size="compact" />
+                    ) : (
+                      <p className="mt-4 text-sm font-medium text-foreground">
+                        Drive straight from {tripOriginLabel} to {tripArrivalLabel} — no stop at a
+                        rail station.
+                      </p>
+                    ))}
+                  {driveAvailable && driveRange && drive && (
+                    <p className="mt-3 text-xs text-muted-foreground">{driveBasisLabel}</p>
+                  )}
+                  {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
+                    <HdotRoadworkNotice
+                      scheduledClosures={drive?.hdotScheduledClosures ?? []}
+                      variant="commute"
+                      liveDriveMinutes={drive?.trafficMinutes ?? null}
+                      delayMinutes={drive?.delayMinutes ?? null}
+                    />
+                  )}
+                  {!driveAvailable && carAwayReason && (
+                    <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>
+                  )}
+                  {driveAvailable && driveFailed && (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      Live traffic is not available right now.
+                    </p>
+                  )}
+                  {driveAvailable &&
+                    drive?.incidents[0] &&
+                    verdict !== "drive" &&
+                    !incidentDecides && (
+                      <div className="mt-4 border-l-2 border-warning pl-3">
+                        <p className="text-base font-bold text-foreground">
+                          {trafficDelayText(drive.incidents[0], drive.delayMinutes)}
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-muted-foreground">
+                          {incidentImpactText(drive.incidents[0])}
+                        </p>
+                      </div>
+                    )}
+                  {driveWeatherLines.map((line) => (
+                    <p key={line.text} className={`mt-3 text-sm ${TONE_CLASS[line.tone]}`}>
+                      {line.text}
+                      <span className="ml-1 text-xs text-muted-foreground">{line.source}</span>
+                    </p>
+                  ))}
                 </>
               }
             />
           )}
 
           {selectedMode === "transit" && options.length > 1 && (
-          <AlternativeDepartures>
-            <ol className="mt-5 grid min-w-0 max-w-full gap-3">
-              {options
-                .filter((option) => !best || optionIdentity(option) !== optionIdentity(best))
-                .slice(0, 3)
-                .map((option, index) => {
-                  const arrivalDifference = best
-                    ? Math.round((option.arrive_seconds - best.arrive_seconds) / 60)
-                    : 0;
-                  const departureDifference = best
-                    ? Math.round((option.leave_by_seconds - best.leave_by_seconds) / 60)
-                    : 0;
-                  const primaryTransitLeg = option.legs.find(
-                    (leg) => leg.mode === "bus" || leg.mode === "rail",
-                  );
-                  const isRailDeparture = primaryTransitLeg?.mode === "rail";
-                  return (
-                    <li key={optionIdentity(option)} className="min-w-0 max-w-full">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setSelectedDeparture(optionIdentity(option))}
-                        aria-label={`Leave at ${clockFromSeconds(option.leave_by_seconds)} and arrive at ${clockFromSeconds(option.arrive_seconds)}`}
-                        className="alternative-option group h-auto min-w-0 max-w-full overflow-hidden whitespace-normal rounded-lg p-4 text-left transition-all active:scale-[0.99]"
-                      >
-                        <span className="block min-w-0 w-full overflow-hidden">
-                          <span className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                            <span className="min-w-0">
-                              <span className="block text-xs font-bold uppercase text-muted-foreground">
-                                Option {String.fromCharCode(65 + index)}
+            <AlternativeDepartures>
+              <ol className="mt-5 grid min-w-0 max-w-full gap-3">
+                {options
+                  .filter((option) => !best || optionIdentity(option) !== optionIdentity(best))
+                  .slice(0, 3)
+                  .map((option, index) => {
+                    const arrivalDifference = best
+                      ? Math.round((option.arrive_seconds - best.arrive_seconds) / 60)
+                      : 0;
+                    const departureDifference = best
+                      ? Math.round((option.leave_by_seconds - best.leave_by_seconds) / 60)
+                      : 0;
+                    const primaryTransitLeg = option.legs.find(
+                      (leg) => leg.mode === "bus" || leg.mode === "rail",
+                    );
+                    const isRailDeparture = primaryTransitLeg?.mode === "rail";
+                    return (
+                      <li key={optionIdentity(option)} className="min-w-0 max-w-full">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setSelectedDeparture(optionIdentity(option))}
+                          aria-label={`Leave at ${clockFromSeconds(option.leave_by_seconds)} and arrive at ${clockFromSeconds(option.arrive_seconds)}`}
+                          className="alternative-option group h-auto min-w-0 max-w-full overflow-hidden whitespace-normal rounded-lg p-4 text-left transition-all active:scale-[0.99]"
+                        >
+                          <span className="block min-w-0 w-full overflow-hidden">
+                            <span className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                              <span className="min-w-0">
+                                <span className="block text-xs font-bold uppercase text-muted-foreground">
+                                  Option {String.fromCharCode(65 + index)}
+                                </span>
+                                <span className="mt-1 grid grid-cols-[auto_auto_auto] items-center justify-start gap-2 text-xl font-bold tabular-nums text-foreground">
+                                  <span>{clockFromSeconds(option.leave_by_seconds)}</span>
+                                  <ArrowRight className="size-4 shrink-0 text-recommended transition-transform group-hover:translate-x-0.5" />
+                                  <span>{clockFromSeconds(option.arrive_seconds)}</span>
+                                </span>
                               </span>
-                              <span className="mt-1 grid grid-cols-[auto_auto_auto] items-center justify-start gap-2 text-xl font-bold tabular-nums text-foreground">
-                                <span>{clockFromSeconds(option.leave_by_seconds)}</span>
-                                <ArrowRight className="size-4 shrink-0 text-recommended transition-transform group-hover:translate-x-0.5" />
-                                <span>{clockFromSeconds(option.arrive_seconds)}</span>
+                              <span className="w-fit max-w-full rounded-full border border-border bg-muted/70 px-2.5 py-1 text-left text-xs font-bold leading-snug tabular-nums text-muted-foreground sm:text-right">
+                                {arrivalDifference > 0
+                                  ? `Arrives ${arrivalDifference} min later than current`
+                                  : arrivalDifference < 0
+                                    ? `Arrives ${Math.abs(arrivalDifference)} min earlier than current`
+                                    : "Same arrival as current"}
                               </span>
                             </span>
-                            <span className="w-fit max-w-full rounded-full border border-border bg-muted/70 px-2.5 py-1 text-left text-xs font-bold leading-snug tabular-nums text-muted-foreground sm:text-right">
-                              {arrivalDifference > 0
-                                ? `Arrives ${arrivalDifference} min later than current`
-                                : arrivalDifference < 0
-                                  ? `Arrives ${Math.abs(arrivalDifference)} min earlier than current`
-                                  : "Same arrival as current"}
+                            <span className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-border/70 pt-3 text-sm">
+                              <span className="min-w-0">
+                                <span className="block text-xs font-semibold uppercase text-muted-foreground">
+                                  Compared to current
+                                </span>
+                                <span className="mt-1 block break-words font-semibold tabular-nums text-foreground">
+                                  {departureDifference > 0
+                                    ? `Leaves ${departureDifference} min later`
+                                    : departureDifference < 0
+                                      ? `Leaves ${Math.abs(departureDifference)} min earlier`
+                                      : "Same departure time"}
+                                </span>
+                              </span>
+                              <span className="shrink-0">
+                                <span className="block text-xs font-semibold uppercase text-muted-foreground">
+                                  Total trip
+                                </span>
+                                <span className="mt-1 block text-lg font-bold tabular-nums text-foreground">
+                                  {formatDriveMinutes(option.total_minutes)}
+                                </span>
+                              </span>
                             </span>
+                            {primaryTransitLeg && (
+                              <span className="mt-3 flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md bg-recommended/5 px-3 py-2 text-xs text-muted-foreground">
+                                {isRailDeparture ? (
+                                  <TrainFront
+                                    className="size-4 shrink-0 text-recommended"
+                                    aria-hidden="true"
+                                  />
+                                ) : (
+                                  <Bus
+                                    className="size-4 shrink-0 text-recommended"
+                                    aria-hidden="true"
+                                  />
+                                )}
+                                <span className="shrink-0 font-bold text-foreground">
+                                  {isRailDeparture ? "Rail" : "Bus"}
+                                </span>
+                                <span className="truncate">{vehicleName(primaryTransitLeg)}</span>
+                              </span>
+                            )}
                           </span>
-                          <span className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-border/70 pt-3 text-sm">
-                            <span className="min-w-0">
-                              <span className="block text-xs font-semibold uppercase text-muted-foreground">
-                                Compared to current
-                              </span>
-                              <span className="mt-1 block break-words font-semibold tabular-nums text-foreground">
-                                {departureDifference > 0
-                                  ? `Leaves ${departureDifference} min later`
-                                  : departureDifference < 0
-                                    ? `Leaves ${Math.abs(departureDifference)} min earlier`
-                                    : "Same departure time"}
-                              </span>
-                            </span>
-                            <span className="shrink-0">
-                              <span className="block text-xs font-semibold uppercase text-muted-foreground">
-                                Total trip
-                              </span>
-                              <span className="mt-1 block text-lg font-bold tabular-nums text-foreground">
-                                {formatDriveMinutes(option.total_minutes)}
-                              </span>
-                            </span>
-                          </span>
-                          {primaryTransitLeg && (
-                            <span className="mt-3 flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md bg-recommended/5 px-3 py-2 text-xs text-muted-foreground">
-                              {isRailDeparture ? (
-                                <TrainFront
-                                  className="size-4 shrink-0 text-recommended"
-                                  aria-hidden="true"
-                                />
-                              ) : (
-                                <Bus
-                                  className="size-4 shrink-0 text-recommended"
-                                  aria-hidden="true"
-                                />
-                              )}
-                              <span className="shrink-0 font-bold text-foreground">
-                                {isRailDeparture ? "Rail" : "Bus"}
-                              </span>
-                              <span className="truncate">{vehicleName(primaryTransitLeg)}</span>
-                            </span>
-                          )}
-                        </span>
-                      </Button>
-                    </li>
-                  );
-                })}
-            </ol>
-          </AlternativeDepartures>
-        )}
-
+                        </Button>
+                      </li>
+                    );
+                  })}
+              </ol>
+            </AlternativeDepartures>
+          )}
         </section>
 
         <Button
@@ -6254,7 +5888,9 @@ function Index() {
 
         <footer className="mt-auto flex items-center justify-between border-t border-border pt-5 text-sm text-muted-foreground">
           <span>
-            {activeRegion().hasTransit ? "Bus and rail times from TheBus timetable" : "Drive times from TomTom live traffic"}
+            {activeRegion().hasTransit
+              ? "Bus and rail times from TheBus timetable"
+              : "Drive times from TomTom live traffic"}
           </span>
           <Button
             variant="ghost"
@@ -6270,2173 +5906,5 @@ function Index() {
 
       {setupDialog}
     </main>
-  );
-}
-
-function RailTripBreakdown({
-  option,
-  inbound,
-  liveBus,
-  liveBusRefreshing,
-  weatherLines,
-  points,
-}: {
-  option: Option;
-  inbound: boolean;
-  liveBus: BusArrivalsResult | undefined;
-  liveBusRefreshing: boolean;
-  weatherLines: Map<number, WeatherLine[]>;
-  points: Array<{ id?: string; name: string; lat: number; lon: number }>;
-}) {
-  const duration = (leg: Leg) =>
-    leg.minutes ??
-    (leg.depart_seconds !== null && leg.arrive_seconds !== null
-      ? Math.max(0, Math.round((leg.arrive_seconds - leg.depart_seconds) / 60))
-      : null);
-  // Every leg, in the order the planner produced (chronological), so
-  // transfer walks and multiple bus connections are never dropped.
-  const rows = option.legs
-    .map((leg, i) => ({ leg, i }))
-    .sort((a, b) => {
-      const ta = a.leg.depart_seconds,
-        tb = b.leg.depart_seconds;
-      return ta !== null && tb !== null && ta !== tb ? ta - tb : a.i - b.i;
-    })
-    .map(({ leg }) => leg);
-
-  return (
-    <>
-      <ol className="mt-7" aria-label="Transit trip breakdown">
-        {rows.map((leg, index) => {
-          const Icon = modeIcon(leg.mode);
-          const previous = rows[index - 1];
-          const waitMinutes =
-            previous?.arrive_seconds !== null &&
-            previous?.arrive_seconds !== undefined &&
-            leg.depart_seconds !== null
-              ? Math.max(0, Math.round((leg.depart_seconds - previous.arrive_seconds) / 60))
-              : 0;
-          const legMinutes = duration(leg);
-          const nextLeg = rows[index + 1];
-          const toBusStop =
-            nextLeg?.mode === "bus" || (leg.mode === "bus" && leg.kind === "access");
-          const stationName = toBusStop ? titleCase(leg.to) : stationLabel(leg.to);
-          const label =
-            leg.mode === "bus" && leg.kind !== "access"
-              ? leg.route_short
-                ? `Bus ${leg.route_short}`
-                : "Bus"
-              : leg.mode === "walk" && leg.kind === "connect"
-                ? `Walk to ${toBusStop ? titleCase(leg.to) || "the next stop" : `${stationLabel(leg.to) || "the"} Station`}`
-                : leg.kind === "access"
-                  ? leg.mode === "walk"
-                    ? toBusStop
-                      ? `Walk to ${stationName || "the bus stop"}`
-                      : `Walk to ${stationName || "the station"} Station`
-                    : stationName
-                      ? `To ${stationName}${leg.mode === "bus" ? "" : " Station"}`
-                      : leg.mode === "bus"
-                        ? "To the stop"
-                        : "To the station"
-                  : leg.kind === "rail"
-                    ? "Skyline"
-                    : leg.kind === "connect"
-                      ? "Connecting bus"
-                      : leg.mode === "bus"
-                        ? inbound
-                          ? "Bus home"
-                          : "Connecting bus"
-                        : leg.mode === "drive"
-                          ? inbound
-                            ? "Drive home"
-                            : "Drive"
-                          : inbound
-                            ? "Walk home"
-                            : "Final walk";
-          const arrivalLabel =
-            leg.kind === "egress"
-              ? inbound
-                ? "home"
-                : "destination"
-              : leg.kind === "access"
-                ? leg.mode === "bus" || toBusStop
-                  ? `${stationName || titleCase(leg.to) || "stop"}`
-                  : `${stationName || titleCase(leg.to) || "station"} Station platform`
-                : titleCase(leg.to);
-          const liveArrival =
-            leg.mode === "bus"
-              ? matchLiveArrival(liveBus, leg.route_short, leg.headsign, leg.depart_seconds)
-              : null;
-          const followsTransit = previous?.mode === "bus" || previous?.mode === "rail";
-          const pointByName = (name: string | null) => {
-            const wanted = stationLabel(name).toLowerCase();
-            if (!wanted) return null;
-            return (
-              points.find((point) => stationLabel(point.name).toLowerCase() === wanted) ?? null
-            );
-          };
-          const walkFrom = leg.mode === "walk" ? pointByName(leg.from) : null;
-          const walkTo = leg.mode === "walk" ? pointByName(leg.to) : null;
-          const originPoint = points.find((point) => point.id === "start") ?? null;
-          const finalPoint = points.find((point) => point.id === "end") ?? null;
-          const isTransit = leg.mode === "bus" || leg.mode === "rail";
-          // Boarding a bus/train still starts on foot: origin -> boarding stop.
-          const accessWalk =
-            isTransit && index === 0 && originPoint
-              ? walkBetween(originPoint, pointByName(leg.from), transitStopName(leg, "from"))
-              : null;
-          // Last leg is transit: the rider still walks from the drop-off to the door.
-          const egressWalk =
-            isTransit && index === rows.length - 1 && finalPoint
-              ? walkBetween(
-                  pointByName(leg.to),
-                  finalPoint,
-                  finalPoint.name,
-                  transitStopName(leg, "to"),
-                )
-              : null;
-
-          return (
-            <li key={`${leg.kind}-${leg.depart_seconds}-${index}`} className="flex gap-2.5">
-              <span className="flex flex-col items-center pt-0.5">
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-foreground">
-                  <Icon className="size-3" />
-                </span>
-                {index < rows.length - 1 && <span className="w-px flex-1 bg-border" />}
-              </span>
-              <div className="min-w-0 flex-1 pb-5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-xs font-bold uppercase text-foreground">
-                    {/* The ride above already says where to get off; a walk after it is titled as the walk. */}
-                    {followsTransit && previous && isTransit
-                      ? `Get off at ${transitStopName(previous, "to")}`
-                      : label}
-                  </p>
-                  {legMinutes !== null && (
-                    <p className="shrink-0 text-xs font-semibold tabular-nums text-foreground">
-                      {legMinutes} min
-                    </p>
-                  )}
-                </div>
-                {(followsTransit && isTransit) || vehicleName(leg).toLowerCase() !== label.toLowerCase() ? (
-                  <p
-                    className={`mt-1 text-sm font-bold leading-snug text-foreground ${followsTransit && isTransit ? "rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2" : ""}`}
-                  >
-                    {followsTransit && isTransit
-                      ? `${vehicleName(leg)} from ${transitStopName(previous, "to")}`
-                      : vehicleName(leg)}
-                  </p>
-                ) : null}
-                {accessWalk && <WalkSegment walk={accessWalk} />}
-                {leg.mode === "bus" ? (
-                  <div className="mt-2">
-                    {waitMinutes > 0 && (
-                      <p className="text-xs font-semibold text-foreground">
-                        Walk/wait between rides · {waitMinutes} min
-                      </p>
-                    )}
-                    <p className="text-sm font-semibold text-foreground">
-                      Board at: {transitStopName(leg, "from")} ·{" "}
-                      {clockFromSeconds(leg.depart_seconds)}
-                    </p>
-                    <LandmarkHint name={transitStopName(leg, "from")} />
-                    <BusArrivalTime
-                      arrival={liveArrival}
-                      scheduledSeconds={leg.depart_seconds}
-                      fetchedAt={liveBus?.fetchedAt}
-                      refreshing={liveBusRefreshing}
-                      compact
-                    />
-                    {liveArrival?.vehicle && pointByName(leg.from) && (
-                      <p className="mt-1 text-sm font-semibold text-warning">
-                        Bus is about{" "}
-                        {formatDistance(distanceM(liveArrival.vehicle, pointByName(leg.from)!))} from
-                        your stop · shown on the map
-                      </p>
-                    )}
-                    <p className="mt-2 flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
-                      <span>Get off at: {transitStopName(leg, "to")}</span>
-                      <span className="shrink-0 tabular-nums">
-                        {clockFromSeconds(leg.arrive_seconds)}
-                      </span>
-                    </p>
-                    <LandmarkHint name={transitStopName(leg, "to")} />
-                    <p className="mt-1 text-xs font-semibold text-foreground">
-                      Ride {legMinutes ?? "—"} min
-                    </p>
-                  </div>
-                ) : leg.mode === "rail" ? (
-                  <div className="mt-2 space-y-1.5">
-                    <p className="text-sm font-semibold text-foreground">
-                      Board at: {transitStopName(leg, "from")} ·{" "}
-                      {clockFromSeconds(leg.depart_seconds)}
-                    </p>
-                    <LandmarkHint name={transitStopName(leg, "from")} />
-                    <p className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
-                      <span>Get off at: {transitStopName(leg, "to")}</span>
-                      <span className="shrink-0 tabular-nums">
-                        {clockFromSeconds(leg.arrive_seconds)}
-                      </span>
-                    </p>
-                    <LandmarkHint name={transitStopName(leg, "to")} />
-                  </div>
-                ) : (
-                  <div className="mt-1 text-xs font-semibold leading-relaxed text-foreground">
-                    {leg.mode === "walk" && legMinutes !== null && (
-                      <p className="text-sm font-bold">
-                        {formatDistance(legMinutes * 80.47)} · {legMinutes} min walk
-                        {legMinutes >= 15 && (
-                          <span className="ml-1.5 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning">
-                            Long walk
-                          </span>
-                        )}
-                      </p>
-                    )}
-                    <p>{`Arrive ${arrivalLabel} ${clockFromSeconds(leg.arrive_seconds)}`}</p>
-                    {walkFrom && walkTo && (
-                      <details className="walking-map-details mt-2">
-                        <summary>Show walking map</summary>
-                        <div className="map-shell mt-2 overflow-hidden rounded-lg">
-                          <ClientOnly fallback={<div className="h-40 animate-pulse bg-muted" />}>
-                            <Suspense fallback={<div className="h-40 animate-pulse bg-muted" />}>
-                              <WalkingMicroMap
-                                from={{ ...walkFrom, label: titleCase(leg.from) }}
-                                to={{ ...walkTo, label: titleCase(leg.to) }}
-                              />
-                            </Suspense>
-                          </ClientOnly>
-                        </div>
-                      </details>
-                    )}
-                  </div>
-                )}
-                {egressWalk && <WalkSegment walk={egressWalk} />}
-                {(weatherLines.get(option.legs.indexOf(leg)) ?? []).map((line) => (
-                  <p key={line.text} className={`mt-2 text-xs ${TONE_CLASS[line.tone]}`}>
-                    {line.text}
-                    <span className="ml-1 text-xs text-muted-foreground">{line.source}</span>
-                  </p>
-                ))}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-      <FareNotice />
-    </>
-  );
-}
-
-type WalkHop = {
-  from: { lat: number; lon: number; label: string };
-  to: { lat: number; lon: number; label: string };
-  meters: number;
-  minutes: number;
-};
-
-/** Origin -> boarding stop (or drop-off -> door) on foot, when both points resolve. */
-function walkBetween(
-  from: { lat: number; lon: number; name?: string } | null,
-  to: { lat: number; lon: number; name?: string } | null,
-  toLabel?: string | null,
-  fromLabel?: string | null,
-): WalkHop | null {
-  if (!from || !to) return null;
-  const meters = distanceM(from, to);
-  if (meters < 40) return null;
-  return {
-    from: { lat: from.lat, lon: from.lon, label: titleCase(fromLabel ?? from.name ?? "Start") },
-    to: { lat: to.lat, lon: to.lon, label: titleCase(toLabel ?? to.name ?? "Stop") },
-    meters,
-    minutes: Math.max(1, Math.round(meters / 80.47)),
-  };
-}
-
-function WalkSegment({ walk }: { walk: WalkHop }) {
-  return (
-    <div className="mt-2 text-xs font-semibold leading-relaxed text-foreground">
-      <p className="text-sm font-bold">
-        {formatDistance(walk.meters)} · {walk.minutes} min walk
-      </p>
-      <p className="text-muted-foreground">
-        {walk.from.label} → {walk.to.label}
-      </p>
-      <details className="walking-map-details mt-2">
-        <summary>Show walking map</summary>
-        <div className="map-shell mt-2 overflow-hidden rounded-lg">
-          <ClientOnly fallback={<div className="h-40 animate-pulse bg-muted" />}>
-            <Suspense fallback={<div className="h-40 animate-pulse bg-muted" />}>
-              <WalkingMicroMap from={walk.from} to={walk.to} />
-            </Suspense>
-          </ClientOnly>
-        </div>
-      </details>
-    </div>
-  );
-}
-
-function matchLiveArrival(
-  result: BusArrivalsResult | undefined,
-  route: string | null,
-  headsign: string | null,
-  scheduledSeconds: number | null,
-) {
-  if (!result || result.error) return null;
-  return confirmedLiveBus(result.arrivals, route, headsign, scheduledSeconds);
-}
-
-function BusArrivalTime({
-  arrival,
-  scheduledSeconds,
-  fetchedAt,
-  refreshing,
-  compact = false,
-}: {
-  arrival: BusArrival | null;
-  scheduledSeconds: number | null;
-  fetchedAt: number | undefined;
-  refreshing: boolean;
-  compact?: boolean;
-}) {
-  const stale = Boolean(fetchedAt && Date.now() - fetchedAt > 90_000);
-  const updatedTime = fetchedAt
-    ? new Intl.DateTimeFormat("en-US", {
-        timeZone: regionTimeZone(),
-        hour: "numeric",
-        minute: "2-digit",
-      }).format(new Date(fetchedAt))
-    : null;
-  if (!arrival?.isLive) {
-    return (
-      <div className={compact ? "shrink-0 text-right" : "mt-2"}>
-        <p
-          className={`${compact ? "text-base" : "text-3xl"} font-bold tabular-nums text-foreground`}
-        >
-          {clockFromSeconds(scheduledSeconds)}
-        </p>
-        <p className="text-xs text-muted-foreground">Scheduled</p>
-      </div>
-    );
-  }
-  const delayed = arrival.delayMinutes > 2;
-  return (
-    <div className={compact ? "shrink-0 text-right" : "mt-2"}>
-      <div className="flex flex-wrap items-baseline gap-2">
-        {delayed && (
-          <span className="text-sm tabular-nums text-muted-foreground line-through">
-            {arrival.scheduledArrivalTime}
-          </span>
-        )}
-        <span
-          className={`${compact ? "text-base" : "text-3xl"} font-bold tabular-nums ${delayed ? "text-warning" : "text-foreground"}`}
-        >
-          {arrival.estimatedArrivalTime}
-        </span>
-        {arrival.delayMinutes > 5 && (
-          <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-bold text-destructive">
-            Delayed
-          </span>
-        )}
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {stale || refreshing
-          ? "Refreshing"
-          : `Live · ${updatedTime ?? `${arrival.minutesAway} min away`}`}
-      </p>
-    </div>
-  );
-}
-
-type SetupDialogProps = {
-  open: boolean;
-  firstRun: boolean;
-  setup: Setup;
-  onClose: () => void;
-  onSave: (next: Setup) => void;
-  alertPrefs: AlertPrefs;
-  onAlertPrefsChange: (next: AlertPrefs) => void;
-  savedPlaces: SavedPlace[];
-  onPlacesChange: (next: SavedPlace[]) => void;
-  /** Open straight to one Settings page (from a hint), not the list. */
-  initialPage?: SettingsPageId | null;
-};
-
-/** Sticky, automatic alert for the stop the rider needs to get off at. */
-function LocationBlockedCard({ onDismiss }: { onDismiss: () => void }) {
-  const platform = useState(() =>
-    typeof navigator === "undefined"
-      ? "desktop"
-      : detectLocationPlatform(
-          navigator.userAgent,
-          typeof document !== "undefined" && "ontouchend" in document,
-        ),
-  )[0] as ReturnType<typeof detectLocationPlatform>;
-
-  const steps =
-    platform === "ios"
-      ? {
-          label: "iPhone or iPad · Safari",
-          body: (
-            <>
-              Tap the <strong className="font-semibold">aA</strong> or page-settings icon in your
-              address bar, open <strong className="font-semibold">Website Settings</strong>, change{" "}
-              <strong className="font-semibold">Location</strong> to{" "}
-              <strong className="font-semibold">Allow</strong>, then refresh.
-            </>
-          ),
-        }
-      : platform === "android"
-        ? {
-            label: "Chrome · Android",
-            body: (
-              <>
-                Tap the <strong className="font-semibold">tune / lock</strong> icon next to the URL,
-                open <strong className="font-semibold">Permissions</strong>, set{" "}
-                <strong className="font-semibold">Location</strong> to{" "}
-                <strong className="font-semibold">Allow</strong>, then refresh.
-              </>
-            ),
-          }
-        : {
-            label: "Chrome or Edge · desktop",
-            body: (
-              <>
-                Click the <strong className="font-semibold">lock</strong> icon in the address bar,
-                open <strong className="font-semibold">Site settings</strong>, set{" "}
-                <strong className="font-semibold">Location</strong> to{" "}
-                <strong className="font-semibold">Allow</strong>, then reload.
-              </>
-            ),
-          };
-
-  return (
-    <div
-      className="relative rounded-lg border border-chart-4/40 bg-surface-raised p-4 pr-9"
-      role="status"
-    >
-      <p className="text-sm font-semibold text-foreground">Location is blocked</p>
-      <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground">
-        {steps.label}
-      </p>
-      <p className="mt-1.5 text-sm leading-relaxed text-foreground">{steps.body}</p>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Nalu also works without location — you can always pick a station by hand.
-      </p>
-      <button
-        type="button"
-        aria-label="Dismiss location help"
-        onClick={onDismiss}
-        className="absolute right-2 top-2 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <X className="size-4" />
-      </button>
-    </div>
-  );
-}
-
-/** Settings-only controls for how the stop alert announces itself. */
-function AlertPrefsSection({
-  prefs,
-  onChange,
-}: {
-  prefs: AlertPrefs;
-  onChange: (next: AlertPrefs) => void;
-}) {
-  const rows: { id: keyof AlertPrefs; label: string; hint: string }[] = [
-    { id: "sound", label: "Sound alert", hint: "A soft chime when your stop is next." },
-    { id: "haptics", label: "Haptic vibration", hint: "Buzz your phone when your stop is next." },
-    {
-      id: "keepOnTransfer",
-      label: "Keep alerts while changing rides",
-      hint: "Keep showing alerts when you switch to another bus or train.",
-    },
-  ];
-  return (
-    <section className="space-y-2 border-t border-border pt-5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Stop alerts
-      </p>
-      {rows.map((row) => (
-        <div
-          key={row.id}
-          className="flex items-center justify-between gap-4 rounded-lg bg-surface-raised px-4 py-3"
-        >
-          <Label htmlFor={`alert-${row.id}`} className="leading-snug">
-            {row.label}
-            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-              {row.hint}
-            </span>
-          </Label>
-          <Switch
-            id={`alert-${row.id}`}
-            checked={prefs[row.id]}
-            onCheckedChange={(checked) => {
-              onChange({ ...prefs, [row.id]: checked });
-              if (row.id === "sound" && checked) playChime();
-            }}
-          />
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function PlacePills({
-  places,
-  disabled,
-  onPick,
-}: {
-  places: SavedPlace[];
-  disabled: boolean;
-  onPick: (place: SavedPlace) => void;
-}) {
-  if (!places.length) return null;
-  return (
-    <div className="flex flex-wrap gap-2" aria-label="Saved places">
-      {places.map((place) => {
-        const Icon = shortcutIcon(place.kind);
-        return (
-          <Button
-            key={place.id}
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={disabled}
-            onClick={() => onPick(place)}
-            className="h-9 gap-1.5 rounded-full px-3"
-          >
-            <Icon className="size-3.5" /> {place.label}
-          </Button>
-        );
-      })}
-    </div>
-  );
-}
-
-const SHORTCUTS_KEY = "nalu-shortcuts-v1";
-const DEFAULT_SHORTCUTS = ["home", "work"];
-const MAX_SHORTCUTS = 4;
-
-/** A shortcut slot is a place kind (home/work/school/gym) or a saved place id. */
-/** Recent destinations (this phone only, each removable) and popular Oahu places. */
-function QuickPlaces({ disabled, onPick }: { disabled: boolean; onPick: (place: PointLike) => void }) {
-  const region = activeRegion();
-  const findPlaces = useServerFn(searchPlaces);
-  const [looking, setLooking] = useState<string | null>(null);
-  const [recents, setRecents] = useState<RecentPlace[]>([]);
-  useEffect(
-    () => setRecents(readRecents().filter((place) => regionContains(region, place.lat, place.lon))),
-    [region],
-  );
-  // Test-region places are looked up live, so a tap fills in the real spot.
-  async function pickByName(name: string) {
-    setLooking(name);
-    try {
-      const { results } = await findPlaces({ data: { query: name, region: region.id } });
-      const top = results[0];
-      if (top) onPick({ name: top.name, address: top.address, lat: top.lat, lon: top.lon } as PointLike);
-      else toast.error(`Couldn't find ${name}. Try typing it.`);
-    } catch {
-      toast.error("Search isn't available right now.");
-    } finally {
-      setLooking(null);
-    }
-  }
-  const chip =
-    "flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-border bg-surface-raised px-3 text-sm font-medium text-foreground";
-  return (
-    <div className="grid gap-3">
-      {recents.length > 0 && (
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground">Recent</p>
-            <button
-              type="button"
-              className="min-h-11 px-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                clearRecents();
-                setRecents([]);
-              }}
-            >
-              Clear
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {recents.map((place) => (
-              <span key={`${place.lat},${place.lon}`} className={chip}>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => onPick(place)}
-                  className="flex min-w-0 items-center gap-1.5"
-                >
-                  <History className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{place.name}</span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Remove ${place.name} from recents`}
-                  onClick={() => {
-                    removeRecent(place);
-                    setRecents(readRecents());
-                  }}
-                  className="-mr-2 flex size-8 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
-                >
-                  <X className="size-3.5" />
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      <div>
-        <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
-          {region.id === "oahu" ? "Popular on Oʻahu" : `Popular in ${region.name}`}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {region.id !== "oahu" &&
-            TEST_REGION_POPULAR[region.id].map((name) => (
-              <button
-                key={name}
-                type="button"
-                disabled={disabled || looking !== null}
-                onClick={() => void pickByName(name)}
-                className={chip}
-              >
-                <span className="truncate">{looking === name ? "Finding…" : name.replace(/ San Francisco$/, "")}</span>
-              </button>
-            ))}
-          {region.id === "oahu" && POPULAR_PLACES.map((place) => (
-            <button
-              key={place.name}
-              type="button"
-              disabled={disabled}
-              onClick={() => onPick(place)}
-              className={chip}
-            >
-              <span className="truncate">{place.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function resolveShortcut(places: SavedPlace[], slot: string): SavedPlace | null {
-  if ((PLACE_KINDS as string[]).includes(slot) && slot !== "custom") {
-    return findByKind(places, slot as PlaceKind);
-  }
-  return places.find((place) => place.id === slot) ?? null;
-}
-function shortcutLabel(places: SavedPlace[], slot: string): string {
-  if ((PLACE_KINDS as string[]).includes(slot)) return kindLabel(slot as PlaceKind);
-  return places.find((place) => place.id === slot)?.label ?? "Saved place";
-}
-function shortcutIcon(slot: string) {
-  if (slot === "home") return House;
-  if (slot === "work") return BriefcaseBusiness;
-  if (slot === "school") return GraduationCap;
-  if (slot === "gym") return Dumbbell;
-  return MapPin;
-}
-
-function ShortcutGrid({
-  places,
-  onStart,
-  onPlacesChange,
-}: {
-  places: SavedPlace[];
-  onStart: (slot: string) => void;
-  onPlacesChange: (next: SavedPlace[]) => void;
-}) {
-  const [slots, setSlots] = useState<string[]>(DEFAULT_SHORTCUTS);
-  const [quickEdit, setQuickEdit] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(SHORTCUTS_KEY);
-      const parsed: unknown = raw ? JSON.parse(raw) : null;
-      if (
-        Array.isArray(parsed) &&
-        parsed.every((item) => typeof item === "string") &&
-        parsed.length
-      ) {
-        setSlots(parsed.slice(0, MAX_SHORTCUTS));
-      }
-    } catch {
-      // Keep defaults when storage is unreadable.
-    }
-  }, []);
-  function update(next: string[]) {
-    setSlots(next);
-    window.localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(next));
-  }
-  const choices = [
-    ...(["home", "work", "school", "gym"] as const).map((kind) => ({
-      value: kind as string,
-      label: kindLabel(kind),
-    })),
-    ...places
-      .filter((place) => place.kind === "custom")
-      .map((place) => ({ value: place.id, label: place.label })),
-  ];
-  const unused = choices.filter((choice) => !slots.includes(choice.value));
-
-  return (
-    <div className="mt-2">
-      <div className="grid grid-cols-2 gap-2" aria-label="Saved place shortcuts">
-        {slots.map((slot, index) => {
-          const place = resolveShortcut(places, slot);
-          const Icon = shortcutIcon(slot);
-          const label = shortcutLabel(places, slot);
-          if (editing) {
-            return (
-              <div
-                key={`${slot}-${index}`}
-                className="glass-panel flex h-14 items-center gap-1 rounded-md border border-primary/30 px-2"
-              >
-                <Select
-                  value={slot}
-                  onValueChange={(value) => {
-                    const next = [...slots];
-                    const swapIndex = next.indexOf(value);
-                    // Picking a slot already pinned elsewhere swaps the two.
-                    if (swapIndex >= 0) next[swapIndex] = slot;
-                    next[index] = value;
-                    update(next);
-                  }}
-                >
-                  <SelectTrigger
-                    className="h-10 min-w-0 flex-1 bg-transparent"
-                    aria-label={`Shortcut ${index + 1}`}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {choices.map((choice) => (
-                      <SelectItem key={choice.value} value={choice.value}>
-                        {choice.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-9 shrink-0"
-                  aria-label={`Remove ${label} shortcut`}
-                  disabled={slots.length <= 1}
-                  onClick={() => update(slots.filter((_, i) => i !== index))}
-                >
-                  <X className="size-4" />
-                </Button>
-              </div>
-            );
-          }
-          return (
-            <div key={`${slot}-${index}`} className="relative min-w-0">
-              <Button
-                variant="outline"
-                onClick={() => onStart(slot)}
-                className="glass-panel h-14 w-full min-w-0 justify-start gap-3 border-primary/30 bg-primary/5 pl-3 pr-9 text-foreground hover:bg-primary/10"
-                aria-label={place ? `Start a trip to ${label}` : `Set your ${label} location`}
-              >
-                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
-                  <Icon className="size-4" />
-                </span>
-                <span className="min-w-0 text-left">
-                  <span className="block truncate text-sm font-bold">{label}</span>
-                  <span className="block truncate text-xs font-medium text-muted-foreground">
-                    {place ? place.name : "Set location"}
-                  </span>
-                </span>
-              </Button>
-              <button
-                type="button"
-                onClick={() => setQuickEdit(slot)}
-                aria-label={`Change ${label} address`}
-                className="absolute right-0 top-0 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground"
-              >
-                <Pencil className="size-3.5" />
-              </button>
-            </div>
-          );
-        })}
-        {editing && slots.length < MAX_SHORTCUTS && unused.length > 0 && (
-          <Button
-            variant="outline"
-            className="h-14 gap-2 border-dashed border-primary/40 bg-transparent text-muted-foreground"
-            onClick={() => update([...slots, unused[0]!.value])}
-          >
-            <Plus className="size-4" /> Add shortcut
-          </Button>
-        )}
-      </div>
-      <div className="mt-1 flex justify-end">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-11 gap-1.5 text-xs text-muted-foreground"
-          onClick={() => setEditing((value) => !value)}
-        >
-          {editing ? <Check className="size-3.5" /> : <Pencil className="size-3.5" />}
-          {editing ? "Done" : "Edit shortcuts"}
-        </Button>
-      </div>
-      <QuickPlaceDialog
-        slot={quickEdit}
-        places={places}
-        onClose={() => setQuickEdit(null)}
-        onSave={(next) => {
-          onPlacesChange(next);
-          setQuickEdit(null);
-        }}
-      />
-    </div>
-  );
-}
-
-/** Search and replace one shortcut's address in place, without opening Settings. */
-function QuickPlaceDialog({
-  slot,
-  places,
-  onClose,
-  onSave,
-}: {
-  slot: string | null;
-  places: SavedPlace[];
-  onClose: () => void;
-  onSave: (next: SavedPlace[]) => void;
-}) {
-  const findPlaces = useServerFn(searchPlaces);
-  const [query, setQuery] = useState("");
-  const [debounced, setDebounced] = useState("");
-  useEffect(() => {
-    setQuery("");
-    setDebounced("");
-  }, [slot]);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(query.trim()), 300);
-    return () => window.clearTimeout(timer);
-  }, [query]);
-  const { data: results = [], isFetching } = useQuery({
-    queryKey: ["place-search", debounced],
-    enabled: Boolean(slot) && debounced.length >= 2,
-    staleTime: 5 * 60_000,
-    queryFn: async () => (await findPlaces({ data: { query: debounced, region: activeRegion().id } })).results,
-  });
-  const current = slot ? resolveShortcut(places, slot) : null;
-  const label = slot ? shortcutLabel(places, slot) : "";
-
-  function choose(hit: PlaceSuggestion) {
-    if (!slot) return;
-    const kind: PlaceKind =
-      current?.kind ?? ((PLACE_KINDS as string[]).includes(slot) ? (slot as PlaceKind) : "custom");
-    const place = makeSavedPlace({
-      ...(current
-        ? {
-            id: current.id,
-            label: current.label,
-            typicalArrivalSeconds: current.typicalArrivalSeconds,
-          }
-        : {}),
-      kind,
-      name: hit.name,
-      address: hit.address,
-      lat: hit.lat,
-      lon: hit.lon,
-    });
-    onSave(upsertPlace(places, place));
-    toast(`${label} updated`, { description: hit.address || hit.name });
-  }
-
-  return (
-    <Dialog open={Boolean(slot)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Change {label}</DialogTitle>
-          <DialogDescription>
-            {current ? `Now: ${current.address}` : "Search for a place or street address."}
-          </DialogDescription>
-        </DialogHeader>
-        <Input
-          autoFocus
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search a place or address"
-          aria-label={`New ${label} address`}
-        />
-        <ul className="max-h-72 space-y-1 overflow-y-auto" aria-live="polite">
-          {isFetching && <li className="px-2 py-2 text-sm text-muted-foreground">Searching…</li>}
-          {!isFetching && debounced.length >= 2 && results.length === 0 && (
-            <li className="px-2 py-2 text-sm text-muted-foreground">No places found on Oʻahu.</li>
-          )}
-          {results.map((hit) => (
-            <li key={hit.id}>
-              <button
-                type="button"
-                onClick={() => choose(hit)}
-                className="w-full rounded-md px-3 py-2 text-left hover:bg-primary/10"
-              >
-                <span className="block truncate text-sm font-bold text-foreground">{hit.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">{hit.address}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-type SettingsPageId =
-  | "trip"
-  | "places"
-  | "voice"
-  | "alerts"
-  | "notifications"
-  | "privacy"
-  | "account"
-  | "about";
-
-/** Which Settings page is open; null shows the main list. */
-const SettingsPageContext = createContext<SettingsPageId | null>(null);
-
-/**
- * One Settings page. On first run (trip setup) it shows inline; otherwise it
- * shows only while its row in the Settings list is open.
- */
-function SettingsGroup({
-  id,
-  children,
-}: {
-  id: SettingsPageId;
-  title?: string;
-  description?: string;
-  children: ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const page = useContext(SettingsPageContext);
-  if (page !== id) return null;
-  // The page title already names the section, so hide each section's own
-  // first heading and top divider here (they still show where used elsewhere).
-  return (
-    <div className="min-w-0 [&>*:first-child]:border-t-0 [&>*:first-child]:pt-0 [&>section:first-child>h3:first-child]:hidden [&>section:first-child>p:first-child]:hidden">
-      {children}
-    </div>
-  );
-}
-
-/** A tappable row in the Settings list: icon, name, current status, chevron. */
-function SettingsRow({
-  icon: Icon,
-  title,
-  status,
-  onOpen,
-}: {
-  icon: typeof Settings;
-  title: string;
-  status?: string | null;
-  onOpen: () => void;
-}) {
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
-      >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
-          <Icon className="size-5" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-base font-semibold text-foreground">{title}</span>
-          {status && <span className="block truncate text-sm text-muted-foreground">{status}</span>}
-        </span>
-        <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-      </button>
-    </li>
-  );
-}
-
-function SettingsList({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <section className="min-w-0">
-      <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-background/30">
-        {children}
-      </ul>
-    </section>
-  );
-}
-
-const SETTINGS_PAGES: Record<SettingsPageId, { title: string; description: string }> = {
-  trip: { title: "Current trip", description: "Change where you’re starting or going." },
-  places: { title: "Saved places", description: "Home, Work, School, Gym, and your own places." },
-  voice: { title: "Voice", description: "Choose the voice Nalu speaks with." },
-  alerts: { title: "Stop alerts", description: "Sound, vibration, and transfer alerts during a trip." },
-  notifications: { title: "Notifications", description: "Alerts that tell you when to leave." },
-  privacy: { title: "Privacy & data", description: "Analytics and trip diagnostics." },
-  account: { title: "Account", description: "Sign in, sign out, or manage your account." },
-  about: { title: "About Nalu", description: "App information, data sources, and feedback." },
-};
-
-function SetupDialog({
-  open,
-  firstRun,
-  setup,
-  onClose,
-  onSave,
-  alertPrefs,
-  onAlertPrefsChange,
-  savedPlaces,
-  onPlacesChange,
-  initialPage = null,
-}: SetupDialogProps) {
-  const findPlaces = useServerFn(searchPlaces);
-  const lookupAddress = useServerFn(reverseGeocode);
-  const [draft, setDraft] = useState<Setup>(setup);
-  const [status, setStatus] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [placeQuery, setPlaceQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  // Whether the browser currently blocks location, so recovery steps can be shown.
-  const [permissionBlocked, setPermissionBlocked] = useState(false);
-  const [saveKind, setSaveKind] = useState<PlaceKind>("work");
-  const [saveTime, setSaveTime] = useState("");
-  const [originLabel, setOriginLabel] = useState("Current location");
-  // Distance to the best boarding station; decides walk vs park-and-ride.
-  const [stationDistanceM, setStationDistanceM] = useState<number | null>(null);
-  const [page, setPage] = useState<SettingsPageId | null>(null);
-  const { user } = useAuth();
-  const sheetRef = useRef<HTMLDivElement>(null);
-  // Each Settings page opens at its top, not where the list was scrolled to.
-  useEffect(() => {
-    sheetRef.current?.scrollTo({ top: 0 });
-  }, [page]);
-
-  useEffect(() => {
-    if (open) {
-      setPage(initialPage);
-      setDraft(setup);
-      setStatus(null);
-      setOriginLabel(setup.homeLat !== null ? "Your starting point" : "Current location");
-      setPlaceQuery("");
-      setDebouncedQuery("");
-    }
-    if (!open) return;
-    let cancelled = false;
-    if (window.localStorage.getItem(LOCATION_DENIED_KEY) === "1") setPermissionBlocked(true);
-    queryLocationPermission()
-      .then((state) => {
-        if (cancelled) return;
-        if (state === "denied") {
-          setPermissionBlocked(true);
-          window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
-        } else if (state === "granted" || state === "prompt") {
-          setPermissionBlocked(false);
-          window.localStorage.removeItem(LOCATION_DENIED_KEY);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [open, setup]);
-
-  // "Where to?" starts from where you are: find it automatically each time it
-  // opens (the phone asks first if it needs to). Picking another start still
-  // works, and a start picked before GPS answers is never overwritten.
-  const originPicked = useRef(false);
-  useEffect(() => {
-    if (!open) return;
-    originPicked.current = false;
-    if (!firstRun && setup.homeLat !== null) return;
-    void queryLocationPermission().then((state) => {
-      if (state !== "denied") void locateMe({ auto: true });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  // 300ms debounce so typing does not fire a search per keystroke.
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedQuery(placeQuery.trim()), 300);
-    return () => window.clearTimeout(timer);
-  }, [placeQuery]);
-
-  const { data: suggestions = [], isFetching: searching } = useQuery({
-    queryKey: ["place-search", debouncedQuery],
-    enabled: open && debouncedQuery.length >= 2,
-    staleTime: 5 * 60_000,
-    queryFn: async () => {
-      const result = await findPlaces({ data: { query: debouncedQuery, region: activeRegion().id } });
-      return result.results;
-    },
-  });
-
-  const { data: stations = [] } = useRailStations(open);
-
-  async function locateMe(options: { auto?: boolean } = {}) {
-    if (!options.auto) originPicked.current = false;
-    if (!navigator.geolocation) {
-      setStatus("This device cannot share its location. Pick a saved place below.");
-      return;
-    }
-    // Check without prompting first: if it is already blocked, skip the request
-    // and show the recovery steps right away.
-    const permission = await queryLocationPermission();
-    if (permission === "denied") {
-      setPermissionBlocked(true);
-      window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
-      setStatus(
-        "Location is blocked in your browser. Follow the steps below to allow it, or pick a saved place.",
-      );
-      return;
-    }
-    setBusy(true);
-    setStatus("Finding where you are…");
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        // The person chose another start while GPS was answering: keep theirs.
-        if (options.auto && originPicked.current) {
-          setBusy(false);
-          setStatus(null);
-          return;
-        }
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        const { data } = await supabase.rpc("nearest_stop", {
-          p_lat: lat,
-          p_lon: lon,
-          p_rail_only: true,
-        });
-        setBusy(false);
-        // No station nearby (or off Oʻahu): still plan from here, by car and on foot.
-        const nearest = data?.[0] ?? null;
-        setDraft((current) => ({
-          ...current,
-          homeLat: lat,
-          homeLon: lon,
-          homeStopId: nearest?.stop_id ?? "",
-          homeStopName: nearest?.stop_name ?? "",
-        }));
-        setOriginLabel("Current location");
-        setStationDistanceM(nearest ? Number(nearest.distance_m) : null);
-        const accuracy = position.coords.accuracy;
-        const precision = Number.isFinite(accuracy)
-          ? ` Accurate to about ${formatDistance(accuracy)}.`
-          : "";
-        setStatus(`Using your current location.${precision}`);
-        // Confirm the exact spot in plain words, so a wrong pin is obvious.
-        const address = await lookupAddress({ data: { lat, lon } }).catch(() => null);
-        if (address?.label) {
-          setStatus(`Detected: ${address.label}.${precision}`);
-        }
-      },
-      (error) => {
-        setBusy(false);
-        if (isPermissionDeniedError(error)) {
-          setPermissionBlocked(true);
-          window.localStorage.setItem(LOCATION_DENIED_KEY, "1");
-          setStatus(
-            "Location is blocked in your browser. Follow the steps below to allow it, or pick a saved place.",
-          );
-          return;
-        }
-        setStatus("Location was not shared. Pick a saved place below.");
-      },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
-    );
-  }
-
-  /** Use a point as the starting side: remember the door and derive its station. */
-  async function applyOrigin(place: PointLike, label?: string) {
-    originPicked.current = true;
-    setBusy(true);
-    setOriginLabel(label ?? place.name);
-    setStatus(null);
-    try {
-      const { data } = await supabase.rpc("nearest_stop", {
-        p_lat: place.lat,
-        p_lon: place.lon,
-        p_rail_only: true,
-      });
-      const nearest = data?.[0];
-      setDraft((current) => ({
-        ...current,
-        homeLat: place.lat,
-        homeLon: place.lon,
-        homeStopId: nearest?.stop_id ?? current.homeStopId,
-        homeStopName: nearest?.stop_name ?? current.homeStopName,
-      }));
-      if (nearest) setStationDistanceM(Number(nearest.distance_m));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function applyPreset(from: PointLike, to: PointLike) {
-    await applyOrigin(from);
-    await selectPlace(to);
-  }
-
-  function savePlace(kind: PlaceKind, point: PointLike, arriveBySeconds: number | null) {
-    const label = kind === "custom" ? point.name : kindLabel(kind);
-    onPlacesChange(
-      upsertPlace(savedPlaces, {
-        id: `${kind}-${Date.now()}`,
-        kind,
-        label,
-        name: point.name,
-        address: point.address || point.name,
-        lat: point.lat,
-        lon: point.lon,
-        typicalArrivalSeconds: arriveBySeconds,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }),
-    );
-    setStatus(`Saved ${label}: ${point.name}.`);
-  }
-
-  async function selectPlace(place: PointLike) {
-    setBusy(true);
-    setStatus("Finding the stops on each side of that place…");
-    try {
-      // A stop serves one direction only, so resolve the arriving stop and the
-      // stop heading back toward the rail line separately, from the data.
-      const [arriving, boarding, fallback] = await Promise.all([
-        supabase.rpc("directional_dest_stop", {
-          p_lat: place.lat,
-          p_lon: place.lon,
-          p_toward_rail: false,
-        }),
-        supabase.rpc("directional_dest_stop", {
-          p_lat: place.lat,
-          p_lon: place.lon,
-          p_toward_rail: true,
-        }),
-        supabase.rpc("nearest_stop", { p_lat: place.lat, p_lon: place.lon, p_rail_only: false }),
-      ]);
-      const near = fallback.data?.[0];
-      const out = arriving.data?.[0] ?? near;
-      const back = boarding.data?.[0] ?? near;
-      if (!out || !back) {
-        setStatus("No stop found near that place.");
-        return;
-      }
-      setDraft((current) => ({
-        ...current,
-        destinationName: place.name,
-        destinationAddress: place.address || place.name,
-        destLat: place.lat,
-        destLon: place.lon,
-        destStopId: out?.stop_id ?? "",
-        destStopName: out?.stop_name ?? "",
-        destStopWalkM: Number(out?.distance_m ?? 0),
-        destReturnStopId: back?.stop_id ?? "",
-        destReturnStopName: back?.stop_name ?? "",
-        destReturnWalkM: Number(back?.distance_m ?? 0),
-      }));
-      setPlaceQuery("");
-      setDebouncedQuery("");
-      setStatus(null);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Place search failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function save() {
-    // A commute requires exact places. A station is transit access metadata,
-    // never a substitute for the rider's Home coordinates.
-    const home = findByKind(savedPlaces, "home");
-    if (draft.destinationName && draft.destLat !== null && draft.destLon !== null) {
-      addRecent({
-        name: draft.destinationName,
-        address: draft.destinationAddress,
-        lat: draft.destLat,
-        lon: draft.destLon,
-      });
-    }
-    onSave({
-      ...draft,
-      // Walk when the station is close; otherwise plan park-and-ride driving.
-      allowDrive: stationDistanceM === null ? draft.allowDrive : stationDistanceM > 1200,
-      homeLat: draft.homeLat ?? home?.lat ?? null,
-      homeLon: draft.homeLon ?? home?.lon ?? null,
-    });
-  }
-
-  const canSave =
-    hasValidCoordinates({ lat: draft.homeLat, lon: draft.homeLon }) &&
-    hasValidCoordinates({ lat: draft.destLat, lon: draft.destLon });
-  const presets = commutePresets(savedPlaces);
-  const originPoint: PointLike | null =
-    draft.homeLat !== null && draft.homeLon !== null
-      ? {
-          name: draft.homeStopName
-            ? `Near ${stationLabel(draft.homeStopName)}`
-            : "My starting point",
-          address: draft.homeStopName ? `${stationLabel(draft.homeStopName)} area` : "",
-          lat: draft.homeLat,
-          lon: draft.homeLon,
-        }
-      : null;
-  const destinationPoint: PointLike | null =
-    draft.destLat !== null && draft.destLon !== null
-      ? {
-          name: draft.destinationName,
-          address: draft.destinationAddress,
-          lat: draft.destLat,
-          lon: draft.destLon,
-        }
-      : null;
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-    >
-      <DialogContent ref={sheetRef} className="bottom-0 left-0 top-auto max-h-[90dvh] w-full max-w-none translate-x-0 translate-y-0 gap-6 overflow-y-auto rounded-t-lg border-x-0 border-b-0 bg-background p-6 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
-        <SettingsExpiryBanner />
-        <DialogHeader className="text-left">
-          {!firstRun && page && (
-            <button
-              type="button"
-              onClick={() => setPage(null)}
-              className="-ml-1 mb-1 flex min-h-11 w-fit items-center gap-1 rounded-lg pr-2 text-base font-semibold text-primary"
-            >
-              <ChevronLeft className="size-5" /> Settings
-            </button>
-          )}
-          <DialogTitle className="text-2xl">
-            {firstRun ? "WHERE TO?" : page ? SETTINGS_PAGES[page].title : "Settings"}
-          </DialogTitle>
-          <DialogDescription>
-            {firstRun
-              ? "Where you’re starting and where you’re going. Nalu picks the best station and route for you."
-              : page
-                ? SETTINGS_PAGES[page].description
-                : "Tap what you’d like to change."}
-          </DialogDescription>
-        </DialogHeader>
-
-        <SettingsPageContext.Provider value={firstRun ? "trip" : page}>
-        {!firstRun && page === null && (
-          <div className="grid min-w-0 grid-cols-1 gap-5">
-            {permissionBlocked && <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />}
-            <SettingsList label="Your trips">
-              <SettingsRow
-                icon={Navigation}
-                title="Current trip"
-                status={draft.destinationName ? `To ${draft.destinationName}` : "No trip set"}
-                onOpen={() => setPage("trip")}
-              />
-              <SettingsRow
-                icon={MapPin}
-                title="Saved places"
-                status={
-                  savedPlaces.length
-                    ? savedPlaces.map((place) => place.label).slice(0, 4).join(", ")
-                    : "None yet"
-                }
-                onOpen={() => setPage("places")}
-              />
-            </SettingsList>
-            <SettingsList label="Alerts & voice">
-              <SettingsRow
-                icon={Volume2}
-                title="Voice"
-                status={readVoiceLabel() ?? "Phone’s voice"}
-                onOpen={() => setPage("voice")}
-              />
-              <SettingsRow
-                icon={Vibrate}
-                title="Stop alerts"
-                status={(alertPrefs.sound && alertPrefs.haptics
-                    ? "Sound and vibration"
-                    : alertPrefs.sound
-                      ? "Sound only"
-                      : alertPrefs.haptics
-                        ? "Vibration only"
-                        : "Off")}
-                onOpen={() => setPage("alerts")}
-              />
-              <SettingsRow
-                icon={Bell}
-                title="Notifications"
-                status={readPushPrefs().token ? "On for this phone" : "Off"}
-                onOpen={() => setPage("notifications")}
-              />
-            </SettingsList>
-            <SettingsList label="Account & more">
-              <SettingsRow
-                icon={UserRound}
-                title="Account"
-                status={user?.email ?? "Not signed in"}
-                onOpen={() => setPage("account")}
-              />
-              <SettingsRow
-                icon={ShieldCheck}
-                title="Privacy & data"
-                status="Analytics and diagnostics"
-                onOpen={() => setPage("privacy")}
-              />
-              <SettingsRow
-                icon={Info}
-                title="About Nalu"
-                status="Data sources and feedback"
-                onOpen={() => setPage("about")}
-              />
-            </SettingsList>
-          </div>
-        )}
-        <div className="grid gap-5">
-          <SettingsGroup
-            id="trip"
-            title={firstRun ? "Trip setup" : "Current trip"}
-            description={
-              firstRun
-                ? "Choose where you’re starting and going."
-                : "Change where you’re starting or going."
-            }
-            defaultOpen={firstRun}
-          >
-            {/* grid-cols-1 = minmax(0, 1fr): long addresses truncate instead of widening the sheet. */}
-            <div className="grid min-w-0 grid-cols-1 gap-5">
-              <div className="grid min-w-0 grid-cols-1 gap-2">
-                <Label>From</Label>
-                <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <LocateFixed className="size-4 shrink-0 text-primary" />
-                    <p className="truncate font-medium">{originLabel}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0"
-                    disabled={busy}
-                    onClick={() => void locateMe()}
-                  >
-                    <LocateFixed className="size-4" /> Locate
-                  </Button>
-                </div>
-                <PlacePills
-                  places={savedPlaces}
-                  disabled={busy}
-                  onPick={(place) => void applyOrigin(place, place.label)}
-                />
-                {permissionBlocked && (
-                  <LocationBlockedCard onDismiss={() => setPermissionBlocked(false)} />
-                )}
-              </div>
-
-              <div className="grid min-w-0 grid-cols-1 gap-2">
-                <Label htmlFor="destination">To</Label>
-                {draft.destinationName ? (
-                  <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{draft.destinationName}</p>
-                      {draft.destinationAddress !== draft.destinationName && (
-                        <p className="truncate text-xs text-muted-foreground">
-                          {draft.destinationAddress}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      className="shrink-0"
-                      onClick={() =>
-                        setDraft((current) => ({
-                          ...current,
-                          destinationName: "",
-                          destinationAddress: "",
-                          destLat: null,
-                          destLon: null,
-                          destStopId: "",
-                          destStopName: "",
-                          destStopWalkM: 0,
-                          destReturnStopId: "",
-                          destReturnStopName: "",
-                          destReturnWalkM: 0,
-                        }))
-                      }
-                    >
-                      Change
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <PlacePills places={savedPlaces} disabled={busy} onPick={selectPlace} />
-                    <Input
-                      id="destination"
-                      className="h-12 bg-surface-raised"
-                      placeholder="Search for a place or address"
-                      autoComplete="off"
-                      value={placeQuery}
-                      onChange={(event) => setPlaceQuery(event.target.value)}
-                    />
-                    {placeQuery.trim() === "" && (
-                      <QuickPlaces disabled={busy} onPick={(place) => void selectPlace(place)} />
-                    )}
-                    {searching && <p className="text-sm text-muted-foreground">Searching…</p>}
-                    {suggestions.length > 0 && (
-                      <ul className="divide-y divide-border overflow-hidden rounded-lg bg-surface-raised">
-                        {suggestions.map((place) => (
-                          <li key={place.id}>
-                            <button
-                              type="button"
-                              onClick={() => selectPlace(place)}
-                              disabled={busy}
-                              className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/40"
-                            >
-                              <span className="block truncate font-medium">{place.name}</span>
-                              {place.address && place.address !== place.name && (
-                                <span className="block truncate text-xs text-muted-foreground">
-                                  {place.address}
-                                </span>
-                              )}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {!searching && debouncedQuery.length >= 2 && suggestions.length === 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        No places matched. Try a different name.
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <Button
-                onClick={save}
-                disabled={!canSave || busy}
-                className="h-12 w-full shadow-none"
-              >
-                GO
-              </Button>
-            </div>
-          </SettingsGroup>
-
-          {!firstRun && (
-            <SettingsGroup id="voice">
-              <VoiceSection />
-            </SettingsGroup>
-          )}
-
-          {!firstRun && (
-            <SettingsGroup
-              id="places"
-              title="Saved places"
-              description="Home, Work, School, Gym, and custom places."
-              defaultOpen={false}
-            >
-              <section className="grid gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <Label className="text-sm">Saved places</Label>
-                  {findByKind(savedPlaces, "home") && findByKind(savedPlaces, "work") && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onPlacesChange(swapHomeWork(savedPlaces))}
-                    >
-                      Swap Home &amp; Work
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Save Home, Work, School, Gym or anywhere else once, then start a trip with one
-                  tap.
-                </p>
-
-                {presets.length > 0 && (
-                  <div className="flex flex-wrap gap-2" aria-label="Commute presets">
-                    {presets.map((preset) => (
-                      <Button
-                        key={preset.id}
-                        variant="secondary"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => applyPreset(preset.from, preset.to)}
-                      >
-                        {preset.label}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-
-                {savedPlaces.length > 0 && (
-                  <ul className="grid gap-3">
-                    {savedPlaces.map((place) => (
-                      <li key={place.id} className="grid gap-2 rounded-lg bg-surface-raised p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <Input
-                              aria-label={`Label for ${place.name}`}
-                              value={place.label}
-                              onChange={(event) =>
-                                onPlacesChange(
-                                  upsertPlace(savedPlaces, { ...place, label: event.target.value }),
-                                )
-                              }
-                              className="h-9 bg-background/60 font-semibold"
-                            />
-                            <p className="mt-1 truncate text-xs text-muted-foreground">
-                              {place.name}
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Remove ${place.label}`}
-                            onClick={() => onPlacesChange(removePlace(savedPlaces, place.id))}
-                          >
-                            <X className="size-4" />
-                          </Button>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Label
-                            htmlFor={`arrive-${place.id}`}
-                            className="text-xs text-muted-foreground"
-                          >
-                            Typical arrival
-                          </Label>
-                          <Input
-                            id={`arrive-${place.id}`}
-                            type="time"
-                            value={clockInputValue(place.typicalArrivalSeconds)}
-                            onChange={(event) =>
-                              onPlacesChange(
-                                upsertPlace(savedPlaces, {
-                                  ...place,
-                                  typicalArrivalSeconds: parseClockInput(event.target.value),
-                                }),
-                              )
-                            }
-                            className="h-9 w-32 bg-background/60 tabular-nums"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => applyOrigin(place)}
-                          >
-                            Start here
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => selectPlace(place)}
-                          >
-                            Go here
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                  <Select
-                    value={saveKind}
-                    onValueChange={(value) => setSaveKind(value as PlaceKind)}
-                  >
-                    <SelectTrigger className="h-10 w-32 bg-surface-raised">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PLACE_KINDS.map((kind) => (
-                        <SelectItem key={kind} value={kind}>
-                          {kind === "custom" ? "Custom" : kindLabel(kind)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="time"
-                    aria-label="Typical arrival time for the place you are saving"
-                    value={saveTime}
-                    onChange={(event) => setSaveTime(event.target.value)}
-                    className="h-10 w-32 bg-surface-raised tabular-nums"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!originPoint}
-                    onClick={() =>
-                      originPoint && savePlace(saveKind, originPoint, parseClockInput(saveTime))
-                    }
-                  >
-                    Save start
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!destinationPoint}
-                    onClick={() =>
-                      destinationPoint &&
-                      savePlace(saveKind, destinationPoint, parseClockInput(saveTime))
-                    }
-                  >
-                    Save destination
-                  </Button>
-                </div>
-              </section>
-            </SettingsGroup>
-          )}
-
-          {!firstRun && (
-            <SettingsGroup
-              id="alerts"
-              title="Stop alerts"
-              description="Sound, vibration, and transfer alerts during an active trip."
-              defaultOpen={false}
-            >
-              <AlertPrefsSection prefs={alertPrefs} onChange={onAlertPrefsChange} />
-            </SettingsGroup>
-          )}
-
-          {!firstRun && (
-            <SettingsGroup
-              id="notifications"
-              title="Notifications"
-              description="Optional commute alerts and quiet hours."
-              defaultOpen={false}
-            >
-              <NotificationsSection places={savedPlaces} />
-            </SettingsGroup>
-          )}
-
-          {!firstRun && (
-            <SettingsGroup
-              id="privacy"
-              title="Privacy & data"
-              description="Analytics consent and trip diagnostics."
-              defaultOpen={false}
-            >
-              <PrivacySection />
-            </SettingsGroup>
-          )}
-
-          {!firstRun && (
-            <SettingsGroup
-              id="account"
-              title="Account"
-              description="Sign in, sign out, or manage your Nalu account."
-              defaultOpen={false}
-            >
-              <AccountSection />
-            </SettingsGroup>
-          )}
-
-          {!firstRun && (
-            <SettingsGroup
-              id="about"
-              title="About Nalu"
-              description="App information, data sources, feedback, and the Welcome page."
-              defaultOpen={false}
-            >
-              <AboutSection />
-            </SettingsGroup>
-          )}
-
-          {status && <p className="text-sm text-muted-foreground">{status}</p>}
-        </div>
-        </SettingsPageContext.Provider>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-const DATA_SOURCES = [
-  {
-    label: "Bus and Skyline times: TheBus / Oahu Transit Services (thebus.org)",
-    href: "https://www.thebus.org",
-  },
-  { label: "Live bus arrivals: TheBus HEA API", href: "https://hea.thebus.org" },
-  { label: "Traffic and drive times: TomTom (tomtom.com)", href: "https://www.tomtom.com" },
-  {
-    label: "Weather: National Weather Service / NOAA (weather.gov)",
-    href: "https://www.weather.gov",
-  },
-  { label: "Air quality: AirNow / US EPA (airnow.gov)", href: "https://www.airnow.gov" },
-];
-
-const ABOUT_FEATURES = [
-  "Compares driving, TheBus and Skyline for the whole trip, walking and parking included, with live traffic.",
-  "Tells you when to leave, and can alert you before it’s time to go.",
-  "Turn-by-turn voice directions for drives.",
-  "Live bus locations, and an alert when your stop is next.",
-  "Scheduled roadwork on your route, in plain road names.",
-  "Late at night: the last bus home, or a ride with Uber or Lyft.",
-];
-
-function AboutSection() {
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-
-  return (
-    <div className="border-t border-border pt-8">
-      <div className="flex flex-col items-center pb-7 text-center">
-        <WaveMark className="nalu-honu h-16 w-24" />
-        <p className="nalu-brand-title mt-3 text-2xl font-bold tracking-wide">Nalu</p>
-        <p className="mt-1 text-sm text-muted-foreground">Version {APP_VERSION}</p>
-        <Tagline className="mt-3" />
-        <p className="mt-2 text-sm italic text-muted-foreground">
-          Hawaiian for wave, and to think deeply.
-        </p>
-      </div>
-      <div className="h-px bg-border/60" />
-
-      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        What Nalu does
-      </p>
-      <p className="mt-2 text-base leading-7 text-foreground">
-        Tell Nalu where you’re going. It finds the fastest way there, by car, TheBus or Skyline,
-        and tells you when to leave.
-      </p>
-      <ul className="mt-3 grid gap-2.5 text-base leading-7 text-muted-foreground">
-        {ABOUT_FEATURES.map((feature) => (
-          <li key={feature} className="flex gap-2.5">
-            <Check className="mt-1.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-            <span>{feature}</span>
-          </li>
-        ))}
-      </ul>
-
-      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Who it’s for
-      </p>
-      <p className="mt-2 text-base leading-7 text-muted-foreground">
-        Anyone getting around Oʻahu: daily commuters, students, visitors and late-night shifts.
-        Made in Hawaiʻi. The core answer and safety features are free.
-      </p>
-      <div className="mt-4 grid gap-2">
-        <Link
-          to="/welcome"
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 text-base font-semibold text-foreground transition-colors hover:bg-accent"
-        >
-          View Welcome page
-        </Link>
-        <Link
-          to="/oahu-commute"
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 text-base font-semibold text-primary underline-offset-4 hover:underline"
-        >
-          Oʻahu commute guide
-        </Link>
-      </div>
-      <div className="mt-6 h-px bg-border/60" />
-
-      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Data sources
-      </p>
-      <ul className="mt-1">
-        {DATA_SOURCES.map((source) => (
-          <li key={source.href} className="border-b border-border/50 last:border-b-0">
-            <a
-              href={source.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between gap-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <span>{source.label}</span>
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" />
-            </a>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-6 h-px bg-border/60" />
-
-      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Privacy
-      </p>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        Guest trips and saved places can remain on this device. If you choose to sign in, your
-        profile, saved places, and preferences can sync across your devices. Feedback you submit is
-        sent to Nalu for review and is processed through our feedback service provider. To know
-        how many people use Nalu each week, each phone is counted once a day under a random number,
-        with no name or location. Crash reports go to our error service without your searches or
-        location.
-      </p>
-      <div className="mt-6 h-px bg-border/60" />
-
-      <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Contact
-      </p>
-      <a
-        href="mailto:hello@ridenalu.com"
-        className="mt-2 inline-block text-sm text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-      >
-        hello@ridenalu.com
-      </a>
-      <Button
-        type="button"
-        variant="outline"
-        className="mt-3 w-full shadow-none"
-        onClick={() => {
-          setFeedbackOpen(true);
-        }}
-      >
-        Send feedback
-      </Button>
-      <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
-    </div>
-  );
-}
-
-const FEEDBACK_ENDPOINT = "https://formspree.io/f/mppwqpaz";
-
-function FeedbackForm({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const { user } = useAuth();
-  const [message, setMessage] = useState("");
-  const [component, setComponent] = useState("");
-  const [email, setEmail] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  const signedInName = profileFirstName(user);
-  const signedInEmail = typeof user?.email === "string" ? user.email : "";
-
-  useEffect(() => {
-    if (open) {
-      setSent(false);
-      setFailed(false);
-      // Pre-fill from the signed-in account so riders never retype.
-      setEmail((current) => current || signedInEmail);
-    }
-  }, [open, signedInEmail]);
-
-  async function submit() {
-    if (!message.trim() || sending) return;
-    setSending(true);
-    setFailed(false);
-    try {
-      const response = await fetch(FEEDBACK_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          message: message.trim(),
-          component,
-          name: signedInName || undefined,
-          email: email.trim() || undefined,
-        }),
-      });
-      if (!response.ok) throw new Error(`status ${response.status}`);
-      setSent(true);
-      setMessage("");
-      setComponent("");
-      setEmail("");
-    } catch {
-      setFailed(true);
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <div className={open ? "mt-3" : ""}>
-      {open && (
-        <div className="grid gap-3 rounded-lg bg-surface-raised p-4">
-          <div className="grid gap-1.5">
-            <Label htmlFor="feedback-message">What happened?</Label>
-            <Textarea
-              id="feedback-message"
-              rows={4}
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="feedback-component">Which part of the app?</Label>
-            <Select value={component} onValueChange={setComponent}>
-              <SelectTrigger id="feedback-component" className="bg-background">
-                <SelectValue placeholder="Choose one" />
-              </SelectTrigger>
-              <SelectContent>
-                {["Browse mode", "Trip setup", "Verdict", "Departures", "Weather", "Other"].map(
-                  (part) => (
-                    <SelectItem key={part} value={part}>
-                      {part}
-                    </SelectItem>
-                  ),
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="feedback-email">Your email (optional)</Label>
-            <Input
-              id="feedback-email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-            >
-              Cancel
-            </button>
-            <Button
-              size="sm"
-              onClick={submit}
-              disabled={!message.trim() || sending}
-              className="shadow-none"
-            >
-              {sending ? "Sending…" : "Submit"}
-            </Button>
-          </div>
-          {sent && <p className="text-xs text-muted-foreground">Thanks, we read everything.</p>}
-          {failed && (
-            <p className="text-xs text-muted-foreground">
-              Couldn't send · try hello@ridenalu.com
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Inline map card normally; an edge-to-edge navigation screen during a live trip. */
-/** Hold for 1 s to end, so a bump on the freeway can't cancel navigation. */
-function HoldToEndButton({
-  onEnd,
-  label,
-  className,
-}: {
-  onEnd: () => void;
-  label: string;
-  className?: string;
-}) {
-  const [holding, setHolding] = useState(false);
-  const timer = useRef<number | null>(null);
-  const start = () => {
-    if (timer.current !== null) return;
-    setHolding(true);
-    timer.current = window.setTimeout(() => {
-      timer.current = null;
-      setHolding(false);
-      if ("vibrate" in navigator) navigator.vibrate?.(40);
-      onEnd();
-    }, 1000);
-  };
-  const cancel = () => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    timer.current = null;
-    setHolding(false);
-  };
-  useEffect(() => cancel, []);
-  return (
-    <Button
-      type="button"
-      variant="destructive"
-      aria-label={`Hold to ${label.toLowerCase()}`}
-      onPointerDown={start}
-      onPointerUp={cancel}
-      onPointerLeave={cancel}
-      onPointerCancel={cancel}
-      onContextMenu={(e) => e.preventDefault()}
-      onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
-          e.preventDefault();
-          start();
-        }
-      }}
-      onKeyUp={cancel}
-      className={`relative touch-none select-none overflow-hidden bg-[#c42a20] font-black uppercase text-white hover:bg-[#a8231a] ${className ?? ""}`}
-    >
-      <span
-        aria-hidden="true"
-        className="absolute inset-y-0 left-0 bg-foreground/25"
-        style={{
-          width: holding ? "100%" : "0%",
-          transition: holding ? "width 1s linear" : "width 150ms ease-out",
-        }}
-      />
-      <span className="relative flex items-center gap-2">
-        <X className="size-4" /> {holding ? "Keep holding…" : `Hold to ${label}`}
-      </span>
-    </Button>
-  );
-}
-
-function NavBottomCard({
-  mode,
-  delayMinutes,
-  steps,
-  onEnd,
-}: {
-  mode: "drive" | "transit";
-  delayMinutes: number | null;
-  steps: string[];
-  onEnd: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const traffic =
-    mode === "transit"
-      ? "Transit live"
-      : delayMinutes === null
-        ? "Checking traffic"
-        : delayMinutes >= 5
-          ? `Heavy · +${Math.round(delayMinutes)} min`
-          : delayMinutes >= 2
-            ? `Moderate · +${Math.round(delayMinutes)} min`
-            : "Traffic clear";
-  return (
-    <div className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-20 max-lg:landscape:left-auto max-lg:landscape:w-80">
-      <div className="nav-hud pointer-events-auto rounded-2xl p-3">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            className="flex min-w-0 items-center gap-2 text-left"
-          >
-            <span className="truncate rounded-full bg-muted px-3 py-1 text-xs font-black uppercase text-foreground">
-              {traffic}
-            </span>
-            <span className="shrink-0 text-xs font-bold text-muted-foreground">
-              {open ? "Hide route" : "Route details"}
-            </span>
-          </button>
-          <HoldToEndButton onEnd={onEnd} label="End" className="h-11 shrink-0 px-5" />
-        </div>
-        {open && (
-          <ol className="mt-3 max-h-[40dvh] space-y-2 overflow-y-auto overscroll-contain text-sm text-foreground">
-            {steps.length ? (
-              steps.map((step, i) => (
-                <li key={`${i}-${step}`} className="flex gap-2">
-                  <span className="w-5 shrink-0 text-right font-bold tabular-nums text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0">{step}</span>
-                </li>
-              ))
-            ) : (
-              <li className="text-muted-foreground">
-                Route steps will appear once the route loads.
-              </li>
-            )}
-          </ol>
-        )}
-      </div>
-    </div>
   );
 }
