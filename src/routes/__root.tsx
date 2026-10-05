@@ -71,6 +71,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Nalu" },
       { name: "description", content: "Compare Skyline, TheBus, and driving for your Oʻahu commute with Nalu." },
+      // Bing Webmaster Tools ownership check (public code; ChatGPT search and Copilot use Bing).
+      { name: "msvalidate.01", content: "3204E2994DF114BE6D4A0786A473DDDF" },
       { name: "author", content: "Nalu" },
       { name: "robots", content: "index,follow,max-image-preview:large" },
       { name: "theme-color", content: "#08090B" },
