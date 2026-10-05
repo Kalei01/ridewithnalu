@@ -31,3 +31,11 @@ describe("sharing a trip", () => {
     expect(etaText("Work", "drive", 7 * 3600 + 5 * 60)).toMatch(/^On my way to Work\. Driving, arriving about 7:05/);
   });
 });
+
+describe("share rounding", () => {
+  it("rounds the margin to whole minutes", () => {
+    expect(shareText({ verdict: "drive", transitLabel: "Bus", destination: "Ala Moana Center", minutesFaster: 56.38, leaveSeconds: null, arriveSeconds: null })).toBe(
+      "Driving beats bus by 56 min to Ala Moana Center right now.",
+    );
+  });
+});

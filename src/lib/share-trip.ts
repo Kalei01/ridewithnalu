@@ -20,7 +20,8 @@ export type ShareAnswer = {
 export function shareText(answer: ShareAnswer): string {
   const transit = answer.transitLabel || "Transit";
   const to = answer.destination;
-  const faster = answer.minutesFaster && answer.minutesFaster >= 2 ? answer.minutesFaster : null;
+  const rounded = answer.minutesFaster == null ? null : Math.round(answer.minutesFaster);
+  const faster = rounded && rounded >= 2 ? rounded : null;
   let headline: string;
   if (answer.verdict === "drive") headline = faster ? `Driving beats ${transit.toLowerCase()} by ${faster} min to ${to} right now.` : `Driving is the way to ${to} right now.`;
   else if (answer.verdict === "transit") headline = faster ? `${transit} beats driving by ${faster} min to ${to} right now.` : `${transit} is the way to ${to} right now.`;
