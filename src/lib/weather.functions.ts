@@ -191,8 +191,12 @@ async function getAir(lat: number, lon: number): Promise<AirQuality | null> {
       const url =
         `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json` +
         `&latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&distance=25&API_KEY=${apiKey}`;
-      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!response.ok) return null;
+      const response = await fetch(url, edgeCached({ signal: AbortSignal.timeout(3000) }, 30 * 60));
+      if (!response.ok) {
+        // Remember the miss so every request doesn't wait on AirNow again.
+        setBoundedCache(airCache, key, { at: Date.now(), air: null });
+        return null;
+      }
       const payload = (await response.json()) as Array<{
         Category?: { Number?: number };
       }>;
@@ -206,6 +210,7 @@ async function getAir(lat: number, lon: number): Promise<AirQuality | null> {
       return air;
     } catch (error) {
       console.error("AirNow unavailable", error);
+      setBoundedCache(airCache, key, { at: Date.now(), air: null });
       return null;
     } finally {
       airInflight.delete(key);
@@ -224,6 +229,11 @@ export const outdoorConditions = createServerFn({ method: "POST" })
   .inputValidator((input) => schema.parse(input))
   .handler(async ({ data }): Promise<WeatherResult> => {
     const now = Date.now();
+    // Air quality is a side note; fetch it alongside the forecast, not after it.
+    const airPromise =
+      typeof data.airLat === "number" && typeof data.airLon === "number"
+        ? getAir(data.airLat, data.airLon)
+        : Promise.resolve(null);
 
     const moments = await Promise.all(
       data.points.map(async (point): Promise<MomentConditions> => {
@@ -266,10 +276,6 @@ export const outdoorConditions = createServerFn({ method: "POST" })
       }),
     );
 
-    const air =
-      typeof data.airLat === "number" && typeof data.airLon === "number"
-        ? await getAir(data.airLat, data.airLon)
-        : null;
-
+    const air = await airPromise;
     return { moments, air };
   });
