@@ -2894,7 +2894,7 @@ function Index() {
         ? "Can’t check transit right now"
         : key === "noCar"
           ? "No trip without a car right now"
-          : "No park & ride trip right now",
+          : "No park & ride trip that makes sense right now",
       note: key === "parkAndRide" ? parkingNote(option, honoluluIsoDow(now)) : null,
       pick: naluPick === key,
       locked: lockedChoice === key,
@@ -2937,10 +2937,9 @@ function Index() {
       pick: naluPick === "drive",
       locked: lockedChoice === "drive",
     },
-    // Park & ride only when there is a sensible trip to a station with a lot.
-    ...(choicePicks.parkAndRide.option || lockedChoice === "parkAndRide"
-      ? [transitChoice("parkAndRide")]
-      : []),
+    // Always all three, so riders see park & ride was checked even when no
+    // sensible trip exists (e.g. Mānoa: Skyline would still need two buses).
+    transitChoice("parkAndRide"),
     transitChoice("noCar"),
   ];
   function chooseTrip(key: TripChoiceKey) {
