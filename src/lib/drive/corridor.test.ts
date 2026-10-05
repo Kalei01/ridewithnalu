@@ -76,14 +76,17 @@ describe("extractCorridor", () => {
         { routeOffsetInMeters: 2600, street: "Interstate Highway H1 E", roadNumbers: ["H1 E"] },
         { routeOffsetInMeters: 22000, street: "H-3 East", roadNumbers: ["H3 E"] },
         { routeOffsetInMeters: 22500, street: "Moanalua Fwy East", roadNumbers: ["HI-78 E"] },
-        { routeOffsetInMeters: 26000, street: "Nimitz Hwy", roadNumbers: ["HI-92"], exitNumber: "18B" },
+        {
+          routeOffsetInMeters: 26000,
+          street: "Nimitz Hwy",
+          roadNumbers: ["HI-92"],
+          exitNumber: "18B",
+        },
       ],
       28000,
       { fromLon: -158.02, toLon: -157.86 },
     );
-    expect(corridor?.label).toBe(
-      "Via Renton Rd → H-1 East → Moanalua Fwy East → Nimitz Hwy",
-    );
+    expect(corridor?.label).toBe("Via Renton Rd → H-1 East → Moanalua Fwy East → Nimitz Hwy");
   });
 
   it("includes Moanalua Freeway and the final cutoff on a town-bound route", () => {
@@ -92,14 +95,17 @@ describe("extractCorridor", () => {
         { routeOffsetInMeters: 0, street: "Fort Weaver Rd", roadNumbers: ["HI-76"] },
         { routeOffsetInMeters: 5000, street: "Interstate Highway H1 E", roadNumbers: ["H1 E"] },
         { routeOffsetInMeters: 23000, street: "Moanalua Fwy E", roadNumbers: ["HI-78 E"] },
-        { routeOffsetInMeters: 29000, street: "Nimitz Hwy", roadNumbers: ["HI-92"], exitNumber: "18B" },
+        {
+          routeOffsetInMeters: 29000,
+          street: "Nimitz Hwy",
+          roadNumbers: ["HI-92"],
+          exitNumber: "18B",
+        },
       ],
       34000,
       { fromLon: -158.02, toLon: -157.86 },
     );
-    expect(corridor?.label).toBe(
-      "Via Fort Weaver Rd → H-1 East → Moanalua Fwy East → Nimitz Hwy",
-    );
+    expect(corridor?.label).toBe("Via Fort Weaver Rd → H-1 East → Moanalua Fwy East → Nimitz Hwy");
   });
 
   it("replaces TomTom's exit ID with the familiar road named immediately after it", () => {
@@ -135,23 +141,34 @@ describe("extractCorridor", () => {
     );
   });
 
+  it("names a freeway once when the feed labels it two ways", () => {
+    const corridor = extractCorridor(
+      [
+        { routeOffsetInMeters: 0, street: "Kamakana St" },
+        { routeOffsetInMeters: 3000, street: "H-1" },
+        { routeOffsetInMeters: 12000, street: "H-1 East" },
+        { routeOffsetInMeters: 30000, street: "Pali Hwy" },
+      ],
+      34000,
+      { fromLon: -158.03, toLon: -157.8 },
+    );
+    expect(corridor?.label).toBe("Via Kamakana St → H-1 East → Pali Hwy");
+  });
+
   it("returns null without guidance", () => {
     expect(extractCorridor([], 1000)).toBeNull();
   });
 });
 
-
 describe("bypassedCorridors", () => {
   it("keeps congested roads the route avoids", () => {
-    expect(bypassedCorridors(["HI-76", "Interstate H-1", null], ["H-1 East", "Nimitz Hwy"])).toEqual([
-      "Fort Weaver Rd",
-    ]);
+    expect(
+      bypassedCorridors(["HI-76", "Interstate H-1", null], ["H-1 East", "Nimitz Hwy"]),
+    ).toEqual(["Fort Weaver Rd"]);
   });
 
   it("never claims to skip a road the route travels on", () => {
-    expect(
-      bypassedCorridors(["HI-76"], ["Renton Rd", "Fort Weaver Road", "H-1 East"]),
-    ).toEqual([]);
+    expect(bypassedCorridors(["HI-76"], ["Renton Rd", "Fort Weaver Road", "H-1 East"])).toEqual([]);
   });
 
   it("deduplicates and limits", () => {

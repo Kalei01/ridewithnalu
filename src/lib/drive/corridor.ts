@@ -85,7 +85,9 @@ export function guidanceDirection(step: GuidanceInstruction): string | null {
   if (match?.[1]) return capitalise(match[1]);
   const abbreviated = /\b(?:H-?\d+|Hwy|Fwy)\s+(E|W|N|S)\b/i.exec(text);
   if (abbreviated?.[1]) {
-    return { E: "East", W: "West", N: "North", S: "South" }[abbreviated[1].toUpperCase() as "E" | "W" | "N" | "S"];
+    return { E: "East", W: "West", N: "North", S: "South" }[
+      abbreviated[1].toUpperCase() as "E" | "W" | "N" | "S"
+    ];
   }
   return null;
 }
@@ -104,9 +106,11 @@ function isGenericExit(name: string) {
 }
 
 function withoutDirection(name: string) {
-  return name.replace(/\s+(?:East|West|North|South|Eastbound|Westbound|Northbound|Southbound)$/i, "");
+  return name.replace(
+    /\s+(?:East|West|North|South|Eastbound|Westbound|Northbound|Southbound)$/i,
+    "",
+  );
 }
-
 
 /**
  * Pick the handful of roads a driver actually needs to know, from TomTom's
@@ -130,7 +134,9 @@ export function extractCorridor(
   for (let index = 0; index < names.length; index += 1) {
     const name = names[index];
     if (!name || !isGenericExit(name)) continue;
-    const nextNamedRoad = names.slice(index + 1).find((candidate) => candidate && !isGenericExit(candidate));
+    const nextNamedRoad = names
+      .slice(index + 1)
+      .find((candidate) => candidate && !isGenericExit(candidate));
     if (nextNamedRoad) names[index] = nextNamedRoad;
   }
   mergeRampNames(instructions, names);
@@ -186,10 +192,10 @@ export function extractCorridor(
       .sort((a, b) => b[1].meters - a[1].meters)[0];
     const exitCandidates = entries
       .filter(
-      ([name, span]) =>
-        !isFreeway(withoutDirection(name)) &&
-        !isGenericExit(name) &&
-        span.firstOffset > lastFreewayOffset,
+        ([name, span]) =>
+          !isFreeway(withoutDirection(name)) &&
+          !isGenericExit(name) &&
+          span.firstOffset > lastFreewayOffset,
       )
       .sort((a, b) => a[1].firstOffset - b[1].firstOffset);
     // Show both the freeway cutoff and the final useful street toward the
@@ -215,13 +221,18 @@ export function extractCorridor(
   chosen = chosen.slice(0, maxRoads);
   if (!chosen.length) return null;
 
-  const roads = chosen.map((name) => {
-    const baseName = withoutDirection(name);
-    if (!isFreeway(baseName)) return name;
-    const stated = statedDirections.get(baseName);
-    if (stated) return `${baseName} ${stated}`;
-    return endpoints ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}` : name;
-  });
+  const roads = chosen
+    .map((name) => {
+      const baseName = withoutDirection(name);
+      if (!isFreeway(baseName)) return name;
+      const stated = statedDirections.get(baseName);
+      if (stated) return `${baseName} ${stated}`;
+      return endpoints
+        ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}`
+        : name;
+    })
+    // The feed can name one freeway two ways ("H-1" and "H-1 East"); say it once.
+    .filter((name, index, list) => list.indexOf(name) === index);
 
   return { label: `Via ${roads.join(" → ")}`, roads, allRoads: [...spans.keys()] };
 }
@@ -233,7 +244,10 @@ export function extractCorridor(
 function roadKey(road: string) {
   return road
     .replace(/\s+(East|West|North|South|Eastbound|Westbound)$/i, "")
-    .replace(/\b(Road|Rd|Highway|Hwy|Parkway|Pkwy|Freeway|Fwy|Street|St|Avenue|Ave|Boulevard|Blvd)\b\.?/gi, "")
+    .replace(
+      /\b(Road|Rd|Highway|Hwy|Parkway|Pkwy|Freeway|Fwy|Street|St|Avenue|Ave|Boulevard|Blvd)\b\.?/gi,
+      "",
+    )
     .replace(/[^a-z0-9]+/gi, "")
     .toLowerCase();
 }
