@@ -277,7 +277,7 @@ function TripSetup({
           type="time"
           value={time}
           onChange={(event) => setTime(event.target.value)}
-          className={`h-14 bg-background text-xl font-semibold ${centered ? "w-full max-w-56 text-center" : "max-w-40"}`}
+          className={`h-14 bg-background text-xl font-semibold ${centered ? "w-full max-w-56 text-center [&::-webkit-date-and-time-value]:text-center [&::-webkit-datetime-edit]:mx-auto [&::-webkit-datetime-edit]:w-fit" : "max-w-40"}`}
         />
       </label>
       {/* Seven equal columns keep the whole week on one row on any phone. */}
