@@ -197,34 +197,34 @@ const TEAM = "The Nalu team";
 /** Sent once, right after a rider turns on emails. */
 export function welcomeEmail(): EmailContent {
   return {
-    subject: "Aloha! 3 small steps to make Nalu yours",
-    preheader: "A few taps today, and Nalu tells you when to leave tomorrow.",
-    heading: "Aloha, glad you're here",
+    subject: "Welcome to Nalu: 3 quick setup steps",
+    preheader: "Set it up once, and Nalu can tell you when to leave.",
+    heading: "Welcome to Nalu",
     intro:
-      "Mahalo for letting us into your inbox. Nalu has one job: before you grab your keys, tell you whether to drive, bus or ride Skyline, and when to leave. Three quick things make it feel like it knows you:",
+      "Nalu tells you whether to drive, take the bus or ride Skyline, and when to leave. Three quick steps will set it up for your commute:",
     lists: [
       {
         numbered: true,
         items: [
           {
-            title: "Put Nalu on your Home Screen",
-            body: "It opens like an app, and on iPhone it's how leave alerts reach you.",
+            title: "Add Nalu to your Home Screen",
+            body: "It opens like an app. On iPhone, leave alerts only work this way.",
           },
           {
             title: "Save home and work",
-            body: "Your answer is waiting the moment you open Nalu. No typing addresses half-awake.",
+            body: "Your answer is ready as soon as you open Nalu, with no addresses to type.",
           },
           {
             title: "Turn on a leave alert",
-            body: "Nalu taps you on the shoulder when it's time to go, so you can stop watching the clock.",
+            body: "Nalu will let you know when it's time to go.",
           },
         ],
       },
     ],
     button: { label: "Open Nalu", url: `${SITE}/?ref=email_welcome` },
     link: { label: "How to add Nalu to your Home Screen", url: `${SITE}/install?ref=email_welcome` },
-    signoff: ["See you on the road,", TEAM],
-    ps: "Nalu's everyday answer and its safety alerts will always be free. No account needed, no catch.",
+    signoff: ["Thanks for using Nalu,", TEAM],
+    ps: "The core answer and safety alerts will always be free, and you don't need an account to use them.",
   };
 }
 
@@ -238,19 +238,18 @@ export const WEEK_LIST_MAX = 6;
 export function weekAheadEmail(closures: RoadClosure[]): EmailContent {
   const shared = {
     button: { label: "See my route", url: `${SITE}/?ref=email_week` },
-    signoff: ["Have a good week out there,", TEAM],
-    ps: "These dates come from the state's HDOT schedule, and crews sometimes finish early or run late. A quick look in Nalu before you go never hurts.",
+    signoff: ["Have a good week,", TEAM],
+    ps: "These dates come from the state's HDOT schedule. Crews sometimes finish early or run late, so check Nalu before you go.",
   };
   if (closures.length === 0) {
     return {
       ...shared,
-      subject: "A clear week on your route",
-      preheader: "No planned roadwork on your usual way this week. Enjoy it.",
-      heading: "A clear week ahead",
-      intro:
-        "Good news before Monday: the state's HDOT list shows no planned lane closures on your route this week. Nice when that happens.",
-      outro: "Traffic still has a mind of its own, so open Nalu before you head out and it'll tell you when to leave.",
-      ps: "This comes from the state's HDOT schedule, which can change during the week. A quick look in Nalu before you go never hurts.",
+      subject: "No planned roadwork on your route this week",
+      preheader: "Nalu will still tell you when to leave each day.",
+      heading: "No planned roadwork this week",
+      intro: "The state's HDOT list shows no planned lane closures on your usual route this week.",
+      outro: "Traffic still changes day to day, so open Nalu before you head out and it will tell you when to leave.",
+      ps: "This comes from the state's HDOT schedule, which can change during the week.",
     };
   }
   const shown = closures.slice(0, WEEK_LIST_MAX);
@@ -258,18 +257,20 @@ export function weekAheadEmail(closures: RoadClosure[]): EmailContent {
   const one = closures.length === 1;
   return {
     ...shared,
-    subject: `Your week ahead: ${one ? "1 heads-up" : `${closures.length} heads-ups`} for your route`,
-    preheader: "Planned roadwork on your usual way, so nothing catches you off guard.",
+    subject: `This week on your route: ${one ? "1 planned closure" : `${closures.length} planned closures`}`,
+    preheader: "Dates and times from the state's HDOT lane-closure list.",
     heading: "Your week ahead",
-    intro: `Before the week gets going, here's ${one ? "the one bit of" : "the"} planned roadwork on your usual route, straight from the state's HDOT list. Better to know now than at the cones.`,
+    intro: one
+      ? "Here is the planned lane closure on your usual route this week, from the state's HDOT list."
+      : `Here are the ${closures.length} planned lane closures on your usual route this week, from the state's HDOT list.`,
     lists: [
       {
         title: "On your route",
         items: shown.map((c) => ({ title: c.road, body: c.where, meta: c.when })),
-        ...(extra > 0 ? { note: `Plus ${extra} more. You'll see them all on your route in Nalu.` } : {}),
+        ...(extra > 0 ? { note: `Plus ${extra} more. You can see them all on your route in Nalu.` } : {}),
       },
     ],
-    outro: "Open Nalu before you leave and you'll see these on your route, along with when to go.",
+    outro: "When you open Nalu, you'll see these on your route along with when to leave.",
   };
 }
 
@@ -290,34 +291,32 @@ export type BigDayEvent = {
 /** Heads-up before a big traffic day. Draft: not wired to sending yet. */
 export function bigDayEmail(event: BigDayEvent): EmailContent {
   const where = event.area ? ` around ${event.area}` : "";
+  const name = event.name.charAt(0).toUpperCase() + event.name.slice(1);
   const lists: EmailList[] = [];
   if (event.details?.length) {
     lists.push({ title: "What to know", items: event.details.map((d) => ({ title: d })) });
   }
   lists.push({
-    title: "Plan your day",
+    title: "Plan your trip",
     numbered: true,
     items: [
       {
         title: "Check Nalu before you head out",
-        body: "See drive, bus and Skyline side by side, and pick what works best that day.",
+        body: "Compare driving, the bus and Skyline for that day, and choose what works.",
       },
-      { title: "Give yourself extra time", body: "Closures and detours add up fast. Leaving early beats rushing." },
-      {
-        title: "Bring your patience",
-        body: "Lots of people will be out, many on foot. A little aloha on the road goes a long way.",
-      },
+      { title: "Allow extra time", body: "Closures and detours can make trips take longer than usual." },
+      { title: "Watch for people walking", body: "Expect more foot traffic near the event." },
     ],
   });
   return {
     subject: `Heads-up: ${event.name} is ${event.day}`,
-    preheader: `Expect busier roads${where} that day. A little planning keeps it easy.`,
-    heading: "A big day is coming",
-    intro: `Just a friendly heads-up: ${event.name} is ${event.day}${where}. Days like this can bring road closures and heavier traffic, so it's worth a quick plan before you go.`,
+    preheader: `Roads${where} may be busier than usual that day.`,
+    heading: "Plan ahead for a busy day",
+    intro: `${name} is ${event.day}${where}. Events like this often bring road closures and heavier traffic, so it helps to plan your trip ahead of time.`,
     lists,
-    button: { label: "Plan with Nalu", url: `${SITE}/?ref=email_bigday` },
+    button: { label: "Plan my trip", url: `${SITE}/?ref=email_bigday` },
     ...(event.infoUrl ? { link: { label: "Official closures and times", url: event.infoUrl } } : {}),
-    signoff: ["Enjoy the day, wherever it takes you,", TEAM],
-    ps: "Heading out to watch or take part? Have the best time. Just trying to get to work? Nalu will help you find the easiest way in.",
+    signoff: ["Take care,", TEAM],
+    ps: "Whether you're going to the event or just getting to work, Nalu can help you find the easiest way there.",
   };
 }

@@ -15,37 +15,37 @@ LOGO = "https://ridenalu.com/icons/icon-192.png"
 EMAILS = {
     "magic_link": (
         "Your Nalu sign-in link",
-        "Here's your way in",
-        "Tap the button and you're signed in. The link works once and expires in an hour.",
+        "Sign in to Nalu",
+        "Tap the button below to sign in. The link works once and expires in an hour.",
         "Sign in",
         "{{ .ConfirmationURL }}",
     ),
     "confirmation": (
         "Confirm your email for Nalu",
-        "Aloha, welcome to Nalu",
-        "One quick tap to confirm your email, and you're all set.",
+        "Confirm your email",
+        "Tap the button below to confirm your email address and finish setting up your account.",
         "Confirm email",
         "{{ .ConfirmationURL }}",
     ),
     "recovery": (
         "Reset your Nalu password",
-        "Let's get you back in",
-        "It happens to everyone. Tap the button to choose a new password. The link works once.",
+        "Reset your password",
+        "Tap the button below to choose a new password. The link works once.",
         "Reset password",
         "{{ .ConfirmationURL }}",
     ),
     "email_change": (
         "Confirm your new email for Nalu",
         "Confirm your new email",
-        "One tap and Nalu will use {{ .NewEmail }} from now on.",
+        "Tap the button below to start using {{ .NewEmail }} for your Nalu account.",
         "Confirm new email",
         "{{ .ConfirmationURL }}",
     ),
     "invite": (
         "You're invited to Nalu",
         "You're invited to Nalu",
-        "Drive, bus or Skyline? Nalu tells you the fastest way across Oʻahu, and when to leave. Tap the button to join.",
-        "Join Nalu",
+        "Nalu tells you whether to drive, take the bus or ride Skyline across Oʻahu, and when to leave. Tap the button below to accept.",
+        "Accept invite",
         "{{ .ConfirmationURL }}",
     ),
 }
@@ -70,7 +70,7 @@ PAGE = """<!doctype html>
 <a href="{url}" style="display:inline-block;background:#287fc0;color:#ffffff;text-decoration:none;font-size:18px;font-weight:600;padding:16px 36px;border-radius:12px;">{button}</a>
 </td></tr>
 <tr><td align="center" style="padding:20px 32px 32px;">
-<p style="margin:0;font-size:14px;line-height:1.5;color:#59636d;">Didn't ask for this? You can ignore this email.</p>
+<p style="margin:0;font-size:14px;line-height:1.5;color:#59636d;">If you didn't ask for this email, you can safely ignore it.</p>
 </td></tr>
 </table>
 <p style="margin:20px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#59636d;">Nalu &middot; Your Oʻahu commute, decided &middot; <a href="https://ridenalu.com" style="color:#287fc0;">ridenalu.com</a></p>

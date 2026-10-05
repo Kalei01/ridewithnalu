@@ -26,7 +26,7 @@ describe("Nalu emails", () => {
     expect(email.html).toContain("Save home and work");
     expect(email.html).toContain(unsub);
     expect(email.text).toContain(`Unsubscribe: ${unsub}`);
-    expect(email.text).toContain("1. Put Nalu on your Home Screen");
+    expect(email.text).toContain("1. Add Nalu to your Home Screen");
     expect(email.text).toContain("3. Turn on a leave alert");
   });
 
@@ -50,8 +50,17 @@ describe("Nalu emails", () => {
       ...(c.signoff ?? []),
       c.ps ?? "",
     ].join(" ");
-    expect(words(body)).toBeGreaterThanOrEqual(110);
-    expect(words(body)).toBeLessThanOrEqual(175);
+    expect(words(body)).toBeGreaterThanOrEqual(100);
+    expect(words(body)).toBeLessThanOrEqual(140);
+  });
+
+  it("keeps Hawaiian words out of the marketing filler and subjects calm", () => {
+    const all = [welcomeEmail(), weekAheadEmail([]), weekAheadEmail([{ road: "r", where: "w", when: "t" }]), bigDayEmail({ name: "the parade", day: "Saturday" })];
+    for (const c of all) {
+      const { text } = renderEmail(c, unsub);
+      expect(text).not.toMatch(/\b(aloha|mahalo)\b/i);
+      expect(c.subject).not.toContain("!");
+    }
   });
 
   it("never guesses a name and spells Oʻahu with the ʻokina", () => {
@@ -110,7 +119,7 @@ describe("week ahead email", () => {
   it("lists each closure with where and when", () => {
     const content = weekAheadEmail(closures);
     const { html, text } = renderEmail(content, unsub);
-    expect(content.subject).toBe("Your week ahead: 2 heads-ups for your route");
+    expect(content.subject).toBe("This week on your route: 2 planned closures");
     expect(html).toContain("H-1 Eastbound");
     expect(text).toContain("- Farrington Highway");
     expect(text).toContain("- Farrington Highway\n   Near Fort Weaver Road, 1 lane\n   Tue, 9 a.m. to 3 p.m.");
@@ -119,12 +128,12 @@ describe("week ahead email", () => {
   });
 
   it("uses the singular for one closure", () => {
-    expect(weekAheadEmail(closures.slice(0, 1)).subject).toBe("Your week ahead: 1 heads-up for your route");
+    expect(weekAheadEmail(closures.slice(0, 1)).subject).toBe("This week on your route: 1 planned closure");
   });
 
-  it("sends a happy note when the route is clear", () => {
+  it("sends a short note when the route is clear", () => {
     const content = weekAheadEmail([]);
-    expect(content.subject).toBe("A clear week on your route");
+    expect(content.subject).toBe("No planned roadwork on your route this week");
     expect(content.lists).toBeUndefined();
     expect(renderEmail(content, unsub).text).toContain("no planned lane closures");
   });
@@ -152,7 +161,7 @@ describe("big day email", () => {
     const content = bigDayEmail(marathon);
     const { text } = renderEmail(content, unsub);
     expect(content.subject).toBe("Heads-up: the Honolulu Marathon is Sunday, December 13, 2026");
-    expect(text).toContain("the Honolulu Marathon is Sunday, December 13, 2026.");
+    expect(text).toContain("The Honolulu Marathon is Sunday, December 13, 2026.");
     expect(text).not.toContain("WHAT TO KNOW");
     expect(text).not.toContain("Official closures");
     expect(text).toContain("1. Check Nalu before you head out");
