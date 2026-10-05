@@ -151,6 +151,11 @@ function AppRouteGate() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const router = useRouter();
   const { user, loading } = useAuth();
+  // A shared trip link opens the trip itself, not the Welcome page. Read once:
+  // the trip screen removes the link from the address bar right after.
+  const [sharedTrip] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("to"),
+  );
   // null = not yet read from storage (avoids hydration mismatch)
   const [welcomeSeen, setWelcomeSeen] = useState<boolean | null>(null);
 
@@ -169,7 +174,7 @@ function AppRouteGate() {
     // This lets signed-in users revisit the public product introduction from Settings.
 
     // First visit for a signed-out user shows Welcome once; afterwards "/" opens Browse.
-    if (!loading && !user && welcomeSeen === false && pathname === "/") {
+    if (!loading && !user && welcomeSeen === false && pathname === "/" && !sharedTrip) {
       try {
         if (window.localStorage.getItem(WELCOME_SEEN_KEY) === "1") {
           setWelcomeSeen(true);
@@ -180,7 +185,7 @@ function AppRouteGate() {
       }
       void router.navigate({ to: "/welcome", replace: true });
     }
-  }, [loading, user, welcomeSeen, pathname, router]);
+  }, [loading, user, welcomeSeen, pathname, router, sharedTrip]);
 
   useEffect(() => {
     initGoogleAnalytics();
@@ -196,7 +201,7 @@ function AppRouteGate() {
   // engines and AI assistants an empty "Getting things ready" screen.
   if (isPublicContentPath(pathname)) return <Outlet />;
 
-  const routingToWelcome = pathname === "/" && welcomeSeen !== true;
+  const routingToWelcome = pathname === "/" && welcomeSeen !== true && !sharedTrip;
   if (loading || routingToWelcome) {
     return (
       <main className="min-h-[100dvh] bg-background text-foreground" aria-label="Loading Nalu">

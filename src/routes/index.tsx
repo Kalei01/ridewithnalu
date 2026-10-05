@@ -217,6 +217,8 @@ import {
 } from "@/components/ai/NaluAi";
 import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
+import { ShareButton } from "@/components/ShareButton";
+import { etaText, parseSharedDestination, shareText, shareUrl } from "@/lib/share-trip";
 import {
   H1ConditionsCard,
   airLine,
@@ -3805,6 +3807,17 @@ function Index() {
       : // Without a saved Home, the start is wherever the trip was set from.
         "Your starting point";
   const tripArrivalLabel = arrivingHome ? "Home" : destinationLabel;
+  // A shared link may carry the destination, but never a saved place (home,
+  // work, a friend's house); those links just open Nalu.
+  const shareableDestination = useMemo(() => {
+    const lat = setup.destLat;
+    const lon = setup.destLon;
+    if (arrivingHome || typeof lat !== "number" || typeof lon !== "number") return null;
+    const isSaved = savedPlaces.some(
+      (place) => Math.hypot((place.lat - lat) * 111_000, (place.lon - lon) * 102_000) < 200,
+    );
+    return isSaved ? null : { lat, lon, name: destinationLabel };
+  }, [arrivingHome, setup.destLat, setup.destLon, savedPlaces, destinationLabel]);
   // A stop serves one direction, so the arriving stop and the boarding stop differ.
   const plannedInboundAccess = inbound && best?.legs[0]?.kind === "access" ? best.legs[0] : null;
   // The return banner must describe the chosen itinerary, not the stop saved during setup.
@@ -4329,6 +4342,14 @@ function Index() {
       }
       return;
     }
+    startTripToPlace(destination, options);
+  }
+
+  /** One-tap trip from where you are now to a place (saved, or from a shared link). */
+  function startTripToPlace(
+    destination: { label: string; name: string; address: string; lat: number; lon: number },
+    options: { auto?: boolean } = {},
+  ) {
     // Sound and the notification question need a tap; an automatic open has none.
     if (!options.auto) {
       if (alertPrefs.sound) primeChimeAudio();
@@ -4464,6 +4485,27 @@ function Index() {
       />
     </>
   );
+
+  // A shared link (ridenalu.com/?to=lat,lon&name=…) opens that trip once, from
+  // wherever the person is. The link is cleaned from the address bar first.
+  const sharedLinkTried = useRef(false);
+  useEffect(() => {
+    if (sharedLinkTried.current || !hydrated || commitment) return;
+    sharedLinkTried.current = true;
+    const shared = parseSharedDestination(window.location.search);
+    if (!shared) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("to");
+    url.searchParams.delete("name");
+    window.history.replaceState(window.history.state, "", url.pathname + (url.search || "") + url.hash);
+    try {
+      window.sessionStorage.setItem("nalu-autoopen-done", "1");
+    } catch {
+      /* ignore */
+    }
+    startTripToPlace({ label: shared.name, name: shared.name, address: shared.name, lat: shared.lat, lon: shared.lon }, { auto: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, commitment]);
 
   // Open the trip this person usually takes now, once per visit, only when the
   // habit is real (see trip-habits), location is already allowed, and they
@@ -5577,6 +5619,24 @@ function Index() {
           </>
         </VerdictDomain>
 
+        {configured && !commitment && !optionsLoading && !driveLoading &&
+          (verdict === "drive" || verdict === "transit" || verdict === "same") && (
+          <div className="mt-3 flex justify-center">
+            <ShareButton
+              label="Share this answer"
+              text={shareText({
+                verdict,
+                transitLabel,
+                destination: tripArrivalLabel,
+                minutesFaster: activeDecision.differenceMinutes ?? null,
+                leaveSeconds: verdict === "drive" ? driveTripEstimate.leaveTime : transitTripEstimate.leaveTime,
+                arriveSeconds: verdict === "drive" ? driveTripEstimate.arrivalTime : transitTripEstimate.arrivalTime,
+              })}
+              url={shareUrl(shareableDestination)}
+            />
+          </div>
+        )}
+
         {/* Nalu's one-line take sits right under the answer it explains. */}
         <NaluPersonalityStrip
           loading={optionsLoading || driveLoading}
@@ -5673,6 +5733,16 @@ function Index() {
                     </p>
                   </div>
                 </div>
+                <ShareButton
+                  label="Share my ETA"
+                  className="w-full shrink-0 sm:w-auto"
+                  text={etaText(
+                    tripArrivalLabel,
+                    lockedMode === "drive" ? "drive" : transitLabel,
+                    liveEta?.arriveSeconds ??
+                      (lockedMode === "drive" ? driveTripEstimate.arrivalTime : transitTripEstimate.arrivalTime),
+                  )}
+                />
                 <HoldToEndButton
                   onEnd={endTrip}
                   label="End Trip"
