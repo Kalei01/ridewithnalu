@@ -77,3 +77,25 @@ export function preferLessWalking<T extends TransitOptionLike>(options: T[]): T[
       ),
   );
 }
+
+/**
+ * Each extra transfer must save at least this much. A missed connection costs
+ * a whole wait for the next bus (often 15 to 30 minutes), so a trip that is
+ * only a few minutes faster but adds a transfer isn't worth the risk.
+ */
+export const MIN_SAVING_PER_EXTRA_TRANSFER_MIN = 10;
+
+const rideCount = (option: TransitOptionLike) => option.legs.filter(isRide).length;
+
+/** Drop trips whose extra transfers don't buy enough time over a simpler trip. */
+export function preferFewerTransfers<T extends TransitOptionLike>(options: T[]): T[] {
+  return options.filter(
+    (option) =>
+      !options.some((simpler) => {
+        const extra = rideCount(option) - rideCount(simpler);
+        if (simpler === option || extra <= 0 || rideCount(simpler) === 0) return false;
+        const savedMinutes = (simpler.arrive_seconds - option.arrive_seconds) / 60;
+        return savedMinutes < MIN_SAVING_PER_EXTRA_TRANSFER_MIN * extra;
+      }),
+  );
+}

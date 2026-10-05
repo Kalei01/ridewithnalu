@@ -2,7 +2,7 @@ import { Bus, Car, Footprints, TrainFront } from "lucide-react";
 import { type MomentConditions } from "@/lib/weather.functions";
 import { type EstimateSource } from "@/lib/decision/trip-estimate";
 import { filterTransferSanityOptions } from "@/lib/rail/inbound-fallback";
-import { preferLessWalking } from "@/lib/rail/walk-preference";
+import { preferFewerTransfers, preferLessWalking } from "@/lib/rail/walk-preference";
 import { type WeatherLine } from "@/components/commute/H1ConditionsCard";
 import { stationLabel, titleCase } from "@/lib/commute-formatting";
 
@@ -83,7 +83,7 @@ export function optionIdentity(option: Option) {
 
 export function mergeTransitOptions(...groups: Option[][]): Option[] {
   const unique = new Map<string, Option>();
-  const saneOptions = preferLessWalking(filterTransferSanityOptions(groups.flat()));
+  const saneOptions = preferFewerTransfers(preferLessWalking(filterTransferSanityOptions(groups.flat())));
   for (const option of saneOptions) unique.set(optionIdentity(option), option);
   return Array.from(unique.values())
     .sort((a, b) => a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds)
