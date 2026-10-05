@@ -124,6 +124,7 @@ export default function CommuteRouteMap({
   const incidentsRef = useRef(incidents);
   incidentsRef.current = incidents;
   const fittedGeometryRef = useRef<string | null>(null);
+  const pendingFitRef = useRef<number | null>(null);
   const suppressLiveFollowRef = useRef(false);
 
   const geometrySignature = useMemo(
@@ -208,6 +209,8 @@ export default function CommuteRouteMap({
 
     const resizeObserver = new ResizeObserver(() => {
       if (fittedGeometryRef.current === geometrySignatureRef.current) return;
+      // A route change already has a settled fit queued; don't jump ahead of it.
+      if (fittedGeometryRef.current !== null) return;
       scheduleInitialFit();
     });
     resizeObserver.observe(node);
@@ -400,14 +403,34 @@ export default function CommuteRouteMap({
       };
 
       if (followLive) suppressLiveFollowRef.current = true;
-      requestAnimationFrame(() => {
-        if (fit()) return;
+      if (pendingFitRef.current !== null) window.clearTimeout(pendingFitRef.current);
+      if (firstFit) {
         requestAnimationFrame(() => {
-          fit();
+          if (fit()) return;
+          requestAnimationFrame(() => {
+            fit();
+          });
         });
-      });
+      } else {
+        // Switching Drive ↔ Rail/Bus redraws the route in pieces (stops, then
+        // line shapes). Starting a new zoom for each piece interrupted the last
+        // one and made the map shake, so wait for the route to settle and
+        // animate once.
+        pendingFitRef.current = window.setTimeout(() => {
+          pendingFitRef.current = null;
+          map.stop();
+          if (!fit()) requestAnimationFrame(() => fit());
+        }, 250);
+      }
     }
   }, [routeSignature]);
+
+  useEffect(
+    () => () => {
+      if (pendingFitRef.current !== null) window.clearTimeout(pendingFitRef.current);
+    },
+    [],
+  );
 
   const [spotlight, setSpotlight] = useState<number | null>(null);
   useEffect(() => setSpotlight(focusSection), [focusSection]);
