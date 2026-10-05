@@ -15,8 +15,20 @@ import { Route as InstallRouteImport } from './routes/install'
 import { Route as OahuCommuteRouteImport } from './routes/oahu-commute'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RoadworkRouteImport } from './routes/roadwork'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WelcomeRouteImport } from './routes/welcome'
+import { Route as GuidesIndexRouteImport } from './routes/guides/index'
+import { Route as GuidesAboutNaluRouteImport } from './routes/guides/about-nalu'
+import { Route as GuidesEwaBeachToDowntownRouteImport } from './routes/guides/ewa-beach-to-downtown'
+import { Route as GuidesHonoluluAirportWithoutDrivingRouteImport } from './routes/guides/honolulu-airport-without-driving'
+import { Route as GuidesHonoluluMarathonTraffic2026RouteImport } from './routes/guides/honolulu-marathon-traffic-2026'
+import { Route as GuidesKapoleiToDowntownRouteImport } from './routes/guides/kapolei-to-downtown'
+import { Route as GuidesLateNightCommutingRouteImport } from './routes/guides/late-night-commuting'
+import { Route as GuidesMililaniToTownRouteImport } from './routes/guides/mililani-to-town'
+import { Route as GuidesNaluVsGoogleMapsRouteImport } from './routes/guides/nalu-vs-google-maps'
+import { Route as GuidesSkylineRailGuideRouteImport } from './routes/guides/skyline-rail-guide'
+import { Route as GuidesUhManoaWithoutParkingRouteImport } from './routes/guides/uh-manoa-without-parking'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 import { Route as ApiPublicImportGtfsRouteImport } from './routes/api/public/import-gtfs'
 import { Route as ApiPublicLeaveAlertsRouteImport } from './routes/api/public/leave-alerts'
@@ -55,6 +67,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RoadworkRoute = RoadworkRouteImport.update({
+  id: '/roadwork',
+  path: '/roadwork',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -65,6 +82,66 @@ const WelcomeRoute = WelcomeRouteImport.update({
   path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesAboutNaluRoute = GuidesAboutNaluRouteImport.update({
+  id: '/guides/about-nalu',
+  path: '/guides/about-nalu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesEwaBeachToDowntownRoute =
+  GuidesEwaBeachToDowntownRouteImport.update({
+    id: '/guides/ewa-beach-to-downtown',
+    path: '/guides/ewa-beach-to-downtown',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const GuidesHonoluluAirportWithoutDrivingRoute =
+  GuidesHonoluluAirportWithoutDrivingRouteImport.update({
+    id: '/guides/honolulu-airport-without-driving',
+    path: '/guides/honolulu-airport-without-driving',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const GuidesHonoluluMarathonTraffic2026Route =
+  GuidesHonoluluMarathonTraffic2026RouteImport.update({
+    id: '/guides/honolulu-marathon-traffic-2026',
+    path: '/guides/honolulu-marathon-traffic-2026',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const GuidesKapoleiToDowntownRoute = GuidesKapoleiToDowntownRouteImport.update({
+  id: '/guides/kapolei-to-downtown',
+  path: '/guides/kapolei-to-downtown',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesLateNightCommutingRoute =
+  GuidesLateNightCommutingRouteImport.update({
+    id: '/guides/late-night-commuting',
+    path: '/guides/late-night-commuting',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const GuidesMililaniToTownRoute = GuidesMililaniToTownRouteImport.update({
+  id: '/guides/mililani-to-town',
+  path: '/guides/mililani-to-town',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesNaluVsGoogleMapsRoute = GuidesNaluVsGoogleMapsRouteImport.update({
+  id: '/guides/nalu-vs-google-maps',
+  path: '/guides/nalu-vs-google-maps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesSkylineRailGuideRoute = GuidesSkylineRailGuideRouteImport.update({
+  id: '/guides/skyline-rail-guide',
+  path: '/guides/skyline-rail-guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesUhManoaWithoutParkingRoute =
+  GuidesUhManoaWithoutParkingRouteImport.update({
+    id: '/guides/uh-manoa-without-parking',
+    path: '/guides/uh-manoa-without-parking',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHealthRoute = ApiPublicHealthRouteImport.update({
   id: '/api/public/health',
   path: '/api/public/health',
@@ -108,8 +185,20 @@ export interface FileRoutesByFullPath {
   '/oahu-commute': typeof OahuCommuteRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/roadwork': typeof RoadworkRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/guides/about-nalu': typeof GuidesAboutNaluRoute
+  '/guides/ewa-beach-to-downtown': typeof GuidesEwaBeachToDowntownRoute
+  '/guides/honolulu-airport-without-driving': typeof GuidesHonoluluAirportWithoutDrivingRoute
+  '/guides/honolulu-marathon-traffic-2026': typeof GuidesHonoluluMarathonTraffic2026Route
+  '/guides/kapolei-to-downtown': typeof GuidesKapoleiToDowntownRoute
+  '/guides/late-night-commuting': typeof GuidesLateNightCommutingRoute
+  '/guides/mililani-to-town': typeof GuidesMililaniToTownRoute
+  '/guides/nalu-vs-google-maps': typeof GuidesNaluVsGoogleMapsRoute
+  '/guides/skyline-rail-guide': typeof GuidesSkylineRailGuideRoute
+  '/guides/uh-manoa-without-parking': typeof GuidesUhManoaWithoutParkingRoute
+  '/guides/': typeof GuidesIndexRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
@@ -125,8 +214,20 @@ export interface FileRoutesByTo {
   '/oahu-commute': typeof OahuCommuteRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/roadwork': typeof RoadworkRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/guides/about-nalu': typeof GuidesAboutNaluRoute
+  '/guides/ewa-beach-to-downtown': typeof GuidesEwaBeachToDowntownRoute
+  '/guides/honolulu-airport-without-driving': typeof GuidesHonoluluAirportWithoutDrivingRoute
+  '/guides/honolulu-marathon-traffic-2026': typeof GuidesHonoluluMarathonTraffic2026Route
+  '/guides/kapolei-to-downtown': typeof GuidesKapoleiToDowntownRoute
+  '/guides/late-night-commuting': typeof GuidesLateNightCommutingRoute
+  '/guides/mililani-to-town': typeof GuidesMililaniToTownRoute
+  '/guides/nalu-vs-google-maps': typeof GuidesNaluVsGoogleMapsRoute
+  '/guides/skyline-rail-guide': typeof GuidesSkylineRailGuideRoute
+  '/guides/uh-manoa-without-parking': typeof GuidesUhManoaWithoutParkingRoute
+  '/guides': typeof GuidesIndexRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
@@ -143,8 +244,20 @@ export interface FileRoutesById {
   '/oahu-commute': typeof OahuCommuteRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/roadwork': typeof RoadworkRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/guides/about-nalu': typeof GuidesAboutNaluRoute
+  '/guides/ewa-beach-to-downtown': typeof GuidesEwaBeachToDowntownRoute
+  '/guides/honolulu-airport-without-driving': typeof GuidesHonoluluAirportWithoutDrivingRoute
+  '/guides/honolulu-marathon-traffic-2026': typeof GuidesHonoluluMarathonTraffic2026Route
+  '/guides/kapolei-to-downtown': typeof GuidesKapoleiToDowntownRoute
+  '/guides/late-night-commuting': typeof GuidesLateNightCommutingRoute
+  '/guides/mililani-to-town': typeof GuidesMililaniToTownRoute
+  '/guides/nalu-vs-google-maps': typeof GuidesNaluVsGoogleMapsRoute
+  '/guides/skyline-rail-guide': typeof GuidesSkylineRailGuideRoute
+  '/guides/uh-manoa-without-parking': typeof GuidesUhManoaWithoutParkingRoute
+  '/guides/': typeof GuidesIndexRoute
   '/api/public/health': typeof ApiPublicHealthRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
@@ -162,8 +275,20 @@ export interface FileRouteTypes {
     | '/oahu-commute'
     | '/privacy'
     | '/reset-password'
+    | '/roadwork'
     | '/terms'
     | '/welcome'
+    | '/guides/about-nalu'
+    | '/guides/ewa-beach-to-downtown'
+    | '/guides/honolulu-airport-without-driving'
+    | '/guides/honolulu-marathon-traffic-2026'
+    | '/guides/kapolei-to-downtown'
+    | '/guides/late-night-commuting'
+    | '/guides/mililani-to-town'
+    | '/guides/nalu-vs-google-maps'
+    | '/guides/skyline-rail-guide'
+    | '/guides/uh-manoa-without-parking'
+    | '/guides/'
     | '/api/public/health'
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
@@ -179,8 +304,20 @@ export interface FileRouteTypes {
     | '/oahu-commute'
     | '/privacy'
     | '/reset-password'
+    | '/roadwork'
     | '/terms'
     | '/welcome'
+    | '/guides/about-nalu'
+    | '/guides/ewa-beach-to-downtown'
+    | '/guides/honolulu-airport-without-driving'
+    | '/guides/honolulu-marathon-traffic-2026'
+    | '/guides/kapolei-to-downtown'
+    | '/guides/late-night-commuting'
+    | '/guides/mililani-to-town'
+    | '/guides/nalu-vs-google-maps'
+    | '/guides/skyline-rail-guide'
+    | '/guides/uh-manoa-without-parking'
+    | '/guides'
     | '/api/public/health'
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
@@ -196,8 +333,20 @@ export interface FileRouteTypes {
     | '/oahu-commute'
     | '/privacy'
     | '/reset-password'
+    | '/roadwork'
     | '/terms'
     | '/welcome'
+    | '/guides/about-nalu'
+    | '/guides/ewa-beach-to-downtown'
+    | '/guides/honolulu-airport-without-driving'
+    | '/guides/honolulu-marathon-traffic-2026'
+    | '/guides/kapolei-to-downtown'
+    | '/guides/late-night-commuting'
+    | '/guides/mililani-to-town'
+    | '/guides/nalu-vs-google-maps'
+    | '/guides/skyline-rail-guide'
+    | '/guides/uh-manoa-without-parking'
+    | '/guides/'
     | '/api/public/health'
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
@@ -214,8 +363,20 @@ export interface RootRouteChildren {
   OahuCommuteRoute: typeof OahuCommuteRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RoadworkRoute: typeof RoadworkRoute
   TermsRoute: typeof TermsRoute
   WelcomeRoute: typeof WelcomeRoute
+  GuidesAboutNaluRoute: typeof GuidesAboutNaluRoute
+  GuidesEwaBeachToDowntownRoute: typeof GuidesEwaBeachToDowntownRoute
+  GuidesHonoluluAirportWithoutDrivingRoute: typeof GuidesHonoluluAirportWithoutDrivingRoute
+  GuidesHonoluluMarathonTraffic2026Route: typeof GuidesHonoluluMarathonTraffic2026Route
+  GuidesKapoleiToDowntownRoute: typeof GuidesKapoleiToDowntownRoute
+  GuidesLateNightCommutingRoute: typeof GuidesLateNightCommutingRoute
+  GuidesMililaniToTownRoute: typeof GuidesMililaniToTownRoute
+  GuidesNaluVsGoogleMapsRoute: typeof GuidesNaluVsGoogleMapsRoute
+  GuidesSkylineRailGuideRoute: typeof GuidesSkylineRailGuideRoute
+  GuidesUhManoaWithoutParkingRoute: typeof GuidesUhManoaWithoutParkingRoute
+  GuidesIndexRoute: typeof GuidesIndexRoute
   ApiPublicHealthRoute: typeof ApiPublicHealthRoute
   ApiPublicImportGtfsRoute: typeof ApiPublicImportGtfsRoute
   ApiPublicLeaveAlertsRoute: typeof ApiPublicLeaveAlertsRoute
@@ -269,6 +430,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/roadwork': {
+      id: '/roadwork'
+      path: '/roadwork'
+      fullPath: '/roadwork'
+      preLoaderRoute: typeof RoadworkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -281,6 +449,83 @@ declare module '@tanstack/react-router' {
       path: '/welcome'
       fullPath: '/welcome'
       preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/': {
+      id: '/guides/'
+      path: '/guides'
+      fullPath: '/guides/'
+      preLoaderRoute: typeof GuidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/about-nalu': {
+      id: '/guides/about-nalu'
+      path: '/guides/about-nalu'
+      fullPath: '/guides/about-nalu'
+      preLoaderRoute: typeof GuidesAboutNaluRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/ewa-beach-to-downtown': {
+      id: '/guides/ewa-beach-to-downtown'
+      path: '/guides/ewa-beach-to-downtown'
+      fullPath: '/guides/ewa-beach-to-downtown'
+      preLoaderRoute: typeof GuidesEwaBeachToDowntownRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/honolulu-airport-without-driving': {
+      id: '/guides/honolulu-airport-without-driving'
+      path: '/guides/honolulu-airport-without-driving'
+      fullPath: '/guides/honolulu-airport-without-driving'
+      preLoaderRoute: typeof GuidesHonoluluAirportWithoutDrivingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/honolulu-marathon-traffic-2026': {
+      id: '/guides/honolulu-marathon-traffic-2026'
+      path: '/guides/honolulu-marathon-traffic-2026'
+      fullPath: '/guides/honolulu-marathon-traffic-2026'
+      preLoaderRoute: typeof GuidesHonoluluMarathonTraffic2026RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/kapolei-to-downtown': {
+      id: '/guides/kapolei-to-downtown'
+      path: '/guides/kapolei-to-downtown'
+      fullPath: '/guides/kapolei-to-downtown'
+      preLoaderRoute: typeof GuidesKapoleiToDowntownRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/late-night-commuting': {
+      id: '/guides/late-night-commuting'
+      path: '/guides/late-night-commuting'
+      fullPath: '/guides/late-night-commuting'
+      preLoaderRoute: typeof GuidesLateNightCommutingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/mililani-to-town': {
+      id: '/guides/mililani-to-town'
+      path: '/guides/mililani-to-town'
+      fullPath: '/guides/mililani-to-town'
+      preLoaderRoute: typeof GuidesMililaniToTownRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/nalu-vs-google-maps': {
+      id: '/guides/nalu-vs-google-maps'
+      path: '/guides/nalu-vs-google-maps'
+      fullPath: '/guides/nalu-vs-google-maps'
+      preLoaderRoute: typeof GuidesNaluVsGoogleMapsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/skyline-rail-guide': {
+      id: '/guides/skyline-rail-guide'
+      path: '/guides/skyline-rail-guide'
+      fullPath: '/guides/skyline-rail-guide'
+      preLoaderRoute: typeof GuidesSkylineRailGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/uh-manoa-without-parking': {
+      id: '/guides/uh-manoa-without-parking'
+      path: '/guides/uh-manoa-without-parking'
+      fullPath: '/guides/uh-manoa-without-parking'
+      preLoaderRoute: typeof GuidesUhManoaWithoutParkingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/health': {
@@ -342,8 +587,22 @@ const rootRouteChildren: RootRouteChildren = {
   OahuCommuteRoute: OahuCommuteRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RoadworkRoute: RoadworkRoute,
   TermsRoute: TermsRoute,
   WelcomeRoute: WelcomeRoute,
+  GuidesAboutNaluRoute: GuidesAboutNaluRoute,
+  GuidesEwaBeachToDowntownRoute: GuidesEwaBeachToDowntownRoute,
+  GuidesHonoluluAirportWithoutDrivingRoute:
+    GuidesHonoluluAirportWithoutDrivingRoute,
+  GuidesHonoluluMarathonTraffic2026Route:
+    GuidesHonoluluMarathonTraffic2026Route,
+  GuidesKapoleiToDowntownRoute: GuidesKapoleiToDowntownRoute,
+  GuidesLateNightCommutingRoute: GuidesLateNightCommutingRoute,
+  GuidesMililaniToTownRoute: GuidesMililaniToTownRoute,
+  GuidesNaluVsGoogleMapsRoute: GuidesNaluVsGoogleMapsRoute,
+  GuidesSkylineRailGuideRoute: GuidesSkylineRailGuideRoute,
+  GuidesUhManoaWithoutParkingRoute: GuidesUhManoaWithoutParkingRoute,
+  GuidesIndexRoute: GuidesIndexRoute,
   ApiPublicHealthRoute: ApiPublicHealthRoute,
   ApiPublicImportGtfsRoute: ApiPublicImportGtfsRoute,
   ApiPublicLeaveAlertsRoute: ApiPublicLeaveAlertsRoute,

@@ -139,6 +139,14 @@ function RootComponent() {
 
 export const WELCOME_SEEN_KEY = "nalu-welcome-seen-v1";
 
+const PUBLIC_PAGES = new Set(["/welcome", "/install", "/oahu-commute", "/roadwork", "/privacy", "/terms", "/disclaimer"]);
+
+/** Pages anyone (and any search engine) can read without the app's sign-in check. */
+export function isPublicContentPath(pathname: string): boolean {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return PUBLIC_PAGES.has(path) || path === "/guides" || path.startsWith("/guides/");
+}
+
 function AppRouteGate() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const router = useRouter();
@@ -183,14 +191,29 @@ function AppRouteGate() {
     });
   }, [pathname]);
 
+  // Public pages don't depend on sign-in, so they render straight away. On the
+  // server the sign-in check never finishes, and gating them sent search
+  // engines and AI assistants an empty "Getting things ready" screen.
+  if (isPublicContentPath(pathname)) return <Outlet />;
+
   const routingToWelcome = pathname === "/" && welcomeSeen !== true;
   if (loading || routingToWelcome) {
     return (
       <main className="min-h-[100dvh] bg-background text-foreground" aria-label="Loading Nalu">
         <div className="mx-auto flex min-h-[100dvh] max-w-5xl items-center justify-center px-5">
-          <div className="text-center">
-            <p className="text-2xl font-black tracking-tight">Nalu</p>
-            <p className="mt-2 text-sm text-muted-foreground">Getting things ready…</p>
+          <div className="max-w-sm text-center">
+            <h1 className="text-2xl font-black tracking-tight">Nalu</h1>
+            <p className="mt-2 text-base text-muted-foreground">
+              Drive, TheBus or Skyline: the fastest way across Oʻahu right now, and when to leave.
+            </p>
+            <p className="mt-4 text-sm text-muted-foreground">Getting things ready…</p>
+            <p className="mt-6 text-sm">
+              <a href="/welcome" className="underline underline-offset-4">What Nalu does</a>
+              {" · "}
+              <a href="/guides" className="underline underline-offset-4">Oʻahu commute guides</a>
+              {" · "}
+              <a href="/roadwork" className="underline underline-offset-4">Roadwork this week</a>
+            </p>
           </div>
         </div>
       </main>

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const HDOT_LANE_CLOSURE_QUERY =
   "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/HIDOTLaneClosureRoutesView/FeatureServer/0/query";
-const HDOT_OAHU_ROADWORK_URL = "https://hidot.hawaii.gov/highways/roadwork/oahu/";
+export const HDOT_OAHU_ROADWORK_URL = "https://hidot.hawaii.gov/highways/roadwork/oahu/";
 
 const pointSchema = z.object({
   lat: z.number().finite(),

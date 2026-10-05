@@ -6,8 +6,8 @@
 export const HOLO_FARES = {
   /** Single ride paid with a HOLO card. */
   singleRide: "$3.00",
-  /** Free transfers between TheBus and Skyline within this window. */
-  transferWindowHours: 2.5,
+  /** The HOLO "2-Hour Pass": free TheBus–Skyline transfers for 2 hours from first use (thebus.org fares page, checked Oct 2026). */
+  transferWindowHours: 2,
   /** Cash fare on TheBus (exact change); no transfers, not accepted at Skyline gates. */
   cashFare: "$3.25",
   /** Daily fare cap with a HOLO card. */

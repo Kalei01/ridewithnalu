@@ -200,6 +200,18 @@ function OahuCommutePage() {
           Check your trip in Nalu
         </Link>
 
+        <p className="mt-6 text-base leading-7 text-muted-foreground">
+          Looking for more detail? See the{" "}
+          <Link to="/guides/skyline-rail-guide" className="font-medium text-primary underline underline-offset-4">
+            full Skyline rail guide
+          </Link>{" "}
+          or{" "}
+          <Link to="/guides" className="font-medium text-primary underline underline-offset-4">
+            all Oʻahu commute guides
+          </Link>
+          , including the airport, UH Mānoa, Kapolei and late-night trips.
+        </p>
+
         <section className="mt-12 rounded-2xl border border-border bg-card/60 p-6" aria-labelledby="data">
           <h2 id="data" className="text-xl font-bold">Live information and sources</h2>
           <p className="mt-3 leading-7 text-muted-foreground">
