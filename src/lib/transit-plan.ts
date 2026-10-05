@@ -17,6 +17,7 @@ import {
 } from "@/lib/commute-model";
 
 import type { ResolvedTripDirection } from "@/lib/trip-direction";
+import { planViaSkyline } from "@/lib/rail/via-skyline";
 
 /** Everything the transit search needs from the trip screen. */
 export type TransitPlanContext = {
@@ -396,12 +397,68 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
     return [];
   };
 
+  // Bus → Skyline → bus needs two transfers, which the general planner can't
+  // form. When neither end is near a station, plan the two halves separately.
+  const fetchViaSkyline = async (cursor: number): Promise<Option[]> => {
+    const { from, to } = tripDirection;
+    if (lateNight(cursor) || from.lat == null || from.lon == null || to.lat == null || to.lon == null) return [];
+    let stations: RailStation[] = browseStations;
+    if (!stations.length) {
+      try {
+        const { data } = await supabase.rpc("rail_stations");
+        stations = (data ?? []) as RailStation[];
+      } catch {
+        return [];
+      }
+    }
+    return planViaSkyline({
+      origin: { lat: from.lat, lon: from.lon },
+      destination: { lat: to.lat, lon: to.lon },
+      stations,
+      afterSeconds: cursor,
+      walkRadiusM: MAX_STOP_WALK_M,
+      search: async (leg) => {
+        const { data, error } = await supabase.rpc("plan_transit_general", {
+          p_origin_lat: leg.from.lat,
+          p_origin_lon: leg.from.lon,
+          p_dest_lat: leg.to.lat,
+          p_dest_lon: leg.to.lon,
+          p_after_seconds: leg.afterSeconds,
+          p_limit: leg.limit,
+          p_origin_radius_m: leg.fromRadiusM,
+          p_dest_radius_m: leg.toRadiusM,
+          p_service_day_offset: 0,
+        });
+        if (error) {
+          recordTransitRpcError("via_skyline", error);
+          return [];
+        }
+        return (data ?? []).map((row) => ({ ...row, legs: row.legs as unknown as Leg[] })) as Option[];
+      },
+    });
+  };
+
+  /** The normal search plus the Skyline bridge, run side by side. */
+  const fetchPageWithSkyline = async (cursor: number): Promise<Option[]> => {
+    const bridge = fetchViaSkyline(cursor);
+    try {
+      const base = await fetchPage(cursor);
+      const via = await bridge;
+      return via.length ? mergeTransitOptions(base, via) : base;
+    } catch (error) {
+      // A bridge trip still counts if the other planners failed.
+      const via = await bridge;
+      if (via.length) return mergeTransitOptions(via);
+      throw error;
+    }
+  };
+
   if (planMode !== "arrive-by" || arriveByTarget === null || arriveByTarget < nowSeconds)
-    return fetchPage(scheduleAfterSeconds);
+    return fetchPageWithSkyline(scheduleAfterSeconds);
   const result = await collectArriveByOptions({
     nowSeconds: scheduleAfterSeconds,
     targetSeconds: arriveByTarget,
-    fetchPage,
+    fetchPage: fetchPageWithSkyline,
   });
   // Pages that all came back empty already cover every departure before the
   // target, so they mean "no trip", not an incomplete search.

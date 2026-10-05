@@ -94,3 +94,42 @@ describe("transit trip planner", () => {
     expect(options[0]?.depart_seconds).toBe(1800);
   });
 });
+
+describe("transit trip planner: bus → Skyline → bus", () => {
+  beforeEach(() => rpc.mockReset());
+
+  it("finds the Skyline trip home to ʻEwa Beach that beats the 42 alone", async () => {
+    const KAHAUIKI = { stop_id: "10030", stop_name: "KAHAUIKI KALIHI TRANSIT CENTER STATION", stop_lat: "21.33274", stop_lon: "-157.888805" };
+    const KUALAKAI = { stop_id: "10047", stop_name: "KUALAKA'I EAST KAPOLEI STATION", stop_lat: "21.345574", stop_lon: "-158.050995" };
+    const walk = (kind: string, from: string, to: string, a: number, b: number) => ({ kind, mode: "walk", from, to, minutes: Math.round((b - a) / 60), depart_seconds: a, arrive_seconds: b, route_short: null, route_long: null, headsign: null });
+    const ride = (mode: string, route: string, from: string, to: string, a: number, b: number) => ({ kind: mode === "rail" ? "rail" : "connect", mode, route_short: route, route_long: null, headsign: null, from, to, minutes: Math.round((b - a) / 60), depart_seconds: a, arrive_seconds: b });
+    const busOnly = { leave_by_seconds: 62760, depart_seconds: 63120, arrive_seconds: 68940, total_minutes: 103, legs: [walk("access", "Your location", "S BERETANIA ST + BISHOP ST", 62760, 63120), ride("bus", "42", "S BERETANIA ST + BISHOP ST", "FORT WEAVER RD + KEAUNUI DR", 63120, 67740), walk("egress", "FORT WEAVER RD + KEAUNUI DR", "Your destination", 67740, 68940)] };
+    const toStation = { leave_by_seconds: 61200, depart_seconds: 61560, arrive_seconds: 62520, total_minutes: 22, legs: [walk("access", "Your location", "S BERETANIA ST + BISHOP ST", 61200, 61560), ride("bus", "52", "S BERETANIA ST + BISHOP ST", "KAMEHAMEHA HWY + MIDDLE ST", 61560, 62460), walk("egress", "KAMEHAMEHA HWY + MIDDLE ST", "Your destination", 62460, 62520)] };
+    const fromStation = { leave_by_seconds: 63240, depart_seconds: 63240, arrive_seconds: 67140, total_minutes: 65, legs: [walk("access", "Your location", KAHAUIKI.stop_name, 63240, 63240), ride("rail", "", KAHAUIKI.stop_name, "HO'AE'AE WEST LOCH STATION", 63240, 64860), walk("connect", "HO'AE'AE WEST LOCH STATION", "FARRINGTON HWY + LEOKU ST", 64860, 65160), ride("bus", "42", "FARRINGTON HWY + LEOKU ST", "FORT WEAVER RD + KEAUNUI DR", 65160, 65940), walk("egress", "FORT WEAVER RD + KEAUNUI DR", "Your destination", 65940, 67140)] };
+    answer({
+      rail_stations: ok([KAHAUIKI, KUALAKAI]),
+      plan_transit_general: (args) => {
+        if (Math.abs(Number(args["p_dest_lat"]) - 21.33274) < 1e-4) return ok([toStation]);
+        if (Math.abs(Number(args["p_origin_lat"]) - 21.33274) < 1e-4) return ok([fromStation]);
+        return ok([busOnly]);
+      },
+    });
+    const options = await planTransitTrip(
+      context({
+        nowSeconds: 61200,
+        scheduleAfterSeconds: 61200,
+        tripDirection: {
+          inbound: false,
+          reverseTrip: false,
+          departingFromSavedHome: false,
+          arrivingAtSavedHome: false,
+          from: { lat: 21.3101, lon: -157.8624 },
+          to: { lat: 21.32203, lon: -158.03366 },
+        },
+      }),
+    );
+    expect(options[0]?.arrive_seconds).toBe(67140); // 6:39 PM via Skyline
+    expect(options[0]?.legs.filter((l) => l.mode === "bus" || l.mode === "rail").map((l) => l.mode)).toEqual(["bus", "rail", "bus"]);
+    expect(options.some((o) => o.arrive_seconds === 68940)).toBe(true); // the 42 alone is still listed
+  });
+});
