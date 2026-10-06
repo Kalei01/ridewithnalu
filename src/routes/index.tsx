@@ -40,10 +40,10 @@ import {
 } from "@/components/commute/TripChoiceCards";
 import {
   allowTimeNote,
-  needsCar,
   parkingNote,
   transitChoices,
   tripSteps,
+  usesSkyline,
 } from "@/lib/trip-choices";
 import { TripAccessQuestion } from "@/components/commute/TripAccessQuestion";
 import { landingView, mayAutoOpenUsualTrip } from "@/lib/landing-view";
@@ -1325,17 +1325,13 @@ function Index() {
     commitment?.mode === "transit" && lockedOptionRef.current ? lockedOptionRef.current : liveBest;
   lockedItineraryCandidate.current = liveBest ?? null;
 
-  const transitModesLabel = best?.legs.some((leg) => leg.mode === "rail")
-    ? best.legs.some((leg) => leg.mode === "bus")
-      ? "Rail + Bus"
-      : "Rail"
+  // Any trip that rides Skyline is "Skyline" everywhere, however the rider
+  // reaches the station (on foot, by bus, by car); the rest stay on the bus.
+  const transitLabel = best?.legs.some((leg) => leg.mode === "rail")
+    ? "Skyline"
     : best?.legs.some((leg) => leg.mode === "bus")
       ? "Bus"
       : "Transit";
-  // A trip that uses a car to reach Skyline is "Skyline" everywhere.
-  const transitLabel = best?.legs.some((leg) => leg.mode === "drive")
-    ? "Skyline"
-    : transitModesLabel;
   const transitUsesRail = best?.legs.some((leg) => leg.mode === "rail") ?? false;
   const transitUsesBus = best?.legs.some((leg) => leg.mode === "bus") ?? false;
 
@@ -2902,7 +2898,7 @@ function Index() {
   // door to door), the same numbers the headline compares; for Arrive By each
   // row shows its trip length and when to leave.
   const choiceKeyFor = (option: Option | null | undefined): TripChoiceKey =>
-    option && needsCar(option) ? "skyline" : "bus";
+    option && usesSkyline(option) ? "skyline" : "bus";
   const selectedChoice: TripChoiceKey = selectedMode === "drive" ? "drive" : choiceKeyFor(best);
   // Nalu's pick is its own answer, so it doesn't move when a rider taps a row.
   const computedPick: TripChoiceKey | null =
@@ -2989,10 +2985,11 @@ function Index() {
   // still need two buses); a row for something the rider can't use is left out.
   const tripChoices: TripChoice[] = [
     ...(resources.vehicle ? [driveChoice] : []),
-    // Heading home, no car leg is searched, so the row only shows if the
-    // planner still found a trip that uses one.
-    ...(vehicleToSkyline !== "none" &&
-    (!inbound || choicePicks.skyline.option || lockedChoice === "skyline")
+    // Any Skyline trip shows, whoever is travelling. With a car available, going
+    // out, the row is always there so the rider sees it was checked.
+    ...(choicePicks.skyline.option ||
+    lockedChoice === "skyline" ||
+    (vehicleToSkyline !== "none" && !inbound)
       ? [transitChoice("skyline")]
       : []),
     transitChoice("bus"),
@@ -3078,7 +3075,7 @@ function Index() {
     );
     if (railWaitDelta !== null)
       changes.push(
-        `${transitLabel === "Rail" ? "The next train" : "Your transit"} wait is about ${Math.abs(railWaitDelta)} min ${railWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`,
+        `${transitUsesRail && !transitUsesBus ? "The next train" : "Your transit"} wait is about ${Math.abs(railWaitDelta)} min ${railWaitDelta > 0 ? "longer" : "shorter"} than at your last check.`,
       );
     const busWaitDelta = changedMinutes(
       currentDecisionSnapshot.busWaitMinutes,
@@ -3168,7 +3165,7 @@ function Index() {
       : verdict === "drive"
         ? "Nalu compares the full trip from where you start to where you’re going, including getting to transit, waiting for your ride, and walking at the end—not just the freeway drive."
         : verdict === "transit"
-          ? transitLabel === "Rail"
+          ? transitUsesRail && !transitUsesBus
             ? "The Skyline option includes getting to the station, waiting, the train ride, and the walk to your destination."
             : "The " +
               transitLabel +
@@ -3545,6 +3542,39 @@ function Index() {
     itineraryStopCoords,
     railLine,
   ]);
+
+  // Tapping a step of the itinerary shows that leg on the map above.
+  const [focusedLeg, setFocusedLeg] = useState<{ index: number; token: number } | null>(null);
+  useEffect(() => setFocusedLeg(null), [best]);
+  const focusLegPoints = useMemo(() => {
+    if (focusedLeg === null || !best) return null;
+    const own = transitMapSegments
+      .filter((segment) =>
+        new RegExp(`^(transit|rail-line|leg)-${focusedLeg.index}$`).test(segment.id),
+      )
+      .flatMap((segment) => segment.points);
+    if (own.length >= 2) return own;
+    // No drawn line for this leg (a bus with no stop sequence): show its stops.
+    const leg = best.legs[focusedLeg.index];
+    const stops = [
+      [leg?.from_stop_id, leg?.from],
+      [leg?.to_stop_id, leg?.to],
+    ].flatMap(([id, name]) => {
+      const row =
+        (id ? itineraryStopCoords.find((stop) => stop.stop_id === id) : undefined) ??
+        (name ? itineraryStopCoords.find((stop) => stop.stop_name === name) : undefined);
+      return row && row.stop_lat !== null && row.stop_lon !== null
+        ? [{ lat: Number(row.stop_lat), lon: Number(row.stop_lon) }]
+        : [];
+    });
+    return stops.length > 0 ? stops : null;
+  }, [focusedLeg, best, transitMapSegments, itineraryStopCoords]);
+  function showLegOnMap(index: number) {
+    setFocusedLeg((current) => ({ index, token: (current?.token ?? 0) + 1 }));
+    document
+      .getElementById("trip-map-title")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   // Drive view: straight door-to-door, no rail station or transit stops.
   const driveMapPoints = useMemo(() => {
@@ -5495,6 +5525,9 @@ function Index() {
                           : null
                       }
                       followLive={Boolean(commitment)}
+                      {...(selectedMode !== "drive" && focusLegPoints
+                        ? { focusLeg: { points: focusLegPoints, token: focusedLeg?.token ?? 0 } }
+                        : {})}
                       {...(selectedMode !== "drive" && transitMapSegments.length > 0
                         ? { segments: transitMapSegments }
                         : {})}
@@ -5532,6 +5565,8 @@ function Index() {
                     liveBusRefreshing={liveBusRefreshing}
                     weatherLines={weatherLines}
                     points={commuteMapPoints}
+                    activeLeg={focusedLeg?.index ?? null}
+                    onSelectLeg={showLegOnMap}
                   />
                 ) : null
               }

@@ -41,6 +41,8 @@ type CommuteRouteMapProps = {
   segments?: JourneySegment[];
   trafficSections?: TrafficSection[];
   focusSection?: number | null;
+  /** One leg of the itinerary to highlight and zoom to; `token` changes on every tap. */
+  focusLeg?: { points: Array<{ lat: number; lon: number }>; token: number } | null;
   incidents?: MapIncident[];
   /** Live GPS position of the bus you're waiting for, from TheBus. */
   busPoint?: { lat: number; lon: number; label: string } | null;
@@ -104,6 +106,7 @@ export default function CommuteRouteMap({
   segments,
   trafficSections,
   focusSection = null,
+  focusLeg = null,
   incidents,
   busPoint = null,
 }: CommuteRouteMapProps) {
@@ -113,6 +116,7 @@ export default function CommuteRouteMap({
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const liveLayerRef = useRef<L.LayerGroup | null>(null);
+  const focusLayerRef = useRef<L.LayerGroup | null>(null);
 
   const pointsRef = useRef(points);
   pointsRef.current = points;
@@ -180,6 +184,7 @@ export default function CommuteRouteMap({
     L.control.zoom({ position: "bottomright" }).addTo(map);
     routeLayerRef.current = L.layerGroup().addTo(map);
     liveLayerRef.current = L.layerGroup().addTo(map);
+    focusLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
     const fitInitialCorridor = () => {
@@ -224,8 +229,36 @@ export default function CommuteRouteMap({
       tileLayerRef.current = null;
       routeLayerRef.current = null;
       liveLayerRef.current = null;
+      focusLayerRef.current = null;
     };
   }, []);
+
+  // Tapping a step of the itinerary highlights that leg and zooms to it.
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = focusLayerRef.current;
+    if (!map || !layer) return;
+    layer.clearLayers();
+    const points = focusLeg?.points ?? [];
+    if (points.length === 0) return;
+    const latLngs = points.map((point) => [point.lat, point.lon] as L.LatLngTuple);
+    if (latLngs.length === 1) {
+      L.circleMarker(latLngs[0]!, { radius: 16, color: "var(--color-recommended)", weight: 4, fillOpacity: 0.15 }).addTo(layer);
+      map.stop();
+      map.flyTo(latLngs[0]!, 16, { duration: 0.6 });
+      return;
+    }
+    L.polyline(latLngs, {
+      color: "var(--color-recommended)",
+      weight: 10,
+      opacity: 0.85,
+      lineCap: "round",
+      lineJoin: "round",
+      className: "nalu-focus-line",
+    }).addTo(layer);
+    map.stop();
+    map.flyToBounds(L.latLngBounds(latLngs), { padding: [48, 48], maxZoom: 16, duration: 0.6 });
+  }, [focusLeg]);
 
   useEffect(() => {
     const map = mapRef.current;

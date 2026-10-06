@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import { regionTimeZone } from "@/lib/region";
 import { ClientOnly } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
@@ -24,6 +25,8 @@ export function RailTripBreakdown({
   liveBusRefreshing,
   weatherLines,
   points,
+  activeLeg = null,
+  onSelectLeg,
 }: {
   option: Option;
   inbound: boolean;
@@ -31,6 +34,10 @@ export function RailTripBreakdown({
   liveBusRefreshing: boolean;
   weatherLines: Map<number, WeatherLine[]>;
   points: Array<{ id?: string; name: string; lat: number; lon: number }>;
+  /** Index (in `option.legs`) of the step shown on the map, if any. */
+  activeLeg?: number | null;
+  /** Tapping a step shows that leg on the map. */
+  onSelectLeg?: (legIndex: number) => void;
 }) {
   const duration = (leg: Leg) =>
     leg.minutes ??
@@ -46,14 +53,14 @@ export function RailTripBreakdown({
         tb = b.leg.depart_seconds;
       return ta !== null && tb !== null && ta !== tb ? ta - tb : a.i - b.i;
     })
-    .map(({ leg }) => leg);
+    .map(({ leg, i }) => ({ leg, i }));
 
   return (
     <>
       <ol className="mt-7" aria-label="Transit trip breakdown">
-        {rows.map((leg, index) => {
+        {rows.map(({ leg, i: legIndex }, index) => {
           const Icon = modeIcon(leg.mode);
-          const previous = rows[index - 1];
+          const previous = rows[index - 1]?.leg;
           const waitMinutes =
             previous?.arrive_seconds !== null &&
             previous?.arrive_seconds !== undefined &&
@@ -61,7 +68,7 @@ export function RailTripBreakdown({
               ? Math.max(0, Math.round((leg.depart_seconds - previous.arrive_seconds) / 60))
               : 0;
           const legMinutes = duration(leg);
-          const nextLeg = rows[index + 1];
+          const nextLeg = rows[index + 1]?.leg;
           const toBusStop =
             nextLeg?.mode === "bus" || (leg.mode === "bus" && leg.kind === "access");
           const stationName = toBusStop ? titleCase(leg.to) : stationLabel(leg.to);
@@ -149,19 +156,48 @@ export function RailTripBreakdown({
                 {index < rows.length - 1 && <span className="w-px flex-1 bg-border" />}
               </span>
               <div className="min-w-0 flex-1 pb-5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-xs font-bold uppercase text-foreground">
-                    {/* The ride above already says where to get off; a walk after it is titled as the walk. */}
-                    {followsTransit && previous && isTransit
+                {(() => {
+                  const title =
+                    followsTransit && previous && isTransit
                       ? `Get off at ${transitStopName(previous, "to")}`
-                      : label}
-                  </p>
-                  {legMinutes !== null && (
-                    <p className="shrink-0 text-xs font-semibold tabular-nums text-foreground">
-                      {legMinutes} min
-                    </p>
-                  )}
-                </div>
+                      : label;
+                  const header = (
+                    <>
+                      <span className="text-xs font-bold uppercase text-foreground">
+                        {/* The ride above already says where to get off; a walk after it is titled as the walk. */}
+                        {title}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {legMinutes !== null && (
+                          <span className="text-xs font-semibold tabular-nums text-foreground">
+                            {legMinutes} min
+                          </span>
+                        )}
+                        {onSelectLeg && (
+                          <MapPin
+                            aria-hidden="true"
+                            className={`size-3.5 ${activeLeg === legIndex ? "text-recommended" : "text-muted-foreground"}`}
+                          />
+                        )}
+                      </span>
+                    </>
+                  );
+                  return onSelectLeg ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectLeg(legIndex)}
+                      aria-label={`Show on the map: ${title}`}
+                      aria-pressed={activeLeg === legIndex}
+                      className={`-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center justify-between gap-2 rounded-lg px-2 text-left transition-colors ${
+                        activeLeg === legIndex ? "bg-recommended/10 ring-1 ring-recommended" : ""
+                      }`}
+                    >
+                      {header}
+                    </button>
+                  ) : (
+                    <div className="flex items-baseline justify-between gap-2">{header}</div>
+                  );
+                })()}
                 {(followsTransit && isTransit) ||
                 vehicleName(leg).toLowerCase() !== label.toLowerCase() ? (
                   <p

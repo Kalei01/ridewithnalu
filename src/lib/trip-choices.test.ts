@@ -53,6 +53,19 @@ describe("trip choices", () => {
     expect(bus.option).toBe(bus91); // the simpler car-free trip, not the extra-transfer one
   });
 
+  it("a trip that walks to a station and rides Skyline is a Skyline trip (the airport)", () => {
+    const fromAirport = opt([
+      leg("walk", 40000, 40300),
+      leg("rail", 40500, 41000),
+      leg("bus", 41400, 42600, { route_short: "40" }),
+      leg("walk", 42600, 42720),
+    ]);
+    const { skyline, bus } = transitChoices([fromAirport, bus91], null);
+    expect(skyline.option).toBe(fromAirport);
+    expect(bus.option).toBe(bus91);
+    expect(tripSteps(fromAirport)).toBe("Walk → Skyline → Bus 40");
+  });
+
   it("has no Skyline choice when no trip uses the car", () => {
     expect(transitChoices([bus91], null).skyline.option).toBeNull();
   });

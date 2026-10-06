@@ -2,16 +2,13 @@
  * The three kinds of trip Nalu compares side by side:
  *
  * - Drive: door to door (the drive estimate, not a transit option).
- * - Skyline: any trip that uses a car for part of the way to Skyline: driving
- *   and parking at a station lot, or being dropped off at a station.
- * - Bus: walk, bus and Skyline only, no car.
+ * - Skyline: any trip that rides Skyline, however the rider reaches the
+ *   station: on foot, by bus, driving and parking at a lot, or being dropped
+ *   off. A walk from the airport station counts as much as a drive to Keoneʻae.
+ * - Bus: trips that stay on TheBus.
  *
  * Which of these exist for a rider depends on their trip access (see
  * trip-access.ts); this module only groups what the planner returned.
- *
- * Both transit choices come from the one planner result list, which is already
- * ordered by preference (simpler trips first, then trips whose extra transfers
- * save too little). This module only groups it; it never re-decides.
  */
 import { latestRailArrival } from "@/lib/rail/planner";
 import type { Option } from "@/lib/commute-model";
@@ -20,6 +17,9 @@ import { stationLabel } from "@/lib/commute-formatting";
 
 /** Uses a car for part of the trip (driven by the rider or by someone else). */
 export const needsCar = (option: Option) => option.legs.some((leg) => leg.mode === "drive");
+
+/** Rides Skyline for part of the trip. */
+export const usesSkyline = (option: Option) => option.legs.some((leg) => leg.mode === "rail");
 
 export type ChoicePick = { option: Option | null; makesIt: boolean };
 
@@ -41,9 +41,9 @@ function pick(options: Option[], arriveByTarget: number | null): ChoicePick {
 
 export function transitChoices(options: Option[], arriveByTarget: number | null) {
   return {
-    skyline: pick(options.filter(needsCar), arriveByTarget),
+    skyline: pick(options.filter(usesSkyline), arriveByTarget),
     bus: pick(
-      options.filter((option) => !needsCar(option)),
+      options.filter((option) => !usesSkyline(option)),
       arriveByTarget,
     ),
   };
