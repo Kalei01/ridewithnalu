@@ -2,7 +2,12 @@ import { Bus, Car, Footprints, TrainFront } from "lucide-react";
 import { type MomentConditions } from "@/lib/weather.functions";
 import { type EstimateSource } from "@/lib/decision/trip-estimate";
 import { filterTransferSanityOptions } from "@/lib/rail/inbound-fallback";
-import { preferFewerTransfers, preferLessWalking } from "@/lib/rail/walk-preference";
+import {
+  preferFewerTransfers,
+  preferLessWalking,
+  preferShorterCarLeg,
+  preferSkylineOverCar,
+} from "@/lib/rail/walk-preference";
 import { dropDriveToStationsWithoutParking } from "@/lib/rail/park-and-ride";
 import { type WeatherLine } from "@/components/commute/H1ConditionsCard";
 import { stationLabel, titleCase } from "@/lib/commute-formatting";
@@ -101,9 +106,13 @@ export function mergeTransitOptionsWith(
   ...groups: Option[][]
 ): Option[] {
   const unique = new Map<string, Option>();
-  const saneOptions = preferLessWalking(
-    filterTransferSanityOptions(
-      dropDriveToStationsWithoutParking(groups.flat(), settings.dropOffStops),
+  const saneOptions = preferShorterCarLeg(
+    preferSkylineOverCar(
+      preferLessWalking(
+        filterTransferSanityOptions(
+          dropDriveToStationsWithoutParking(groups.flat(), settings.dropOffStops),
+        ),
+      ),
     ),
   );
   // Trips whose extra transfers don't save enough are kept as alternatives,

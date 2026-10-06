@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { preferLessWalking, totalWalkMinutes } from "./walk-preference";
+import {
+  preferLessWalking,
+  preferShorterCarLeg,
+  preferSkylineOverCar,
+  totalWalkMinutes,
+} from "./walk-preference";
 
-const walk = (minutes: number) => ({ mode: "walk", minutes, depart_seconds: null, arrive_seconds: null });
+const walk = (minutes: number) => ({
+  mode: "walk",
+  minutes,
+  depart_seconds: null,
+  arrive_seconds: null,
+});
 const ride = (route: string, minutes: number, depart: number, mode = "bus") => ({
   mode,
   minutes,
@@ -58,5 +68,42 @@ describe("preferLessWalking", () => {
   it("keeps a single rail trip untouched", () => {
     const rail = option(5000, [walk(5), ride("", 7, 300, "rail"), walk(4)]);
     expect(preferLessWalking([rail])).toEqual([rail]);
+  });
+});
+
+describe("car legs with Skyline", () => {
+  const car = (minutes: number) => ({
+    mode: "drive",
+    minutes,
+    depart_seconds: null,
+    arrive_seconds: null,
+  });
+  // Heading home from downtown at 5 PM: bus, then Skyline to a station, then a car home.
+  const pickup = (arrive: number, railMin: number, carMin: number) =>
+    option(arrive, [ride("W", 19, 0), ride("", railMin, 1200, "rail"), car(carMin)]);
+  const eastKapolei = pickup(65220, 32, 8); // home 6:07 PM
+  const waipahu = pickup(65000, 21, 15); // home 6:03 PM
+  const kahauiki = pickup(64800, 2, 26); // home 6:00 PM, 2 minutes on the train
+
+  it("a car trip is only a Skyline trip when the train is the bigger part", () => {
+    expect(preferSkylineOverCar([eastKapolei, waipahu, kahauiki])).toEqual([eastKapolei, waipahu]);
+    const bus = option(70000, [walk(5), ride("42", 40, 0)]);
+    expect(preferSkylineOverCar([bus])).toEqual([bus]);
+  });
+
+  it("among car trips arriving about the same time, prefers the clearly shorter car leg", () => {
+    // Waipahu is only 4 minutes sooner; East Kapolei's pickup is 7 minutes shorter.
+    expect(preferShorterCarLeg([eastKapolei, waipahu])).toEqual([eastKapolei]);
+  });
+
+  it("keeps a car trip that is much sooner", () => {
+    const muchSooner = pickup(64000, 25, 15);
+    expect(preferShorterCarLeg([eastKapolei, muchSooner])).toEqual([eastKapolei, muchSooner]);
+  });
+
+  it("never removes a trip without a car, and ignores small differences in car time", () => {
+    const bus = option(64000, [walk(5), ride("42", 40, 0)]);
+    const uhWest = pickup(65220, 30, 10);
+    expect(preferShorterCarLeg([bus, eastKapolei, uhWest])).toEqual([bus, eastKapolei, uhWest]);
   });
 });

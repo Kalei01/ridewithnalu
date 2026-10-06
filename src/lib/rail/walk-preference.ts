@@ -113,3 +113,41 @@ export function preferFewerTransfers<T extends TransitOptionLike>(options: T[]):
       }),
   );
 }
+
+/** Car legs shorter than this are the same; only a clearly shorter car leg is preferred. */
+const MEANINGFUL_CAR_SAVING_MIN = 5;
+
+const minutesOn = (option: TransitOptionLike, mode: string) =>
+  option.legs.filter((leg) => leg.mode === mode).reduce((sum, leg) => sum + (leg.minutes ?? 0), 0);
+
+/**
+ * A trip with a car leg only counts as a Skyline trip when the train is the
+ * bigger part. Two minutes on the train and a 26-minute car ride is just a
+ * ride in a car; the Drive row already covers that.
+ */
+export function preferSkylineOverCar<T extends TransitOptionLike>(options: T[]): T[] {
+  return options.filter((option) => {
+    const car = minutesOn(option, "drive");
+    return car === 0 || minutesOn(option, "rail") >= car;
+  });
+}
+
+/**
+ * Among trips that use a car and arrive about the same time, prefer the one
+ * with the clearly shorter car leg: the station nearer the destination or
+ * home. Whoever is driving would rather not cover most of the trip for a few
+ * minutes saved, and a few minutes is not worth a long car leg.
+ */
+export function preferShorterCarLeg<T extends TransitOptionLike>(options: T[]): T[] {
+  return options.filter(
+    (option) =>
+      !needsCar(option) ||
+      !options.some(
+        (other) =>
+          other !== option &&
+          needsCar(other) &&
+          other.arrive_seconds <= option.arrive_seconds + SIMILAR_ARRIVAL_SECONDS &&
+          minutesOn(other, "drive") <= minutesOn(option, "drive") - MEANINGFUL_CAR_SAVING_MIN,
+      ),
+  );
+}

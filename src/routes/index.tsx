@@ -351,6 +351,16 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+/** Same direction, endpoints and access: only then may the last result fill in while a refresh loads. */
+function sameTrip(previous: readonly unknown[], current: readonly unknown[]) {
+  const identity = (key: readonly unknown[]) =>
+    JSON.stringify([
+      key.slice(1, 6),
+      key.find((part) => typeof part === "string" && part.startsWith("access:")),
+    ]);
+  return identity(previous) === identity(current);
+}
+
 function Index() {
   const { user, loading: authLoading, signedInAt } = useAuth();
   // Plan checks (all allowed while the plan switches are off, Phase 1).
@@ -1191,35 +1201,37 @@ function Index() {
       if (rateTimer !== undefined) window.clearTimeout(rateTimer);
     };
   }, [planMode, arriveByTarget]);
+  const planKey = [
+    "trip",
+    inbound ? "inbound" : "outbound",
+    tripDirection.from.lat,
+    tripDirection.from.lon,
+    tripDirection.to.lat,
+    tripDirection.to.lon,
+    arrivalStationId,
+    setup.homeStopId,
+    setup.destStopId,
+    `access:${vehicleToSkyline}`,
+    browseStations.length,
+    scheduleAfterSeconds,
+    planMode,
+    planMode === "arrive-by" ? arriveByTarget : null,
+  ];
   const {
     data: options = [],
     isLoading: planLoading,
     isError: planFailed,
     dataUpdatedAt: optionsFetchedAt,
   } = useQuery({
-    queryKey: [
-      "trip",
-      inbound ? "inbound" : "outbound",
-      tripDirection.from.lat,
-      tripDirection.from.lon,
-      tripDirection.to.lat,
-      tripDirection.to.lon,
-      arrivalStationId,
-      setup.homeStopId,
-      setup.destStopId,
-      `access:${vehicleToSkyline}`,
-      browseStations.length,
-      scheduleAfterSeconds,
-      planMode,
-      planMode === "arrive-by" ? arriveByTarget : null,
-    ],
+    queryKey: planKey,
     // Wait for the answer: it decides which itineraries may be built.
     enabled: hydrated && transitConfigured && !needsAccessAnswer,
     staleTime: 120_000,
-    // Keep the last result on screen while a refresh loads, but never carry
-    // another answer's itineraries over (a bus rider must not see a car leg).
+    // Keep the last result on screen while a refresh loads, but only for the
+    // same trip: never carry another direction's or another answer's itineraries
+    // over (going home must not show the trip out; a bus rider no car leg).
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey.includes(`access:${vehicleToSkyline}`) ? previous : undefined,
+      previousQuery && sameTrip(previousQuery.queryKey, planKey) ? previous : undefined,
     queryFn: () =>
       planTransitTrip({
         arrivalStationId,
