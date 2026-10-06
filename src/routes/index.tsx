@@ -41,6 +41,7 @@ import {
 import {
   allowTimeNote,
   parkingNote,
+  skylineEmptyText,
   transitChoices,
   tripSteps,
   usesSkyline,
@@ -2929,11 +2930,18 @@ function Index() {
         : null,
       late: arriveByActive && option !== null && !group.makesIt && lockedChoice !== key,
       status: option ? "ready" : optionsLoading ? "loading" : "empty",
-      emptyText: optionsFailed
-        ? "Can’t check transit right now"
-        : key === "bus"
-          ? "No bus trip right now"
-          : "No Skyline trip that makes sense right now",
+      emptyText:
+        key === "skyline"
+          ? skylineEmptyText({
+              failed: optionsFailed,
+              closedForEvening: railClosedForEvening,
+              notRunningYet: railNotRunningYet,
+              lastTrain: todayHours ? clockFromSeconds(Number(todayHours.last_seconds)) : null,
+              firstTrain: todayHours ? clockFromSeconds(Number(todayHours.first_seconds)) : null,
+            })
+          : optionsFailed
+            ? "Can’t check transit right now"
+            : "No bus trip right now",
       // A rider with a car hears about the lot (only shown for Keoneʻae mornings).
       note:
         key === "skyline"
@@ -2987,8 +2995,10 @@ function Index() {
     ...(resources.vehicle ? [driveChoice] : []),
     // Any Skyline trip shows, whoever is travelling. With a car available, going
     // out, the row is always there so the rider sees it was checked.
+    // Outside Skyline's hours the row stays, to say it has stopped.
     ...(choicePicks.skyline.option ||
     lockedChoice === "skyline" ||
+    railServiceClosed ||
     (vehicleToSkyline !== "none" && !inbound)
       ? [transitChoice("skyline")]
       : []),

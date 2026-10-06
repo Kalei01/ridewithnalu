@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Leg, Option } from "./commute-model";
-import { allowTimeNote, parkingNote, transitChoices, tripSteps } from "./trip-choices";
+import {
+  allowTimeNote,
+  parkingNote,
+  skylineEmptyText,
+  transitChoices,
+  tripSteps,
+} from "./trip-choices";
 
 const leg = (mode: Leg["mode"], a: number, b: number, extra: Partial<Leg> = {}): Leg => ({
   kind: "connect",
@@ -168,5 +174,27 @@ describe("trip choices", () => {
     expect(allowTimeNote(pickup)).toBe("Allow time for the pickup.");
     expect(allowTimeNote(bus91)).toBeNull();
     expect(allowTimeNote(null)).toBeNull();
+  });
+
+  it("says Skyline has stopped for the night instead of 'no trip makes sense'", () => {
+    const base = {
+      failed: false,
+      closedForEvening: false,
+      notRunningYet: false,
+      lastTrain: "10:51 PM",
+      firstTrain: "4:00 AM",
+    };
+    expect(skylineEmptyText({ ...base, closedForEvening: true })).toBe(
+      "Skyline has stopped for the night (last train 10:51 PM)",
+    );
+    expect(skylineEmptyText({ ...base, notRunningYet: true })).toBe(
+      "Skyline isn’t running yet (first train 4:00 AM)",
+    );
+    // Closed is known from the timetable, so it wins over a failed search.
+    expect(skylineEmptyText({ ...base, closedForEvening: true, failed: true })).toMatch(
+      /stopped for the night/,
+    );
+    expect(skylineEmptyText({ ...base, failed: true })).toBe("Can’t check transit right now");
+    expect(skylineEmptyText(base)).toBe("No Skyline trip that makes sense right now");
   });
 });

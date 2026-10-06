@@ -110,3 +110,27 @@ export function allowTimeNote(option: Option | null): string | null {
   const lot = Boolean(car.to_stop_id && PARK_AND_RIDE_NAMES[car.to_stop_id]);
   return lot ? "Allow time to park and get to the platform." : "Allow time to get to the platform.";
 }
+
+/**
+ * What the Skyline row says when it has no trip. Outside Skyline's hours it
+ * says so plainly (from the station's own timetable) instead of implying the
+ * trip doesn't make sense.
+ */
+export function skylineEmptyText(input: {
+  failed: boolean;
+  closedForEvening: boolean;
+  notRunningYet: boolean;
+  lastTrain: string | null;
+  firstTrain: string | null;
+}): string {
+  if (input.closedForEvening)
+    return input.lastTrain
+      ? `Skyline has stopped for the night (last train ${input.lastTrain})`
+      : "Skyline has stopped for the night";
+  if (input.notRunningYet)
+    return input.firstTrain
+      ? `Skyline isn’t running yet (first train ${input.firstTrain})`
+      : "Skyline isn’t running yet";
+  if (input.failed) return "Can’t check transit right now";
+  return "No Skyline trip that makes sense right now";
+}
