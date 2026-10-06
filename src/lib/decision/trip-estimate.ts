@@ -3,7 +3,8 @@ import { FRESHNESS_POLICIES } from "../intelligence/freshness-policy";
 
 export type EstimateMode = "drive" | "transit";
 /** Actual public-transit family represented by the itinerary. Kept separate from the legacy drive-vs-rail decision mode while Phase 3 is rolled out. */
-export type TransitMode = "walk" | "bus" | "rail" | "walk+bus" | "walk+rail" | "rail+bus" | "walk+rail+bus";
+export type TransitMode =
+  "walk" | "bus" | "rail" | "walk+bus" | "walk+rail" | "rail+bus" | "walk+rail+bus";
 export type Availability = "available" | "service-unavailable" | "car-unavailable" | "data-error";
 export type DataBasis = "live" | "scheduled" | "future-estimate";
 export type DataQuality = "good" | "limited" | "stale" | "unavailable";
@@ -167,7 +168,9 @@ export function driveEstimate(input: {
       fetchedAt: drive.fetchedAt,
       quality:
         input.qualityOverride ??
-        (input.failed ? "limited" : qualityFor(drive.fetchedAt, nowMs, FRESHNESS_POLICIES.driveEta.staleAfterMs)),
+        (input.failed
+          ? "limited"
+          : qualityFor(drive.fetchedAt, nowMs, FRESHNESS_POLICIES.driveEta.staleAfterMs)),
     },
   };
 }
@@ -191,7 +194,11 @@ export function transitEstimate(input: {
       ? "stale"
       : input.failed
         ? "limited"
-        : qualityFor(input.scheduleFetchedAt, nowMs, FRESHNESS_POLICIES.transitSchedule.staleAfterMs),
+        : qualityFor(
+            input.scheduleFetchedAt,
+            nowMs,
+            FRESHNESS_POLICIES.transitSchedule.staleAfterMs,
+          ),
   };
   if (!option)
     return unavailable("transit", input.failed ? "data-error" : "service-unavailable", source);
@@ -213,7 +220,8 @@ export function transitEstimate(input: {
     if ((leg.mode === "bus" || leg.mode === "rail") && leg.depart_seconds !== null) {
       if (lastTransitArrival !== null) {
         const slack = (leg.depart_seconds - lastTransitArrival) / 60 - walkSinceTransit;
-        tightestConnection = tightestConnection === null ? slack : Math.min(tightestConnection, slack);
+        tightestConnection =
+          tightestConnection === null ? slack : Math.min(tightestConnection, slack);
       }
       lastTransitArrival = leg.arrive_seconds;
       walkSinceTransit = 0;
@@ -236,16 +244,26 @@ export function transitEstimate(input: {
     .map((leg) => leg.mode)
     .filter((mode): mode is "bus" | "rail" => mode === "bus" || mode === "rail");
   const hasDrive = option.legs.some((leg) => leg.mode === "drive");
-  const transitLabel = transitModes.length
-    ? [...(hasDrive ? ["Drive"] : []), ...transitModes.map((mode) => mode === "rail" ? "Rail" : "Bus")].join(" + ")
-    : "Walk";
+  // A car to Skyline is "Skyline" everywhere; the steps say who drives.
+  const transitLabel =
+    hasDrive && transitModes.length
+      ? "Skyline"
+      : transitModes.length
+        ? transitModes.map((mode) => (mode === "rail" ? "Rail" : "Bus")).join(" + ")
+        : "Walk";
   const transitMode: TransitMode =
-    hasRail && hasBus && hasWalk ? "walk+rail+bus"
-      : hasRail && hasBus ? "rail+bus"
-        : hasRail && hasWalk ? "walk+rail"
-          : hasBus && hasWalk ? "walk+bus"
-            : hasRail ? "rail"
-              : hasBus ? "bus"
+    hasRail && hasBus && hasWalk
+      ? "walk+rail+bus"
+      : hasRail && hasBus
+        ? "rail+bus"
+        : hasRail && hasWalk
+          ? "walk+rail"
+          : hasBus && hasWalk
+            ? "walk+bus"
+            : hasRail
+              ? "rail"
+              : hasBus
+                ? "bus"
                 : "walk";
   // The arrival is the timetable's scheduled door arrival. No made-up early/late
   // range is added: Nalu has no measured on-time data to size one. The real,

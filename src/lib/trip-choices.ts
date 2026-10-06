@@ -1,10 +1,15 @@
 /**
- * The three ways to make a trip that Nalu compares side by side:
+ * The three kinds of trip Nalu compares side by side:
  *
- * - Drive: door to door (the drive estimate, not a transit option).
- * - Park & ride: any trip that uses the car with Skyline, e.g. drive to a
- *   station with a park-and-ride lot and ride, or ride back to the car.
- * - No car: walk, bus and Skyline only, for riders without a car today.
+ * - Drive: door to door (the drive estimate, not a transit option). When
+ *   someone else is driving, the same car trip as a passenger.
+ * - Skyline: any trip that uses a car for part of the way to Skyline: driving
+ *   and parking at a station lot, being dropped off at a station, or riding
+ *   back to the car.
+ * - Bus: walk, bus and Skyline only, no car.
+ *
+ * Which of these exist for a rider depends on their trip access (see
+ * trip-access.ts); this module only groups what the planner returned.
  *
  * Both transit choices come from the one planner result list, which is already
  * ordered by preference (simpler trips first, then trips whose extra transfers
@@ -13,7 +18,9 @@
 import { latestRailArrival } from "@/lib/rail/planner";
 import type { Option } from "@/lib/commute-model";
 import { PARK_AND_RIDE_NAMES } from "@/lib/rail/park-and-ride";
+import { stationLabel } from "@/lib/commute-formatting";
 
+/** Uses a car for part of the trip (driven by the rider or by someone else). */
 export const needsCar = (option: Option) => option.legs.some((leg) => leg.mode === "drive");
 
 export type ChoicePick = { option: Option | null; makesIt: boolean };
@@ -36,21 +43,27 @@ function pick(options: Option[], arriveByTarget: number | null): ChoicePick {
 
 export function transitChoices(options: Option[], arriveByTarget: number | null) {
   return {
-    parkAndRide: pick(options.filter(needsCar), arriveByTarget),
-    noCar: pick(
+    skyline: pick(options.filter(needsCar), arriveByTarget),
+    bus: pick(
       options.filter((option) => !needsCar(option)),
       arriveByTarget,
     ),
   };
 }
 
-/** "Drive to UH West Oʻahu → Skyline → Bus 42", "Walk → Bus 91". */
-export function tripSteps(option: Option): string {
+/**
+ * "Drive to UH West Oʻahu → Skyline → Bus 42", "Walk → Bus 91". When someone
+ * else is driving the car leg reads "Dropped off at …".
+ */
+export function tripSteps(option: Option, access: { dropOff?: boolean } = {}): string {
   const steps: string[] = [];
   option.legs.forEach((leg, index) => {
     if (leg.mode === "drive") {
-      const station = leg.to_stop_id ? PARK_AND_RIDE_NAMES[leg.to_stop_id] : undefined;
-      steps.push(station ? `Drive to ${station}` : "Drive");
+      const station = leg.to_stop_id
+        ? (PARK_AND_RIDE_NAMES[leg.to_stop_id] ?? (leg.to ? stationLabel(leg.to) : undefined))
+        : undefined;
+      if (access.dropOff) steps.push(station ? `Dropped off at ${station}` : "Dropped off");
+      else steps.push(station ? `Drive to ${station}` : "Drive");
     } else if (leg.mode === "rail") steps.push("Skyline");
     else if (leg.mode === "bus") {
       const route = leg.route_short?.trim() || leg.route_long?.trim();

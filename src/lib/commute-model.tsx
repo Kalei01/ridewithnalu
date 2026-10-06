@@ -88,10 +88,24 @@ export function optionIdentity(option: Option) {
 }
 
 export function mergeTransitOptions(...groups: Option[][]): Option[] {
+  return mergeTransitOptionsWith({ requireParking: true }, ...groups);
+}
+
+/**
+ * `requireParking: true` (a rider driving themselves) never plans a drive to a
+ * station with no park-and-ride lot. When someone else drives and drops the
+ * rider off, any station can be the drop-off point, so that filter is skipped.
+ */
+export function mergeTransitOptionsWith(
+  settings: { requireParking: boolean },
+  ...groups: Option[][]
+): Option[] {
   const unique = new Map<string, Option>();
-  // Never plan a drive to a station with no park-and-ride lot.
+  const incoming = groups.flat();
   const saneOptions = preferLessWalking(
-    filterTransferSanityOptions(dropDriveToStationsWithoutParking(groups.flat())),
+    filterTransferSanityOptions(
+      settings.requireParking ? dropDriveToStationsWithoutParking(incoming) : incoming,
+    ),
   );
   // Trips whose extra transfers don't save enough are kept as alternatives,
   // listed after the simpler trips so they are never the pick.
@@ -120,6 +134,7 @@ export const LOCATION_DENIED_KEY = "nalu-location-denied-v1";
 export const KAPOLEI_POINT = { lat: 21.3358, lon: -158.0798 };
 export const DOWNTOWN_POINT = { lat: 21.3099, lon: -157.8644 };
 export const DIRECTION_KEY = "nalu-direction-v1";
+/** Retired: Nalu no longer remembers where a car is parked. Cleared from phones on load. */
 export const PARKED_KEY = "nalu-parked-v1";
 export const OVERRIDE_MS = 2 * 60 * 60 * 1000;
 
@@ -181,8 +196,6 @@ export const LEGACY_STORAGE_PREFIX = ["ki", "ne"].join("");
 
 export type DirectionOverride = { inbound: boolean; at: number };
 /** Where the car is today for park-and-ride trips: at home or left at a station. */
-export type CarPlace = "home" | "station";
-export type ParkedCar = { date: string; station: string; place?: CarPlace };
 export type BrowseStation = {
   stopId: string;
   stopName: string;

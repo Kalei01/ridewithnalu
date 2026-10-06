@@ -1,12 +1,12 @@
-import { Bus, Car, SquareParking } from "lucide-react";
+import { Bus, Car, TrainFront } from "lucide-react";
 
-export type TripChoiceKey = "drive" | "parkAndRide" | "noCar";
+export type TripChoiceKey = "drive" | "skyline" | "bus";
 
 export type TripChoice = {
   key: TripChoiceKey;
-  /** "Drive", "Park & ride", "Bus". */
+  /** "Drive", "Skyline", "Bus". */
   title: string;
-  /** A few words on how: "Drive to UH West Oʻahu → Skyline → Bus 42". */
+  /** A few words on how: "Drive to UH West Oʻahu → Skyline → Bus 42", "Dropped off at Hālawa → Skyline". */
   steps: string | null;
   /** Leaving now: minutes from now to arrival. Arrive By: trip length. */
   minutes: number | null;
@@ -23,10 +23,10 @@ export type TripChoice = {
   locked: boolean;
 };
 
-const ICONS = { drive: Car, parkAndRide: SquareParking, noCar: Bus } as const;
+const ICONS = { drive: Car, skyline: TrainFront, bus: Bus } as const;
 
 /**
- * The ways to make this trip, side by side: drive, park & ride, and bus.
+ * The ways to make this trip, side by side: drive, Skyline, and bus.
  * Lives inside the verdict card so the headline's math is on screen. Nalu's
  * pick is marked; tapping a row shows that trip's details below. Everyone sees
  * every choice, so a rider without a car today just uses the Bus row.
@@ -40,15 +40,30 @@ export function TripChoiceCards({
   commitment,
   formatMinutes,
   onSelect,
+  access,
 }: {
   choices: TripChoice[];
   selectedKey: TripChoiceKey;
   commitment: boolean;
   formatMinutes: (minutes: number) => string;
   onSelect: (key: TripChoiceKey) => void;
+  /** What the rider said works for this trip, with a way to change it. */
+  access?: { label: string; onChange: () => void } | null;
 }) {
   return (
     <div role="radiogroup" aria-label="Ways to make this trip" className="mt-4 grid gap-2">
+      {access && !commitment && (
+        <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-muted-foreground">
+          <span>Based on: {access.label}</span>
+          <button
+            type="button"
+            onClick={access.onChange}
+            className="min-h-11 px-1 font-semibold text-primary underline underline-offset-4"
+          >
+            Change
+          </button>
+        </p>
+      )}
       {choices.map((choice) => {
         const Icon = ICONS[choice.key];
         const selected = selectedKey === choice.key;

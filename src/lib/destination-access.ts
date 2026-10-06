@@ -91,6 +91,18 @@ export function destinationAccess(
   return { zone, ...(quiet ?? BUFFERS[zone]) };
 }
 
+/**
+ * Dropped off at the destination: someone else parks, so nothing is added to the
+ * road time. The drive time is the live driving time, as map apps show it.
+ */
+export const DROP_OFF_ACCESS: DestinationAccess = {
+  zone: "residential",
+  label: "Dropped off",
+  lowMin: 0,
+  typicalMin: 0,
+  highMin: 0,
+};
+
 export type ArrivalRange = {
   earliestSeconds: number;
   expectedSeconds: number;

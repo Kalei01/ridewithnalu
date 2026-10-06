@@ -1,15 +1,16 @@
 import { activeRegion } from "@/lib/region";
 import { formatDriveMinutes } from "../drive/traffic-summary";
 
+/** What the verdict says when the car is out of the picture. */
+export const CAR_UNAVAILABLE_TEXT = "Your car isn't available for this trip";
+
 export type DecisionMode = "drive" | "transit";
-export type TransitDecisionMode = "walk" | "bus" | "rail" | "walk+bus" | "walk+rail" | "rail+bus" | "walk+rail+bus";
+export type TransitDecisionMode =
+  "walk" | "bus" | "rail" | "walk+bus" | "walk+rail" | "rail+bus" | "walk+rail+bus";
 
 export type DecisionQuality = "good" | "limited" | "stale" | "unavailable";
 export type DecisionAvailability =
-  | "available"
-  | "service-unavailable"
-  | "car-unavailable"
-  | "data-error";
+  "available" | "service-unavailable" | "car-unavailable" | "data-error";
 
 export type DecisionModeEstimate = {
   mode: DecisionMode;
@@ -93,8 +94,9 @@ export function decideDriveVsTransit(
 ): DriveTransitDecision {
   const tossUp = config.tossUpMinutes ?? 5;
   const switchMargin = config.switchMarginMinutes ?? 3;
-  const unavailable = [drive, transit].filter((item) =>
-    item.availability !== "available" || (item.mode === "drive" && item.eligible === false),
+  const unavailable = [drive, transit].filter(
+    (item) =>
+      item.availability !== "available" || (item.mode === "drive" && item.eligible === false),
   );
 
   if (unavailable.some((item) => item.availability === "data-error")) {
@@ -135,10 +137,7 @@ export function decideDriveVsTransit(
         state: "uncertain",
         confidence: "low",
         differenceMinutes: null,
-        primary: evidence(
-          "data_quality",
-          "The latest travel information is too old to rely on",
-        ),
+        primary: evidence("data_quality", "The latest travel information is too old to rely on"),
         supporting: null,
       };
     }
@@ -153,7 +152,7 @@ export function decideDriveVsTransit(
           ? activeRegion().hasTransit
             ? "There isn't a transit trip you can take right now"
             : "Nalu has driving times here; bus and train times are coming later"
-          : "Your car isn't available for this trip",
+          : CAR_UNAVAILABLE_TEXT,
       ),
       supporting: null,
     };
@@ -189,10 +188,7 @@ export function decideDriveVsTransit(
       state: "uncertain",
       confidence: "low",
       differenceMinutes: difference,
-      primary: evidence(
-        "data_quality",
-        "One side doesn't have enough current information yet",
-      ),
+      primary: evidence("data_quality", "One side doesn't have enough current information yet"),
       supporting: null,
     };
   }
@@ -227,10 +223,7 @@ export function decideDriveVsTransit(
   let supporting: { kind: EvidenceKind; text: string } | null = null;
 
   if (faster === "transit" && drive.majorIncident)
-    supporting = evidence(
-      "major_incident",
-      "There's a reported crash or slowdown on the drive",
-    );
+    supporting = evidence("major_incident", "There's a reported crash or slowdown on the drive");
   else if (faster === "transit" && (drive.trafficDelayMinutes ?? 0) >= 5)
     supporting = evidence(
       "traffic_delay",
@@ -281,8 +274,7 @@ export function decideDriveVsTransitArrival(
   transit: DecisionModeEstimate,
   targetSeconds: number,
 ): ArrivalDecision {
-  const driveMargin =
-    drive.arrivalTime === null ? null : (targetSeconds - drive.arrivalTime) / 60;
+  const driveMargin = drive.arrivalTime === null ? null : (targetSeconds - drive.arrivalTime) / 60;
   const transitMargin =
     transit.arrivalTime === null ? null : (targetSeconds - transit.arrivalTime) / 60;
 
@@ -292,10 +284,7 @@ export function decideDriveVsTransitArrival(
     transitMarginMinutes: transitMargin,
   });
 
-  if (
-    drive.availability === "data-error" ||
-    transit.availability === "data-error"
-  ) {
+  if (drive.availability === "data-error" || transit.availability === "data-error") {
     return result({
       state: "uncertain",
       confidence: "low",
@@ -320,9 +309,7 @@ export function decideDriveVsTransitArrival(
 
   if (
     (drive.quality === "limited" || transit.quality === "limited") &&
-    (driveMargin === null ||
-      transitMargin === null ||
-      Math.abs(driveMargin - transitMargin) < 10)
+    (driveMargin === null || transitMargin === null || Math.abs(driveMargin - transitMargin) < 10)
   ) {
     return result({
       state: "uncertain",
@@ -341,10 +328,7 @@ export function decideDriveVsTransitArrival(
       state: "none",
       confidence: "low",
       differenceMinutes: null,
-      primary: evidence(
-        "arrival_margin",
-        "Neither option is expected to get you there on time",
-      ),
+      primary: evidence("arrival_margin", "Neither option is expected to get you there on time"),
       supporting: null,
     });
   }
@@ -363,7 +347,8 @@ export function decideDriveVsTransitArrival(
     });
   }
 
-  const driveProtected = drive.eligible !== false && (drive.latestArrival ?? Infinity) <= targetSeconds;
+  const driveProtected =
+    drive.eligible !== false && (drive.latestArrival ?? Infinity) <= targetSeconds;
   // Transit has no measured late range; its real risk is a tight transfer.
   const transitProtected =
     (transit.latestArrival ?? Infinity) <= targetSeconds && !hasTightConnection(transit);

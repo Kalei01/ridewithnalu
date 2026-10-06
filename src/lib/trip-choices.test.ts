@@ -47,26 +47,26 @@ const busRailBus = opt(
 );
 
 describe("trip choices", () => {
-  it("splits the planner's list into park & ride and no car, keeping its order", () => {
-    const { parkAndRide, noCar } = transitChoices([parkRide, bus91, busRailBus], null);
-    expect(parkAndRide).toEqual({ option: parkRide, makesIt: true });
-    expect(noCar.option).toBe(bus91); // the simpler car-free trip, not the extra-transfer one
+  it("splits the planner's list into Skyline and Bus, keeping its order", () => {
+    const { skyline, bus } = transitChoices([parkRide, bus91, busRailBus], null);
+    expect(skyline).toEqual({ option: parkRide, makesIt: true });
+    expect(bus.option).toBe(bus91); // the simpler car-free trip, not the extra-transfer one
   });
 
-  it("has no park & ride choice when no trip uses the car", () => {
-    expect(transitChoices([bus91], null).parkAndRide.option).toBeNull();
+  it("has no Skyline choice when no trip uses the car", () => {
+    expect(transitChoices([bus91], null).skyline.option).toBeNull();
   });
 
-  it("counts a trip home that ends by driving from the station as park & ride", () => {
+  it("counts a trip home that ends by driving from the station as a Skyline trip", () => {
     const home = opt([
       leg("walk", 61000, 61300),
       leg("bus", 61300, 62300, { route_short: "42" }),
       leg("rail", 62500, 64400),
       leg("drive", 64600, 65500, { from_stop_id: "10046" }),
     ]);
-    const { parkAndRide, noCar } = transitChoices([home, bus91], null);
-    expect(parkAndRide.option).toBe(home);
-    expect(noCar.option).toBe(bus91);
+    const { skyline, bus } = transitChoices([home, bus91], null);
+    expect(skyline.option).toBe(home);
+    expect(bus.option).toBe(bus91);
   });
 
   it("for Arrive By, picks the latest trip in each group that still makes it", () => {
@@ -74,11 +74,11 @@ describe("trip choices", () => {
       leg("walk", 25000, 26200),
       leg("bus", 26200, 29000, { route_short: "91" }),
     ]);
-    expect(transitChoices([bus91, later91], 29100).noCar).toEqual({
+    expect(transitChoices([bus91, later91], 29100).bus).toEqual({
       option: later91,
       makesIt: true,
     });
-    expect(transitChoices([bus91, later91], 28500).noCar).toEqual({ option: bus91, makesIt: true });
+    expect(transitChoices([bus91, later91], 28500).bus).toEqual({ option: bus91, makesIt: true });
   });
 
   it("for Arrive By, shows the earliest arrival marked late when nothing makes it", () => {
@@ -86,7 +86,7 @@ describe("trip choices", () => {
       leg("walk", 25000, 26200),
       leg("bus", 26200, 29000, { route_short: "91" }),
     ]);
-    expect(transitChoices([later91, bus91], 27000).noCar).toEqual({
+    expect(transitChoices([later91, bus91], 27000).bus).toEqual({
       option: bus91,
       makesIt: false,
     });
@@ -96,6 +96,22 @@ describe("trip choices", () => {
     expect(tripSteps(parkRide)).toBe("Drive to UH West Oʻahu → Skyline → Bus 42");
     expect(tripSteps(bus91)).toBe("Walk → Bus 91");
     expect(tripSteps(busRailBus)).toBe("Walk → Bus 52 → Skyline → Bus 42");
+  });
+
+  it("says who is driving: dropped off at any station, with no lot needed", () => {
+    const dropped = opt([
+      leg("drive", 27000, 27600, { to_stop_id: "10055", to: "HALAWA STATION" }),
+      leg("rail", 27600, 28600),
+    ]);
+    expect(tripSteps(dropped, { dropOff: true })).toBe("Dropped off at Hālawa → Skyline");
+    const noLot = opt([
+      leg("drive", 27000, 27300, { to_stop_id: "10053", to: "WAIAWA STATION" }),
+      leg("rail", 27300, 28200),
+    ]);
+    expect(tripSteps(noLot, { dropOff: true })).toBe("Dropped off at Waiawa → Skyline");
+    expect(tripSteps(parkRide, { dropOff: true })).toBe(
+      "Dropped off at UH West Oʻahu → Skyline → Bus 42",
+    );
   });
 
   it("notes Keoneʻae parking for weekday morning arrivals only, with the backup lot", () => {

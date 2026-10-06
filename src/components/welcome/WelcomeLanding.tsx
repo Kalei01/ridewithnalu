@@ -21,7 +21,7 @@ function HonuMark() {
 /** The example answer: title, how, total time, arrival, Nalu's pick. */
 const WELCOME_EXAMPLE = [
   ["Drive", "H-1 East", "52 min", "8:11", true],
-  ["Park & ride", "Drive to UH West Oʻahu → Skyline → bus", "1 hr 14 min", "8:41", false],
+  ["Skyline", "Drive to UH West Oʻahu → Skyline → bus", "1 hr 14 min", "8:41", false],
   ["Bus", "Walk → bus", "1 hr 26 min", "8:45", false],
 ] as const;
 
@@ -176,7 +176,7 @@ export function WelcomeLanding({
               ],
               [
                 "Nalu compares",
-                "Driving with live traffic, park & ride to Skyline, and TheBus and Skyline without a car.",
+                "Driving with live traffic, a car to Skyline, and TheBus and Skyline without a car.",
               ],
               [
                 "Go",

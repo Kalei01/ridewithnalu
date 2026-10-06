@@ -60,7 +60,7 @@ export function VerdictDomain({
   driveTotalMinutes: number | null;
   /** Arrive By leave time for the drive; null means leave now. */
   driveLeaveSeconds?: number | null;
-  /** Drive / Park & ride / Bus, side by side, so the headline's math is on screen. */
+  /** Drive / Skyline / Bus, side by side, so the headline's math is on screen. */
   comparison?: ReactNode;
   children?: ReactNode;
 }) {
@@ -77,7 +77,7 @@ export function VerdictDomain({
           : verdict === "same"
             ? "Too close to call"
             : verdict === "transit"
-              ? `${transitLabel === "Park & ride" ? transitLabel : `Take ${transitLabel}`}${differenceMinutes !== null ? ` · ${formatDriveMinutes(Math.abs(differenceMinutes))} faster` : ""}`
+              ? `Take ${transitLabel}${differenceMinutes !== null ? ` · ${formatDriveMinutes(Math.abs(differenceMinutes))} faster` : ""}`
               : `Drive${differenceMinutes !== null ? ` · ${formatDriveMinutes(Math.abs(differenceMinutes))} faster` : ""}`;
 
   return (

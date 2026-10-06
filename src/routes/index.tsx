@@ -39,6 +39,17 @@ import {
   type TripChoiceKey,
 } from "@/components/commute/TripChoiceCards";
 import { needsCar, parkingNote, transitChoices, tripSteps } from "@/lib/trip-choices";
+import { TripAccessQuestion } from "@/components/commute/TripAccessQuestion";
+import {
+  accessResources,
+  carTripAvailable,
+  readTripAccess,
+  tripAccessKey,
+  tripAccessLabel,
+  vehicleToStation,
+  writeTripAccess,
+  type TripAccess,
+} from "@/lib/trip-access";
 import { RoadworkTile } from "@/components/commute/RoadworkTile";
 import { TransitItinerary } from "@/components/commute/TransitItinerary";
 import { DriveDetails } from "@/components/commute/DriveDetails";
@@ -97,7 +108,6 @@ import {
   planDriveArrivalWithRange,
   solveFutureDrive,
 } from "@/lib/drive/planner";
-import { carAvailableForDrive } from "@/lib/car-state";
 import { resolveTripDirection } from "@/lib/trip-direction";
 import { createClientRateWindow } from "@/lib/client-rate-limit";
 import {
@@ -120,7 +130,8 @@ import {
 } from "@/components/account/AccountDialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
-import { arrivalRange, destinationAccess } from "@/lib/destination-access";
+import { DROP_OFF_ACCESS, arrivalRange, destinationAccess } from "@/lib/destination-access";
+import { CAR_UNAVAILABLE_TEXT } from "@/lib/intelligence/drive-transit-decision";
 import {
   VoiceGuide,
   isUsableNavigationFix,
@@ -195,7 +206,6 @@ import {
   BrowseStation,
   BusStopTarget,
   COMMIT_KEY,
-  CarPlace,
   Commitment,
   Coords,
   DIRECTION_KEY,
@@ -215,7 +225,6 @@ import {
   OutdoorMoment,
   PARKED_KEY,
   PLAN_MODE_KEY,
-  ParkedCar,
   RailLineStation,
   SETUP_DISMISSED_KEY,
   STORAGE_KEY,
@@ -395,7 +404,6 @@ function Index() {
     forcedTrafficRefresh.current = false;
   }
   const [override, setOverride] = useState<DirectionOverride | null>(null);
-  const [parked, setParked] = useState<ParkedCar | null>(null);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
   const [selectedNearbyStopId, setSelectedNearbyStopId] = useState<string | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
@@ -452,7 +460,9 @@ function Index() {
     migrateStorage(BROWSE_LOCATION_DENIED_KEY, "browse-location-denied-v1");
     migrateStorage(LOCATION_DENIED_KEY, "location-denied-v1");
     migrateStorage(DIRECTION_KEY, "direction-v1");
-    migrateStorage(PARKED_KEY, "parked-v1");
+    // Nalu no longer remembers where a car is parked; clear what older versions saved.
+    window.localStorage.removeItem(PARKED_KEY);
+    window.localStorage.removeItem("parked-v1");
     // Trip tracking was removed; clear any trip state left on the phone.
     window.localStorage.removeItem(ACTIVE_TRIP_KEY);
     const migratedPlaces = migrateSavedPlaces(
@@ -727,7 +737,6 @@ function Index() {
     window.localStorage.removeItem(STORAGE_KEY);
     setOverride(null);
     window.localStorage.removeItem(DIRECTION_KEY);
-    setParked(null);
     window.localStorage.removeItem(PARKED_KEY);
     setSettingsOpen(false);
     setOnboardingOpen(false);
@@ -851,31 +860,39 @@ function Index() {
     : (lastOnlineScheduleSeconds.current ?? afterSeconds);
   // Where today's car is. With station driving enabled, an unrecorded return
   // starts with the car at the home station; an explicit same-day location wins.
-  const parkedToday = parked && parked.date === honoluluDateKey(now) ? parked : null;
-  const carPlace: CarPlace = parkedToday?.place === "station" ? "station" : "home";
-  const carAtStation = Boolean(
-    setup.allowDrive &&
-    carPlace === "station" &&
-    (parkedToday ? parkedToday.station === arrivalStationId : reverseTrip),
-  );
-  // Door-to-door driving is always compared. "I can drive to the station" only
-  // governs the park-and-ride first leg; it never removes the drive option.
-  // The only genuine blocker is a car recorded today somewhere else.
-  const driveAvailable = carAvailableForDrive(parkedToday, inbound);
-  // Only an explicitly recorded car location explains a missing drive option.
-  const carAwayReason = driveAvailable
-    ? null
-    : inbound && carPlace === "station"
-      ? `Your car is parked at ${
-          parkedToday && parkedToday.station !== arrivalStationId
-            ? "your station"
-            : `${stationLabel(arrivalStationName)} Station`
-        }.`
-      : inbound && carPlace === "home"
-        ? "Your car is at home."
-        : !inbound && carPlace === "station"
-          ? `Your car is at ${stationLabel(setup.homeStopName)}.`
-          : null;
+  // What works for this trip, asked once after the destination is chosen. It is
+  // an input to the planner (which kinds of itinerary may be built), never a
+  // verdict: Nalu still compares everything the answer allows.
+  const accessKey = tripAccessKey(tripDirection.to);
+  const [accessAnswer, setAccessAnswer] = useState<{
+    key: string;
+    value: TripAccess | null;
+  } | null>(null);
+  // The answer given just before tapping "Change", so the question can show it.
+  const [previousAccess, setPreviousAccess] = useState<TripAccess | null>(null);
+  const tripAccess: TripAccess | null =
+    !hydrated || !accessKey
+      ? null
+      : accessAnswer?.key === accessKey
+        ? accessAnswer.value
+        : readTripAccess(accessKey, now.getTime());
+  // Not asked on a trip already under way, or where there is no transit to compare.
+  const needsAccessAnswer =
+    hydrated && configured && activeRegion().hasTransit && !commitment && tripAccess === null;
+  const resources = accessResources(tripAccess ?? "drive");
+  function chooseTripAccess(next: TripAccess | null) {
+    if (!accessKey) return;
+    setPreviousAccess(next === null ? tripAccess : null);
+    writeTripAccess(accessKey, next, Date.now());
+    setAccessAnswer({ key: accessKey, value: next });
+    setChosenCard(null);
+  }
+
+  // A door-to-door car trip is compared whenever a car can carry the rider:
+  // driving themselves, or as a passenger.
+  const driveAvailable = carTripAvailable(resources);
+  // How a vehicle may reach a Skyline station: park it, be dropped off, or not at all.
+  const vehicleToSkyline = vehicleToStation(resources);
 
   function rememberBrowseStation(next: BrowseStation) {
     setBrowseStation(next);
@@ -1174,27 +1191,28 @@ function Index() {
       arrivalStationId,
       setup.homeStopId,
       setup.destStopId,
-      setup.allowDrive,
-      carAtStation,
-      driveAvailable,
+      `access:${vehicleToSkyline}`,
+      browseStations.length,
       scheduleAfterSeconds,
       planMode,
       planMode === "arrive-by" ? arriveByTarget : null,
     ],
-    enabled: hydrated && transitConfigured,
+    // Wait for the answer: it decides which itineraries may be built.
+    enabled: hydrated && transitConfigured && !needsAccessAnswer,
     staleTime: 120_000,
-    placeholderData: keepPreviousData,
+    // Keep the last result on screen while a refresh loads, but never carry
+    // another answer's itineraries over (a bus rider must not see a car leg).
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey.includes(`access:${vehicleToSkyline}`) ? previous : undefined,
     queryFn: () =>
       planTransitTrip({
         arrivalStationId,
         arriveByTarget,
         browseStations,
-        carAtStation,
-        driveAvailable,
+        vehicleToStation: vehicleToSkyline,
         inbound,
         now,
         nowSeconds,
-        parkedToday,
         planMode,
         scheduleAfterSeconds,
         setup,
@@ -1258,16 +1276,16 @@ function Index() {
       return;
     setSelectedDeparture(null);
   }, [inbound, options, selectedDeparture, commitment]);
-  // The way to travel the rider tapped (Drive / Park & ride / Bus). It is
+  // The way to travel the rider tapped (Drive / Skyline / Bus). It is
   // kept when that departure leaves, so a rider without a car is never moved
   // onto a car trip, and cleared for a new destination.
   const [chosenCard, setChosenCard] = useState<TripChoiceKey | null>(null);
   const choicePicks = transitChoices(options, planMode === "arrive-by" ? arriveByTarget : null);
   const chosenCardOption =
-    chosenCard === "noCar"
-      ? choicePicks.noCar.option
-      : chosenCard === "parkAndRide"
-        ? choicePicks.parkAndRide.option
+    chosenCard === "bus"
+      ? choicePicks.bus.option
+      : chosenCard === "skyline"
+        ? choicePicks.skyline.option
         : null;
   const liveBest =
     options.find((option) => optionIdentity(option) === selectedDeparture) ??
@@ -1286,9 +1304,9 @@ function Index() {
     : best?.legs.some((leg) => leg.mode === "bus")
       ? "Bus"
       : "Transit";
-  // A trip that uses the car with transit is "Park & ride" everywhere.
+  // A trip that uses a car to reach Skyline is "Skyline" everywhere.
   const transitLabel = best?.legs.some((leg) => leg.mode === "drive")
-    ? "Park & ride"
+    ? "Skyline"
     : transitModesLabel;
   const transitUsesRail = best?.legs.some((leg) => leg.mode === "rail") ?? false;
   const transitUsesBus = best?.legs.some((leg) => leg.mode === "bus") ?? false;
@@ -2212,7 +2230,11 @@ function Index() {
     return preferred.feasible ? preferred : latestTransitArrival(options, arriveByTarget);
   }, [options, arriveByTarget]);
   const gtfsExpiry = useDataExpiry();
-  const driveAccess = destinationAccess(driveTo, arrivingHome ? "home" : null, now);
+  // Dropped off at the destination: no parking, so nothing is added to the road time.
+  const driveAccess =
+    tripAccess === "dropOff"
+      ? DROP_OFF_ACCESS
+      : destinationAccess(driveTo, arrivingHome ? "home" : null, now);
   const futureCandidateSeconds =
     arriveByActive && settledTrafficTarget === arriveByTarget && drive
       ? arriveByTarget - (drive.highMinutes + driveAccess.highMin) * 60
@@ -2853,13 +2875,13 @@ function Index() {
     setChosenCard(null);
   }, [tripDirection.to.lat, tripDirection.to.lon, inbound]);
 
-  // Drive / Park & ride / Bus, side by side inside the verdict card. Both
+  // Drive / Skyline / Bus, side by side inside the verdict card. Both
   // transit choices come from the planner's own ordered list; tapping one
   // selects that trip. Leaving now, every row counts from now to arrival (drive
   // door to door), the same numbers the headline compares; for Arrive By each
   // row shows its trip length and when to leave.
   const choiceKeyFor = (option: Option | null | undefined): TripChoiceKey =>
-    option && needsCar(option) ? "parkAndRide" : "noCar";
+    option && needsCar(option) ? "skyline" : "bus";
   const selectedChoice: TripChoiceKey = selectedMode === "drive" ? "drive" : choiceKeyFor(best);
   // Nalu's pick is its own answer, so it doesn't move when a rider taps a row.
   const computedPick: TripChoiceKey | null =
@@ -2870,14 +2892,14 @@ function Index() {
   }, [computedPick, chosenCard, commitment]);
   const lockedChoice: TripChoiceKey | null =
     lockedMode === "drive" ? "drive" : lockedMode === "transit" ? choiceKeyFor(best) : null;
-  const transitChoice = (key: "parkAndRide" | "noCar"): TripChoice => {
-    const group = key === "parkAndRide" ? choicePicks.parkAndRide : choicePicks.noCar;
+  const transitChoice = (key: "skyline" | "bus"): TripChoice => {
+    const group = key === "skyline" ? choicePicks.skyline : choicePicks.bus;
     // A committed trip shows the boarded itinerary, not a fresher option.
     const option = lockedChoice === key && best ? best : group.option;
     return {
       key,
-      title: key === "parkAndRide" ? "Park & ride" : "Bus",
-      steps: option ? tripSteps(option) : null,
+      title: key === "skyline" ? "Skyline" : "Bus",
+      steps: option ? tripSteps(option, { dropOff: tripAccess === "dropOff" }) : null,
       minutes: option
         ? arriveByActive
           ? option.total_minutes
@@ -2892,10 +2914,14 @@ function Index() {
       status: option ? "ready" : optionsLoading ? "loading" : "empty",
       emptyText: optionsFailed
         ? "Can’t check transit right now"
-        : key === "noCar"
+        : key === "bus"
           ? "No bus trip right now"
-          : "No park & ride trip that makes sense right now",
-      note: key === "parkAndRide" ? parkingNote(option, honoluluIsoDow(now)) : null,
+          : "No Skyline trip that makes sense right now",
+      // Only a rider parking their own car hears about the lot.
+      note:
+        key === "skyline" && vehicleToSkyline === "park"
+          ? parkingNote(option, honoluluIsoDow(now))
+          : null,
       pick: naluPick === key,
       locked: lockedChoice === key,
     };
@@ -2904,49 +2930,60 @@ function Index() {
     arriveByActive && drivePlan
       ? Math.round((drivePlan.arriveSeconds - drivePlan.leaveBySeconds) / 60)
       : driveDoorToDoorMinutes;
-  const tripChoices: TripChoice[] = [
-    {
-      key: "drive",
-      title: "Drive",
-      steps: drive?.corridorLabel
-        ? `Via ${drive.corridorLabel.replace(/^Via\s+/i, "")}`
-        : "Driving",
-      minutes: driveChoiceMinutes,
-      timeLabel:
-        arriveByActive && drivePlan
-          ? `Leave ${clockFromSeconds(drivePlan.leaveBySeconds)}`
-          : driveTripEstimate.arrivalTime !== null
-            ? `Arrive ${clockFromSeconds(driveTripEstimate.arrivalTime)}`
-            : null,
-      late: arriveByActive && drivePlan !== null && !drivePlan.feasible,
-      status: driveLoading
-        ? "loading"
-        : driveTripEstimate.availability === "available"
-          ? "ready"
-          : "empty",
-      emptyText:
-        driveTripEstimate.availability === "car-unavailable"
-          ? (carAwayReason ?? "No car for this trip")
-          : "Can’t check traffic right now",
-      note:
-        driveTripEstimate.expectedDurationMinutes !== null &&
-        driveDoorToDoorMinutes !== null &&
-        driveDoorToDoorMinutes > driveTripEstimate.expectedDurationMinutes
-          ? `${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes)} of driving, plus about ${Math.round(driveDoorToDoorMinutes - driveTripEstimate.expectedDurationMinutes)} min to park and walk in.`
+  const driveVia = drive?.corridorLabel
+    ? `Via ${drive.corridorLabel.replace(/^Via\s+/i, "")}`
+    : null;
+  const driveChoice: TripChoice = {
+    key: "drive",
+    title: "Drive",
+    steps:
+      tripAccess === "dropOff"
+        ? ["Dropped off at your destination", driveVia].filter(Boolean).join(" · ")
+        : (driveVia ?? "Driving"),
+    minutes: driveChoiceMinutes,
+    timeLabel:
+      arriveByActive && drivePlan
+        ? `Leave ${clockFromSeconds(drivePlan.leaveBySeconds)}`
+        : driveTripEstimate.arrivalTime !== null
+          ? `Arrive ${clockFromSeconds(driveTripEstimate.arrivalTime)}`
           : null,
-      pick: naluPick === "drive",
-      locked: lockedChoice === "drive",
-    },
-    // Always all three, so riders see park & ride was checked even when no
-    // sensible trip exists (e.g. Mānoa: Skyline would still need two buses).
-    transitChoice("parkAndRide"),
-    transitChoice("noCar"),
+    late: arriveByActive && drivePlan !== null && !drivePlan.feasible,
+    status: driveLoading
+      ? "loading"
+      : driveTripEstimate.availability === "available"
+        ? "ready"
+        : "empty",
+    emptyText:
+      driveTripEstimate.availability === "car-unavailable"
+        ? "No car for this trip"
+        : "Can’t check traffic right now",
+    note:
+      driveTripEstimate.expectedDurationMinutes !== null &&
+      driveDoorToDoorMinutes !== null &&
+      driveDoorToDoorMinutes > driveTripEstimate.expectedDurationMinutes
+        ? `${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes)} of driving, plus about ${Math.round(driveDoorToDoorMinutes - driveTripEstimate.expectedDurationMinutes)} min to park and walk in.`
+        : null,
+    pick: naluPick === "drive",
+    locked: lockedChoice === "drive",
+  };
+  // Rows follow what the rider has available. Each row that is shown has been
+  // checked, even when no sensible trip exists (e.g. Mānoa: Skyline would
+  // still need two buses); a row for something the rider can't use is left out.
+  const tripChoices: TripChoice[] = [
+    ...(resources.canRideInCar ? [driveChoice] : []),
+    // Heading home, no car leg is searched, so the row only shows if the
+    // planner still found a trip that uses one.
+    ...(vehicleToSkyline !== "none" &&
+    (!inbound || choicePicks.skyline.option || lockedChoice === "skyline")
+      ? [transitChoice("skyline")]
+      : []),
+    transitChoice("bus"),
   ];
   function chooseTrip(key: TripChoiceKey) {
     if (commitment) return;
     setChosenCard(key);
     if (key === "drive") return chooseMode("drive");
-    const option = (key === "parkAndRide" ? choicePicks.parkAndRide : choicePicks.noCar).option;
+    const option = (key === "skyline" ? choicePicks.skyline : choicePicks.bus).option;
     if (!option) return;
     chooseMode("transit");
     setSelectedDeparture(optionIdentity(option));
@@ -3076,10 +3113,13 @@ function Index() {
   // The verdict only steers the view until the commuter commits; after that the
   // locked mode stays on screen for the rest of the trip.
   useEffect(() => {
-    if (commitment || chosenCard !== null) return;
+    if (commitment) return;
+    // No car for this trip (taking the bus): the drive view has nothing to show.
+    if (!driveAvailable) setSelectedMode("transit");
+    if (chosenCard !== null) return;
     if (verdict === "drive") setSelectedMode("drive");
     else if (verdict === "transit") setSelectedMode("transit");
-  }, [verdict, inbound, commitment, chosenCard]);
+  }, [verdict, inbound, commitment, chosenCard, driveAvailable]);
   const reasoning = commitment
     ? "Your selected trip stays locked while conditions update."
     : railClosedForEvening
@@ -3090,11 +3130,14 @@ function Index() {
         ? best
           ? `Skyline has not started yet today. Nalu is comparing ${transitLabel} service with driving.`
           : "Skyline has not started yet today. Nalu is checking available transit options."
-        : // "Drive gets you there about 30 min sooner" repeats the headline;
-          // show the supporting reason instead, if there is one.
-          activeDecision.primary.kind === "time_advantage"
-          ? (activeDecision.supporting?.text ?? null)
-          : activeDecision.primary.text;
+        : // Taking the bus: the rider chose no car, so don't say it's unavailable.
+          tripAccess === "bus" && activeDecision.primary.text === CAR_UNAVAILABLE_TEXT
+          ? "Showing your bus trips."
+          : // "Drive gets you there about 30 min sooner" repeats the headline;
+            // show the supporting reason instead, if there is one.
+            activeDecision.primary.kind === "time_advantage"
+            ? (activeDecision.supporting?.text ?? null)
+            : activeDecision.primary.text;
 
   const whyNaluText = railClosedForEvening
     ? best
@@ -3262,7 +3305,7 @@ function Index() {
               ? `${vehicleName(leg)} · ${leg.minutes} min to ${
                   titleCase(leg.to) || (arrivingHome ? "home" : "your destination")
                 }${leg.mode === "walk" && leg.minutes !== null ? ` · ${formatDistance(leg.minutes * 80.47)}` : ""}${
-                  leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""
+                  leg.kind === "egress" && leg.mode === "drive" ? "" : ""
                 }`
               : leg.kind === "access" && leg.mode === "walk"
                 ? `Walk to ${stationLabel(leg.to) || titleCase(leg.to) || "the station"} Station · ${leg.minutes} min${
@@ -3270,7 +3313,7 @@ function Index() {
                   } · arrive platform ${clockFromSeconds(leg.arrive_seconds)}`
                 : `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
                     titleCase(leg.to) || (arrivingHome ? "home" : "your destination")
-                  }${leg.kind === "egress" && leg.mode === "drive" ? " · your car is parked here" : ""}`
+                  }${leg.kind === "egress" && leg.mode === "drive" ? "" : ""}`
             : "",
         boardAt: isTransit ? transitStopName(leg, "from") : null,
         getOffAt: isTransit ? transitStopName(leg, "to") : null,
@@ -4568,6 +4611,32 @@ function Index() {
     );
   }
 
+  // After the destination is chosen and before any result: what works for this trip.
+  if (needsAccessAnswer) {
+    return (
+      <main className="min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+        <div className="mx-auto flex w-full max-w-[680px] flex-col">
+          <CommuteHeader
+            heading={arrivingHome ? "Heading home" : inbound ? "Heading west" : "Heading out"}
+            timeText={timeText}
+            onAccount={() => {
+              setRestoreSlot(null);
+              setAccountOpen(true);
+            }}
+            onSettings={() => openSettingsList()}
+            onBrowse={() => setPageView("browse")}
+          />
+          <TripAccessQuestion
+            destination={tripArrivalLabel}
+            current={previousAccess}
+            onChoose={chooseTripAccess}
+          />
+        </div>
+        {setupDialog}
+      </main>
+    );
+  }
+
   return (
     <main
       className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "transit" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
@@ -4736,72 +4805,79 @@ function Index() {
                 )}
               </div>
 
-              <div className="rounded-lg border border-border bg-background/50 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="flex items-center gap-2 text-sm font-bold text-foreground">
-                    <Car className="size-4 text-primary" /> Drive
-                  </p>
-                  {drive && driveAvailable && (
-                    <p className="text-xs font-semibold text-muted-foreground">
-                      {formatDriveMinutes(drive.trafficMinutes)} driving
+              {resources.canRideInCar && (
+                <div className="rounded-lg border border-border bg-background/50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="flex items-center gap-2 text-sm font-bold text-foreground">
+                      <Car className="size-4 text-primary" /> Drive
+                    </p>
+                    {drive && driveAvailable && (
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        {formatDriveMinutes(drive.trafficMinutes)} driving
+                      </p>
+                    )}
+                  </div>
+                  {drive && driveAvailable && driveArrival && !drivePlan && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-sm font-bold tabular-nums text-foreground">
+                        Arrive {driveWindow}
+                      </summary>
+                      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        <li>
+                          Driving {drive.lowMinutes}–{drive.highMinutes} min, usually{" "}
+                          {drive.trafficMinutes}
+                        </li>
+                        {driveBufferNote && <li>{driveBufferNote}</li>}
+                      </ul>
+                    </details>
+                  )}
+                  {drivePlan?.feasible && !arriveByPassed ? (
+                    <div className="mt-2">
+                      <p className="text-lg font-bold tabular-nums text-foreground">
+                        Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
+                        <span className="ml-2 text-sm font-medium text-muted-foreground">
+                          · arrive around {clockFromSeconds(drivePlan.arriveSeconds)}
+                        </span>
+                      </p>
+                      {!drivePlan.protected && (
+                        <p className="mt-1 text-xs text-warning">Traffic could make you late.</p>
+                      )}
+                    </div>
+                  ) : drivePlan ? (
+                    <p className="mt-2 text-sm text-warning">
+                      {arriveByPassed
+                        ? "Earliest drive option"
+                        : `Too late to arrive by ${clockFromSeconds(arriveByTarget)}`}{" "}
+                      · leave {clockFromSeconds(drivePlan.leaveBySeconds)} · arrive around{" "}
+                      {clockFromSeconds(drivePlan.earliestArriveSeconds)}.
+                    </p>
+                  ) : !driveAvailable ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Driving is not available for this trip.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {driveLoading
+                        ? "Checking live traffic…"
+                        : "Live traffic is not available right now."}
+                    </p>
+                  )}
+                  {drivePlan && drivePlan.bufferMinutes > 0 && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Includes {drivePlan.bufferMinutes} min to park and walk in · {driveBasisLabel}
                     </p>
                   )}
                 </div>
-                {drive && driveAvailable && driveArrival && !drivePlan && (
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-sm font-bold tabular-nums text-foreground">
-                      Arrive {driveWindow}
-                    </summary>
-                    <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                      <li>
-                        Driving {drive.lowMinutes}–{drive.highMinutes} min, usually{" "}
-                        {drive.trafficMinutes}
-                      </li>
-                      {driveBufferNote && <li>{driveBufferNote}</li>}
-                    </ul>
-                  </details>
-                )}
-                {drivePlan?.feasible && !arriveByPassed ? (
-                  <div className="mt-2">
-                    <p className="text-lg font-bold tabular-nums text-foreground">
-                      Leave by {clockFromSeconds(drivePlan.leaveBySeconds)}
-                      <span className="ml-2 text-sm font-medium text-muted-foreground">
-                        · arrive around {clockFromSeconds(drivePlan.arriveSeconds)}
-                      </span>
-                    </p>
-                    {!drivePlan.protected && (
-                      <p className="mt-1 text-xs text-warning">Traffic could make you late.</p>
-                    )}
-                  </div>
-                ) : drivePlan ? (
-                  <p className="mt-2 text-sm text-warning">
-                    {arriveByPassed
-                      ? "Earliest drive option"
-                      : `Too late to arrive by ${clockFromSeconds(arriveByTarget)}`}{" "}
-                    · leave {clockFromSeconds(drivePlan.leaveBySeconds)} · arrive around{" "}
-                    {clockFromSeconds(drivePlan.earliestArriveSeconds)}.
-                  </p>
-                ) : !driveAvailable ? (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {carAwayReason ?? "Driving is not available for this trip."}
-                  </p>
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {driveLoading
-                      ? "Checking live traffic…"
-                      : "Live traffic is not available right now."}
-                  </p>
-                )}
-                {drivePlan && drivePlan.bufferMinutes > 0 && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Includes {drivePlan.bufferMinutes} min to park and walk in · {driveBasisLabel}
-                  </p>
-                )}
-              </div>
+              )}
 
               {arriveByComparison && (
                 <div className="space-y-1 text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground">{arriveByComparison.primary.text}</p>
+                  <p className="font-semibold text-foreground">
+                    {tripAccess === "bus" &&
+                    arriveByComparison.primary.text === CAR_UNAVAILABLE_TEXT
+                      ? "Showing your bus trips."
+                      : arriveByComparison.primary.text}
+                  </p>
                   {arriveByComparison.driveMarginMinutes !== null &&
                     arriveByComparison.driveMarginMinutes >= 0 && (
                       <p>
@@ -4873,6 +4949,11 @@ function Index() {
                 commitment={Boolean(commitment)}
                 formatMinutes={formatDriveMinutes}
                 onSelect={chooseTrip}
+                access={
+                  tripAccess
+                    ? { label: tripAccessLabel(tripAccess), onChange: () => chooseTripAccess(null) }
+                    : null
+                }
               />
             ) : null
           }
@@ -5500,9 +5581,6 @@ function Index() {
                       delayMinutes={drive?.delayMinutes ?? null}
                     />
                   )}
-                  {!driveAvailable && carAwayReason && (
-                    <p className="mt-4 text-sm text-muted-foreground">{carAwayReason}</p>
-                  )}
                   {driveAvailable && driveFailed && (
                     <p className="mt-4 text-sm text-muted-foreground">
                       Live traffic is not available right now.
@@ -5615,7 +5693,7 @@ function Index() {
                               )}
                               <span className="shrink-0 font-bold text-foreground">
                                 {option.legs.some((leg) => leg.mode === "drive")
-                                  ? "Park & ride"
+                                  ? "Skyline"
                                   : isRailDeparture
                                     ? "Rail"
                                     : "Bus"}
