@@ -3149,11 +3149,15 @@ function Index() {
     ? "Your selected trip stays locked while conditions update."
     : railClosedForEvening
       ? best
-        ? `Skyline has ended for the evening. Nalu is comparing ${transitLabel} service with driving.`
+        ? driveAvailable
+          ? `Skyline has ended for the evening. Nalu is comparing ${transitLabel} service with driving.`
+          : `Skyline has ended for the evening. Nalu is showing ${transitLabel} trips.`
         : "Skyline has ended for the evening. Nalu is checking TheBus and other available transit options."
       : railNotRunningYet
         ? best
-          ? `Skyline has not started yet today. Nalu is comparing ${transitLabel} service with driving.`
+          ? driveAvailable
+            ? `Skyline has not started yet today. Nalu is comparing ${transitLabel} service with driving.`
+            : `Skyline has not started yet today. Nalu is showing ${transitLabel} trips.`
           : "Skyline has not started yet today. Nalu is checking available transit options."
         : // No driving: the rider chose no car, so don't say it's unavailable.
           tripAccess === "bus" && activeDecision.primary.text === CAR_UNAVAILABLE_TEXT
