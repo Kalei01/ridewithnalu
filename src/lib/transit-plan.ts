@@ -21,6 +21,7 @@ import {
 
 import type { ResolvedTripDirection } from "@/lib/trip-direction";
 import { planViaSkyline } from "@/lib/rail/via-skyline";
+import { shiftOptionDays } from "@/lib/service-day";
 
 /** Everything the transit search needs from the trip screen. */
 export type TransitPlanContext = {
@@ -102,18 +103,7 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
   // TheBus files after-midnight trips under the previous day's service
   // (25:59 = 1:59 AM). Between midnight and 4 AM, search both days.
   const lateNight = (cursor: number) => cursor < 4 * 3600;
-  const fromYesterday = (rows: Option[]): Option[] =>
-    rows.map((row) => ({
-      ...row,
-      leave_by_seconds: row.leave_by_seconds - 86400,
-      depart_seconds: row.depart_seconds - 86400,
-      arrive_seconds: row.arrive_seconds - 86400,
-      legs: row.legs.map((leg) => ({
-        ...leg,
-        depart_seconds: leg.depart_seconds === null ? null : leg.depart_seconds - 86400,
-        arrive_seconds: leg.arrive_seconds === null ? null : leg.arrive_seconds - 86400,
-      })),
-    }));
+  const fromYesterday = (rows: Option[]): Option[] => rows.map((row) => shiftOptionDays(row, -1));
 
   const fetchBusRescue = async (cursor: number): Promise<Option[]> => {
     if (lateNight(cursor)) {

@@ -55,3 +55,18 @@ export function vehicleToStation(resources: AccessResources): VehicleToStation {
 export function carTripAvailable(resources: AccessResources): boolean {
   return resources.vehicle;
 }
+
+/**
+ * How long Nalu may sit unused (in the background, or with the screen off)
+ * before it forgets the answer and asks again. A trip under way keeps it until
+ * End trip, however long the ride.
+ */
+export const TRIP_ACCESS_IDLE_MS = 3 * 60 * 60_000;
+
+export function tripAccessExpired(
+  hiddenAt: number | null,
+  now: number,
+  tripUnderWay: boolean,
+): boolean {
+  return !tripUnderWay && hiddenAt !== null && now - hiddenAt >= TRIP_ACCESS_IDLE_MS;
+}

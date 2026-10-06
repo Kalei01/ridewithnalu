@@ -3,6 +3,7 @@ import {
   TRIP_ACCESS_OPTIONS,
   accessResources,
   carTripAvailable,
+  tripAccessExpired,
   vehicleToStation,
 } from "./trip-access";
 import { dropOffCandidates, pickupCandidates } from "./rail/drop-off";
@@ -58,6 +59,23 @@ describe("the answer during a trip under way", () => {
       mode: "drive",
       at: 1,
     });
+  });
+});
+
+describe("forgetting the answer after time away", () => {
+  const hour = 60 * 60_000;
+  it("asks again after 3 hours unused", () => {
+    expect(tripAccessExpired(0, 3 * hour, false)).toBe(true);
+    expect(tripAccessExpired(0, 9 * hour, false)).toBe(true);
+  });
+
+  it("keeps it for a shorter break, or when the app was never put away", () => {
+    expect(tripAccessExpired(0, 3 * hour - 1, false)).toBe(false);
+    expect(tripAccessExpired(null, 9 * hour, false)).toBe(false);
+  });
+
+  it("keeps it during a trip under way, however long", () => {
+    expect(tripAccessExpired(0, 9 * hour, true)).toBe(false);
   });
 });
 

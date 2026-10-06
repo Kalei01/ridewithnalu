@@ -52,6 +52,7 @@ import {
   accessResources,
   carTripAvailable,
   tripAccessLabel,
+  tripAccessExpired,
   vehicleToStation,
   type TripAccess,
 } from "@/lib/trip-access";
@@ -272,6 +273,7 @@ const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 
 import { planTransitTrip } from "@/lib/transit-plan";
+import { honoluluDaysBetween, shiftOptionDays } from "@/lib/service-day";
 
 const HOME_TITLE = "Nalu: Drive, TheBus or Skyline? Oʻahu Commute App";
 const HOME_DESCRIPTION =
@@ -502,9 +504,13 @@ function Index() {
     if (storedMode === "arrive-by" || storedMode === "leave-now") setPlanMode(storedMode);
     setArriveByInput(window.localStorage.getItem(ARRIVE_BY_KEY) ?? "");
     setHydrated(true);
-    // Browse/inspection mode does not need a 30s root render. Keep the clock
-    // local to the page at a slower cadence; active navigation keeps its own
-    // 10s liveTick below and remains intentionally responsive.
+  }, []);
+  // Browse/inspection mode does not need a 30s root render. Keep the clock
+  // local to the page at a slower cadence; active navigation keeps its own
+  // 10s liveTick below and remains intentionally responsive. This is separate
+  // from loading saved data above: re-reading the saved trip on every change
+  // re-created it, which re-ran the load many times a second during a trip.
+  useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), commitment ? 30_000 : 120_000);
     return () => window.clearInterval(timer);
   }, [commitment]);
@@ -907,6 +913,22 @@ function Index() {
     setAccessAnswer(null);
     setPreviousAccess(null);
   }
+  // Left unused for hours (in the background or with the screen off), the
+  // answer is forgotten so the next trip asks again. A trip under way keeps it.
+  const hiddenAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
+      if (tripAccessExpired(hiddenAtRef.current, Date.now(), Boolean(commitment)))
+        forgetTripAccess();
+      hiddenAtRef.current = null;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [commitment]);
   function chooseTripAccess(next: TripAccess | null) {
     setPreviousAccess(next === null ? tripAccess : null);
     if (next) track("trip_access_answered", { answer: next });
@@ -1321,8 +1343,15 @@ function Index() {
     earliest;
   // While riding, the itinerary on screen is the one boarded — including its
   // transfers — not whatever is fastest to leave now.
-  const best =
-    commitment?.mode === "transit" && lockedOptionRef.current ? lockedOptionRef.current : liveBest;
+  // Its times count from the day it was boarded, so a trip that runs past
+  // midnight moves back a day to line up with the clock.
+  const lockedOption = commitment?.mode === "transit" ? lockedOptionRef.current : null;
+  const daysSinceBoarded = commitment ? honoluluDaysBetween(new Date(commitment.at), now) : 0;
+  const lockedOnClock = useMemo(
+    () => (lockedOption ? shiftOptionDays(lockedOption, -daysSinceBoarded) : null),
+    [lockedOption, daysSinceBoarded],
+  );
+  const best = lockedOnClock ?? liveBest;
   lockedItineraryCandidate.current = liveBest ?? null;
 
   // Any trip that rides Skyline is "Skyline" everywhere, however the rider
@@ -1994,7 +2023,10 @@ function Index() {
   }, [commitment]);
   const liveEta = useMemo(() => {
     if (!commitment) return null;
-    const tickSeconds = honoluluSeconds(new Date(liveTick));
+    // The trip is lined up with `now`, which ticks less often; around midnight
+    // the two can sit on different days for a few seconds.
+    const tickSeconds =
+      honoluluSeconds(new Date(liveTick)) + 86400 * honoluluDaysBetween(now, new Date(liveTick));
     if (commitment.mode === "drive") {
       const basis = liveDrive ?? drive;
       if (!basis) return null;
@@ -2038,7 +2070,7 @@ function Index() {
       range: null as string | null,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commitment, liveDrive, drive, best, liveTick, arrivingHome, driveTo.lat, driveTo.lon]);
+  }, [commitment, liveDrive, drive, best, liveTick, now, arrivingHome, driveTo.lat, driveTo.lon]);
 
   // ---- Heading-up navigation & turn-by-turn voice -----------------------------
   const [navMuted, setNavMuted] = useState(false);
