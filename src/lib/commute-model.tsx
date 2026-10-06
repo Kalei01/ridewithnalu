@@ -106,15 +106,20 @@ export function mergeTransitOptionsWith(
   ...groups: Option[][]
 ): Option[] {
   const unique = new Map<string, Option>();
-  const saneOptions = preferShorterCarLeg(
-    preferSkylineOverCar(
-      preferLessWalking(
-        filterTransferSanityOptions(
-          dropDriveToStationsWithoutParking(groups.flat(), settings.dropOffStops),
-        ),
-      ),
-    ),
-  );
+  const eligible = dropDriveToStationsWithoutParking(groups.flat(), settings.dropOffStops);
+  const sensible = filterTransferSanityOptions(eligible);
+  const sensibleSet = new Set(sensible);
+  const narrow = (list: Option[]) =>
+    preferShorterCarLeg(preferSkylineOverCar(preferLessWalking(list)));
+  const saneOptions = narrow(sensible);
+  // Trips that fail the transfer sanity rules (a one-station Skyline hop, a bus
+  // wait longer than the train ride: the airport station to Kahauiki, say) are
+  // never recommended, but they are real. When a sensible trip exists they stay
+  // visible as alternatives, so a rider next to a Skyline station can still see
+  // the Skyline trip and how it compares.
+  const impracticalOptions = saneOptions.length
+    ? narrow(eligible.filter((option) => !sensibleSet.has(option)))
+    : [];
   // Trips whose extra transfers don't save enough are kept as alternatives,
   // listed after the simpler trips so they are never the pick.
   const preferred = new Set(preferFewerTransfers(saneOptions));
@@ -124,6 +129,11 @@ export function mergeTransitOptionsWith(
       optionIdentity(option),
       preferred.has(option) ? plain : { ...plain, extraTransfers: true },
     );
+  }
+  for (const option of impracticalOptions) {
+    const { extraTransfers: _previous, ...plain } = option;
+    const key = optionIdentity(option);
+    if (!unique.has(key)) unique.set(key, { ...plain, extraTransfers: true });
   }
   const byArrival = (a: Option, b: Option) =>
     a.arrive_seconds - b.arrive_seconds || a.leave_by_seconds - b.leave_by_seconds;

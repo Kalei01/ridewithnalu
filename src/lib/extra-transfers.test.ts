@@ -84,3 +84,36 @@ describe("trips whose extra transfers save too little", () => {
     expect(again[0]?.extraTransfers).toBeUndefined();
   });
 });
+
+describe("a Skyline trip next to the station is kept even when it fails the hop rules", () => {
+  // Hawaiian terminal at the airport to 55 Merchant St, 10 AM: the W Line bus is the
+  // direct trip (38 min); walking to the airport station, one short Skyline ride to
+  // Kahauiki and a bus is 5 minutes behind, but its train ride is shorter than the
+  // bus wait, which the transfer sanity rules reject.
+  const wLine: Option = {
+    leave_by_seconds: 36000,
+    depart_seconds: 36900,
+    arrive_seconds: 38280,
+    total_minutes: 38,
+    legs: [walk(36000, 36900), ride("bus", "W LINE", 36900, 38040), walk(38040, 38280)],
+  };
+  const airportSkyline: Option = {
+    leave_by_seconds: 36240,
+    depart_seconds: 37080,
+    arrive_seconds: 38580,
+    total_minutes: 39,
+    legs: [walk(36240, 37080), ride("rail", "", 37080, 37440), ride("bus", "1L", 37980, 38580)],
+  };
+
+  it("lists it as an alternative, never the pick", () => {
+    const merged = mergeTransitOptions([wLine, airportSkyline]);
+    expect(merged).toHaveLength(2);
+    expect(merged[0]?.legs.some((leg) => leg.mode === "rail")).toBe(false);
+    const skyline = merged.find((o) => o.legs.some((leg) => leg.mode === "rail"));
+    expect(skyline?.extraTransfers).toBe(true);
+  });
+
+  it("drops it when there is nothing sensible to compare it with", () => {
+    expect(mergeTransitOptions([airportSkyline])).toEqual([]);
+  });
+});
