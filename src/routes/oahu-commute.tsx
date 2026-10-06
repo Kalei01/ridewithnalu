@@ -2,6 +2,7 @@ import { LegalFooter } from "@/components/LegalFooter";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { SITE_URL } from "@/lib/site";
 import { HOLO_FARES } from "@/lib/fares";
+import { GUIDES, TRIP_GUIDES } from "@/components/guides/guides";
 
 // Facts below come from TheBus's GTFS timetable (checked October 2026) and the
 // HOLO fare table in src/lib/fares.ts. Update them when the timetable changes.
@@ -45,23 +46,26 @@ const FAQS: Array<{ q: string; a: string }> = [
 ];
 
 
+// This page is about choosing between driving, TheBus and Skyline. Skyline's
+// hours and fares have their own guide, so the title leaves them to it.
+const TITLE = "Oʻahu Commute: When Driving, TheBus or Skyline Wins | Nalu";
+const DESCRIPTION =
+  "How to choose between driving H-1, TheBus and Skyline on Oʻahu: what changes the answer, when transit beats traffic, and guides for common commutes.";
+
 export const Route = createFileRoute("/oahu-commute")({
   head: () => ({
     meta: [
-      { title: "Oʻahu Commute Guide: Skyline Hours, Fares & Drive vs. Bus | Nalu" },
-      {
-        name: "description",
-        content:
-          "Skyline hours, stations and HOLO fares, plus how to decide between driving, TheBus and Skyline on Oʻahu. Nalu checks live traffic and the timetable for your trip.",
-      },
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
       { name: "robots", content: "index,follow,max-image-preview:large" },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "Oʻahu Commute Guide | Nalu" },
-      {
-        property: "og:description",
-        content:
-          "Compare driving, Skyline rail, and TheBus for an Oʻahu commute with Nalu.",
-      },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
+      { property: "og:image", content: SITE_URL + "/social-card.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: TITLE },
+      { name: "twitter:description", content: DESCRIPTION },
+      { name: "twitter:image", content: SITE_URL + "/social-card.png" },
       { property: "og:url", content: SITE_URL + "/oahu-commute" },
     ],
     links: [{ rel: "canonical", href: SITE_URL + "/oahu-commute" }],
@@ -73,10 +77,10 @@ export const Route = createFileRoute("/oahu-commute")({
           "@graph": [
             {
               "@type": "WebPage",
-              name: "Oʻahu Commute Guide: Skyline, TheBus and Driving",
+              name: "Oʻahu commute: when driving, TheBus or Skyline wins",
               url: SITE_URL + "/oahu-commute",
               description:
-                "Skyline hours, stations and fares, and how Nalu compares driving with TheBus and Skyline for an Oʻahu commute.",
+                "How to choose between driving, TheBus and Skyline for an Oʻahu commute, with a summary of Skyline and guides for common commutes.",
               isPartOf: { "@type": "WebSite", name: "Nalu", url: SITE_URL },
               about: { "@type": "Thing", name: "Oʻahu commuting" },
             },
@@ -192,6 +196,25 @@ function OahuCommutePage() {
             ))}
           </div>
         </section>
+
+        <nav className="mt-12" aria-labelledby="commute-guides">
+          <h2 id="commute-guides" className="text-2xl font-bold">
+            Guides for common commutes
+          </h2>
+          <ul className="mt-4 grid gap-3">
+            {TRIP_GUIDES.map((slug) => (
+              <li key={slug}>
+                <Link
+                  to={GUIDES[slug].path}
+                  className="font-semibold text-primary underline underline-offset-4"
+                >
+                  {GUIDES[slug].name}
+                </Link>
+                <p className="mt-1 leading-7 text-muted-foreground">{GUIDES[slug].summary}</p>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
         <Link
           to="/"

@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { Tagline } from "@/components/brand/Tagline";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
+import { GUIDES, TRIP_GUIDES } from "@/components/guides/guides";
 import { introductionHidden, markWelcomeSeen } from "@/lib/welcome-seen";
 
 /** The app icon itself, so the welcome page matches the home-screen icon. */
@@ -253,6 +254,33 @@ export function WelcomeLanding({
             </details>
           </div>
         </section>
+
+        <nav className="border-t border-white/10 py-10" aria-labelledby="popular-commutes">
+          <h2 id="popular-commutes" className="text-3xl font-black tracking-tight">
+            Popular commutes
+          </h2>
+          <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+            {TRIP_GUIDES.map((slug) => (
+              <li key={slug}>
+                <Link
+                  to={GUIDES[slug].path}
+                  className="flex h-full items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-white/20"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="text-lg font-bold text-primary">{GUIDES[slug].name}</span>
+                    <span className="mt-1 block text-base leading-7 text-muted-foreground">
+                      {GUIDES[slug].summary}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="mt-1 size-5 shrink-0 text-muted-foreground"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
         <nav className="border-t border-white/10 py-10" aria-labelledby="plan-ahead">
           <h2 id="plan-ahead" className="text-3xl font-black tracking-tight">

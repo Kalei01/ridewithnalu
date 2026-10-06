@@ -58,7 +58,34 @@ export function parseSharedDestination(search: string): SharedDestination | null
   return { lat, lon, name };
 }
 
-/** "On my way" message for family; no link and no location, just the plan. */
+/**
+ * The link preview (Messages, WhatsApp, Facebook) for a link that opens Nalu on
+ * a place. It names the question, not an answer: the answer is live, and would
+ * be out of date by the time someone opens the link.
+ */
+export function sharedTripPreview(
+  search: Record<string, unknown> | undefined,
+): { title: string; description: string } | null {
+  const params = new URLSearchParams();
+  for (const key of ["to", "name"]) {
+    const value = search?.[key];
+    if (typeof value === "string" || typeof value === "number") params.set(key, String(value));
+  }
+  const destination = parseSharedDestination(params.toString());
+  if (!destination || destination.name === "Shared place") return null;
+  return {
+    title: `Drive, TheBus or Skyline to ${destination.name}?`,
+    description:
+      "Nalu checks live traffic, TheBus and Skyline for this trip and says which way is faster right now, and when to leave.",
+  };
+}
+
+/** Link added to an ETA message. It only opens Nalu: no place, no location. */
+export function etaUrl(): string {
+  return `${SITE}/?ref=eta`;
+}
+
+/** "On my way" message for family; no location, just the plan. */
 export function etaText(destination: string, mode: string, arriveSeconds: number | null): string {
   const arrive = arriveSeconds == null ? null : clockFromSeconds(arriveSeconds);
   const how = mode === "drive" ? "Driving" : `Taking ${mode}`;

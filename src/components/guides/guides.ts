@@ -162,3 +162,9 @@ export const GUIDE_ORDER: GuideSlug[] = [
   "compare",
   "about",
 ];
+
+/**
+ * The trip guides, in the order the introduction and /oahu-commute list them,
+ * so people and search engines reach each one from the main pages.
+ */
+export const TRIP_GUIDES: GuideSlug[] = ["kapolei", "ewa", "mililani", "airport", "uh", "parking"];

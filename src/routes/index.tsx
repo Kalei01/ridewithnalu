@@ -179,7 +179,14 @@ import {
 import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
 import { ShareButton } from "@/components/ShareButton";
-import { etaText, parseSharedDestination, shareText, shareUrl } from "@/lib/share-trip";
+import {
+  etaText,
+  etaUrl,
+  parseSharedDestination,
+  sharedTripPreview,
+  shareText,
+  shareUrl,
+} from "@/lib/share-trip";
 import {
   H1ConditionsCard,
   airLine,
@@ -285,71 +292,78 @@ const NO_STATIONS: import("@/lib/commute-model").RailStation[] = [];
 export const Route = createFileRoute("/")({
   // First-time visitors and search engines see the introduction here (see
   // AppRouteGate in __root.tsx); returning visitors get the app.
-  head: () => ({
-    meta: [
-      { title: HOME_TITLE },
-      { name: "description", content: HOME_DESCRIPTION },
-      { property: "og:title", content: HOME_TITLE },
-      { property: "og:description", content: HOME_DESCRIPTION },
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Nalu" },
-      { property: "og:url", content: SITE_URL + "/" },
-      { property: "og:locale", content: "en_US" },
-      { property: "og:image", content: SITE_URL + "/social-card.png" },
-      { property: "og:image:width", content: "1200" },
-      { property: "og:image:height", content: "630" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: HOME_TITLE },
-      { name: "twitter:description", content: HOME_DESCRIPTION },
-      { name: "twitter:image", content: SITE_URL + "/social-card.png" },
-    ],
-    links: [{ rel: "canonical", href: SITE_URL + "/" }],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@graph": [
-            {
-              "@type": "WebSite",
-              "@id": SITE_URL + "/#website",
-              name: "Nalu",
-              url: SITE_URL + "/",
-              description:
-                "An Oʻahu commute app that tells you whether to drive or take TheBus or Skyline, and when to leave.",
-            },
-            {
-              "@type": "Organization",
-              "@id": SITE_URL + "/#organization",
-              name: "Nalu",
-              url: SITE_URL + "/",
-              logo: SITE_URL + "/icons/icon-512.png",
-            },
-            {
-              "@type": "SoftwareApplication",
-              "@id": SITE_URL + "/#app",
-              name: "Nalu",
-              url: SITE_URL + "/",
-              image: SITE_URL + "/social-card.png",
-              description: HOME_DESCRIPTION,
-              applicationCategory: "TravelApplication",
-              operatingSystem: "Web",
-              areaServed: { "@type": "Place", name: "Oʻahu, Hawaiʻi" },
-              isAccessibleForFree: true,
-              offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-              publisher: { "@id": SITE_URL + "/#organization" },
-              featureList: [
-                "Drive or transit decision for your trip",
-                "When to leave, and time-to-leave alerts",
-                "TheBus and Skyline trip planning with transfers",
-                "Arrive By planning",
-              ],
-            },
-          ],
-        }),
-      },
-    ],
-  }),
+  head: ({ match }) => {
+    // A link to a trip (a shared answer or a guide's button) previews as that
+    // trip in Messages and social apps. The page, title and canonical stay the same.
+    const trip = sharedTripPreview(match.search as Record<string, unknown> | undefined);
+    const previewTitle = trip?.title ?? HOME_TITLE;
+    const previewDescription = trip?.description ?? HOME_DESCRIPTION;
+    return {
+      meta: [
+        { title: HOME_TITLE },
+        { name: "description", content: HOME_DESCRIPTION },
+        { property: "og:title", content: previewTitle },
+        { property: "og:description", content: previewDescription },
+        { property: "og:type", content: "website" },
+        { property: "og:site_name", content: "Nalu" },
+        { property: "og:url", content: SITE_URL + "/" },
+        { property: "og:locale", content: "en_US" },
+        { property: "og:image", content: SITE_URL + "/social-card.png" },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: previewTitle },
+        { name: "twitter:description", content: previewDescription },
+        { name: "twitter:image", content: SITE_URL + "/social-card.png" },
+      ],
+      links: [{ rel: "canonical", href: SITE_URL + "/" }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "WebSite",
+                "@id": SITE_URL + "/#website",
+                name: "Nalu",
+                url: SITE_URL + "/",
+                description:
+                  "An Oʻahu commute app that tells you whether to drive or take TheBus or Skyline, and when to leave.",
+              },
+              {
+                "@type": "Organization",
+                "@id": SITE_URL + "/#organization",
+                name: "Nalu",
+                url: SITE_URL + "/",
+                logo: SITE_URL + "/icons/icon-512.png",
+              },
+              {
+                "@type": "SoftwareApplication",
+                "@id": SITE_URL + "/#app",
+                name: "Nalu",
+                url: SITE_URL + "/",
+                image: SITE_URL + "/social-card.png",
+                description: HOME_DESCRIPTION,
+                applicationCategory: "TravelApplication",
+                operatingSystem: "Web",
+                areaServed: { "@type": "Place", name: "Oʻahu, Hawaiʻi" },
+                isAccessibleForFree: true,
+                offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+                publisher: { "@id": SITE_URL + "/#organization" },
+                featureList: [
+                  "Drive or transit decision for your trip",
+                  "When to leave, and time-to-leave alerts",
+                  "TheBus and Skyline trip planning with transfers",
+                  "Arrive By planning",
+                ],
+              },
+            ],
+          }),
+        },
+      ],
+    };
+  },
   component: Index,
 });
 
@@ -5300,6 +5314,7 @@ function Index() {
                 <ShareButton
                   label="Share my ETA"
                   className="w-full shrink-0 sm:w-auto"
+                  url={etaUrl()}
                   text={etaText(
                     tripArrivalLabel,
                     lockedMode === "drive" ? "drive" : transitLabel,

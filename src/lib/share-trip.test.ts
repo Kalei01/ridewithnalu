@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { etaText, parseSharedDestination, shareText, shareUrl } from "./share-trip";
+import {
+  etaText,
+  etaUrl,
+  parseSharedDestination,
+  sharedTripPreview,
+  shareText,
+  shareUrl,
+} from "./share-trip";
+import { GUIDES, TRIP_GUIDES } from "@/components/guides/guides";
 
 describe("sharing a trip", () => {
   it("writes a plain message with the margin and times", () => {
@@ -37,5 +45,42 @@ describe("share rounding", () => {
     expect(shareText({ verdict: "drive", transitLabel: "Bus", destination: "Ala Moana Center", minutesFaster: 56.38, leaveSeconds: null, arriveSeconds: null })).toBe(
       "Driving beats bus by 56 min to Ala Moana Center right now.",
     );
+  });
+});
+
+describe("link previews", () => {
+  it("names the trip for a link to a place, without a live answer that would go stale", () => {
+    const preview = sharedTripPreview({
+      ref: "share",
+      to: "21.2911,-157.8430",
+      name: "Ala Moana Center",
+    });
+    expect(preview?.title).toBe("Drive, TheBus or Skyline to Ala Moana Center?");
+    expect(preview?.description).not.toMatch(/\d+ min|beats/);
+  });
+
+  it("keeps the normal preview for plain links, off-island places and missing names", () => {
+    expect(sharedTripPreview({ ref: "share" })).toBeNull();
+    expect(sharedTripPreview(undefined)).toBeNull();
+    expect(sharedTripPreview({ to: "40.7128,-74.0060", name: "New York" })).toBeNull();
+    expect(sharedTripPreview({ to: "21.2911,-157.8430" })).toBeNull();
+  });
+
+  it("drops markup from a name in a link", () => {
+    expect(sharedTripPreview({ to: "21.2911,-157.8430", name: "<b>Ala Moana</b>" })?.title).toBe(
+      "Drive, TheBus or Skyline to bAla Moana/b?",
+    );
+  });
+});
+
+describe("ETA messages", () => {
+  it("carry a plain Nalu link with no place or location in it", () => {
+    expect(etaUrl()).toBe("https://ridenalu.com/?ref=eta");
+  });
+});
+
+describe("guides linked from the main pages", () => {
+  it("are real guides", () => {
+    for (const slug of TRIP_GUIDES) expect(GUIDES[slug].path).toMatch(/^\/guides\//);
   });
 });
