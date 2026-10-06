@@ -38,7 +38,7 @@ function context(overrides: Record<string, unknown> = {}) {
     arriveByTarget: null,
     browseStations: [],
     carAtStation: false,
-    vehicleToStation: "park",
+    vehicleToStation: "vehicle",
     inbound: false,
     now: new Date("2026-10-05T18:00:00Z"),
     nowSeconds: 8 * 3600,
@@ -614,14 +614,14 @@ describe("transit trip planner: drive to the station + Skyline", () => {
         .filter(([name]) => name === "plan_outbound")
         .map(([, a]) => a as Record<string, unknown>);
 
-    it("dropped off: any station can be the drop-off point, with no lot needed", async () => {
+    it("car available: also tries drop-off at stations with no lot, timed live", async () => {
       answer({
         plan_transit_general: ok([bus91]),
         plan_outbound: (args) =>
           args["p_station"] === WAIAWA.stop_id ? ok([droppedAtWaiawa]) : ok([]),
       });
       driveTime.mockResolvedValue({ trafficMinutes: 14 });
-      const options = await planTransitTrip(tripWith("dropOff"));
+      const options = await planTransitTrip(tripWith("vehicle"));
       expect(outboundCalls()).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ p_station: WAIAWA.stop_id, p_allow_drive: true }),
@@ -629,22 +629,34 @@ describe("transit trip planner: drive to the station + Skyline", () => {
       );
       const dropped = options.find((o) => o.legs[0]?.to_stop_id === WAIAWA.stop_id);
       expect(dropped?.legs[0]?.mode).toBe("drive");
-      // Timed with live traffic plus a short walk to the platform, not a parking allowance.
+      // No lot there, so live traffic plus a short walk to the platform, not parking time.
       expect(dropped?.legs[0]?.minutes).toBe(16);
       // Whether it wins is decided by comparing itineraries, not by the answer.
       expect(options.some((o) => o.arrive_seconds === 28140)).toBe(true);
     });
 
-    it("driving yourself never uses a station without a lot", async () => {
+    it("car available: a station with a lot keeps its parking time", async () => {
       answer({
         plan_transit_general: ok([bus91]),
         plan_outbound: (args) =>
-          args["p_station"] === WAIAWA.stop_id ? ok([droppedAtWaiawa]) : ok([]),
+          args["p_station"] === KEONEAE.stop_id ? ok([driveToKeoneae]) : ok([]),
       });
-      driveTime.mockResolvedValue({ trafficMinutes: 14 });
-      const options = await planTransitTrip(tripWith("park"));
-      expect(outboundCalls().some((a) => a["p_station"] === WAIAWA.stop_id)).toBe(false);
-      expect(options.some((o) => o.legs.some((l) => l.mode === "drive"))).toBe(false);
+      driveTime.mockResolvedValue({ trafficMinutes: 12 });
+      const options = await planTransitTrip(tripWith("vehicle"));
+      const parked = options.find((o) => o.legs[0]?.to_stop_id === KEONEAE.stop_id);
+      expect(parked?.legs[0]?.minutes).toBe(15); // 12 min live traffic + 3 to park and board
+    });
+
+    it("never drives to a station with no lot that wasn't chosen as a drop-off point", async () => {
+      // Kualakaʻi has no lot and leads away from town, so it isn't a drop-off candidate.
+      answer({ plan_transit_general: ok([bus91]), plan_outbound: ok([driveToKualakai]) });
+      driveTime.mockResolvedValue({ trafficMinutes: 6 });
+      const options = await planTransitTrip(tripWith("vehicle"));
+      expect(
+        options.some(
+          (o) => o.legs[0]?.to_stop_id === KUALAKAI.stop_id && o.legs[0]?.mode === "drive",
+        ),
+      ).toBe(false);
     });
 
     it("taking the bus: no car leg is ever requested or shown", async () => {

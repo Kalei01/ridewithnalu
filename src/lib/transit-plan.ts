@@ -57,17 +57,26 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
     setup,
     tripDirection,
   } = ctx;
-  // Someone else driving can drop the rider at a station with no lot.
+  // With a car available, a few real stations that make progress toward the
+  // destination are also tried as drop-off points (no lot needed there). Nothing
+  // is assumed: the trip search times each, and the comparison decides.
+  const dropOffStations =
+    vehicleToStation === "vehicle"
+      ? dropOffCandidates(
+          tripDirection.from,
+          tripDirection.to,
+          browseStations,
+          planMode === "arrive-by" ? 2 : 3,
+        )
+      : [];
+  const dropOffStops: ReadonlySet<string> = new Set(dropOffStations.map((s) => s.stop_id));
   // With no vehicle available (taking the bus), no path may end up with a car leg.
   const withoutCarLegs = (options: Option[]) =>
     vehicleToStation === "none"
       ? options.filter((option) => !option.legs.some((leg) => leg.mode === "drive"))
       : options;
   const mergeTransitOptions = (...groups: Option[][]) =>
-    mergeTransitOptionsWith(
-      { requireParking: vehicleToStation !== "dropOff" },
-      ...groups.map(withoutCarLegs),
-    );
+    mergeTransitOptionsWith({ dropOffStops }, ...groups.map(withoutCarLegs));
   let selectedInboundStation = arrivalStationId;
   let fallbackChecked = false;
   let generalTransitError: unknown = null;
@@ -208,27 +217,22 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
     }
   };
 
-  // The home station walk-only, plus a vehicle leg where the rider's access
-  // allows one. Driving yourself: the nearest station with a lot (e.g. ʻEwa
-  // Beach: walk to Kualakaʻi, or drive to Keoneʻae). Being dropped off: a few
-  // real stations that make progress toward the destination, with no lot needed.
+  // The home station walk-only, plus vehicle legs when a car is available:
+  // drive and park at the nearest station with a lot (e.g. ʻEwa Beach: walk to
+  // Kualakaʻi, or drive to Keoneʻae), and the drop-off stations chosen above.
   const fetchOutbound = async (cursor: number): Promise<Option[]> => {
     const home = setup.homeStopId;
-    const parking = vehicleToStation === "park";
+    const vehicle = vehicleToStation === "vehicle";
     const homeHasParking = isParkAndRide(home);
     const parkStation =
-      parking && !homeHasParking ? nearestParkAndRide(tripDirection.from, browseStations) : null;
-    const queries = [fetchOutboundAt(home, parking && homeHasParking, cursor)];
+      vehicle && !homeHasParking ? nearestParkAndRide(tripDirection.from, browseStations) : null;
+    const queries = [fetchOutboundAt(home, vehicle && homeHasParking, cursor)];
+    const queried = new Set([home, parkStation?.stop_id]);
     if (parkStation && parkStation.stop_id !== home)
       queries.push(fetchOutboundAt(parkStation.stop_id, true, cursor));
-    if (vehicleToStation === "dropOff") {
-      for (const station of dropOffCandidates(
-        tripDirection.from,
-        tripDirection.to,
-        browseStations,
-      )) {
-        if (station.stop_id !== home) queries.push(fetchOutboundAt(station.stop_id, true, cursor));
-      }
+    for (const station of dropOffStations) {
+      if (!queried.has(station.stop_id))
+        queries.push(fetchOutboundAt(station.stop_id, true, cursor));
     }
     // Safety net: with no vehicle available, no result may carry a car leg.
     const found = (await Promise.all(queries))
@@ -242,8 +246,10 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
       now,
       nowSeconds,
       leaveNow: planMode !== "arrive-by",
-      // Dropped off: no parking, just the walk in to the platform.
-      ...(vehicleToStation === "dropOff" ? { boardMinutes: DROP_OFF_BOARD_MINUTES } : {}),
+      // A station with a lot keeps the time to park; anywhere else it's a
+      // drop-off, so only the walk in to the platform.
+      boardMinutesFor: (stopId) =>
+        isParkAndRide(stopId) ? PARK_AND_BOARD_MINUTES : DROP_OFF_BOARD_MINUTES,
     });
   };
 
@@ -592,8 +598,8 @@ export async function retimeDriveAccess(
     now: Date;
     nowSeconds: number;
     leaveNow: boolean;
-    /** Minutes to park and reach the platform; defaults to the park-and-ride allowance. */
-    boardMinutes?: number;
+    /** Minutes to park (or be dropped off) and reach the platform, per station; defaults to the park-and-ride allowance. */
+    boardMinutesFor?: (stopId: string) => number;
   },
 ): Promise<Option[]> {
   const driveFirst = (option: Option) => option.legs[0]?.mode === "drive";
@@ -654,7 +660,9 @@ export async function retimeDriveAccess(
     const [access, ...rest] = option.legs;
     const live = liveMinutes.get(keyFor(option));
     if (!access || live === undefined || access.arrive_seconds == null) return [];
-    const minutes = Math.ceil(live) + (input.boardMinutes ?? PARK_AND_BOARD_MINUTES);
+    const minutes =
+      Math.ceil(live) +
+      (input.boardMinutesFor?.(access.to_stop_id ?? "") ?? PARK_AND_BOARD_MINUTES);
     const leave = access.arrive_seconds - minutes * 60;
     // Leaving now: a train you can't reach in time isn't an option.
     if (input.leaveNow && leave < input.nowSeconds - 60) return [];

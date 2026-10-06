@@ -58,10 +58,22 @@ type DriveAccessOption = {
   legs: Array<{ kind?: string; mode: string; to_stop_id?: string | null | undefined }>;
 };
 
-/** Drop trips that start by driving to a station with no park-and-ride lot. */
-export function dropDriveToStationsWithoutParking<T extends DriveAccessOption>(options: T[]): T[] {
+/**
+ * Drop trips that start by driving to a station with no park-and-ride lot,
+ * except stations the planner chose as drop-off points (someone else drives,
+ * so no lot is needed there).
+ */
+export function dropDriveToStationsWithoutParking<T extends DriveAccessOption>(
+  options: T[],
+  dropOffStops: ReadonlySet<string> = new Set(),
+): T[] {
   return options.filter((option) => {
     const first = option.legs[0];
-    return !first || first.mode !== "drive" || isParkAndRide(first.to_stop_id);
+    return (
+      !first ||
+      first.mode !== "drive" ||
+      isParkAndRide(first.to_stop_id) ||
+      Boolean(first.to_stop_id && dropOffStops.has(first.to_stop_id))
+    );
   });
 }

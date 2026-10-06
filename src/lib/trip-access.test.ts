@@ -10,22 +10,16 @@ import {
 import { dropOffCandidates } from "./rail/drop-off";
 
 describe("what each answer makes available", () => {
-  it("I can drive: drive yourself, park at a station, or ride", () => {
-    const r = accessResources("drive");
-    expect(r).toEqual({ canDriveMyself: true, canRideInCar: true });
-    expect(vehicleToStation(r)).toBe("park");
-    expect(carTripAvailable(r)).toBe(true);
-  });
-
-  it("Getting dropped off: a car ride, never parking", () => {
-    const r = accessResources("dropOff");
-    expect(r).toEqual({ canDriveMyself: false, canRideInCar: true });
-    expect(vehicleToStation(r)).toBe("dropOff");
+  it("Drive or drop-off: a car for some or all of the trip, without assuming how", () => {
+    const r = accessResources("vehicle");
+    expect(r).toEqual({ vehicle: true });
+    expect(vehicleToStation(r)).toBe("vehicle");
     expect(carTripAvailable(r)).toBe(true);
   });
 
   it("Taking the bus: no car leg of any kind", () => {
     const r = accessResources("bus");
+    expect(r).toEqual({ vehicle: false });
     expect(vehicleToStation(r)).toBe("none");
     expect(carTripAvailable(r)).toBe(false);
   });
@@ -54,8 +48,8 @@ describe("remembering an answer", () => {
   it("holds for the same trip and then lapses, so a later trip is asked again", () => {
     const key = "21.3094,-157.8632";
     const t0 = Date.UTC(2026, 9, 6, 18, 0);
-    writeTripAccess(key, "dropOff", t0);
-    expect(readTripAccess(key, t0 + HOUR)).toBe("dropOff");
+    writeTripAccess(key, "vehicle", t0);
+    expect(readTripAccess(key, t0 + HOUR)).toBe("vehicle");
     expect(readTripAccess(key, t0 + 5 * HOUR)).toBeNull();
     expect(readTripAccess("21.0000,-157.0000", t0 + HOUR)).toBeNull();
   });

@@ -1,11 +1,9 @@
 /**
  * The three kinds of trip Nalu compares side by side:
  *
- * - Drive: door to door (the drive estimate, not a transit option). When
- *   someone else is driving, the same car trip as a passenger.
+ * - Drive: door to door (the drive estimate, not a transit option).
  * - Skyline: any trip that uses a car for part of the way to Skyline: driving
- *   and parking at a station lot, being dropped off at a station, or riding
- *   back to the car.
+ *   and parking at a station lot, or being dropped off at a station.
  * - Bus: walk, bus and Skyline only, no car.
  *
  * Which of these exist for a rider depends on their trip access (see
@@ -52,18 +50,18 @@ export function transitChoices(options: Option[], arriveByTarget: number | null)
 }
 
 /**
- * "Drive to UH West Oʻahu → Skyline → Bus 42", "Walk → Bus 91". When someone
- * else is driving the car leg reads "Dropped off at …".
+ * "Drive to UH West Oʻahu → Skyline → Bus 42", "Walk → Bus 91". A car leg to a
+ * station without a park-and-ride lot can only be a drop-off, so it reads
+ * "Dropped off at Waiawa".
  */
-export function tripSteps(option: Option, access: { dropOff?: boolean } = {}): string {
+export function tripSteps(option: Option): string {
   const steps: string[] = [];
   option.legs.forEach((leg, index) => {
     if (leg.mode === "drive") {
-      const station = leg.to_stop_id
-        ? (PARK_AND_RIDE_NAMES[leg.to_stop_id] ?? (leg.to ? stationLabel(leg.to) : undefined))
-        : undefined;
-      if (access.dropOff) steps.push(station ? `Dropped off at ${station}` : "Dropped off");
-      else steps.push(station ? `Drive to ${station}` : "Drive");
+      const lot = leg.to_stop_id ? PARK_AND_RIDE_NAMES[leg.to_stop_id] : undefined;
+      const station = lot ?? (leg.to_stop_id && leg.to ? stationLabel(leg.to) : undefined);
+      if (!station) steps.push("Drive");
+      else steps.push(lot ? `Drive to ${station}` : `Dropped off at ${station}`);
     } else if (leg.mode === "rail") steps.push("Skyline");
     else if (leg.mode === "bus") {
       const route = leg.route_short?.trim() || leg.route_long?.trim();

@@ -130,7 +130,7 @@ import {
 } from "@/components/account/AccountDialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
-import { DROP_OFF_ACCESS, arrivalRange, destinationAccess } from "@/lib/destination-access";
+import { arrivalRange, destinationAccess } from "@/lib/destination-access";
 import { CAR_UNAVAILABLE_TEXT } from "@/lib/intelligence/drive-transit-decision";
 import {
   VoiceGuide,
@@ -879,7 +879,7 @@ function Index() {
   // Not asked on a trip already under way, or where there is no transit to compare.
   const needsAccessAnswer =
     hydrated && configured && activeRegion().hasTransit && !commitment && tripAccess === null;
-  const resources = accessResources(tripAccess ?? "drive");
+  const resources = accessResources(tripAccess ?? "vehicle");
   function chooseTripAccess(next: TripAccess | null) {
     if (!accessKey) return;
     setPreviousAccess(next === null ? tripAccess : null);
@@ -2230,11 +2230,7 @@ function Index() {
     return preferred.feasible ? preferred : latestTransitArrival(options, arriveByTarget);
   }, [options, arriveByTarget]);
   const gtfsExpiry = useDataExpiry();
-  // Dropped off at the destination: no parking, so nothing is added to the road time.
-  const driveAccess =
-    tripAccess === "dropOff"
-      ? DROP_OFF_ACCESS
-      : destinationAccess(driveTo, arrivingHome ? "home" : null, now);
+  const driveAccess = destinationAccess(driveTo, arrivingHome ? "home" : null, now);
   const futureCandidateSeconds =
     arriveByActive && settledTrafficTarget === arriveByTarget && drive
       ? arriveByTarget - (drive.highMinutes + driveAccess.highMin) * 60
@@ -2899,7 +2895,7 @@ function Index() {
     return {
       key,
       title: key === "skyline" ? "Skyline" : "Bus",
-      steps: option ? tripSteps(option, { dropOff: tripAccess === "dropOff" }) : null,
+      steps: option ? tripSteps(option) : null,
       minutes: option
         ? arriveByActive
           ? option.total_minutes
@@ -2917,9 +2913,9 @@ function Index() {
         : key === "bus"
           ? "No bus trip right now"
           : "No Skyline trip that makes sense right now",
-      // Only a rider parking their own car hears about the lot.
+      // A rider with a car hears about the lot (only shown for Keoneʻae mornings).
       note:
-        key === "skyline" && vehicleToSkyline === "park"
+        key === "skyline" && vehicleToSkyline === "vehicle"
           ? parkingNote(option, honoluluIsoDow(now))
           : null,
       pick: naluPick === key,
@@ -2936,10 +2932,7 @@ function Index() {
   const driveChoice: TripChoice = {
     key: "drive",
     title: "Drive",
-    steps:
-      tripAccess === "dropOff"
-        ? ["Dropped off at your destination", driveVia].filter(Boolean).join(" · ")
-        : (driveVia ?? "Driving"),
+    steps: driveVia ?? "Driving",
     minutes: driveChoiceMinutes,
     timeLabel:
       arriveByActive && drivePlan
@@ -2970,7 +2963,7 @@ function Index() {
   // checked, even when no sensible trip exists (e.g. Mānoa: Skyline would
   // still need two buses); a row for something the rider can't use is left out.
   const tripChoices: TripChoice[] = [
-    ...(resources.canRideInCar ? [driveChoice] : []),
+    ...(resources.vehicle ? [driveChoice] : []),
     // Heading home, no car leg is searched, so the row only shows if the
     // planner still found a trip that uses one.
     ...(vehicleToSkyline !== "none" &&
@@ -4805,7 +4798,7 @@ function Index() {
                 )}
               </div>
 
-              {resources.canRideInCar && (
+              {resources.vehicle && (
                 <div className="rounded-lg border border-border bg-background/50 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="flex items-center gap-2 text-sm font-bold text-foreground">

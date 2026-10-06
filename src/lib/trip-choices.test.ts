@@ -98,20 +98,17 @@ describe("trip choices", () => {
     expect(tripSteps(busRailBus)).toBe("Walk → Bus 52 → Skyline → Bus 42");
   });
 
-  it("says who is driving: dropped off at any station, with no lot needed", () => {
-    const dropped = opt([
+  it("names a car leg by the station: a lot means drive there, no lot means a drop-off", () => {
+    const halawa = opt([
       leg("drive", 27000, 27600, { to_stop_id: "10055", to: "HALAWA STATION" }),
       leg("rail", 27600, 28600),
     ]);
-    expect(tripSteps(dropped, { dropOff: true })).toBe("Dropped off at Hālawa → Skyline");
-    const noLot = opt([
+    expect(tripSteps(halawa)).toBe("Drive to Hālawa → Skyline");
+    const waiawa = opt([
       leg("drive", 27000, 27300, { to_stop_id: "10053", to: "WAIAWA STATION" }),
       leg("rail", 27300, 28200),
     ]);
-    expect(tripSteps(noLot, { dropOff: true })).toBe("Dropped off at Waiawa → Skyline");
-    expect(tripSteps(parkRide, { dropOff: true })).toBe(
-      "Dropped off at UH West Oʻahu → Skyline → Bus 42",
-    );
+    expect(tripSteps(waiawa)).toBe("Dropped off at Waiawa → Skyline");
   });
 
   it("notes Keoneʻae parking for weekday morning arrivals only, with the backup lot", () => {

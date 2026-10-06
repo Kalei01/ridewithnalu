@@ -5,21 +5,21 @@
  *
  *   tripAccess ──► resources ──► possible itineraries ──► compare ──► verdict
  *
- * The three answers are deliberately not routing modes. "I can drive" does not
- * mean Drive wins, "Getting dropped off" does not mean Park & ride, and
- * "Taking the bus" does not mean Bus wins. New answers (or combinations) can
- * be added later by describing what they allow in `accessResources`.
+ * The answers are deliberately not routing modes. "Drive or drop-off" only
+ * says a car is available for some or all of the trip; it does not mean Drive
+ * or Skyline wins. "Taking the bus" means no car, not that Bus wins. Walking is
+ * always part of an itinerary and never asked. New answers can be added later
+ * by describing what they allow in `accessResources`.
  */
 
-export type TripAccess = "drive" | "dropOff" | "bus";
+export type TripAccess = "vehicle" | "bus";
 
 export const TRIP_ACCESS_OPTIONS: ReadonlyArray<{
   value: TripAccess;
   emoji: string;
   label: string;
 }> = [
-  { value: "drive", emoji: "🚗", label: "I can drive" },
-  { value: "dropOff", emoji: "🚙", label: "Getting dropped off" },
+  { value: "vehicle", emoji: "🚗", label: "Drive or drop-off" },
   { value: "bus", emoji: "🚌", label: "Taking the bus" },
 ];
 
@@ -28,44 +28,36 @@ export const tripAccessLabel = (access: TripAccess) =>
 
 /** What the rider has available. Walking is always part of an itinerary, so it isn't listed. */
 export type AccessResources = {
-  /** The rider drives themselves and can park (at the destination or a station lot). */
-  canDriveMyself: boolean;
-  /** A car can carry the rider for part or all of the trip, whoever is driving. */
-  canRideInCar: boolean;
+  /**
+   * A car can carry the rider for some or all of the trip: driving themselves
+   * (and parking), or being dropped off. Nalu does not assume which.
+   */
+  vehicle: boolean;
 };
 
 export function accessResources(access: TripAccess): AccessResources {
-  switch (access) {
-    case "drive":
-      return { canDriveMyself: true, canRideInCar: true };
-    case "dropOff":
-      return { canDriveMyself: false, canRideInCar: true };
-    case "bus":
-      return { canDriveMyself: false, canRideInCar: false };
-  }
+  return { vehicle: access === "vehicle" };
 }
 
 /**
  * How a vehicle may be used to reach a Skyline station:
- * - "park": the rider drives and parks, so only stations with a lot qualify.
- * - "dropOff": someone else drives, so any station can be a drop-off point.
+ * - "vehicle": drive and park at a station with a lot, or be dropped off at
+ *   any station that makes progress toward the destination.
  * - "none": no vehicle leg is built.
  */
-export type VehicleToStation = "park" | "dropOff" | "none";
+export type VehicleToStation = "vehicle" | "none";
 
 export function vehicleToStation(resources: AccessResources): VehicleToStation {
-  if (resources.canDriveMyself) return "park";
-  if (resources.canRideInCar) return "dropOff";
-  return "none";
+  return resources.vehicle ? "vehicle" : "none";
 }
 
 /** Whether a door-to-door car trip (driven or as a passenger) can be compared. */
 export function carTripAvailable(resources: AccessResources): boolean {
-  return resources.canRideInCar;
+  return resources.vehicle;
 }
 
-const STORAGE_KEY = "nalu-trip-access-v2";
-const LEGACY_KEY = "nalu-trip-access-v1";
+const STORAGE_KEY = "nalu-trip-access-v3";
+const LEGACY_KEYS = ["nalu-trip-access-v1", "nalu-trip-access-v2"];
 /** An answer is about one trip, so it is forgotten after a few hours. */
 const ANSWER_TTL_MS = 4 * 60 * 60_000;
 const MAX_REMEMBERED = 8;
@@ -76,8 +68,7 @@ export function tripAccessKey(to: { lat: number | null; lon: number | null }): s
   return `${to.lat.toFixed(4)},${to.lon.toFixed(4)}`;
 }
 
-const isAccess = (value: unknown): value is TripAccess =>
-  value === "drive" || value === "dropOff" || value === "bus";
+const isAccess = (value: unknown): value is TripAccess => value === "vehicle" || value === "bus";
 
 type Stored = Record<string, { a: TripAccess; t: number }>;
 
@@ -114,7 +105,7 @@ export function writeTripAccess(key: string, access: TripAccess | null, nowMs: n
       .sort((x, y) => x[1].t - y[1].t)
       .slice(-MAX_REMEMBERED);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(kept)));
-    window.localStorage.removeItem(LEGACY_KEY);
+    for (const legacy of LEGACY_KEYS) window.localStorage.removeItem(legacy);
   } catch {
     /* private mode: the answer still holds for this visit */
   }

@@ -88,23 +88,22 @@ export function optionIdentity(option: Option) {
 }
 
 export function mergeTransitOptions(...groups: Option[][]): Option[] {
-  return mergeTransitOptionsWith({ requireParking: true }, ...groups);
+  return mergeTransitOptionsWith({}, ...groups);
 }
 
 /**
- * `requireParking: true` (a rider driving themselves) never plans a drive to a
- * station with no park-and-ride lot. When someone else drives and drops the
- * rider off, any station can be the drop-off point, so that filter is skipped.
+ * Never plans a drive to a station with no park-and-ride lot, except the
+ * stations in `dropOffStops`: drop-off points the planner chose for a rider
+ * with a car available, where someone else can drive and no lot is needed.
  */
 export function mergeTransitOptionsWith(
-  settings: { requireParking: boolean },
+  settings: { dropOffStops?: ReadonlySet<string> },
   ...groups: Option[][]
 ): Option[] {
   const unique = new Map<string, Option>();
-  const incoming = groups.flat();
   const saneOptions = preferLessWalking(
     filterTransferSanityOptions(
-      settings.requireParking ? dropDriveToStationsWithoutParking(incoming) : incoming,
+      dropDriveToStationsWithoutParking(groups.flat(), settings.dropOffStops),
     ),
   );
   // Trips whose extra transfers don't save enough are kept as alternatives,
