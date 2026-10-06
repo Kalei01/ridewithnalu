@@ -6,6 +6,7 @@ import {
   vehicleToStation,
 } from "./trip-access";
 import { dropOffCandidates, pickupCandidates } from "./rail/drop-off";
+import { parseCommitment } from "./commute-model";
 
 describe("what each answer makes available", () => {
   it("Include driving or drop-off: a car may be part of the comparison, without assuming how", () => {
@@ -36,6 +37,27 @@ describe("the two choices", () => {
     // The constraint is all that differs: walking, bus and Skyline stay in both.
     expect(Object.keys(accessResources("vehicle"))).toEqual(["vehicle"]);
     expect(Object.keys(accessResources("bus"))).toEqual(["vehicle"]);
+  });
+});
+
+describe("the answer during a trip under way", () => {
+  it("comes back with the trip when the app is reopened", () => {
+    expect(parseCommitment(JSON.stringify({ mode: "transit", at: 1, access: "bus" }))).toEqual({
+      mode: "transit",
+      at: 1,
+      access: "bus",
+    });
+  });
+
+  it("is left out when missing or unrecognized", () => {
+    expect(parseCommitment(JSON.stringify({ mode: "drive", at: 1 }))).toEqual({
+      mode: "drive",
+      at: 1,
+    });
+    expect(parseCommitment(JSON.stringify({ mode: "drive", at: 1, access: "car" }))).toEqual({
+      mode: "drive",
+      at: 1,
+    });
   });
 });
 

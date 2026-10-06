@@ -492,6 +492,7 @@ function Index() {
     if (storedCommitment) {
       setCommitment(storedCommitment);
       setSelectedMode(storedCommitment.mode);
+      if (storedCommitment.access) setAccessAnswer(storedCommitment.access);
       if (storedCommitment.mode === "transit")
         lockedOptionRef.current = parseLockedItinerary(
           window.localStorage.getItem(LOCKED_OPTION_KEY),
@@ -705,7 +706,11 @@ function Index() {
   /** Commit to a mode for the trip underway and stop the verdict changing it. */
   function commitMode(next: "transit" | "drive") {
     requestCommuteNotificationPermission();
-    const entry: Commitment = { mode: next, at: Date.now() };
+    const entry: Commitment = {
+      mode: next,
+      at: Date.now(),
+      ...(tripAccess ? { access: tripAccess } : {}),
+    };
     const driveEst = driveTripEstimate.expectedDurationMinutes;
     startTripLog({
       mode: next,

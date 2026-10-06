@@ -11,6 +11,7 @@ import {
 import { dropDriveToStationsWithoutParking } from "@/lib/rail/park-and-ride";
 import { type WeatherLine } from "@/components/commute/H1ConditionsCard";
 import { stationLabel, titleCase } from "@/lib/commute-formatting";
+import { type TripAccess } from "@/lib/trip-access";
 
 export type Setup = {
   homeStopId: string;
@@ -177,8 +178,12 @@ export const COMMIT_KEY = "nalu-committed-mode-v1";
 export const LOCKED_OPTION_KEY = "nalu-locked-itinerary-v1";
 export const LIVE_ROUTE_CACHE_KEY = "nalu-live-route-v1";
 
-/** The mode a commuter has committed to for the trip underway. */
-export type Commitment = { mode: "transit" | "drive"; at: number };
+/**
+ * The mode a commuter has committed to for the trip underway. `access` is the
+ * trip question's answer, kept with the trip so reopening the app mid-trip
+ * still plans the same way; it goes when the trip ends.
+ */
+export type Commitment = { mode: "transit" | "drive"; at: number; access?: TripAccess };
 
 export type UiDecisionState = "drive" | "transit" | "same" | "none" | "uncertain";
 export type DecisionSnapshot = {
@@ -201,10 +206,17 @@ export function changedMinutes(now: number | null, previous: number | null) {
 export function parseCommitment(raw: string | null): Commitment | null {
   if (!raw) return null;
   try {
-    const value = JSON.parse(raw) as { mode?: "rail" | "transit" | "drive"; at?: number };
+    const value = JSON.parse(raw) as {
+      mode?: "rail" | "transit" | "drive";
+      at?: number;
+      access?: unknown;
+    };
     const mode = value.mode === "rail" ? "transit" : value.mode;
     if (mode !== "transit" && mode !== "drive") return null;
-    return { mode, at: typeof value.at === "number" ? value.at : Date.now() };
+    const at = typeof value.at === "number" ? value.at : Date.now();
+    return value.access === "vehicle" || value.access === "bus"
+      ? { mode, at, access: value.access }
+      : { mode, at };
   } catch {
     return null;
   }
