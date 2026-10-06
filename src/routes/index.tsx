@@ -40,6 +40,7 @@ import {
 } from "@/components/commute/TripChoiceCards";
 import { needsCar, parkingNote, transitChoices, tripSteps } from "@/lib/trip-choices";
 import { TripAccessQuestion } from "@/components/commute/TripAccessQuestion";
+import { landingView, mayAutoOpenUsualTrip } from "@/lib/landing-view";
 import {
   accessResources,
   carTripAvailable,
@@ -810,10 +811,17 @@ function Index() {
     hasValidCoordinates({ lat: setup.destLat, lon: setup.destLon });
 
   useEffect(() => {
-    if (!hydrated || initialPageViewSetRef.current) return;
+    // Wait for sign-in to settle: signed-in riders land on Browse.
+    if (!hydrated || authLoading || initialPageViewSetRef.current) return;
     initialPageViewSetRef.current = true;
-    setPageView(configured ? "commute" : "browse");
-  }, [hydrated, configured]);
+    setPageView(
+      landingView({
+        tripConfigured: configured,
+        signedIn: Boolean(user),
+        tripUnderWay: Boolean(commitment),
+      }),
+    );
+  }, [hydrated, authLoading, configured, user, commitment]);
 
   syncStateRef.current = { savedPlaces, alertPrefs, planMode, arriveByInput, setup, configured };
   const { data: browseStations = NO_STATIONS } = useRailStations(hydrated);
@@ -3916,7 +3924,17 @@ function Index() {
   // haven't said "Not now" three times in a row. "Where to?" stays one tap away.
   const autoOpenTried = useRef(false);
   useEffect(() => {
-    if (autoOpenTried.current || !hydrated || configured || onboardingOpen || commitment) return;
+    if (
+      autoOpenTried.current ||
+      !hydrated ||
+      authLoading ||
+      configured ||
+      onboardingOpen ||
+      commitment
+    )
+      return;
+    // Signed-in riders land on Browse; their usual trip is one tap away there.
+    if (!mayAutoOpenUsualTrip({ signedIn: Boolean(user) })) return;
     if (savedPlaces.length === 0) return;
     autoOpenTried.current = true;
     try {
@@ -3953,7 +3971,7 @@ function Index() {
       })
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, configured, onboardingOpen, commitment, savedPlaces.length]);
+  }, [hydrated, authLoading, user?.id, configured, onboardingOpen, commitment, savedPlaces.length]);
 
   if (browseActive) {
     const trafficLoading = eastboundTrafficLoading || westboundTrafficLoading;
@@ -4623,6 +4641,7 @@ function Index() {
             destination={tripArrivalLabel}
             current={previousAccess}
             onChoose={chooseTripAccess}
+            onBack={() => setPageView("browse")}
           />
         </div>
         {setupDialog}

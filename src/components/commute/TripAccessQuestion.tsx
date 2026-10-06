@@ -12,11 +12,14 @@ export function TripAccessQuestion({
   destination,
   current = null,
   onChoose,
+  onBack,
 }: {
   destination: string;
   /** The answer being changed, so it shows as the current one. */
   current?: TripAccess | null;
   onChoose: (access: TripAccess) => void;
+  /** A way out without answering: back to Browse. */
+  onBack: () => void;
 }) {
   return (
     <section
@@ -50,6 +53,13 @@ export function TripAccessQuestion({
           </button>
         ))}
       </div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="mt-5 min-h-11 w-full text-center text-sm font-semibold text-muted-foreground underline underline-offset-4"
+      >
+        Back to Browse
+      </button>
     </section>
   );
 }
