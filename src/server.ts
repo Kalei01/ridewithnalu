@@ -3,6 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { reportServerError } from "./lib/sentry-server";
+import { canonicalRedirect, withHsts } from "./lib/canonical-redirect";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -47,24 +48,6 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
-const CANONICAL_ORIGIN = "https://ridenalu.com";
-// ridenalu.com is confirmed live; the old address now forwards there.
-const REDIRECT_OLD_ADDRESS = true;
-
-/**
- * One public address. Pages on www.ridenalu.com (and, when enabled, the old
- * workers.dev address) move permanently to ridenalu.com. Scheduled jobs under
- * /api/ and the notification script keep answering where they are.
- */
-function canonicalRedirect(request: Request): Response | null {
-  if (request.method !== "GET" && request.method !== "HEAD") return null;
-  const url = new URL(request.url);
-  const oldAddress = url.hostname.endsWith(".workers.dev") && REDIRECT_OLD_ADDRESS;
-  if (url.hostname !== "www.ridenalu.com" && !oldAddress) return null;
-  if (url.pathname.startsWith("/api/") || url.pathname === "/firebase-messaging-sw.js") return null;
-  return Response.redirect(`${CANONICAL_ORIGIN}${url.pathname}${url.search}`, 301);
-}
-
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const redirect = canonicalRedirect(request);
@@ -72,7 +55,7 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withHsts(request, await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
       await reportServerError(error, "server");
