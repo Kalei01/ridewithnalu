@@ -672,3 +672,117 @@ describe("transit trip planner: drive to the station + Skyline", () => {
     });
   });
 });
+
+describe("transit trip planner: heading home with a car available", () => {
+  beforeEach(() => {
+    rpc.mockReset();
+    driveTime.mockReset();
+  });
+
+  const HALAWA = {
+    stop_id: "10055",
+    stop_name: "HALAWA STATION",
+    stop_lat: 21.3731,
+    stop_lon: -157.9388,
+  };
+  const KAHAUIKI = {
+    stop_id: "10030",
+    stop_name: "KAHAUIKI KALIHI TRANSIT CENTER STATION",
+    stop_lat: 21.3366,
+    stop_lon: -157.8825,
+  };
+  const l = (
+    kind: string,
+    mode: string,
+    from: string,
+    to: string,
+    a: number,
+    b: number,
+    route: string | null = null,
+  ) => ({
+    kind,
+    mode,
+    route_short: route,
+    route_long: null,
+    headsign: null,
+    from,
+    to,
+    minutes: Math.round((b - a) / 60),
+    depart_seconds: a,
+    arrive_seconds: b,
+  });
+  // 5:00 PM: downtown to ʻEwa Beach. The planner's own car leg is a distance guess (15 min).
+  const NOW = 61200;
+  const home = { lat: 21.32203, lon: -158.03366 };
+  const trip = (vehicleToStation: string) =>
+    context({
+      vehicleToStation,
+      inbound: true,
+      nowSeconds: NOW,
+      scheduleAfterSeconds: NOW,
+      browseStations: [HALAWA, KAHAUIKI],
+      tripDirection: {
+        inbound: true,
+        reverseTrip: false,
+        departingFromSavedHome: false,
+        arrivingAtSavedHome: false,
+        from: { lat: 21.30937, lon: -157.86318 },
+        to: home,
+      },
+    });
+  const pickupTrip = {
+    leave_by_seconds: 61500,
+    depart_seconds: 61800,
+    arrive_seconds: 64500,
+    total_minutes: 50,
+    legs: [
+      l("access", "walk", "Your location", "KAHAUIKI STATION", 61500, 61800),
+      l("rail", "rail", "KAHAUIKI STATION", "HALAWA STATION", 61800, 63600),
+      l("egress", "drive", "HALAWA STATION", "Home", 63600, 64500),
+    ],
+  };
+  const inboundCalls = () =>
+    rpc.mock.calls
+      .filter(([name]) => name === "plan_inbound")
+      .map(([, a]) => a as Record<string, unknown>);
+
+  it("tries pickup at stations toward home and times the car leg with live traffic only", async () => {
+    answer({
+      // Like the real planner: a car leg only exists when a car is allowed.
+      plan_inbound: (args) =>
+        args["p_station"] === HALAWA.stop_id && args["p_allow_drive"] === true
+          ? ok([pickupTrip])
+          : ok([]),
+    });
+    driveTime.mockResolvedValue({ trafficMinutes: 22 });
+    const options = await planTransitTrip(trip("vehicle"));
+    expect(
+      inboundCalls().some((a) => a["p_station"] === HALAWA.stop_id && a["p_allow_drive"] === true),
+    ).toBe(true);
+    const pickup = options.find((o) => o.legs.at(-1)?.mode === "drive");
+    expect(pickup).toBeDefined();
+    // 22 min of live traffic after the 6:00 PM train, nothing added: home at 6:22 PM.
+    expect(pickup?.legs.at(-1)?.minutes).toBe(22);
+    expect(pickup?.arrive_seconds).toBe(63600 + 22 * 60);
+    expect(pickup?.total_minutes).toBe(Math.round((63600 + 22 * 60 - 61500) / 60));
+  });
+
+  it("drops a pickup trip when live traffic is unavailable, rather than guessing", async () => {
+    answer({
+      plan_inbound: (args) => (args["p_allow_drive"] === true ? ok([pickupTrip]) : ok([])),
+    });
+    driveTime.mockResolvedValue(null);
+    const options = await planTransitTrip(trip("vehicle"));
+    expect(options.some((o) => o.legs.at(-1)?.mode === "drive")).toBe(false);
+  });
+
+  it("taking the bus: no pickup trip is searched or shown", async () => {
+    answer({
+      plan_inbound: (args) => (args["p_allow_drive"] === true ? ok([pickupTrip]) : ok([])),
+    });
+    driveTime.mockResolvedValue({ trafficMinutes: 22 });
+    const options = await planTransitTrip(trip("none"));
+    expect(inboundCalls().some((a) => a["p_allow_drive"] === true)).toBe(false);
+    expect(options.some((o) => o.legs.some((leg) => leg.mode === "drive"))).toBe(false);
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Leg, Option } from "./commute-model";
-import { parkingNote, transitChoices, tripSteps } from "./trip-choices";
+import { allowTimeNote, parkingNote, transitChoices, tripSteps } from "./trip-choices";
 
 const leg = (mode: Leg["mode"], a: number, b: number, extra: Partial<Leg> = {}): Leg => ({
   kind: "connect",
@@ -133,5 +133,27 @@ describe("trip choices", () => {
     ]);
     expect(parkingNote(halawa, 1)).toBeNull(); // no reports for other lots
     expect(parkingNote(bus91, 1)).toBeNull();
+  });
+
+  it("a car at the end of the trip is a pickup", () => {
+    const home = opt([
+      leg("walk", 61000, 61300),
+      leg("rail", 61300, 63600),
+      leg("drive", 63600, 64500, { from: "HALAWA STATION", from_stop_id: "10055", to: "Home" }),
+    ]);
+    expect(tripSteps(home)).toBe("Walk → Skyline → Picked up at Hālawa");
+  });
+
+  it("reminds the rider to allow time instead of guessing it", () => {
+    expect(allowTimeNote(parkRide)).toBe("Allow time to park and get to the platform.");
+    const noLot = opt([
+      leg("drive", 27000, 27300, { to_stop_id: "10053", to: "WAIAWA STATION" }),
+      leg("rail", 27300, 28200),
+    ]);
+    expect(allowTimeNote(noLot)).toBe("Allow time to get to the platform.");
+    const pickup = opt([leg("rail", 61000, 62000), leg("drive", 62000, 62600)]);
+    expect(allowTimeNote(pickup)).toBe("Allow time for the pickup.");
+    expect(allowTimeNote(bus91)).toBeNull();
+    expect(allowTimeNote(null)).toBeNull();
   });
 });

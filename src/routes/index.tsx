@@ -38,7 +38,13 @@ import {
   type TripChoice,
   type TripChoiceKey,
 } from "@/components/commute/TripChoiceCards";
-import { needsCar, parkingNote, transitChoices, tripSteps } from "@/lib/trip-choices";
+import {
+  allowTimeNote,
+  needsCar,
+  parkingNote,
+  transitChoices,
+  tripSteps,
+} from "@/lib/trip-choices";
 import { TripAccessQuestion } from "@/components/commute/TripAccessQuestion";
 import { landingView, mayAutoOpenUsualTrip } from "@/lib/landing-view";
 import {
@@ -2922,8 +2928,13 @@ function Index() {
           : "No Skyline trip that makes sense right now",
       // A rider with a car hears about the lot (only shown for Keoneʻae mornings).
       note:
-        key === "skyline" && vehicleToSkyline === "vehicle"
-          ? parkingNote(option, honoluluIsoDow(now))
+        key === "skyline"
+          ? [
+              allowTimeNote(option),
+              vehicleToSkyline === "vehicle" ? parkingNote(option, honoluluIsoDow(now)) : null,
+            ]
+              .filter(Boolean)
+              .join(" ") || null
           : null,
       pick: naluPick === key,
       locked: lockedChoice === key,

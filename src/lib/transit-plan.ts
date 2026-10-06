@@ -510,17 +510,64 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
     });
   };
 
-  /** The normal search plus the Skyline bridge, run side by side. */
+  // Heading home with a car available: a few real stations that make progress
+  // toward home, each with a car leg from the station home (a pickup). Nothing
+  // is assumed about where; each is timed with live traffic and the comparison
+  // decides. Never throws: this only ever adds options.
+  const fetchInboundPickup = async (cursor: number): Promise<Option[]> => {
+    if (!inbound || vehicleToStation !== "vehicle" || lateNight(cursor)) return [];
+    try {
+      const coordinates = inboundPlannerCoordinates(tripDirection);
+      const stations = dropOffCandidates(
+        tripDirection.to,
+        tripDirection.from,
+        browseStations,
+        planMode === "arrive-by" ? 2 : 3,
+      );
+      const found = await Promise.all(
+        stations.map(async (station) => {
+          const { data, error } = await supabase.rpc("plan_inbound", {
+            ...coordinates,
+            p_station: station.stop_id,
+            p_allow_drive: true,
+            p_after_seconds: cursor,
+            p_limit: planMode === "arrive-by" ? 8 : 4,
+          });
+          if (error) {
+            recordTransitRpcError("pickup_inbound", error);
+            return [];
+          }
+          const rows = (data ?? []).map((row) => ({
+            ...row,
+            legs: row.legs as unknown as Leg[],
+          })) as Option[];
+          // Only trips that end with the car; the rest the other planners already cover.
+          return retimeDriveEgress(
+            rows.filter((option) => option.legs.at(-1)?.mode === "drive"),
+            { station, home: tripDirection.to, now, nowSeconds },
+          );
+        }),
+      );
+      return found.flat();
+    } catch (error) {
+      recordTransitRpcError("pickup_inbound", error);
+      return [];
+    }
+  };
+
+  /** The normal search plus the Skyline bridge and any pickup trips, run side by side. */
   const fetchPageWithSkyline = async (cursor: number): Promise<Option[]> => {
     const bridge = fetchViaSkyline(cursor);
+    const pickup = fetchInboundPickup(cursor);
+    const extras = async () => [...(await bridge), ...(await pickup)];
     try {
       const base = await fetchPage(cursor);
-      const via = await bridge;
-      return via.length ? mergeTransitOptions(base, via) : base;
+      const extra = await extras();
+      return extra.length ? mergeTransitOptions(base, extra) : base;
     } catch (error) {
-      // A bridge trip still counts if the other planners failed.
-      const via = await bridge;
-      if (via.length) return mergeTransitOptions(via);
+      // A bridge or pickup trip still counts if the other planners failed.
+      const extra = await extras();
+      if (extra.length) return mergeTransitOptions(extra);
       throw error;
     }
   };
@@ -572,6 +619,76 @@ export function dropWalkableDriveAccess(
     }
     return (access.minutes ?? 0) >= MIN_DRIVE_ACCESS_MINUTES_WITHOUT_COORDS;
   });
+}
+
+/**
+ * Heading home, the planner times the car leg from the station with a
+ * straight-line guess. Re-time it with live traffic for when the train arrives
+ * (a future estimate when that is later), adding nothing for the pickup. With
+ * no live time the trip is dropped rather than guessed.
+ */
+export async function retimeDriveEgress(
+  options: Option[],
+  input: {
+    station: {
+      stop_id: string;
+      stop_lat: number | string | null;
+      stop_lon: number | string | null;
+    };
+    home: { lat: number | null; lon: number | null };
+    now: Date;
+    nowSeconds: number;
+  },
+): Promise<Option[]> {
+  const { station, home } = input;
+  if (station.stop_lat == null || station.stop_lon == null || home.lat == null || home.lon == null)
+    return [];
+  const retimed = await Promise.all(
+    options.map(async (option): Promise<Option | null> => {
+      const car = option.legs.at(-1);
+      const before = option.legs.at(-2);
+      if (!car || car.mode !== "drive" || !before || before.arrive_seconds == null) return null;
+      const start = before.arrive_seconds;
+      try {
+        const result = await driveTime({
+          data: {
+            fromLat: Number(station.stop_lat),
+            fromLon: Number(station.stop_lon),
+            toLat: home.lat as number,
+            toLon: home.lon as number,
+            ...(start > input.nowSeconds + 300
+              ? {
+                  departureTime: new Date(
+                    input.now.getTime() + (start - input.nowSeconds) * 1000,
+                  ).toISOString(),
+                }
+              : {}),
+          },
+        });
+        if (!result || !Number.isFinite(result.trafficMinutes)) return null;
+        const minutes = Math.ceil(result.trafficMinutes);
+        const arrive = start + minutes * 60;
+        return {
+          ...option,
+          arrive_seconds: arrive,
+          total_minutes: Math.round((arrive - option.leave_by_seconds) / 60),
+          legs: [
+            ...option.legs.slice(0, -1),
+            {
+              ...car,
+              from_stop_id: car.from_stop_id ?? input.station.stop_id,
+              depart_seconds: start,
+              arrive_seconds: arrive,
+              minutes,
+            },
+          ],
+        };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return retimed.filter((option): option is Option => option !== null);
 }
 
 /**

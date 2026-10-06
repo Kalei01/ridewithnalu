@@ -57,7 +57,13 @@ export function transitChoices(options: Option[], arriveByTarget: number | null)
 export function tripSteps(option: Option): string {
   const steps: string[] = [];
   option.legs.forEach((leg, index) => {
-    if (leg.mode === "drive") {
+    if (leg.mode === "drive" && index === option.legs.length - 1 && index > 0) {
+      // A car at the end of the trip: someone picks the rider up at the station.
+      const name =
+        (leg.from_stop_id ? PARK_AND_RIDE_NAMES[leg.from_stop_id] : undefined) ??
+        (leg.from ? stationLabel(leg.from) : undefined);
+      steps.push(name ? `Picked up at ${name}` : "Picked up");
+    } else if (leg.mode === "drive") {
       const lot = leg.to_stop_id ? PARK_AND_RIDE_NAMES[leg.to_stop_id] : undefined;
       const station = lot ?? (leg.to_stop_id && leg.to ? stationLabel(leg.to) : undefined);
       if (!station) steps.push("Drive");
@@ -91,4 +97,16 @@ export function parkingNote(option: Option | null, isoDow: number): string | nul
   const atStation = access.arrive_seconds;
   if (atStation == null || atStation < 7 * 3600 || atStation >= 11 * 3600) return null;
   return "This lot is often full by 8 AM on weekdays; some riders park on a nearby grass lot. Or try Honouliuli, the next stop toward town.";
+}
+
+/**
+ * A short reminder, not an estimate: Nalu doesn't guess how long parking or a
+ * pickup takes, so it tells the rider to allow for it.
+ */
+export function allowTimeNote(option: Option | null): string | null {
+  const car = option?.legs.find((leg) => leg.mode === "drive");
+  if (!option || !car) return null;
+  if (option.legs.at(-1) === car) return "Allow time for the pickup.";
+  const lot = Boolean(car.to_stop_id && PARK_AND_RIDE_NAMES[car.to_stop_id]);
+  return lot ? "Allow time to park and get to the platform." : "Allow time to get to the platform.";
 }
