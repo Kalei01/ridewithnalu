@@ -71,7 +71,7 @@ export function GuideLayout({
           <p className="mt-4 text-base text-muted-foreground">Last updated: {LAST_UPDATED}</p>
         </header>
 
-        <div className="mt-10 grid gap-10">{children}</div>
+        <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-10">{children}</div>
 
         <OpenNaluCta destination={destination} />
 
@@ -187,7 +187,7 @@ export function GuideSection({ id, title, children }: { id: string; title: strin
       <h2 id={id} className="text-2xl font-bold">
         {title}
       </h2>
-      <div className="mt-3 grid gap-4 text-base leading-7 text-muted-foreground">{children}</div>
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 text-base leading-7 text-muted-foreground">{children}</div>
     </section>
   );
 }

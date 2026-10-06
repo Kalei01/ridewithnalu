@@ -15,6 +15,8 @@ export function LegalFooter({ onOpen }: { onOpen?: (() => void) | undefined } = 
           <Link to="/terms" className="inline-flex min-h-11 items-center hover:text-foreground">Terms</Link>
           <Link to="/disclaimer" className="inline-flex min-h-11 items-center hover:text-foreground">Disclaimer</Link>
           <Link to="/oahu-commute" className="inline-flex min-h-11 items-center hover:text-foreground">Oʻahu commute guide</Link>
+          <Link to="/guides" className="inline-flex min-h-11 items-center hover:text-foreground">Guides</Link>
+          <Link to="/roadwork" className="inline-flex min-h-11 items-center hover:text-foreground">Roadwork</Link>
           <Link
             to="/"
             onClick={() => {

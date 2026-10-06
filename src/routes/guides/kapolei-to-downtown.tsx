@@ -55,7 +55,7 @@ function KapoleiGuidePage() {
         </p>
       }
     >
-      <GuideSection id="drive" title="Driving H-1">
+      <GuideSection id="drive" title="Kapolei to Honolulu drive time on H-1">
         <p>
           Driving is usually the simplest option outside rush hour. On weekday mornings, eastbound H-1
           traffic from the Leeward side can turn a short drive into a long one, and how long it takes
@@ -68,7 +68,7 @@ function KapoleiGuidePage() {
         </p>
       </GuideSection>
 
-      <GuideSection id="rail" title="Skyline plus TheBus">
+      <GuideSection id="rail" title="Kapolei to Honolulu by train and bus">
         <p>Scheduled times from TheBus's official timetable (October 2026):</p>
         <GuideList
           items={[
@@ -112,7 +112,13 @@ function KapoleiGuidePage() {
         </p>
       </GuideSection>
 
-      <GuideSection id="choose" title="How to choose on a given day">
+      <GuideSection id="choose" title="Drive or train? How to choose your commute">
+        <p>
+          A rule of thumb: compare your drive, including parking, with the train trip's 55 to 60
+          minutes on board plus your wait for the bus and the walk at each end. The train leg's
+          scheduled time does not change with traffic, so the longer H-1 is running that day, the
+          better the train looks.
+        </p>
         <p>
           The honest answer is that it changes. A clear H-1 favors driving. A slow morning, a crash or
           a lane closure favors the train, especially if you live near a station. Nalu checks both for

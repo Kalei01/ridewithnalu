@@ -72,7 +72,7 @@ function EwaGuidePage() {
         </p>
       </GuideSection>
 
-      <GuideSection id="rail" title="Bus to Skyline">
+      <GuideSection id="rail" title="ʻEwa Beach to Honolulu by train: bus to Skyline">
         <p>ʻEwa Beach has no Skyline station, but three are a short bus ride away:</p>
         <GuideList
           items={[
@@ -88,7 +88,7 @@ function EwaGuidePage() {
         </p>
       </GuideSection>
 
-      <GuideSection id="drive" title="Driving">
+      <GuideSection id="drive" title="ʻEwa Beach to Honolulu drive time">
         <p>
           Most ʻEwa Beach drives start on Fort Weaver Road before joining H-1 eastbound. Both can be slow
           on weekday mornings, and the time changes with crashes, roadwork and weather. Nalu uses
@@ -96,10 +96,11 @@ function EwaGuidePage() {
         </p>
       </GuideSection>
 
-      <GuideSection id="choose" title="Choosing on a given day">
+      <GuideSection id="choose" title="Drive, bus or train? How to choose your commute">
         <p>
-          If you work near downtown and can catch a morning 91 or E, the bus spares you the drive and
-          parking. If you are going somewhere along the rail line, such as Pearlridge, the airport or
+          If you work near downtown and can catch a weekday-morning 91 or E (scheduled at roughly 1 hr
+          to 1 hr 20 min from Fort Weaver Road, not counting your wait), the bus spares you the drive
+          and parking. If you are going somewhere along the rail line, such as Pearlridge, the airport or
           Kalihi, a bus to Skyline is often more direct. Nalu compares the drive with every bus and
           bus-plus-rail combination for your exact trip and tells you which is faster right now.
         </p>

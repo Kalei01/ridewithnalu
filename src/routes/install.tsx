@@ -30,7 +30,7 @@ const FAQS: Array<{ q: string; a: string }> = [
 export const Route = createFileRoute("/install")({
   head: () => ({
     meta: [
-      { title: "Install Nalu on iPhone or Android (and turn on alerts) | Nalu" },
+      { title: "Install Nalu on iPhone or Android | Nalu" },
       {
         name: "description",
         content:
@@ -41,6 +41,9 @@ export const Route = createFileRoute("/install")({
       { property: "og:title", content: "Install Nalu on your phone" },
       { property: "og:description", content: "A few taps on iPhone or Android. Free, no app store needed." },
       { property: "og:url", content: SITE_URL + "/install" },
+      { property: "og:image", content: SITE_URL + "/social-card.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: SITE_URL + "/social-card.png" },
     ],
     links: [{ rel: "canonical", href: SITE_URL + "/install" }],
     scripts: [

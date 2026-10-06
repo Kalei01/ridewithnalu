@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LegalFooter } from "@/components/LegalFooter";
+import { SITE_URL } from "@/lib/site";
 
 export const Route = createFileRoute("/disclaimer")({
   head: () => ({
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/disclaimer")({
       },
       { name: "robots", content: "index,follow" },
     ],
+    links: [{ rel: "canonical", href: SITE_URL + "/disclaimer" }],
   }),
   component: DisclaimerPage,
 });
