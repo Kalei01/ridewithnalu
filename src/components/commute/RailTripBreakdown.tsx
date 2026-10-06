@@ -57,7 +57,13 @@ export function RailTripBreakdown({
 
   return (
     <>
-      <ol className="mt-7" aria-label="Transit trip breakdown">
+      {onSelectLeg && (
+        <p className="mt-5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <MapPin aria-hidden="true" className="size-3.5" />
+          Tap a step to see it on the map.
+        </p>
+      )}
+      <ol className={onSelectLeg ? "mt-3" : "mt-7"} aria-label="Transit trip breakdown">
         {rows.map(({ leg, i: legIndex }, index) => {
           const Icon = modeIcon(leg.mode);
           const previous = rows[index - 1]?.leg;
@@ -174,10 +180,13 @@ export function RailTripBreakdown({
                           </span>
                         )}
                         {onSelectLeg && (
-                          <MapPin
+                          <span
                             aria-hidden="true"
-                            className={`size-3.5 ${activeLeg === legIndex ? "text-recommended" : "text-muted-foreground"}`}
-                          />
+                            className={`flex items-center gap-0.5 text-xs font-semibold ${activeLeg === legIndex ? "text-recommended" : "text-muted-foreground"}`}
+                          >
+                            <MapPin className="size-3.5" />
+                            Map
+                          </span>
                         )}
                       </span>
                     </>
@@ -189,7 +198,9 @@ export function RailTripBreakdown({
                       aria-label={`Show on the map: ${title}`}
                       aria-pressed={activeLeg === legIndex}
                       className={`-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center justify-between gap-2 rounded-lg px-2 text-left transition-colors ${
-                        activeLeg === legIndex ? "bg-recommended/10 ring-1 ring-recommended" : ""
+                        activeLeg === legIndex
+                          ? "bg-recommended/10 ring-2 ring-recommended"
+                          : "bg-background/40 ring-1 ring-border hover:ring-recommended/60"
                       }`}
                     >
                       {header}
