@@ -16,7 +16,10 @@ export type AnalyticsEvent =
   | "saved_place_created"
   | "active_trip_started"
   | "active_trip_completed"
-  | "feedback_submitted";
+  | "feedback_submitted"
+  /** The "what works for you?" question: which answer, or that the rider left without one. */
+  | "trip_access_answered"
+  | "trip_access_skipped";
 
 export type AnalyticsConsent = "granted" | "denied" | null;
 export const ANALYTICS_CONSENT_KEY = "nalu-analytics-consent-v1";

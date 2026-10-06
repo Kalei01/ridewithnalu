@@ -93,7 +93,9 @@ describe("trip choices", () => {
   });
 
   it("describes each trip in a few words", () => {
-    expect(tripSteps(parkRide)).toBe("Drive to UH West Oʻahu → Skyline → Bus 42");
+    expect(tripSteps(parkRide)).toBe(
+      "Drive to UH West Oʻahu (parking not included) → Skyline → Bus 42",
+    );
     expect(tripSteps(bus91)).toBe("Walk → Bus 91");
     expect(tripSteps(busRailBus)).toBe("Walk → Bus 52 → Skyline → Bus 42");
   });
@@ -103,7 +105,7 @@ describe("trip choices", () => {
       leg("drive", 27000, 27600, { to_stop_id: "10055", to: "HALAWA STATION" }),
       leg("rail", 27600, 28600),
     ]);
-    expect(tripSteps(halawa)).toBe("Drive to Hālawa → Skyline");
+    expect(tripSteps(halawa)).toBe("Drive to Hālawa (parking not included) → Skyline");
     const waiawa = opt([
       leg("drive", 27000, 27300, { to_stop_id: "10053", to: "WAIAWA STATION" }),
       leg("rail", 27300, 28200),

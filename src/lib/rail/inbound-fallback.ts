@@ -134,10 +134,10 @@ export function filterTransferSanityOptions<T extends {
   return options.filter(isTransferSane);
 }
 
-/** Rough road time to a rail hub: 1.35× straight-line at ~40 km/h, +3 min to park/board. */
+/** Rough road time to a rail hub: 1.35× straight-line at ~40 km/h (parking not included). */
 export function estimateHubAccessMinutes(from: Point, hub: Point) {
   const km = Math.sqrt(distanceSquared(from, hub)) * 111.2;
-  return Math.max(4, Math.round((km * 1.35 / 40) * 60 + 3));
+  return Math.max(4, Math.round((km * 1.35 / 40) * 60));
 }
 
 /** Last resort when no station near the origin has a direct egress: board at

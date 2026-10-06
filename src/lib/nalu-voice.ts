@@ -219,16 +219,12 @@ const ARRIVE_LINES = [
 
 const PARKING_LINES = [
   "Getting there and getting parked are two different things.",
-  "I’m leaving room for parking and the walk in.",
   "The drive isn’t finished just because the wheels stopped.",
   "Parking gets a seat at the table too.",
-  "I’m accounting for the part after the drive.",
   "Give yourself a little time to find a spot and get inside.",
   "One more thing: arriving is not the same as being parked.",
   "The parking lot gets a vote, unfortunately.",
-  "I’m keeping a little buffer for parking.",
   "The last few minutes count too.",
-  "Your commute includes the walk from the car. I’m counting it.",
   "Let’s not let parking be the surprise ending.",
 ];
 

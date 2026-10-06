@@ -139,34 +139,23 @@ describe("turn-by-turn voice", () => {
 });
 
 describe("destination access", () => {
-  it("gives downtown a larger buffer than home", () => {
-    expect(destinationAccess({ lat: 21.309, lon: -157.862 }).zone).toBe("downtown");
+  it("adds nothing anywhere: drive time is the live road time", () => {
+    const downtown = { lat: 21.309, lon: -157.862 };
+    const manoa = { lat: 21.3213, lon: -157.80498 };
+    const when = [
+      new Date("2026-10-06T18:30:00Z"), // Tue 8:30 AM HST
+      new Date("2026-10-07T06:00:00Z"), // Tue 8:00 PM HST
+      new Date("2026-10-04T22:00:00Z"), // Sun 12:00 PM HST
+    ];
+    for (const place of [downtown, manoa, { lat: 21.35, lon: -158.0 }])
+      for (const at of when) {
+        const access = destinationAccess(place, null, at);
+        expect([access.lowMin, access.typicalMin, access.highMin]).toEqual([0, 0, 0]);
+      }
     expect(destinationAccess({ lat: 21.35, lon: -158.0 }, "home").typicalMin).toBe(0);
   });
-  it("shortens downtown parking at night and on Sundays, not in Waikiki", () => {
-    const weekdayMorning = new Date("2026-10-06T18:30:00Z"); // Tue 8:30 AM HST
-    const weekdayNight = new Date("2026-10-07T06:00:00Z"); // Tue 8:00 PM HST
-    const sundayNoon = new Date("2026-10-04T22:00:00Z"); // Sun 12:00 PM HST
-    const downtown = { lat: 21.309, lon: -157.862 };
-    expect(destinationAccess(downtown, null, weekdayMorning).typicalMin).toBe(10);
-    expect(destinationAccess(downtown, null, weekdayNight).typicalMin).toBe(4);
-    expect(destinationAccess(downtown, null, sundayNoon).typicalMin).toBe(4);
-    expect(destinationAccess({ lat: 21.278, lon: -157.828 }, null, weekdayNight).typicalMin).toBe(
-      10,
-    );
-    expect(destinationAccess({ lat: 21.4, lon: -158.0 }, null, weekdayMorning).typicalMin).toBe(0);
-  });
-  it("adds nothing for a home in Mānoa: the drive time is the driving time", () => {
-    // 3380 Mānoa Road, a weekday morning.
-    const manoa = destinationAccess(
-      { lat: 21.3213, lon: -157.80498 },
-      null,
-      new Date("2026-10-06T18:00:00Z"),
-    );
-    expect([manoa.lowMin, manoa.typicalMin, manoa.highMin]).toEqual([0, 0, 0]);
-  });
-  it("builds an arrival window", () => {
-    const access = destinationAccess({ lat: 21.309, lon: -157.862 });
+  it("builds an arrival window from road time plus any allowance given", () => {
+    const access = { label: "test allowance", lowMin: 7, typicalMin: 10, highMin: 14 };
     const range = arrivalRange(0, { low: 30, expected: 33, high: 38 }, access);
     expect(range.earliestSeconds).toBe((30 + 7) * 60);
     expect(range.latestSeconds).toBe((38 + 14) * 60);

@@ -891,6 +891,7 @@ function Index() {
   function chooseTripAccess(next: TripAccess | null) {
     if (!accessKey) return;
     setPreviousAccess(next === null ? tripAccess : null);
+    if (next) track("trip_access_answered", { answer: next });
     writeTripAccess(accessKey, next, Date.now());
     setAccessAnswer({ key: accessKey, value: next });
     setChosenCard(null);
@@ -2468,9 +2469,8 @@ function Index() {
     failed: driveFailed,
     majorIncident: Boolean(drive?.incidents[0]),
   });
-  // The drive time riders see is door to door (road time in live traffic plus
-  // parking and the walk in), the same number the verdict uses. Road time alone
-  // is only shown labelled as such.
+  // The drive time riders see is the live road time, the same number the
+  // verdict uses. Parking and the walk in are not estimated.
   const driveDoorToDoorMinutes =
     driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes;
   const transitTripEstimate = transitEstimate({
@@ -2504,10 +2504,8 @@ function Index() {
         driveAccess,
       )
     : null;
-  const driveBufferNote =
-    driveAccess.highMin > 0
-      ? `Includes about ${driveAccess.typicalMin} min to park and walk in`
-      : null;
+  // Nalu doesn't estimate parking; it only says so.
+  const driveBufferNote = "Live driving time (parking not included)";
   const driveWindow = driveArrival
     ? `${clockFromSeconds(driveArrival.earliestSeconds)} – ${clockFromSeconds(driveArrival.latestSeconds)}`
     : null;
@@ -2940,7 +2938,7 @@ function Index() {
   const driveChoice: TripChoice = {
     key: "drive",
     title: "Drive",
-    steps: driveVia ?? "Driving",
+    steps: `${driveVia ?? "Driving"} (parking not included)`,
     minutes: driveChoiceMinutes,
     timeLabel:
       arriveByActive && drivePlan
@@ -2958,12 +2956,7 @@ function Index() {
       driveTripEstimate.availability === "car-unavailable"
         ? "No car for this trip"
         : "Can’t check traffic right now",
-    note:
-      driveTripEstimate.expectedDurationMinutes !== null &&
-      driveDoorToDoorMinutes !== null &&
-      driveDoorToDoorMinutes > driveTripEstimate.expectedDurationMinutes
-        ? `${formatDriveMinutes(driveTripEstimate.expectedDurationMinutes)} of driving, plus about ${Math.round(driveDoorToDoorMinutes - driveTripEstimate.expectedDurationMinutes)} min to park and walk in.`
-        : null,
+    note: null,
     pick: naluPick === "drive",
     locked: lockedChoice === "drive",
   };
@@ -4641,7 +4634,10 @@ function Index() {
             destination={tripArrivalLabel}
             current={previousAccess}
             onChoose={chooseTripAccess}
-            onBack={() => setPageView("browse")}
+            onBack={() => {
+              track("trip_access_skipped");
+              setPageView("browse");
+            }}
           />
         </div>
         {setupDialog}
@@ -4874,9 +4870,9 @@ function Index() {
                         : "Live traffic is not available right now."}
                     </p>
                   )}
-                  {drivePlan && drivePlan.bufferMinutes > 0 && (
+                  {drivePlan && (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Includes {drivePlan.bufferMinutes} min to park and walk in · {driveBasisLabel}
+                      Parking not included · {driveBasisLabel}
                     </p>
                   )}
                 </div>
@@ -5560,19 +5556,11 @@ function Index() {
                       <span className="ml-1 text-base">min</span>
                     </p>
                   </div>
-                  {driveAvailable &&
-                    driveTripEstimate.expectedDurationMinutes !== null &&
-                    driveDoorToDoorMinutes !== null &&
-                    driveDoorToDoorMinutes > driveTripEstimate.expectedDurationMinutes && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {Math.round(driveTripEstimate.expectedDurationMinutes)} min of driving in
-                        live traffic, plus about{" "}
-                        {Math.round(
-                          driveDoorToDoorMinutes - driveTripEstimate.expectedDurationMinutes,
-                        )}{" "}
-                        min to park and walk in.
-                      </p>
-                    )}
+                  {driveAvailable && driveDoorToDoorMinutes !== null && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Live driving time (parking not included)
+                    </p>
+                  )}
                   {verdict !== "drive" &&
                     (drive?.corridorLabel ? (
                       <RouteCorridor label={drive.corridorLabel} size="compact" />

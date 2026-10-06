@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { destinationAccess } from "../destination-access";
 import { decideArrival, decideTrip, verdictMarginMinutes } from "./commute-decision";
 import { driveEstimate, transitEstimate, type TripEstimate } from "./trip-estimate";
 
@@ -14,7 +13,9 @@ afterAll(() => {
   vi.useRealTimers();
 });
 const at = (hour: number, minute = 0) => (hour * 60 + minute) * 60;
-const downtown = destinationAccess({ lat: 21.309, lon: -157.862 });
+// The engine still supports an arrival allowance; Nalu itself passes none
+// (see destination-access.ts), so these tests give it one explicitly.
+const downtown = { label: "test allowance", lowMin: 7, typicalMin: 10, highMin: 14 };
 
 function drive(
   trafficMinutes: number,
@@ -61,8 +62,8 @@ function rail(
 }
 
 describe("normalized trip estimates", () => {
-  it("compares Kapolei to downtown door to door, including parking and walk", () => {
-    // Downtown access: 7–14 min to park and walk in (typical 10).
+  it("adds an arrival allowance when one is given", () => {
+    // An allowance of 7–14 min (typical 10).
     const item = drive(42, 40, 48);
     expect(item.expectedDurationMinutes).toBe(42); // road time, as shown on the drive tab
     expect(item.doorToDoorMinutes).toBe(52);

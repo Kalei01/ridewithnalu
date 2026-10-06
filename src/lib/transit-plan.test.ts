@@ -398,8 +398,8 @@ describe("transit trip planner: drive to the station + Skyline", () => {
     expect(options[0]?.arrive_seconds).toBe(27540); // 7:39 AM via UH West Oʻahu
     expect(options[0]?.legs.map((l) => l.mode)).toEqual(["drive", "rail", "bus", "walk"]);
     expect(options[0]?.legs[0]?.to_stop_id).toBe(KEONEAE.stop_id);
-    expect(options[0]?.legs[0]?.minutes).toBe(15); // 12 min live traffic + 3 to park and board
-    expect(options[0]?.leave_by_seconds).toBe(24240 - 15 * 60); // leave 6:29
+    expect(options[0]?.legs[0]?.minutes).toBe(12); // live traffic only; no parking time is guessed
+    expect(options[0]?.leave_by_seconds).toBe(24240 - 12 * 60); // leave 6:32
     expect(
       options.some(
         (o) => o.legs[0]?.to_stop_id === KUALAKAI.stop_id && o.legs[0]?.mode === "drive",
@@ -629,13 +629,13 @@ describe("transit trip planner: drive to the station + Skyline", () => {
       );
       const dropped = options.find((o) => o.legs[0]?.to_stop_id === WAIAWA.stop_id);
       expect(dropped?.legs[0]?.mode).toBe("drive");
-      // No lot there, so live traffic plus a short walk to the platform, not parking time.
-      expect(dropped?.legs[0]?.minutes).toBe(16);
+      // Live traffic only, whether or not the station has a lot.
+      expect(dropped?.legs[0]?.minutes).toBe(14);
       // Whether it wins is decided by comparing itineraries, not by the answer.
       expect(options.some((o) => o.arrive_seconds === 28140)).toBe(true);
     });
 
-    it("car available: a station with a lot keeps its parking time", async () => {
+    it("car available: a station with a lot is timed with live traffic only", async () => {
       answer({
         plan_transit_general: ok([bus91]),
         plan_outbound: (args) =>
@@ -644,7 +644,7 @@ describe("transit trip planner: drive to the station + Skyline", () => {
       driveTime.mockResolvedValue({ trafficMinutes: 12 });
       const options = await planTransitTrip(tripWith("vehicle"));
       const parked = options.find((o) => o.legs[0]?.to_stop_id === KEONEAE.stop_id);
-      expect(parked?.legs[0]?.minutes).toBe(15); // 12 min live traffic + 3 to park and board
+      expect(parked?.legs[0]?.minutes).toBe(12);
     });
 
     it("never drives to a station with no lot that wasn't chosen as a drop-off point", async () => {

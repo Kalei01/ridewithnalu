@@ -61,7 +61,10 @@ export function tripSteps(option: Option): string {
       const lot = leg.to_stop_id ? PARK_AND_RIDE_NAMES[leg.to_stop_id] : undefined;
       const station = lot ?? (leg.to_stop_id && leg.to ? stationLabel(leg.to) : undefined);
       if (!station) steps.push("Drive");
-      else steps.push(lot ? `Drive to ${station}` : `Dropped off at ${station}`);
+      else
+        steps.push(
+          lot ? `Drive to ${station} (parking not included)` : `Dropped off at ${station}`,
+        );
     } else if (leg.mode === "rail") steps.push("Skyline");
     else if (leg.mode === "bus") {
       const route = leg.route_short?.trim() || leg.route_long?.trim();

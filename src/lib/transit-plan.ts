@@ -246,10 +246,6 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
       now,
       nowSeconds,
       leaveNow: planMode !== "arrive-by",
-      // A station with a lot keeps the time to park; anywhere else it's a
-      // drop-off, so only the walk in to the platform.
-      boardMinutesFor: (stopId) =>
-        isParkAndRide(stopId) ? PARK_AND_BOARD_MINUTES : DROP_OFF_BOARD_MINUTES,
     });
   };
 
@@ -578,11 +574,6 @@ export function dropWalkableDriveAccess(
   });
 }
 
-/** The planner's allowance to park and reach the platform after driving (as in its SQL estimate). */
-const PARK_AND_BOARD_MINUTES = 3;
-/** Being dropped off skips parking; this is only the walk in to the platform (an estimate). */
-const DROP_OFF_BOARD_MINUTES = 2;
-
 /**
  * The planner times "drive to the station" from straight-line distance with no
  * traffic. Before such a trip can be compared with driving all the way (which
@@ -598,8 +589,6 @@ export async function retimeDriveAccess(
     now: Date;
     nowSeconds: number;
     leaveNow: boolean;
-    /** Minutes to park (or be dropped off) and reach the platform, per station; defaults to the park-and-ride allowance. */
-    boardMinutesFor?: (stopId: string) => number;
   },
 ): Promise<Option[]> {
   const driveFirst = (option: Option) => option.legs[0]?.mode === "drive";
@@ -660,9 +649,8 @@ export async function retimeDriveAccess(
     const [access, ...rest] = option.legs;
     const live = liveMinutes.get(keyFor(option));
     if (!access || live === undefined || access.arrive_seconds == null) return [];
-    const minutes =
-      Math.ceil(live) +
-      (input.boardMinutesFor?.(access.to_stop_id ?? "") ?? PARK_AND_BOARD_MINUTES);
+    // Live road time only: parking and the walk to the platform aren't estimated.
+    const minutes = Math.ceil(live);
     const leave = access.arrive_seconds - minutes * 60;
     // Leaving now: a train you can't reach in time isn't an option.
     if (input.leaveNow && leave < input.nowSeconds - 60) return [];

@@ -20,7 +20,7 @@ function HonuMark() {
 
 /** The example answer: title, how, total time, arrival, Nalu's pick. */
 const WELCOME_EXAMPLE = [
-  ["Drive", "H-1 East", "52 min", "8:11", true],
+  ["Drive", "H-1 East", "42 min", "8:01", true],
   ["Skyline", "Drive to UH West Oʻahu → Skyline → bus", "1 hr 14 min", "8:41", false],
   ["Bus", "Walk → bus", "1 hr 26 min", "8:45", false],
 ] as const;
@@ -139,7 +139,7 @@ export function WelcomeLanding({
               Example · ʻEwa Beach to downtown, a weekday at 7:19 AM
             </p>
             <p className="mt-2 text-sm font-semibold text-recommended">Nalu says</p>
-            <p className="mt-1 text-3xl font-black tracking-tight">Drive · 34 min faster</p>
+            <p className="mt-1 text-3xl font-black tracking-tight">Drive · 44 min faster</p>
             <ul className="mt-5 grid gap-2">
               {WELCOME_EXAMPLE.map(([title, how, minutes, arrive, pick]) => (
                 <li
@@ -158,8 +158,8 @@ export function WelcomeLanding({
               ))}
             </ul>
             <p className="mt-4 text-sm text-muted-foreground">
-              The drive includes about 10 minutes to park and walk in downtown. Without a car, the
-              bus still gets you there.
+              Drive times are live traffic (parking not included). Without a car, the bus still gets
+              you there.
             </p>
           </div>
         </section>
