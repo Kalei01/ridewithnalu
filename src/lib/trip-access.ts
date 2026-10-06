@@ -55,13 +55,3 @@ export function vehicleToStation(resources: AccessResources): VehicleToStation {
 export function carTripAvailable(resources: AccessResources): boolean {
   return resources.vehicle;
 }
-
-/**
- * The answer belongs to the trip on screen, keyed by its destination so that
- * switching destination asks again. It is deliberately not saved: every time a
- * rider starts a trip (a Work or Home shortcut, a search) it is asked afresh.
- */
-export function tripAccessKey(to: { lat: number | null; lon: number | null }): string | null {
-  if (to.lat === null || to.lon === null) return null;
-  return `${to.lat.toFixed(4)},${to.lon.toFixed(4)}`;
-}

@@ -51,7 +51,6 @@ import { landingView, mayAutoOpenUsualTrip } from "@/lib/landing-view";
 import {
   accessResources,
   carTripAvailable,
-  tripAccessKey,
   tripAccessLabel,
   vehicleToStation,
   type TripAccess,
@@ -763,6 +762,8 @@ function Index() {
     window.localStorage.removeItem(PLAN_MODE_KEY);
     window.localStorage.removeItem(ARRIVE_BY_KEY);
     window.localStorage.setItem(SETUP_DISMISSED_KEY, "1");
+    // The next trip asks again whether it may include driving.
+    forgetTripAccess();
     // Releasing the lock also stops the GPS watcher and the 2-minute traffic
     // polling, both of which are gated on an active committed drive.
     releaseCommitment();
@@ -792,6 +793,7 @@ function Index() {
     setSelectedMode("transit");
     setOnboardingOpen(false);
     setSettingsOpen(false);
+    forgetTripAccess();
   }, [signedInAt]);
 
   const timeParts = useMemo(
@@ -883,35 +885,27 @@ function Index() {
     : (lastOnlineScheduleSeconds.current ?? afterSeconds);
   // Where today's car is. With station driving enabled, an unrecorded return
   // starts with the car at the home station; an explicit same-day location wins.
-  // What works for this trip, asked once after the destination is chosen. It is
-  // an input to the planner (which kinds of itinerary may be built), never a
-  // verdict: Nalu still compares everything the answer allows.
-  const accessKey = tripAccessKey(tripDirection.to);
-  const [accessAnswer, setAccessAnswer] = useState<{
-    key: string;
-    value: TripAccess | null;
-  } | null>(null);
+  // What works for this trip, asked once when a trip starts. It is an input to
+  // the planner (which kinds of itinerary may be built), never a verdict: Nalu
+  // still compares everything the answer allows. One answer covers the whole
+  // trip, so switching between Work and Home keeps it; End trip forgets it. It
+  // is held in memory only, so closing the app forgets it too.
+  const [accessAnswer, setAccessAnswer] = useState<TripAccess | null>(null);
   // The answer given just before tapping "Change", so the question can show it.
   const [previousAccess, setPreviousAccess] = useState<TripAccess | null>(null);
-  const tripAccess: TripAccess | null =
-    !hydrated || !accessKey ? null : accessAnswer?.key === accessKey ? accessAnswer.value : null;
+  const tripAccess: TripAccess | null = hydrated ? accessAnswer : null;
   // Not asked on a trip already under way, or where there is no transit to compare.
   const needsAccessAnswer =
     hydrated && configured && activeRegion().hasTransit && !commitment && tripAccess === null;
   const resources = accessResources(tripAccess ?? "vehicle");
-  // The answer is for the trip on screen. Leaving it (Browse, End trip) forgets
-  // it, so every Work or Home shortcut asks again.
-  useEffect(() => {
-    if (pageView === "browse") {
-      setAccessAnswer(null);
-      setPreviousAccess(null);
-    }
-  }, [pageView]);
+  function forgetTripAccess() {
+    setAccessAnswer(null);
+    setPreviousAccess(null);
+  }
   function chooseTripAccess(next: TripAccess | null) {
-    if (!accessKey) return;
     setPreviousAccess(next === null ? tripAccess : null);
     if (next) track("trip_access_answered", { answer: next });
-    setAccessAnswer({ key: accessKey, value: next });
+    setAccessAnswer(next);
     setChosenCard(null);
   }
 

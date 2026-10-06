@@ -1,9 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   TRIP_ACCESS_OPTIONS,
   accessResources,
   carTripAvailable,
-  tripAccessKey,
   vehicleToStation,
 } from "./trip-access";
 import { dropOffCandidates, pickupCandidates } from "./rail/drop-off";
@@ -37,30 +36,6 @@ describe("the two choices", () => {
     // The constraint is all that differs: walking, bus and Skyline stay in both.
     expect(Object.keys(accessResources("vehicle"))).toEqual(["vehicle"]);
     expect(Object.keys(accessResources("bus"))).toEqual(["vehicle"]);
-  });
-});
-
-describe("the answer belongs to the trip on screen", () => {
-  it("is keyed by destination, so a different destination asks again", () => {
-    expect(tripAccessKey({ lat: 21.30937, lon: -157.86318 })).toBe("21.3094,-157.8632");
-    expect(tripAccessKey({ lat: 21.3213, lon: -157.80498 })).not.toBe(
-      tripAccessKey({ lat: 21.30937, lon: -157.86318 }),
-    );
-    expect(tripAccessKey({ lat: null, lon: null })).toBeNull();
-  });
-
-  it("is never saved to the phone", () => {
-    const writes: string[] = [];
-    vi.stubGlobal("window", {
-      localStorage: {
-        setItem: (key: string) => writes.push(key),
-        getItem: () => null,
-        removeItem: () => {},
-      },
-    });
-    tripAccessKey({ lat: 21.3, lon: -157.8 });
-    expect(writes).toEqual([]);
-    vi.unstubAllGlobals();
   });
 });
 
