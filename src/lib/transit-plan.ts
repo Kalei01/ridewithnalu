@@ -6,7 +6,7 @@ import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallba
 import { type PlanMode } from "@/components/commute/ArriveByControls";
 import { MAX_STOP_WALK_M } from "@/lib/rail/walk-preference";
 import { isParkAndRide, metresBetween, nearestParkAndRide } from "@/lib/rail/park-and-ride";
-import { dropOffCandidates } from "@/lib/rail/drop-off";
+import { dropOffCandidates, pickupCandidates } from "@/lib/rail/drop-off";
 import type { VehicleToStation } from "@/lib/trip-access";
 import { driveTime } from "@/lib/drive.functions";
 import { honoluluIsoDow } from "@/lib/commute-formatting";
@@ -69,7 +69,12 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
           planMode === "arrive-by" ? 2 : 3,
         )
       : [];
-  const dropOffStops: ReadonlySet<string> = new Set(dropOffStations.map((s) => s.stop_id));
+  // The home station counts too: with a car available a ride there needs no lot.
+  const dropOffStops: ReadonlySet<string> = new Set(
+    vehicleToStation === "vehicle" && setup.homeStopId
+      ? [...dropOffStations.map((s) => s.stop_id), setup.homeStopId]
+      : dropOffStations.map((s) => s.stop_id),
+  );
   // With no vehicle available (taking the bus), no path may end up with a car leg.
   const withoutCarLegs = (options: Option[]) =>
     vehicleToStation === "none"
@@ -217,16 +222,18 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
     }
   };
 
-  // The home station walk-only, plus vehicle legs when a car is available:
-  // drive and park at the nearest station with a lot (e.g. ʻEwa Beach: walk to
-  // Kualakaʻi, or drive to Keoneʻae), and the drop-off stations chosen above.
+  // The home station (walking, and by car when one is available: the station
+  // nearest home is often the best place to be dropped off even with no lot),
+  // plus the nearest station with a lot (e.g. ʻEwa Beach: Kualakaʻi, or UH West
+  // Oʻahu), and the drop-off stations chosen above.
   const fetchOutbound = async (cursor: number): Promise<Option[]> => {
     const home = setup.homeStopId;
     const vehicle = vehicleToStation === "vehicle";
-    const homeHasParking = isParkAndRide(home);
     const parkStation =
-      vehicle && !homeHasParking ? nearestParkAndRide(tripDirection.from, browseStations) : null;
-    const queries = [fetchOutboundAt(home, vehicle && homeHasParking, cursor)];
+      vehicle && !isParkAndRide(home)
+        ? nearestParkAndRide(tripDirection.from, browseStations)
+        : null;
+    const queries = [fetchOutboundAt(home, vehicle, cursor)];
     const queried = new Set([home, parkStation?.stop_id]);
     if (parkStation && parkStation.stop_id !== home)
       queries.push(fetchOutboundAt(parkStation.stop_id, true, cursor));
@@ -518,11 +525,11 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
     if (!inbound || vehicleToStation !== "vehicle" || lateNight(cursor)) return [];
     try {
       const coordinates = inboundPlannerCoordinates(tripDirection);
-      const stations = dropOffCandidates(
+      const stations = pickupCandidates(
         tripDirection.to,
         tripDirection.from,
         browseStations,
-        planMode === "arrive-by" ? 2 : 3,
+        planMode === "arrive-by" ? 3 : 4,
       );
       const found = await Promise.all(
         stations.map(async (station) => {

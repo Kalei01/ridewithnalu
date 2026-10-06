@@ -382,7 +382,7 @@ describe("transit trip planner: drive to the station + Skyline", () => {
         args["p_station"] === KEONEAE.stop_id ? ok([driveToKeoneae]) : ok([driveToKualakai]),
     });
 
-  it("drives only to a station with parking, timed with live traffic, and keeps the bus", async () => {
+  it("with a car, also tries the station nearest home (no lot needed), timed with live traffic, and keeps the bus", async () => {
     planners();
     driveTime.mockResolvedValue({ trafficMinutes: 12 });
     const options = await planTransitTrip(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
@@ -391,20 +391,22 @@ describe("transit trip planner: drive to the station + Skyline", () => {
       .map(([, a]) => a as Record<string, unknown>);
     expect(outboundCalls).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ p_station: KUALAKAI.stop_id, p_allow_drive: false }),
+        expect.objectContaining({ p_station: KUALAKAI.stop_id, p_allow_drive: true }),
         expect.objectContaining({ p_station: KEONEAE.stop_id, p_allow_drive: true }),
       ]),
     );
-    expect(options[0]?.arrive_seconds).toBe(27540); // 7:39 AM via UH West Oʻahu
-    expect(options[0]?.legs.map((l) => l.mode)).toEqual(["drive", "rail", "bus", "walk"]);
-    expect(options[0]?.legs[0]?.to_stop_id).toBe(KEONEAE.stop_id);
-    expect(options[0]?.legs[0]?.minutes).toBe(12); // live traffic only; no parking time is guessed
-    expect(options[0]?.leave_by_seconds).toBe(24240 - 12 * 60); // leave 6:32
-    expect(
-      options.some(
-        (o) => o.legs[0]?.to_stop_id === KUALAKAI.stop_id && o.legs[0]?.mode === "drive",
-      ),
-    ).toBe(false);
+    // Both are real options, timed with live traffic only; the earlier arrival leads.
+    const atKualakai = options.find(
+      (o) => o.legs[0]?.to_stop_id === KUALAKAI.stop_id && o.legs[0]?.mode === "drive",
+    );
+    const atKeoneae = options.find(
+      (o) => o.legs[0]?.to_stop_id === KEONEAE.stop_id && o.legs[0]?.mode === "drive",
+    );
+    expect(atKualakai?.legs[0]?.minutes).toBe(12);
+    expect(atKeoneae?.legs[0]?.minutes).toBe(12);
+    expect(atKeoneae?.arrive_seconds).toBe(27540); // 7:39 AM via UH West Oʻahu
+    expect(atKeoneae?.legs.map((l) => l.mode)).toEqual(["drive", "rail", "bus", "walk"]);
+    expect(atKeoneae?.leave_by_seconds).toBe(24240 - 12 * 60); // leave 6:32
     expect(options.some((o) => o.arrive_seconds === 28140)).toBe(true); // the car-free 91 stays
   });
 
@@ -647,16 +649,20 @@ describe("transit trip planner: drive to the station + Skyline", () => {
       expect(parked?.legs[0]?.minutes).toBe(12);
     });
 
-    it("never drives to a station with no lot that wasn't chosen as a drop-off point", async () => {
-      // Kualakaʻi has no lot and leads away from town, so it isn't a drop-off candidate.
+    it("tries the station nearest home by car even with no lot: someone can drop you there", async () => {
       answer({ plan_transit_general: ok([bus91]), plan_outbound: ok([driveToKualakai]) });
       driveTime.mockResolvedValue({ trafficMinutes: 6 });
       const options = await planTransitTrip(tripWith("vehicle"));
+      expect(outboundCalls()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ p_station: KUALAKAI.stop_id, p_allow_drive: true }),
+        ]),
+      );
       expect(
         options.some(
           (o) => o.legs[0]?.to_stop_id === KUALAKAI.stop_id && o.legs[0]?.mode === "drive",
         ),
-      ).toBe(false);
+      ).toBe(true);
     });
 
     it("taking the bus: no car leg is ever requested or shown", async () => {
@@ -765,6 +771,46 @@ describe("transit trip planner: heading home with a car available", () => {
     expect(pickup?.legs.at(-1)?.minutes).toBe(22);
     expect(pickup?.arrive_seconds).toBe(63600 + 22 * 60);
     expect(pickup?.total_minutes).toBe(Math.round((63600 + 22 * 60 - 61500) / 60));
+  });
+
+  it("tries the stations nearest home first, even past home (East Kapolei, UH West Oʻahu)", async () => {
+    const KUALAKAI = {
+      stop_id: "10047",
+      stop_name: "KUALAKA'I EAST KAPOLEI STATION",
+      stop_lat: 21.3456,
+      stop_lon: -158.051,
+    };
+    const KEONEAE = {
+      stop_id: "10046",
+      stop_name: "KEONE'AE U.H. WEST OAHU STATION",
+      stop_lat: 21.3585,
+      stop_lon: -158.0512,
+    };
+    answer({
+      plan_inbound: (args) =>
+        args["p_allow_drive"] === true
+          ? ok([
+              {
+                ...pickupTrip,
+                legs: pickupTrip.legs.map((leg) =>
+                  leg.mode === "drive" ? { ...leg, from: "KUALAKA'I EAST KAPOLEI STATION" } : leg,
+                ),
+              },
+            ])
+          : ok([]),
+    });
+    driveTime.mockResolvedValue({ trafficMinutes: 9 });
+    const options = await planTransitTrip({
+      ...trip("vehicle"),
+      browseStations: [HALAWA, KAHAUIKI, KUALAKAI, KEONEAE],
+    });
+    const stations = inboundCalls()
+      .filter((a) => a["p_allow_drive"] === true)
+      .map((a) => a["p_station"]);
+    expect(stations).toEqual(expect.arrayContaining([KUALAKAI.stop_id, KEONEAE.stop_id]));
+    expect(
+      options.some((o) => o.legs.at(-1)?.mode === "drive" && o.legs.at(-1)?.minutes === 9),
+    ).toBe(true);
   });
 
   it("drops a pickup trip when live traffic is unavailable, rather than guessing", async () => {

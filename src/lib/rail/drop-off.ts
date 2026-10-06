@@ -61,3 +61,41 @@ export function dropOffCandidates<T extends Station>(
   );
   return picked.slice(0, max).map((item) => item.station);
 }
+
+/**
+ * Stations worth trying as the pickup point on the way home. The car only
+ * covers the last stretch, so the stations nearest home come first whichever
+ * side of home they are on (the line's end can lie past it, e.g. East Kapolei
+ * or UH West Oʻahu for ʻEwa Beach), then the ones that make the most progress
+ * from where the rider starts. Each is timed with real trips and live traffic
+ * and the comparison decides; nothing is assumed.
+ */
+export function pickupCandidates<T extends Station>(
+  home: Point,
+  origin: Point,
+  stations: T[],
+  max = 4,
+): T[] {
+  if (home.lat == null || home.lon == null) return [];
+  const here = { lat: home.lat, lon: home.lon };
+  const nearHome = stations
+    .filter((station) => station.stop_lat != null && station.stop_lon != null)
+    .map((station) => ({
+      station,
+      metres: metresBetween(here, {
+        lat: Number(station.stop_lat),
+        lon: Number(station.stop_lon),
+      }),
+    }))
+    // Past walking range: closer than that, the rider just walks home.
+    .filter((item) => item.metres > WALKABLE_M)
+    .sort((a, b) => a.metres - b.metres)
+    .slice(0, 2)
+    .map((item) => item.station);
+  const progress = dropOffCandidates(home, origin, stations, 2);
+  return [...nearHome, ...progress]
+    .filter(
+      (station, index, list) => list.findIndex((s) => s.stop_id === station.stop_id) === index,
+    )
+    .slice(0, max);
+}

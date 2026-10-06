@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { accessResources, carTripAvailable, tripAccessKey, vehicleToStation } from "./trip-access";
-import { dropOffCandidates } from "./rail/drop-off";
+import { dropOffCandidates, pickupCandidates } from "./rail/drop-off";
 
 describe("what each answer makes available", () => {
   it("Drive or drop-off: a car for some or all of the trip, without assuming how", () => {
@@ -76,5 +76,41 @@ describe("drop-off stations", () => {
 
   it("returns nothing without coordinates", () => {
     expect(dropOffCandidates({ lat: null, lon: null }, downtown, stations)).toEqual([]);
+  });
+
+  describe("pickup stations heading home", () => {
+    // Downtown to ʻEwa Beach. The line's end (East Kapolei, UH West Oʻahu) lies past home.
+    const home = { lat: 21.32203, lon: -158.03366 };
+    const downtown = { lat: 21.30937, lon: -157.86318 };
+    const station = (stop_id: string, lat: number, lon: number) => ({
+      stop_id,
+      stop_lat: lat,
+      stop_lon: lon,
+    });
+    const stations = [
+      station("10047", 21.3456, -158.051), // Kualakaʻi (East Kapolei)
+      station("10046", 21.3585, -158.0512), // Keoneʻae (UH West Oʻahu)
+      station("10045", 21.3461, -158.0377), // Honouliuli
+      station("10055", 21.3731, -157.9388), // Hālawa
+      station("10030", 21.3366, -157.8825), // Kahauiki
+    ];
+
+    it("tries the stations nearest home first, even though they lie past home", () => {
+      const ids = pickupCandidates(home, downtown, stations).map((s) => s.stop_id);
+      expect(ids.slice(0, 2).sort()).toEqual(["10045", "10047"]);
+      // The station that makes the most progress from downtown is tried too.
+      expect(ids).toContain("10030");
+    });
+
+    it("never lists a station twice and respects the limit", () => {
+      const ids = pickupCandidates(home, downtown, stations, 3).map((s) => s.stop_id);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(ids.length).toBeLessThanOrEqual(3);
+    });
+
+    it("skips a station the rider could simply walk from", () => {
+      const next = [station("near", 21.3225, -158.0345), ...stations];
+      expect(pickupCandidates(home, downtown, next).map((s) => s.stop_id)).not.toContain("near");
+    });
   });
 });
