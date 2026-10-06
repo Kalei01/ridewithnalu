@@ -3145,9 +3145,9 @@ function Index() {
         ? best
           ? `Skyline has not started yet today. Nalu is comparing ${transitLabel} service with driving.`
           : "Skyline has not started yet today. Nalu is checking available transit options."
-        : // Taking the bus: the rider chose no car, so don't say it's unavailable.
+        : // No driving: the rider chose no car, so don't say it's unavailable.
           tripAccess === "bus" && activeDecision.primary.text === CAR_UNAVAILABLE_TEXT
-          ? "Showing your bus trips."
+          ? "Showing trips without driving."
           : // "Drive gets you there about 30 min sooner" repeats the headline;
             // show the supporting reason instead, if there is one.
             activeDecision.primary.kind === "time_advantage"
@@ -4937,7 +4937,7 @@ function Index() {
                   <p className="font-semibold text-foreground">
                     {tripAccess === "bus" &&
                     arriveByComparison.primary.text === CAR_UNAVAILABLE_TEXT
-                      ? "Showing your bus trips."
+                      ? "Showing trips without driving."
                       : arriveByComparison.primary.text}
                   </p>
                   {arriveByComparison.driveMarginMinutes !== null &&

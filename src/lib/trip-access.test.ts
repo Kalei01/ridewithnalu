@@ -1,20 +1,42 @@
 import { describe, expect, it, vi } from "vitest";
-import { accessResources, carTripAvailable, tripAccessKey, vehicleToStation } from "./trip-access";
+import {
+  TRIP_ACCESS_OPTIONS,
+  accessResources,
+  carTripAvailable,
+  tripAccessKey,
+  vehicleToStation,
+} from "./trip-access";
 import { dropOffCandidates, pickupCandidates } from "./rail/drop-off";
 
 describe("what each answer makes available", () => {
-  it("Drive or drop-off: a car for some or all of the trip, without assuming how", () => {
+  it("Include driving or drop-off: a car may be part of the comparison, without assuming how", () => {
     const r = accessResources("vehicle");
     expect(r).toEqual({ vehicle: true });
     expect(vehicleToStation(r)).toBe("vehicle");
     expect(carTripAvailable(r)).toBe(true);
   });
 
-  it("Taking the bus: no car leg of any kind", () => {
+  it("No driving: no car leg of any kind", () => {
     const r = accessResources("bus");
     expect(r).toEqual({ vehicle: false });
     expect(vehicleToStation(r)).toBe("none");
     expect(carTripAvailable(r)).toBe(false);
+  });
+});
+
+describe("the two choices", () => {
+  it("are worded as constraints on the comparison, not as modes", () => {
+    expect(TRIP_ACCESS_OPTIONS.map((option) => `${option.emoji} ${option.label}`)).toEqual([
+      "🚗 Include driving or drop-off",
+      "🚌 No driving — bus, rail & walking",
+    ]);
+  });
+
+  it("only decide whether a car may be used; neither names a winner", () => {
+    expect(TRIP_ACCESS_OPTIONS.map((option) => option.value)).toEqual(["vehicle", "bus"]);
+    // The constraint is all that differs: walking, bus and Skyline stay in both.
+    expect(Object.keys(accessResources("vehicle"))).toEqual(["vehicle"]);
+    expect(Object.keys(accessResources("bus"))).toEqual(["vehicle"]);
   });
 });
 

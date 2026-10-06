@@ -5,11 +5,11 @@
  *
  *   tripAccess ──► resources ──► possible itineraries ──► compare ──► verdict
  *
- * The answers are deliberately not routing modes. "Drive or drop-off" only
- * says a car is available for some or all of the trip; it does not mean Drive
- * or Skyline wins. "Taking the bus" means no car, not that Bus wins. Walking is
- * always part of an itinerary and never asked. New answers can be added later
- * by describing what they allow in `accessResources`.
+ * The answers are deliberately not routing modes. "Include driving or
+ * drop-off" only says a car may be part of the comparison; it does not mean
+ * Drive or Skyline wins. "No driving — bus, rail & walking" means no car, not
+ * that Bus wins. Walking is always part of an itinerary and never asked. New
+ * answers can be added later by describing what they allow in `accessResources`.
  */
 
 export type TripAccess = "vehicle" | "bus";
@@ -19,8 +19,8 @@ export const TRIP_ACCESS_OPTIONS: ReadonlyArray<{
   emoji: string;
   label: string;
 }> = [
-  { value: "vehicle", emoji: "🚗", label: "Drive or drop-off" },
-  { value: "bus", emoji: "🚌", label: "Taking the bus" },
+  { value: "vehicle", emoji: "🚗", label: "Include driving or drop-off" },
+  { value: "bus", emoji: "🚌", label: "No driving — bus, rail & walking" },
 ];
 
 export const tripAccessLabel = (access: TripAccess) =>

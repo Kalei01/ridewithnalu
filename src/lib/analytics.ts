@@ -17,7 +17,7 @@ export type AnalyticsEvent =
   | "active_trip_started"
   | "active_trip_completed"
   | "feedback_submitted"
-  /** The "what works for you?" question: which answer, or that the rider left without one. */
+  /** The "How should Nalu plan your trip?" question: which answer, or that the rider left without one. */
   | "trip_access_answered"
   | "trip_access_skipped";
 

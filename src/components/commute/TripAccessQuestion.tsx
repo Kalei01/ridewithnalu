@@ -2,8 +2,8 @@ import { TRIP_ACCESS_OPTIONS, type TripAccess } from "@/lib/trip-access";
 
 /**
  * Asked once per trip, after the destination is chosen and before any result.
- * The answer says what transportation is available for this trip; it is not a
- * choice of route. Nalu still compares every itinerary that answer allows.
+ * The answer says what Nalu may consider (a car, or no car); it is not a choice
+ * of route. Nalu still compares every itinerary that answer allows.
  *
  * Plain buttons with ring styles: the theme restyles `button.border` and glass
  * panels, which would hide the pressed state.
@@ -31,8 +31,11 @@ export function TripAccessQuestion({
         id="trip-access-title"
         className="mt-2 max-w-[390px] text-3xl font-bold leading-tight text-foreground"
       >
-        Quick question — what works for you?
+        How should Nalu plan your trip?
       </h1>
+      <p className="mt-3 max-w-[390px] text-sm leading-6 text-muted-foreground">
+        Nalu will compare Drive, Skyline, Bus, and combinations to find your best option.
+      </p>
       <div role="group" aria-labelledby="trip-access-title" className="mt-6 grid gap-3">
         {TRIP_ACCESS_OPTIONS.map((option) => (
           <button
