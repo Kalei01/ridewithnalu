@@ -1,12 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  accessResources,
-  carTripAvailable,
-  readTripAccess,
-  tripAccessKey,
-  vehicleToStation,
-  writeTripAccess,
-} from "./trip-access";
+import { describe, expect, it, vi } from "vitest";
+import { accessResources, carTripAvailable, tripAccessKey, vehicleToStation } from "./trip-access";
 import { dropOffCandidates } from "./rail/drop-off";
 
 describe("what each answer makes available", () => {
@@ -25,41 +18,27 @@ describe("what each answer makes available", () => {
   });
 });
 
-describe("remembering an answer", () => {
-  const store = new Map<string, string>();
-  const HOUR = 60 * 60_000;
-  beforeEach(() => {
-    store.clear();
-    vi.stubGlobal("window", {
-      localStorage: {
-        getItem: (key: string) => store.get(key) ?? null,
-        setItem: (key: string, value: string) => void store.set(key, value),
-        removeItem: (key: string) => void store.delete(key),
-      },
-    });
-  });
-  afterEach(() => vi.unstubAllGlobals());
-
-  it("is per destination", () => {
+describe("the answer belongs to the trip on screen", () => {
+  it("is keyed by destination, so a different destination asks again", () => {
     expect(tripAccessKey({ lat: 21.30937, lon: -157.86318 })).toBe("21.3094,-157.8632");
+    expect(tripAccessKey({ lat: 21.3213, lon: -157.80498 })).not.toBe(
+      tripAccessKey({ lat: 21.30937, lon: -157.86318 }),
+    );
     expect(tripAccessKey({ lat: null, lon: null })).toBeNull();
   });
 
-  it("holds for the same trip and then lapses, so a later trip is asked again", () => {
-    const key = "21.3094,-157.8632";
-    const t0 = Date.UTC(2026, 9, 6, 18, 0);
-    writeTripAccess(key, "vehicle", t0);
-    expect(readTripAccess(key, t0 + HOUR)).toBe("vehicle");
-    expect(readTripAccess(key, t0 + 5 * HOUR)).toBeNull();
-    expect(readTripAccess("21.0000,-157.0000", t0 + HOUR)).toBeNull();
-  });
-
-  it("can be cleared by Change", () => {
-    const key = "21.3094,-157.8632";
-    const t0 = Date.UTC(2026, 9, 6, 18, 0);
-    writeTripAccess(key, "bus", t0);
-    writeTripAccess(key, null, t0 + 1000);
-    expect(readTripAccess(key, t0 + 2000)).toBeNull();
+  it("is never saved to the phone", () => {
+    const writes: string[] = [];
+    vi.stubGlobal("window", {
+      localStorage: {
+        setItem: (key: string) => writes.push(key),
+        getItem: () => null,
+        removeItem: () => {},
+      },
+    });
+    tripAccessKey({ lat: 21.3, lon: -157.8 });
+    expect(writes).toEqual([]);
+    vi.unstubAllGlobals();
   });
 });
 

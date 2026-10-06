@@ -382,6 +382,9 @@ export default function CommuteRouteMap({
     if (fittedGeometryRef.current !== geometrySignatureRef.current && boundsLatLngs.length >= 2) {
       const firstFit = fittedGeometryRef.current === null;
       const fit = () => {
+        // The map may have been removed while this waited a frame or a timer
+        // (the screen changed under it); touching it then crashes Leaflet.
+        if (mapRef.current !== map) return true;
         map.invalidateSize({ animate: false });
         const size = map.getSize();
         if (size.x < 20 || size.y < 20) return false;
@@ -419,6 +422,7 @@ export default function CommuteRouteMap({
         // animate once.
         pendingFitRef.current = window.setTimeout(() => {
           pendingFitRef.current = null;
+          if (mapRef.current !== map) return;
           map.stop();
           if (!fit()) requestAnimationFrame(() => fit());
         }, 250);

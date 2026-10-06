@@ -44,11 +44,9 @@ import { landingView, mayAutoOpenUsualTrip } from "@/lib/landing-view";
 import {
   accessResources,
   carTripAvailable,
-  readTripAccess,
   tripAccessKey,
   tripAccessLabel,
   vehicleToStation,
-  writeTripAccess,
   type TripAccess,
 } from "@/lib/trip-access";
 import { RoadworkTile } from "@/components/commute/RoadworkTile";
@@ -879,20 +877,23 @@ function Index() {
   // The answer given just before tapping "Change", so the question can show it.
   const [previousAccess, setPreviousAccess] = useState<TripAccess | null>(null);
   const tripAccess: TripAccess | null =
-    !hydrated || !accessKey
-      ? null
-      : accessAnswer?.key === accessKey
-        ? accessAnswer.value
-        : readTripAccess(accessKey, now.getTime());
+    !hydrated || !accessKey ? null : accessAnswer?.key === accessKey ? accessAnswer.value : null;
   // Not asked on a trip already under way, or where there is no transit to compare.
   const needsAccessAnswer =
     hydrated && configured && activeRegion().hasTransit && !commitment && tripAccess === null;
   const resources = accessResources(tripAccess ?? "vehicle");
+  // The answer is for the trip on screen. Leaving it (Browse, End trip) forgets
+  // it, so every Work or Home shortcut asks again.
+  useEffect(() => {
+    if (pageView === "browse") {
+      setAccessAnswer(null);
+      setPreviousAccess(null);
+    }
+  }, [pageView]);
   function chooseTripAccess(next: TripAccess | null) {
     if (!accessKey) return;
     setPreviousAccess(next === null ? tripAccess : null);
     if (next) track("trip_access_answered", { answer: next });
-    writeTripAccess(accessKey, next, Date.now());
     setAccessAnswer({ key: accessKey, value: next });
     setChosenCard(null);
   }
