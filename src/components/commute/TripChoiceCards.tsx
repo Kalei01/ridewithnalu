@@ -4,7 +4,7 @@ export type TripChoiceKey = "drive" | "parkAndRide" | "noCar";
 
 export type TripChoice = {
   key: TripChoiceKey;
-  /** "Drive", "Park & ride", "No car". */
+  /** "Drive", "Park & ride", "Bus". */
   title: string;
   /** A few words on how: "Drive to UH West Oʻahu → Skyline → Bus 42". */
   steps: string | null;
@@ -15,7 +15,7 @@ export type TripChoice = {
   /** Arrive By only: this way doesn't get there in time. */
   late?: boolean;
   status: "ready" | "loading" | "empty";
-  /** Shown instead of minutes when there's no trip: "No car today", "Can't check right now". */
+  /** Shown instead of minutes when there's no trip: "No bus trip right now", "Can't check right now". */
   emptyText?: string;
   /** A short factual caveat, e.g. the lot that often fills. */
   note?: string | null;
@@ -26,10 +26,10 @@ export type TripChoice = {
 const ICONS = { drive: Car, parkAndRide: SquareParking, noCar: Bus } as const;
 
 /**
- * The ways to make this trip, side by side: drive, park & ride, and no car.
+ * The ways to make this trip, side by side: drive, park & ride, and bus.
  * Lives inside the verdict card so the headline's math is on screen. Nalu's
  * pick is marked; tapping a row shows that trip's details below. Everyone sees
- * every choice, so a rider without a car today just reads "No car".
+ * every choice, so a rider without a car today just uses the Bus row.
  *
  * Plain <button>s with their own ring styles: the theme restyles
  * button.border and glass panels, which would hide the selected state.

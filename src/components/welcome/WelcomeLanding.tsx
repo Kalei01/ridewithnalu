@@ -22,7 +22,7 @@ function HonuMark() {
 const WELCOME_EXAMPLE = [
   ["Drive", "H-1 East", "52 min", "8:11", true],
   ["Park & ride", "Drive to UH West Oʻahu → Skyline → bus", "1 hr 14 min", "8:41", false],
-  ["No car", "Walk → bus", "1 hr 26 min", "8:45", false],
+  ["Bus", "Walk → bus", "1 hr 26 min", "8:45", false],
 ] as const;
 
 /** Public pages linked from the introduction, so people and search engines can find them. */

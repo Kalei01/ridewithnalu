@@ -60,7 +60,7 @@ export function VerdictDomain({
   driveTotalMinutes: number | null;
   /** Arrive By leave time for the drive; null means leave now. */
   driveLeaveSeconds?: number | null;
-  /** Drive / Park & ride / No car, side by side, so the headline's math is on screen. */
+  /** Drive / Park & ride / Bus, side by side, so the headline's math is on screen. */
   comparison?: ReactNode;
   children?: ReactNode;
 }) {

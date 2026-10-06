@@ -7,6 +7,7 @@ import { debugDeviceId } from "@/lib/debug-log";
 import { honoluluDateKey } from "@/lib/commute-formatting";
 import { recordAppOpen } from "@/lib/usage.functions";
 import { captureRef } from "@/lib/ref-source";
+import { isAutomatedVisitor } from "@/lib/automated-visitor";
 
 const KEY = "nalu-counted-day-v1";
 /** Set once an owner signs in on this phone, so it's never counted again. */
@@ -38,6 +39,9 @@ export function UsagePing() {
   useEffect(() => {
     // Remember the link tag right away, before the URL changes.
     const ref = captureRef();
+    // Test browsers and crawlers aren't riders; leave them out of the count.
+    if (isAutomatedVisitor({ userAgent: navigator.userAgent, webdriver: navigator.webdriver }))
+      return;
     const day = honoluluDateKey(new Date());
     let counted: string | null = null;
     try {

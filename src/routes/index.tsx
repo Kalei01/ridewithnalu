@@ -1258,7 +1258,7 @@ function Index() {
       return;
     setSelectedDeparture(null);
   }, [inbound, options, selectedDeparture, commitment]);
-  // The way to travel the rider tapped (Drive / Park & ride / No car). It is
+  // The way to travel the rider tapped (Drive / Park & ride / Bus). It is
   // kept when that departure leaves, so a rider without a car is never moved
   // onto a car trip, and cleared for a new destination.
   const [chosenCard, setChosenCard] = useState<TripChoiceKey | null>(null);
@@ -2853,7 +2853,7 @@ function Index() {
     setChosenCard(null);
   }, [tripDirection.to.lat, tripDirection.to.lon, inbound]);
 
-  // Drive / Park & ride / No car, side by side inside the verdict card. Both
+  // Drive / Park & ride / Bus, side by side inside the verdict card. Both
   // transit choices come from the planner's own ordered list; tapping one
   // selects that trip. Leaving now, every row counts from now to arrival (drive
   // door to door), the same numbers the headline compares; for Arrive By each
@@ -2876,7 +2876,7 @@ function Index() {
     const option = lockedChoice === key && best ? best : group.option;
     return {
       key,
-      title: key === "parkAndRide" ? "Park & ride" : "No car",
+      title: key === "parkAndRide" ? "Park & ride" : "Bus",
       steps: option ? tripSteps(option) : null,
       minutes: option
         ? arriveByActive
@@ -2893,7 +2893,7 @@ function Index() {
       emptyText: optionsFailed
         ? "Can’t check transit right now"
         : key === "noCar"
-          ? "No trip without a car right now"
+          ? "No bus trip right now"
           : "No park & ride trip that makes sense right now",
       note: key === "parkAndRide" ? parkingNote(option, honoluluIsoDow(now)) : null,
       pick: naluPick === key,
