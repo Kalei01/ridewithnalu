@@ -39,6 +39,7 @@ NEEDS OPUS SESSION — rows above the fold (reworks the top of index.tsx: direct
 NEEDS OPUS SESSION — duplicate facts on the drive screen ("35 min" x4, route x3, parking note x3, "Moving steady" vs "Light"): spread across several cards in index.tsx.
 NEEDS OPUS SESSION — roadwork card saying when a closure isn't during this trip: needs trip-time vs closure-window logic (src/lib/roadwork.ts), which is commute logic.
 NEEDS OPUS SESSION — shared link opening on the trip question instead of Browse + one quiet toast: startup flow in index.tsx.
+Not verified in a browser (providers were unreachable in the sandbox): the ice-blue selected row, "Drive route" label, nearest-stop sort and the Where to? focus; check on the live site.
 Not attempted (small, next run): Browse map switch covering a marker; "Plan my trip" button on /oahu-commute and guides and the hard dark rectangle behind hero text (public pages are shared with the SEO agent — check docs/seo/search-review-log.md first).
 Original list:
 - Rows above the fold: direction + Leave/Arrive toggles take ~300 px; Skyline/Bus start ~y=900 (index.tsx, ArriveByControls.tsx).

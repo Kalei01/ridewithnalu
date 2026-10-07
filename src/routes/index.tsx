@@ -719,9 +719,10 @@ function Index() {
   function choosePlanMode(next: PlanMode) {
     if (next === "arrive-by" && !gate.require("arrive_by")) return;
     // Open with a real time (an hour out, to the next quarter hour) instead of "--:-- --".
-    if (next === "arrive-by" && !arriveByInput) {
-      const target = Math.ceil((honoluluSeconds(new Date()) + 3600) / 900) * 900;
-      const hh = String(Math.floor((target % 86400) / 3600)).padStart(2, "0");
+    // Late at night the hour-out time would roll past midnight: leave the field empty then.
+    const target = Math.ceil((honoluluSeconds(new Date()) + 3600) / 900) * 900;
+    if (next === "arrive-by" && !arriveByInput && target < 86400) {
+      const hh = String(Math.floor(target / 3600)).padStart(2, "0");
       const mm = String(Math.floor((target % 3600) / 60)).padStart(2, "0");
       chooseArriveBy(`${hh}:${mm}`);
     }
