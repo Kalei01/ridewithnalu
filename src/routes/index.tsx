@@ -3909,11 +3909,23 @@ function Index() {
       requestCommuteNotificationPermission();
     }
     void refreshTrafficNow();
-    if (!navigator.geolocation) {
-      toast("Your location isn’t available on this device.", {
-        description: "Open WHERE TO? to choose a starting point.",
+    // Keep the destination: open the planner with "To" filled in and ask only for the start.
+    const askForStart = () => {
+      setMapSetupDraft({
+        ...emptySetup,
+        allowDrive: true,
+        destinationName: destination.name,
+        destinationAddress: destination.address,
+        destLat: destination.lat,
+        destLon: destination.lon,
       });
       setOnboardingOpen(true);
+    };
+    if (!navigator.geolocation) {
+      toast("Your location isn’t available on this device.", {
+        description: `Choose where you're starting from to go to ${destination.label}.`,
+      });
+      askForStart();
       return;
     }
 
@@ -3978,9 +3990,9 @@ function Index() {
         if (isPermissionDeniedError(error)) recordLocationDenied();
         toast.error("Share your location to start in one tap.", {
           id: toastId,
-          description: "You can also choose a starting point in WHERE TO?.",
+          description: `Or choose where you're starting from to go to ${destination.label}.`,
         });
-        setOnboardingOpen(true);
+        askForStart();
       },
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
