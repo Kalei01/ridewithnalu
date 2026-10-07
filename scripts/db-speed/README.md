@@ -2,7 +2,7 @@
 
 Approved by the owner on Oct 6 2026. Prepared and rehearsed on a local copy of
 the database loaded with TheBus's real timetable (1.44M stop times, same size
-as production). **Not yet applied to production.**
+as production). **Applied to production Oct 7 2026, ~9:25 AM HST** (owner approved): production side-by-side 56/56 identical; old avg 1,752 ms (max 8,695) → new avg 83 ms (max 214); `nearby_transit_stops_v2` dropped. Still to check: the first Sunday timetable refresh after this (Oct 11, 2 AM) — `import_log.row_counts` should include `stop_modes`.
 
 `drizzle/migrations/0063_faster_nearby_transit_stops.sql` speeds up "stops near
 me" (`nearby_transit_stops`). Local rehearsal: 56/56 cases identical (14 places
