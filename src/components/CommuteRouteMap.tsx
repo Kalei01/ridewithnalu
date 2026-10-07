@@ -1,3 +1,4 @@
+import { flyMotion } from "@/lib/motion";
 import "./map-2.css";
 import { removeMapSafely } from "@/lib/leaflet-safe";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -245,7 +246,7 @@ export default function CommuteRouteMap({
     if (latLngs.length === 1) {
       L.circleMarker(latLngs[0]!, { radius: 16, color: "var(--color-recommended)", weight: 4, fillOpacity: 0.15 }).addTo(layer);
       map.stop();
-      map.flyTo(latLngs[0]!, 16, { duration: 0.6 });
+      map.flyTo(latLngs[0]!, 16, { ...flyMotion(0.4) });
       return;
     }
     L.polyline(latLngs, {
@@ -257,7 +258,7 @@ export default function CommuteRouteMap({
       className: "nalu-focus-line",
     }).addTo(layer);
     map.stop();
-    map.flyToBounds(L.latLngBounds(latLngs), { padding: [48, 48], maxZoom: 16, duration: 0.6 });
+    map.flyToBounds(L.latLngBounds(latLngs), { padding: [48, 48], maxZoom: 16, ...flyMotion(0.4) });
   }, [focusLeg]);
 
   useEffect(() => {
@@ -378,7 +379,7 @@ export default function CommuteRouteMap({
         className: "nalu-traffic-line",
       })
         .on("click", () => {
-          map.flyToBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 16, duration: 0.6 });
+          map.flyToBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 16, ...flyMotion(0.4) });
           setSpotlight(index);
         })
         .bindTooltip(
@@ -432,7 +433,7 @@ export default function CommuteRouteMap({
           map.flyToBounds(L.latLngBounds(boundsLatLngs), {
             padding: [36, 36],
             maxZoom: 13,
-            duration: 0.7,
+            ...flyMotion(0.4),
           });
         }
         fittedGeometryRef.current = geometrySignatureRef.current;
@@ -487,7 +488,7 @@ export default function CommuteRouteMap({
       lineCap: "round",
       className: "nalu-traffic-spotlight",
     }).addTo(map);
-    map.flyToBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 16, duration: 0.6 });
+    map.flyToBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: 16, ...flyMotion(0.4) });
   }, [spotlight]);
 
   const busMarkerRef = useRef<L.Marker | null>(null);
@@ -583,7 +584,7 @@ export default function CommuteRouteMap({
   const recenter = () => {
     const map = mapRef.current;
     if (!map || !livePoint) return;
-    map.flyTo([livePoint.lat, livePoint.lon], 15, { duration: 0.7 });
+    map.flyTo([livePoint.lat, livePoint.lon], 15, { ...flyMotion(0.4) });
   };
 
   const fitRoute = () => {
@@ -599,7 +600,7 @@ export default function CommuteRouteMap({
     map.flyToBounds(L.latLngBounds(corridor), {
       padding: [42, 42],
       maxZoom: 13,
-      duration: 0.7,
+      ...flyMotion(0.4),
     });
   };
 

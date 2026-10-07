@@ -274,6 +274,7 @@ import {
   shortcutIcon,
   shortcutLabel,
 } from "@/components/places/Shortcuts";
+import { scrollBehavior } from "@/lib/motion";
 import { currentLegIndex, liveTripSteps } from "@/lib/live-trip-steps";
 import { HoldToEndButton, NavBottomCard } from "@/components/commute/TripControls";
 
@@ -3672,9 +3673,12 @@ function Index() {
   }, [focusedLeg, best, transitMapSegments, itineraryStopCoords]);
   function showLegOnMap(index: number) {
     setFocusedLeg((current) => ({ index, token: (current?.token ?? 0) + 1 }));
-    document
-      .getElementById("trip-map-title")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Only bring the map into view when it is not already on screen; never
+    // yank the page when the rider can see the map move.
+    const title = document.getElementById("trip-map-title");
+    const rect = title?.getBoundingClientRect();
+    const mapVisible = rect ? rect.top >= 0 && rect.top < window.innerHeight * 0.6 : false;
+    if (title && !mapVisible) title.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
   }
 
   // Drive view: straight door-to-door, no rail station or transit stops.

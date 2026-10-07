@@ -1,3 +1,4 @@
+import { flyMotion } from "@/lib/motion";
 import { useEffect, useRef, useState } from "react";
 import { removeMapSafely } from "@/lib/leaflet-safe";
 import L from "leaflet";
@@ -190,7 +191,7 @@ export default function NearbyTransitMap({
     const offset = Math.min(map.getSize().y * 0.32, cardHeight / 2 + 24);
     const pin = L.latLng(previewLat, previewLon);
     const center = map.unproject(map.project(pin, zoom).add([0, offset]), zoom);
-    map.flyTo(center, zoom, { duration: 0.45 });
+    map.flyTo(center, zoom, { ...flyMotion(0.4) });
   }, [previewStopId, previewLat, previewLon]);
 
   // Fit the viewport once per set of stops, never on each GPS tick.
@@ -214,7 +215,7 @@ export default function NearbyTransitMap({
   }, [userPoint.lat, userPoint.lon]);
 
   const recenter = () =>
-    mapRef.current?.flyTo([userPoint.lat, userPoint.lon], 15, { duration: 0.7 });
+    mapRef.current?.flyTo([userPoint.lat, userPoint.lon], 15, { ...flyMotion(0.4) });
 
   const fitNearby = () => {
     const map = mapRef.current;
@@ -224,7 +225,7 @@ export default function NearbyTransitMap({
       ...stops.map((stop) => [stop.lat, stop.lon] as L.LatLngTuple),
     ];
     if (points.length > 1)
-      map.flyToBounds(L.latLngBounds(points), { padding: [56, 56], maxZoom: 13, duration: 0.7 });
+      map.flyToBounds(L.latLngBounds(points), { padding: [56, 56], maxZoom: 13, ...flyMotion(0.4) });
   };
 
   return (
