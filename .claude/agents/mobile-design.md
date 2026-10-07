@@ -19,7 +19,7 @@ If the touched pages are unclear, or a shared component or CSS changed, screensh
 
 ## Running the app
 
-1. Start the dev server from the repo in the background: `bun run dev --host 127.0.0.1 --port 5173`. Wait until it answers on `http://127.0.0.1:5173`. If you were asked to check the live site instead, use `https://ridewithnalu.jreverio01.workers.dev`.
+1. Start the dev server from the repo in the background: `bun run dev --host 127.0.0.1 --port 5173`. Wait until it answers on `http://127.0.0.1:5173`. If you were asked to check the live site instead, use `https://ridenalu.com`.
 2. Playwright is not a repo dependency. Install it in a scratch folder (`npm init -y && npm i playwright`) and run your script from there. Never run `playwright install`.
 3. Launch Chromium like this:
 

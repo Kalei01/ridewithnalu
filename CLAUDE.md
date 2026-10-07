@@ -20,3 +20,9 @@ Each one reviews and reports findings by severity; none of them fixes anything. 
 | `database` | Any new or edited file in `drizzle/migrations` or `drizzle/schema.ts` |
 
 Fix critical and high findings before pushing.
+
+## Specialist agent (builds, then validates)
+
+| Agent | Use it when |
+|---|---|
+| `nalu-premium-experience` | The owner says "use the Nalu premium agent", or any UI, interaction, motion, onboarding or public-page experience task. It implements changes (audit first when no task is given), protects the commute intelligence, and runs the reviewers above as its quality gate. |
