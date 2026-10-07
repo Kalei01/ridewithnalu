@@ -15,7 +15,7 @@ Source: the agent's first audit, Oct 6 2026 (~4:35 PM HST, live site, 390x844).
 - B9 "Weather unavailable" / "Update time unknown" while still loading.
 - Polish 1 Drive arrives in ~1 s; fill rows as answers arrive with a short status line.
 
-## Batch 2 — bugs riders hit (TODO)
+## Batch 2 — bugs riders hit (IN PROGRESS, session "Nalu premium agent — batches 2-4")
 - B4 Live transit screen loses the plan: show the next step ("Walk to Lelepaua station · board W Line 5:00 PM"); Route details with real step text (src/routes/index.tsx ~5459-5470, LiveNavMap.tsx ~416-435). "TRANSI…" truncation in TripControls.tsx ~98; Mapbox logo under the bottom bar.
 - B3 `.nalu-brand::after` band strikes through "HEADING OUT / HEADING HOME" (src/liquid-titanium.css ~737).
 - B8 Wording: "Countryexpress!", "W LINE" vs "W Line" (headsign/route formatting, src/lib/commute-formatting.ts); "15 min walkLong walk" (TransitItinerary); "Moanalua Freeway(H-201)" on /roadwork; station spellings via a display-name map, never by changing GTFS IDs ("Kualaka'i", "Kualakai", "Keone'ae U.H. West Oahu" → Kualakaʻi, Keoneʻae (UH West Oʻahu)); raw HDOT capitals in the in-app roadwork card (reuse the /roadwork formatter). ("Accurate to about 0 ft" was a test artifact — withdrawn.)
