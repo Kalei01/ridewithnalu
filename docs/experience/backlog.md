@@ -15,19 +15,25 @@ Source: the agent's first audit, Oct 6 2026 (~4:35 PM HST, live site, 390x844).
 - B9 "Weather unavailable" / "Update time unknown" while still loading.
 - Polish 1 Drive arrives in ~1 s; fill rows as answers arrive with a short status line.
 
-## Batch 2 — bugs riders hit (IN PROGRESS, session "Nalu premium agent — batches 2-4")
+## Batch 2 — bugs riders hit (DONE 2026-10-07; owned by the batches 2-4 run after the earlier Opus session retired at its usage limit)
+- DONE B3 (9f6513d): brand band moved off the heading line.
+- DONE B4 (5bea123, b931f57): live transit bar shows the next step with the scheduled board time; Route details lists real step text; "Details" label stops "TRANSIT LIVE" truncating; Mapbox logo lifted above the bar.
+- DONE B8 (9f6513d, b931f57): CountryExpress, W Line, Kualakaʻi, Keoneʻae (UH West Oʻahu) via a display-name map (GTFS ids untouched); "walk Long walk" and "Freeway(H-201)" spacing; in-app roadwork card reuses the /roadwork tidy formatter and keeps schedule + project link.
+- DONE B5 (d3a9852): blocked/unavailable location opens "Where to?" with To pre-filled.
+Original notes:
 - B4 Live transit screen loses the plan: show the next step ("Walk to Lelepaua station · board W Line 5:00 PM"); Route details with real step text (src/routes/index.tsx ~5459-5470, LiveNavMap.tsx ~416-435). "TRANSI…" truncation in TripControls.tsx ~98; Mapbox logo under the bottom bar.
 - B3 `.nalu-brand::after` band strikes through "HEADING OUT / HEADING HOME" (src/liquid-titanium.css ~737).
 - B8 Wording: "Countryexpress!", "W LINE" vs "W Line" (headsign/route formatting, src/lib/commute-formatting.ts); "15 min walkLong walk" (TransitItinerary); "Moanalua Freeway(H-201)" on /roadwork; station spellings via a display-name map, never by changing GTFS IDs ("Kualaka'i", "Kualakai", "Keone'ae U.H. West Oahu" → Kualakaʻi, Keoneʻae (UH West Oʻahu)); raw HDOT capitals in the in-app roadwork card (reuse the /roadwork formatter). ("Accurate to about 0 ft" was a test artifact — withdrawn.)
 - B5 Shared trip link loses its destination when location is blocked: pre-fill "To", ask only for the start.
 
-## Batch 3 — motion (TODO) — prompt sections 6, 7, 9, 11
+## Batch 3 — motion (DONE 2026-10-07: caa98e8, 60ac980, da682df)
+Done: verdict cross-fade (360 ms, opacity only, only when DRIVE/transit flips); verdict-card time numbers settle in place (220 ms, off under reduced motion); map glide ~400 ms and instant under reduced motion in CommuteRouteMap/NearbyTransitMap; step taps scroll only when the map is off screen. Trip question uses Car/Bus icons, non-breaking "drop‑off", 120 ms press. Skipped: LiveNavMap (Mapbox) camera timing and per-row ETA fades in the Drive/Skyline/Bus rows (rows live deep in index.tsx; not touched). Original list: — prompt sections 6, 7, 9, 11
 - Recommendation change (DRIVE ↔ SKYLINE/BUS): calm cross-fade of the verdict text with the anchor fixed (300-450 ms), never whole-page, reduced-motion = opacity only.
 - ETA/number changes: subtle in-place update (no flash, no layout jump), ~180-280 ms, none under reduced motion.
 - Map: tapping a step should not scroll the page when the map is already visible; map moves ~400 ms; `behavior:"auto"` / `animate:false` under reduced motion (CommuteRouteMap.tsx, NearbyTransitMap.tsx, LiveNavMap.tsx, index.tsx ~3635).
 - Trip question: lucide Car/Bus icons instead of 🚗/🚌; no "drop-/off" break; ~120 ms press feedback.
 
-## Batch 4 — layout and clarity (TODO)
+## Batch 4 — layout and clarity (IN PROGRESS)
 - Rows above the fold: direction + Leave/Arrive toggles take ~300 px; Skyline/Bus start ~y=900 (index.tsx, ArriveByControls.tsx).
 - "Selected" vs "Nalu's pick": ice-blue selection ring (liquid-titanium.css ~837), green only for the pick; ROUTE line follows the selected row or reads "Drive route".
 - Duplicate facts on the drive screen ("35 min" ×4, route ×3, "(parking not included)" ×3, "Moving steady" vs "Light"); roadwork card should say when a closure isn't during this trip (HdotRoadworkNotice.tsx, src/lib/roadwork.ts).
@@ -50,3 +56,4 @@ Morning rush; Skyline-stopped-at-night and not-yet-running rows; a live verdict 
 ## Log
 - 2026-10-06 First audit (read-only). Findings above.
 - 2026-10-07 Database speed work: search staggering shipped; 0063 prepared and rehearsed on a local copy with TheBus's real feed, waiting for someone with database access to apply it; planner time window dropped.
+- 2026-10-07 Batches 2-3 shipped (see their entries). Reviewed by transit-accuracy (fixed: step stays on "board" until board time, scheduled label, roadwork schedule/link kept), mobile-design, security-keys.
