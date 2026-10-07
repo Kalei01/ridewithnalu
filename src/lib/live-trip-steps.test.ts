@@ -32,7 +32,7 @@ const legs: Leg[] = [
 describe("liveTripSteps", () => {
   it("names the walk and the board time from the real legs", () => {
     const steps = liveTripSteps(legs);
-    expect(steps[0]).toBe("Walk to Lelepaua · board W Line 5:00 PM");
+    expect(steps[0]).toBe("Walk to Lelepaua · board W Line 5:00 PM (scheduled)");
     expect(steps[1]).toBe("Ride W Line to Kualakaʻi · arrive 5:20 PM");
   });
 });
@@ -40,6 +40,8 @@ describe("liveTripSteps", () => {
 describe("currentLegIndex", () => {
   it("picks the first leg that has not finished", () => {
     expect(currentLegIndex(legs, 16 * 3600 + 50 * 60)).toBe(0);
+    // Waiting at the stop before the 5:00 PM board time stays on the walk/board step.
+    expect(currentLegIndex(legs, 16 * 3600 + 58 * 60)).toBe(0);
     expect(currentLegIndex(legs, 17 * 3600 + 5 * 60)).toBe(1);
     expect(currentLegIndex(legs, 18 * 3600)).toBe(1);
   });

@@ -91,9 +91,15 @@ export function HdotRoadworkNotice({
                   </p>
                   {tidy.place ? <p className="mt-0.5 text-xs leading-4 text-foreground">{tidy.what}</p> : null}
                   <p className="mt-1 text-xs font-semibold text-warning">
-                    {tidy.lanes} · {humanSchedule(closure.schedule)}
+                    {tidy.lanes} ·{" "}
+                    {closure.schedule && !/^see hdot/i.test(closure.schedule)
+                      ? humanSchedule(closure.schedule)
+                      : tidy.when}
                   </p>
                   {tidy.why ? <p className="mt-1 text-xs leading-4 text-muted-foreground">{tidy.why}</p> : null}
+                  {tidy.link ? (
+                    <a className="mt-1 inline-block text-xs font-semibold text-primary underline-offset-2 hover:underline" href={tidy.link} target="_blank" rel="noreferrer">Project details →</a>
+                  ) : null}
                 </div>
               );
             })}

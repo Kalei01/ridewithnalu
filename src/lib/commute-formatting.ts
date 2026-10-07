@@ -113,11 +113,14 @@ function localizeNames(value: string) {
   return out;
 }
 
+/** TheBus numbered routes ("42", "A", "91A"-style); anything else is a named line. */
+export const isNumberedRoute = (route: string) => /^[A-Z]?\d{1,3}[A-Z]?$/i.test(route);
+
 /** "Bus 42" for numbered routes; named lines ("W Line", "CountryExpress C") read as names. */
 export function busRouteLabel(short: string | null | undefined) {
   const route = short?.trim();
   if (!route) return "Bus";
-  return /^[A-Z]?\d{1,3}[A-Z]?$/i.test(route) ? `Bus ${route}` : titleCase(route);
+  return isNumberedRoute(route) ? `Bus ${route}` : titleCase(route);
 }
 
 /** GTFS ships abbreviations; spell them out for reading, database untouched. */

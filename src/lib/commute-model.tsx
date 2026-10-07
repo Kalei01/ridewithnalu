@@ -10,7 +10,7 @@ import {
 } from "@/lib/rail/walk-preference";
 import { dropDriveToStationsWithoutParking } from "@/lib/rail/park-and-ride";
 import { type WeatherLine } from "@/components/commute/H1ConditionsCard";
-import { stationLabel, titleCase } from "@/lib/commute-formatting";
+import { isNumberedRoute, stationLabel, titleCase } from "@/lib/commute-formatting";
 import { type TripAccess } from "@/lib/trip-access";
 
 export type Setup = {
@@ -433,7 +433,7 @@ export function vehicleName(leg: Leg) {
     const short = leg.route_short?.trim() ?? "";
     const label = !short
       ? "Bus"
-      : /^[A-Z]?\d{1,3}[A-Z]?$/i.test(short)
+      : isNumberedRoute(short)
         ? `Route ${short}`
         : titleCase(short);
     return leg.headsign ? `${label} (toward ${titleCase(leg.headsign)})` : label;

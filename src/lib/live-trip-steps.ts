@@ -23,16 +23,26 @@ export function liveTripSteps(legs: Leg[], arrivingHome = false): string[] {
       : titleCase(leg.to) || (arrivingHome ? "home" : "your destination");
     const board =
       intoStop && next && next.depart_seconds !== null
-        ? ` · board ${vehicleName(next).replace(/\s*\(toward .*\)$/, "")} ${clockFromSeconds(next.depart_seconds)}`
+        ? ` · board ${vehicleName(next).replace(/\s*\(toward .*\)$/, "")} ${clockFromSeconds(next.depart_seconds)} (scheduled)`
         : "";
     return `${verb} to ${place}${board}`;
   });
 }
 
-/** Index of the leg the rider is on right now: the first one that has not finished yet. */
+/**
+ * Index of the leg the rider is on right now: the first one that has not finished.
+ * A walk or drive into a stop stays current until the vehicle's board time, so
+ * someone waiting at the stop still sees "board … " rather than "ride …".
+ */
 export function currentLegIndex(legs: Leg[], nowSeconds: number): number {
-  const index = legs.findIndex(
-    (leg) => leg.arrive_seconds !== null && nowSeconds <= leg.arrive_seconds,
-  );
+  const index = legs.findIndex((leg, i) => {
+    if (leg.arrive_seconds === null) return false;
+    const next = legs[i + 1];
+    const end =
+      isTransit(next) && next?.depart_seconds != null
+        ? Math.max(leg.arrive_seconds, next.depart_seconds)
+        : leg.arrive_seconds;
+    return nowSeconds <= end;
+  });
   return index === -1 ? Math.max(0, legs.length - 1) : index;
 }
