@@ -1,5 +1,6 @@
 import type { HdotScheduledClosure } from "@/lib/hdot-lane-closures.functions";
 import { hdotRoadName } from "@/lib/hdot-road-names";
+import { tidyClosure } from "@/lib/roadwork";
 
 type Props = {
   scheduledClosures?: HdotScheduledClosure[];
@@ -18,7 +19,8 @@ function RoadName({ route }: { route: string }) {
   return (
     <>
       {name}
-      {code ? <span className="ml-1 text-[0.8em] font-normal text-muted-foreground">({code})</span> : null}
+      {code ? " " : null}
+      {code ? <span className="text-[0.8em] font-normal text-muted-foreground">({code})</span> : null}
     </>
   );
 }
@@ -80,17 +82,21 @@ export function HdotRoadworkNotice({
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Scheduled roadwork on your route</p>
           <div className="mt-2 space-y-3">
-            {scheduled.map((closure, index) => (
-              <div key={closure.route + "-" + closure.location + "-" + index}>
-                <p className="text-sm font-bold leading-5 text-foreground">
-                  <RoadName route={closure.route} /> {closure.direction ? directionLabel(closure.direction) + " — " : "— "}{closure.location}
-                </p>
-                <p className="mt-1 text-xs font-semibold text-warning">
-                  {closure.laneSummary} · {humanSchedule(closure.schedule)}
-                </p>
-                {closure.work ? <p className="mt-1 text-xs leading-4 text-muted-foreground">{closure.work}</p> : null}
-              </div>
-            ))}
+            {scheduled.map((closure, index) => {
+              const tidy = tidyClosure(closure);
+              return (
+                <div key={closure.route + "-" + closure.location + "-" + index}>
+                  <p className="text-sm font-bold leading-5 text-foreground">
+                    <RoadName route={closure.route} /> {closure.direction ? directionLabel(closure.direction) + " — " : "— "}{tidy.place ?? tidy.what}
+                  </p>
+                  {tidy.place ? <p className="mt-0.5 text-xs leading-4 text-foreground">{tidy.what}</p> : null}
+                  <p className="mt-1 text-xs font-semibold text-warning">
+                    {tidy.lanes} · {humanSchedule(closure.schedule)}
+                  </p>
+                  {tidy.why ? <p className="mt-1 text-xs leading-4 text-muted-foreground">{tidy.why}</p> : null}
+                </div>
+              );
+            })}
           </div>
           {liveDriveMinutes != null && (
             <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border/60 pt-3">

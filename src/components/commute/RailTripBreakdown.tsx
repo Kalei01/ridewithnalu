@@ -7,6 +7,7 @@ import { confirmedLiveBus } from "@/lib/bus-match";
 import { FareNotice, LandmarkHint } from "@/components/commute/TransitNotices";
 import { TONE_CLASS, type WeatherLine } from "@/components/commute/H1ConditionsCard";
 import {
+  busRouteLabel,
   clockFromSeconds,
   distanceM,
   formatDistance,
@@ -80,9 +81,7 @@ export function RailTripBreakdown({
           const stationName = toBusStop ? titleCase(leg.to) : stationLabel(leg.to);
           const label =
             leg.mode === "bus" && leg.kind !== "access"
-              ? leg.route_short
-                ? `Bus ${leg.route_short}`
-                : "Bus"
+              ? busRouteLabel(leg.route_short)
               : leg.mode === "walk" && leg.kind === "connect"
                 ? `Walk to ${toBusStop ? titleCase(leg.to) || "the next stop" : `${stationLabel(leg.to) || "the"} Station`}`
                 : leg.kind === "access"
@@ -277,6 +276,7 @@ export function RailTripBreakdown({
                     {leg.mode === "walk" && legMinutes !== null && (
                       <p className="text-sm font-bold">
                         {formatDistance(legMinutes * 80.47)} · {legMinutes} min walk
+                        {legMinutes >= 15 && " "}
                         {legMinutes >= 15 && (
                           <span className="ml-1.5 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning">
                             Long walk

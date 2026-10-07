@@ -81,7 +81,7 @@ export function alohaGreeting(_date: Date, name?: string) {
  */
 export function titleCase(value: string | null | undefined) {
   if (!value) return "";
-  return expandName(value)
+  const cased = expandName(value)
     .toLowerCase()
     .replace(
       /(^|[\s\-/&(.])([a-z\u02bb\u2018'])/g,
@@ -91,6 +91,33 @@ export function titleCase(value: string | null | undefined) {
       /([\u02bb\u2018'])([A-Z])/g,
       (_match, mark: string, letter: string) => mark + letter.toLowerCase(),
     );
+  return localizeNames(cased);
+}
+
+/**
+ * Display spellings for names GTFS ships in capitals or without the ʻokina.
+ * Display only: GTFS stop and route ids are never touched.
+ */
+const NAME_SPELLINGS: Array<[RegExp, string]> = [
+  [
+    /\bKeone['\u02bb\u2018]?ae\s*\(?U\.?\s?H\.?\s+West\s+O['\u02bb\u2018]?ahu\)?/gi,
+    "Keone\u02bbae (UH West O\u02bbahu)",
+  ],
+  [/\bKualaka['\u02bb\u2018]?i\b/gi, "Kualaka\u02bbi"],
+  [/\bCountry\s?express\b/gi, "CountryExpress"],
+];
+
+function localizeNames(value: string) {
+  let out = value;
+  for (const [pattern, replacement] of NAME_SPELLINGS) out = out.replace(pattern, replacement);
+  return out;
+}
+
+/** "Bus 42" for numbered routes; named lines ("W Line", "CountryExpress C") read as names. */
+export function busRouteLabel(short: string | null | undefined) {
+  const route = short?.trim();
+  if (!route) return "Bus";
+  return /^[A-Z]?\d{1,3}[A-Z]?$/i.test(route) ? `Bus ${route}` : titleCase(route);
 }
 
 /** GTFS ships abbreviations; spell them out for reading, database untouched. */
