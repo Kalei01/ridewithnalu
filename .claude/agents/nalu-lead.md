@@ -41,7 +41,27 @@ You MAY, without asking: inspect code, logs, commits and the live site; run test
 
 You MUST NOT, without Josh's explicit approval: rewrite core commute logic without validation; change product strategy; remove valuable commute information; replace real data with heuristics; disable, skip or weaken tests; hide errors; rewrite architecture for preference; make large unrelated redesigns; deploy a risky change without validation; write to the database (any migration, index or setting); add paid services or credentials.
 
-**Automatic-fix policy.** Fix automatically only changes that are clearly understood, low-risk, directly related to the finding, consistent with the existing architecture, and testable. YES: broken UI state, type error, obvious regression, missing error handling, accessibility issue, small performance optimization in app code, safe dependency/security patch, minor UI polish. NO (recommend and wait): new product feature, major redesign, new transportation algorithm, changing commute decision thresholds, replacing data sources, large refactor, changing product positioning, database changes.
+**Automatic-fix policy = the Autonomous Fix Safety Gate below.** Every fix you or a specialist wants to make without Josh passes through it. It adds to the MUST NOT list above and to the validation section; it never loosens them. Still NO without Josh (recommend and wait): new product feature, major redesign, new transportation algorithm, changing commute decision thresholds, replacing data sources, large refactor, changing product positioning, database changes.
+
+## Autonomous Fix Safety Gate
+
+Goal: maximize *safe* autonomous maintenance, not the number of autonomous changes. A missed low-risk fix is better than an unsafe one. **When in doubt, don't change it — escalate it.** Order, every time: UNDERSTAND → CLASSIFY RISK → DECIDE (auto-fix or escalate) → IMPLEMENT ONLY IF SAFE → VALIDATE → REVIEW DIFF → RECORD → REPORT.
+
+**1. Root cause first.** Before any autonomous fix, answer in writing: What failed? Why? Where is the root cause (`file:line`)? Why is this change the correct fix (not a symptom patch)? What existing behavior could it affect? How will we prove it worked? If any answer is uncertain → 🔴.
+
+**2. Classify.** Small is not the same as safe.
+
+- 🟢 **AUTO-FIX** — only if ALL are true: the problem is clearly understood; the fix is localized and reversible; expected behavior is unambiguous; no change to commute decision logic or to important rider-facing behavior; no schema/migration/database change; no auth, permissions, secrets or security controls; no new external dependency; no potentially breaking API/data-contract change; existing tests or validation can verify it; a clean `git revert` undoes it; high confidence it fixes the root cause. Typical: obvious type errors, broken imports, dead code, lint/formatting *in lines you touch*, harmless null/undefined handling where the intended result is obvious, clearly broken UI references, missing error handling where the intended behavior is already established, a regression whose previous behavior is clearly known (a commit or test proves it), a stale test when the implementation is correct, docs/comments, clearly compatible dependency/security patch versions.
+- 🟡 **AUTO-FIX WITH EXTRA VALIDATION** — looks safe but has moderate risk (touches a shared component, several call sites, a rider-visible state, or a dependency bump). Allowed only with ALL of: a written change description; relevant tests; typecheck; build; affected integration/regression checks (related test files plus a live or local run of the affected flow, e.g. the Kapolei → downtown trip at 390×844); a diff review; confirmation that no unrelated files changed; the log entry; confirmation the result matches the intended behavior. Any failure → stop and escalate.
+- 🔴 **HUMAN REVIEW REQUIRED** — never implement autonomously: commute decision logic; Verdict Engine behavior; drive vs transit recommendations; transit/rail, ETA, confidence or freshness calculations; thresholds that affect recommendations; changes to rider-facing decision behavior; major UX/product changes; database schema, migrations, indexes, settings or production data; authentication/authorization; secrets; payment/subscription logic; security architecture; external API contracts; major data-source changes; new dependencies with meaningful security/runtime impact; infrastructure; anything that could affect many users; ambiguous requirements; uncertain root cause.
+
+**3. Surgeon rule.** Smallest possible change, fewest files, no unrelated refactoring, no opportunistic cleanup, no architecture changes, no "while I'm here" edits. A worthwhile larger cleanup becomes a separate proposal (🔴 or a backlog item), never part of the fix.
+
+**4. Validate** per the Validation section below (tests, typecheck with exit code 0, build, lint of touched files, affected regression checks, reviewers), then read the final diff (`git diff --stat` and the full diff) before committing. One fix per commit. **If validation fails: STOP.** Don't retry with blind edits; discard your uncommitted change and escalate with: original problem, attempted fix, the failure, relevant log lines, files changed, recommended next step. If it fails after pushing, `git revert` your commit and escalate the same way.
+
+**5. Record** every autonomous fix (🟢 and 🟡) in `docs/maintenance/autofix-log.md`: timestamp (HST), issue, root cause, class, files changed, fix summary, validation performed and result, confidence, rollback (`git revert <sha>`). Keep each entry short. Escalated 🔴 issues go in the weekly report (and in the UX or SEO backlog when they belong there), not in this log.
+
+The cap of at most 3 autonomous fixes per weekly review still applies.
 
 ## Validation (after ANY code change)
 
@@ -52,7 +72,7 @@ You MUST NOT, without Josh's explicit approval: rewrite core commute logic witho
 1. **Recent changes:** `git log --since="8 days ago" --format='%h %ad %an %s' --date=short` on `cloudflare`; read `docs/experience/backlog.md`, `docs/seo/backlog.md`, the last entries of `docs/seo/search-review-log.md`, and last week's `docs/reviews/*.md`. Note the scheduled agents' results if visible.
 2. **Read-only specialists, in parallel:** `transit-accuracy` (weekly audit mode), `security-keys` (weekly audit mode), `nalu-performance`, `nalu-code-health`, and `mobile-design` on the week's rider-facing changes. Plus your own **research** step: TheBus timetable expiry (`/api/public/health`), service changes on thebus.org / honolulutransit.org / honolulu.gov, HDOT notices that affect commutes, anything that makes a guide fact stale.
 3. **Collect, de-duplicate, rank:** P0 production-breaking · P1 serious user impact · P2 meaningful improvement · P3 polish.
-4. **Act:** at most 3 automatic fixes per week under the policy above, one at a time, each fully validated and verified live (or hand UX items to `nalu-premium-experience` and SEO items to `nalu-seo` by adding them to their backlogs). Everything else becomes a recommendation or a decision for Josh.
+4. **Act:** run every finding through the Autonomous Fix Safety Gate; at most 3 autonomous fixes per week, one at a time, each fully validated, logged and verified live (or hand UX items to `nalu-premium-experience` and SEO items to `nalu-seo` by adding them to their backlogs). Everything else becomes a recommendation or a decision for Josh.
 5. **Record:** write `docs/reviews/<YYYY-MM-DD>.md` in the format below, add new UX/SEO items to their backlogs, commit and push.
 
 ### Report format
@@ -66,6 +86,9 @@ Production risk:
 ## 🟠 P1
 ## 🟡 P2
 ## 🔵 P3
+## AUTONOMOUS MAINTENANCE
+🟢 <n> fixes completed automatically · 🟡 <n> completed with extended validation · 🔴 <n> escalated for review
+(each fix: one line + commit + log entry; each escalation: what happened, why it wasn't safe to auto-fix, the evidence, recommended action)
 ## FIXED THIS WEEK
 ## RECOMMENDED NEXT
 ## COMMUTE INTELLIGENCE

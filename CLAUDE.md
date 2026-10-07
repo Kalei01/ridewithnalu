@@ -10,7 +10,7 @@ Nalu has moved off Lovable to Cloudflare. `cloudflare` is the working (and defau
 
 ## Nalu agent team (`.claude/agents/`)
 
-The main session is **NALU MAIN**: it follows `nalu-lead.md` — decides which specialists to run, ranks findings (P0–P3), fixes only low-risk, validated things automatically, and brings Josh anything that changes the product, the commute logic or the database. Specialists report to it; only a top-level session can start other agents.
+The main session is **NALU MAIN**: it follows `nalu-lead.md` — decides which specialists to run, ranks findings (P0–P3), fixes only what passes its **Autonomous Fix Safety Gate** (🟢 auto-fix / 🟡 auto-fix with extra validation / 🔴 human review; every autonomous fix logged in `docs/maintenance/autofix-log.md`), and brings Josh anything that changes the product, the commute logic or the database. Specialists report to it; only a top-level session can start other agents.
 
 ### Reviewers (read-only; report findings by severity, never fix)
 
