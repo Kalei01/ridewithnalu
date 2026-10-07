@@ -15,7 +15,7 @@ export function RouteCorridor({
   return (
     <div className={size === "large" ? "mt-6" : "mt-4"}>
       <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-        <CornerUpRight className="size-3.5" /> Route
+        <CornerUpRight className="size-3.5" /> Drive route
       </p>
       <p
         className={`mt-1 font-bold leading-tight text-foreground ${

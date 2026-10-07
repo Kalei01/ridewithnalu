@@ -82,9 +82,10 @@ export function TripChoiceCards({
             aria-checked={selected}
             disabled={commitment || unavailable}
             onClick={() => onSelect(choice.key)}
+            // Selected = ice-blue (same as the other selected controls); green is only Nalu’s pick.
             className={`w-full min-w-0 rounded-xl p-3 text-left ring-1 transition-colors ${
               selected
-                ? "bg-recommended/10 ring-2 ring-recommended"
+                ? "bg-[#8ad0ff]/10 ring-2 ring-[#8ad0ff]"
                 : "bg-background/40 ring-border"
             } ${dimmed ? "opacity-40" : ""} ${unavailable && !commitment ? "cursor-default" : ""}`}
           >
@@ -93,7 +94,7 @@ export function TripChoiceCards({
             <span className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1">
               <Icon
                 aria-hidden="true"
-                className={`size-5 shrink-0 self-center ${selected ? "text-recommended" : "text-muted-foreground"}`}
+                className={`size-5 shrink-0 self-center ${selected ? "text-[#8ad0ff]" : "text-muted-foreground"}`}
               />
               <span className="min-w-0 truncate text-base font-bold text-foreground">
                 {choice.title}
