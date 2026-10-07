@@ -883,6 +883,19 @@ describe("transit trip planner: heading home with a car available", () => {
     expect(options.some((o) => o.legs.at(-1)?.mode === "drive")).toBe(false);
   });
 
+  it("keeps a pickup trip when the main search fails, but flags both rows as unchecked", async () => {
+    answer({
+      plan_inbound: (args) =>
+        args["p_allow_drive"] === true
+          ? ok([pickupTrip])
+          : fail("canceling statement due to statement timeout"),
+    });
+    driveTime.mockResolvedValue({ trafficMinutes: 22 });
+    const result = await planTransitTripDetailed(trip("vehicle"));
+    expect(result.options.some((o) => o.legs.at(-1)?.mode === "drive")).toBe(true);
+    expect(result.unchecked).toEqual({ skyline: true, bus: true });
+  });
+
   it("taking the bus: no pickup trip is searched or shown", async () => {
     answer({
       plan_inbound: (args) => (args["p_allow_drive"] === true ? ok([pickupTrip]) : ok([])),

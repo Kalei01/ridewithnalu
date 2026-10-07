@@ -622,7 +622,13 @@ async function searchTransit(
     } catch (error) {
       // A bridge or pickup trip still counts if the other planners failed.
       const extra = await extras();
-      if (extra.length) return mergeTransitOptions(extra);
+      if (extra.length) {
+        // The normal search's own trips (including any direct bus) were
+        // dropped with the failure, so neither row can claim "no trip".
+        unchecked.skyline = true;
+        unchecked.bus = true;
+        return mergeTransitOptions(extra);
+      }
       throw error;
     }
   };
