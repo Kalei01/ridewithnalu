@@ -1,13 +1,16 @@
 name: Nalu Native iOS Smoke Test
 
+# Paused Oct 7 2026 at the owner's request while the app-store plan is on hold.
+# It only runs when started by hand (Actions → Run workflow). To resume,
+# restore the push / pull_request triggers below.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - capacitor-ios
-  pull_request:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - capacitor-ios
+  # pull_request:
+  #   branches:
+  #     - main
 
 jobs:
   web-regression:
