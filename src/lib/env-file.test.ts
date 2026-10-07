@@ -19,15 +19,21 @@ function readEnv(): [string, string][] {
     .filter((line) => line && !line.startsWith("#") && line.includes("="))
     .map((line) => {
       const i = line.indexOf("=");
-      return [line.slice(0, i).trim(), line.slice(i + 1).trim().replace(/^["']|["']$/g, "")];
+      return [
+        line.slice(0, i).trim(),
+        line
+          .slice(i + 1)
+          .trim()
+          .replace(/^["']|["']$/g, ""),
+      ];
     });
 }
 
 function jwtRole(value: string): string | null {
-  const parts = value.split(".");
-  if (parts.length !== 3) return null;
+  const [, payloadPart, signature] = value.split(".");
+  if (!payloadPart || !signature) return null;
   try {
-    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    const payload = JSON.parse(Buffer.from(payloadPart, "base64url").toString("utf8"));
     return typeof payload?.role === "string" ? payload.role : null;
   } catch {
     return null;
