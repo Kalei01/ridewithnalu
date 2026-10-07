@@ -13,6 +13,10 @@
 --
 -- Rollback: see the end of this file.
 
+-- One transaction even when the runner sends statements one by one, so
+-- nearby_transit_stops never sees stop_modes half rebuilt.
+BEGIN;
+
 -- 1. Which service types (routes.route_type) call at each stop.
 CREATE TABLE IF NOT EXISTS public.stop_modes (
   stop_id text NOT NULL,
@@ -183,6 +187,8 @@ AS $$
   ORDER BY c.route_type, c.distance_m;
 $$;
 GRANT EXECUTE ON FUNCTION public.nearby_transit_stops(numeric, numeric, integer, integer, integer) TO anon, authenticated, service_role;
+
+COMMIT;
 
 -- Rollback (restores the previous behaviour exactly):
 --   1. Re-run drizzle/migrations/0030_nearby_transit_stops.sql (old

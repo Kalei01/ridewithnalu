@@ -1,56 +1,54 @@
-# Database speed fixes 0063 / 0064: how to apply them
+# Database speed fix 0063: how to apply it
 
 Approved by the owner on Oct 6 2026. Prepared and rehearsed on a local copy of
 the database loaded with TheBus's real timetable (1.44M stop times, same size
 as production). **Not yet applied to production.**
 
-| Migration | What it speeds up | Local rehearsal |
-|---|---|---|
-| `0063_faster_nearby_transit_stops.sql` | "Stops near me" (`nearby_transit_stops`) | 42/42 cases identical; avg 470 ms → 30 ms |
-| `0064_bounded_general_planner_window.sql` | General bus/rail planner (`plan_transit_general`) | 71/72 identical; 1 tie (below) |
+`drizzle/migrations/0063_faster_nearby_transit_stops.sql` speeds up "stops near
+me" (`nearby_transit_stops`). Local rehearsal: 56/56 cases identical (14 places
+across Oʻahu × 7 AM, 4:30 PM, 11 PM, 1 AM); average 470–1,190 ms → 30–67 ms.
 
-The 1 planner difference: Kalihi → Ala Moana after 1:00 AM, 6th option. Old and
-new both leave at 3:30 AM, arrive at 4:41 AM, ride Route 2 then the A Line; they
-change buses at neighbouring stops (the new one walks 1 min less). The **old**
-function itself returns three different stops for that slot depending only on
-the database's memory setting, because of ties at its existing "keep the first
-200 / 80" cut-offs. So it is pre-existing randomness, not a lost trip — but
-it is not "identical", and the owner decides whether 0064 goes ahead.
+## Not adopted: general-planner time window (fix 2)
+
+An upper time bound on `plan_transit_general`'s `dest_arrivals` cannot lose a
+trip (TheBus's longest trip is 3 h 6 min), but on the rehearsal it was not
+faster (as first written 640 ms vs 578 ms old; rewritten 550 ms), and 5 of 72
+planner cases picked a different option among equal ties (same leave and arrive
+times). Those ties sit at the planner's existing "keep the first 200 / 80"
+cut-offs, where the old function also changes its pick with the memory setting.
+Per the owner's rule (any difference: don't switch) it was dropped. A tie-break
+on walking time and stop ids in `transfer_first` / `transfers` would make the
+planner stable first; that is a separate change.
 
 ## Steps (outside 6–9 AM and 3–6:30 PM Hawaiʻi time, and not Sunday 1–4 AM)
 
 Run SQL in Supabase → SQL Editor for project `nsoameosqsnumjivkmyv`.
 
 1. **Side by side.** Run `side-by-side.sql`. It creates the `stop_modes` table
-   and the new functions as `nearby_transit_stops_v2` / `plan_transit_general_v2`.
-   Riders still use the old functions.
+   and the new function as `nearby_transit_stops_v2`. Riders still use the old one.
 2. **Compare.** From a computer with this repo and a Supabase personal access
    token: `SUPABASE_ACCESS_TOKEN=... bun scripts/db-speed/compare.mts --api --report report.json`.
-   114 cases, one at a time, 2 s apart (about 10 minutes). It prints old vs new
-   time per case and "same" / "DIFFERENT".
-   - Nearby stops: every case must say "same". Otherwise stop and investigate.
-   - Planner: any "DIFFERENT" must be a tie like the one above (same leave and
-     arrive times, same routes) — check `report.json`. Otherwise do not apply 0064.
-3. **Switch.** Run `drizzle/migrations/0063_faster_nearby_transit_stops.sql`,
-   then `drizzle/migrations/0064_bounded_general_planner_window.sql`.
-4. **Clean up.** Run `cleanup.sql` (drops the `_v2` functions).
-5. **Check.** https://ridenalu.com/api/public/health is OK, and a Kapolei →
-   downtown trip shows bus/Skyline options.
+   56 cases, one query at a time, 2 s apart (about 4 minutes). Every line must
+   say "same"; otherwise stop and investigate.
+3. **Switch.** Run `drizzle/migrations/0063_faster_nearby_transit_stops.sql`.
+4. **Clean up.** Run `cleanup.sql` (drops `nearby_transit_stops_v2`).
+5. **Check.** https://ridenalu.com/api/public/health is OK, and the Browse
+   screen lists nearby stops with times.
 
 ## Weekly timetable refresh
 
 `stop_modes` is rebuilt inside `swap_gtfs_staging()` in the same transaction as
 the timetable swap (0063 replaces that function and keeps its 900 s time limit
-and service-role-only access). Rehearsed locally: after corrupting `stop_modes`
-and swapping in a different feed, it matched the timetable exactly (0 missing,
-0 extra); the full swap took 11 s. Not rehearsed: the GitHub Action end to end
-against production (it runs Sundays 2 AM; check its log the first Sunday).
+and service-role-only access). Rehearsed locally: after deleting rows from
+`stop_modes` and swapping in a different feed, it matched the timetable exactly
+(0 missing, 0 extra); the full swap took 11 s. Not rehearsed: the GitHub Action
+end to end against production (it runs Sundays 2 AM; check its log the first
+Sunday: `import_log.row_counts` now includes `stop_modes`).
 
 Between steps 1 and 3 the old swap does not refresh `stop_modes`; only the `_v2`
-test function reads it, and step 3 rebuilds it. Avoid Sunday 1–4 AM anyway.
+test function reads it, and step 3 rebuilds it.
 
 ## Rollback
 
-Each migration file ends with its rollback: re-run the previous definitions
-(0030 for nearby stops; 0026 + 0027 + 0048 lines 4–5 for the swap; the
-`plan_transit_general` section of 0056 for the planner), then drop `stop_modes`.
+Re-run `0030_nearby_transit_stops.sql`, then `0026` + `0027` + the first two
+lines of `0048` (old swap), then `DROP TABLE public.stop_modes;`.

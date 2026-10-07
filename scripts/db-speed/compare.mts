@@ -1,4 +1,4 @@
-// Old vs new planner functions, side by side (migrations 0063 and 0064).
+// Old vs new nearby_transit_stops, side by side (migration 0063).
 //
 // Runs every case against the live function and its temporary _v2 copy
 // (scripts/db-speed/side-by-side.sql), one query at a time with a pause
@@ -72,34 +72,18 @@ const places: Record<string, [number, number]> = {
   Kailua: [21.3972, -157.7394],
 };
 
-// [label, p_after_seconds, p_service_day_offset]
-const times: Array<[string, number, number]> = [
-  ["7:00 AM", 7 * 3600, 0],
-  ["4:30 PM", 16.5 * 3600, 0],
-  ["11:00 PM", 23 * 3600, 0],
-  ["1:00 AM late night", 3600, -1],
-  ["1:00 AM today", 3600, 0],
-];
-
-const trips: Array<[string, string]> = [
-  ["Kapolei", "Downtown"],
-  ["ʻEwa Beach", "Downtown"],
-  ["Waipahu", "UH"],
-  ["Pearl City", "Waikīkī"],
-  ["Mililani", "Downtown"],
-  ["Airport", "Waikīkī"],
-  ["Kalihi", "Ala Moana"],
-  ["Kāneʻohe", "Downtown"],
-  ["Downtown", "Kapolei"],
-  ["UH", "Pearl City"],
-  ["Hawaiʻi Kai", "Downtown"],
-  ["Kailua", "Kāneʻohe"],
+// [label, p_after_seconds]
+const times: Array<[string, number]> = [
+  ["7:00 AM", 7 * 3600],
+  ["4:30 PM", 16.5 * 3600],
+  ["11:00 PM", 23 * 3600],
+  ["1:00 AM", 3600],
 ];
 
 type Case = { kind: string; label: string; oldSql: string; newSql: string };
 const cases: Case[] = [];
 for (const [name, [lat, lon]] of Object.entries(places)) {
-  for (const [t, sec] of [times[0]!, times[1]!, times[2]!]) {
+  for (const [t, sec] of times) {
     const a = `${lat}, ${lon}, ${sec}, 2, 5`;
     cases.push({
       kind: "nearby_transit_stops",
@@ -108,28 +92,6 @@ for (const [name, [lat, lon]] of Object.entries(places)) {
       newSql: call("public.nearby_transit_stops_v2", a),
     });
   }
-}
-for (const [from, to] of trips) {
-  const [olat, olon] = places[from]!;
-  const [dlat, dlon] = places[to]!;
-  for (const [t, sec, offset] of times) {
-    // The app's own arguments (1.6 km walk, 6 options) ...
-    const app = `${olat}, ${olon}, ${dlat}, ${dlon}, ${sec}, 6, 1600, 1600, 800, ${offset}`;
-    cases.push({
-      kind: "plan_transit_general",
-      label: `${from} → ${to} @ ${t}`,
-      oldSql: call("public.plan_transit_general", app),
-      newSql: call("public.plan_transit_general_v2", app),
-    });
-  }
-  // ... and the defaults (4 km / 3 km, used by Nalu AI and leave alerts), at 7 AM, 8 options.
-  const def = `${olat}, ${olon}, ${dlat}, ${dlon}, ${7 * 3600}, 8`;
-  cases.push({
-    kind: "plan_transit_general",
-    label: `${from} → ${to} @ 7:00 AM (default radii, 8 options)`,
-    oldSql: call("public.plan_transit_general", def),
-    newSql: call("public.plan_transit_general_v2", def),
-  });
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -167,6 +129,5 @@ const summary = (kind: string) => {
   return `${kind}: ${r.filter((x) => x.same).length}/${r.length} identical; old avg ${avg("oldMs")} ms (max ${max("oldMs")}), new avg ${avg("newMs")} ms (max ${max("newMs")})`;
 };
 console.log("\n" + summary("nearby_transit_stops"));
-console.log(summary("plan_transit_general"));
 if (reportPath) writeFileSync(reportPath, JSON.stringify({ results, diffs }, null, 2));
 process.exit(diffs.length ? 1 : 0);
