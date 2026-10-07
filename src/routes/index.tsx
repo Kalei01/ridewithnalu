@@ -274,6 +274,7 @@ import {
   shortcutIcon,
   shortcutLabel,
 } from "@/components/places/Shortcuts";
+import { currentLegIndex, liveTripSteps } from "@/lib/live-trip-steps";
 import { HoldToEndButton, NavBottomCard } from "@/components/commute/TripControls";
 
 const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
@@ -3568,6 +3569,10 @@ function Index() {
     points: Array<{ lat: number; lon: number }>;
   };
 
+  const transitSteps = useMemo(
+    () => (best ? liveTripSteps(best.legs, arrivingHome) : []),
+    [best, arrivingHome],
+  );
   const transitMapSegments = useMemo<TransitMapSegment[]>(() => {
     if (!best || !homePoint || !destPoint) return [];
     const origin = reverseTrip ? destPoint : homePoint;
@@ -5516,15 +5521,12 @@ function Index() {
                   steps={
                     lockedMode === "drive"
                       ? (navBasis?.maneuvers ?? []).map((m) => m.instruction).filter(Boolean)
-                      : transitMapSegments.map((seg) =>
-                          seg.mode === "walk"
-                            ? "Walk"
-                            : seg.mode === "bus"
-                              ? "Bus"
-                              : seg.mode === "rail"
-                                ? "Skyline rail"
-                                : "Drive",
-                        )
+                      : transitSteps
+                  }
+                  nextStep={
+                    lockedMode === "drive" || !best
+                      ? null
+                      : (transitSteps[currentLegIndex(best.legs, nowSeconds)] ?? null)
                   }
                   onEnd={endTrip}
                 />

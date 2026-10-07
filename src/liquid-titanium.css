@@ -1182,3 +1182,9 @@ body::after {
     opacity: .28;
   }
 }
+
+/* Live navigation: keep the Mapbox logo and attribution above the bottom bar. */
+[aria-label="Live navigation"] .mapboxgl-ctrl-bottom-left,
+[aria-label="Live navigation"] .mapboxgl-ctrl-bottom-right {
+  margin-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+}

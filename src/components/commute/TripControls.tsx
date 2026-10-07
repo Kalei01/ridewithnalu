@@ -68,11 +68,14 @@ export function NavBottomCard({
   mode,
   delayMinutes,
   steps,
+  nextStep = null,
   onEnd,
 }: {
   mode: "drive" | "transit";
   delayMinutes: number | null;
   steps: string[];
+  /** What to do next on a transit trip, e.g. "Walk to Lelepaua · board W Line 5:00 PM". */
+  nextStep?: string | null;
   onEnd: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -89,18 +92,24 @@ export function NavBottomCard({
   return (
     <div className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-20 max-lg:landscape:left-auto max-lg:landscape:w-80">
       <div className="nav-hud pointer-events-auto rounded-2xl p-3">
+        {nextStep && (
+          <p className="mb-2 text-sm font-bold leading-snug text-foreground" aria-live="polite">
+            {nextStep}
+          </p>
+        )}
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
+            aria-label={open ? "Hide route" : "Route details"}
             className="flex min-w-0 items-center gap-2 text-left"
           >
-            <span className="truncate rounded-full bg-muted px-3 py-1 text-xs font-black uppercase text-foreground">
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-muted px-3 py-1 text-xs font-black uppercase text-foreground">
               {traffic}
             </span>
             <span className="shrink-0 text-xs font-bold text-muted-foreground">
-              {open ? "Hide route" : "Route details"}
+              {open ? "Hide" : "Details"}
             </span>
           </button>
           <HoldToEndButton onEnd={onEnd} label="End" className="h-11 shrink-0 px-5" />
