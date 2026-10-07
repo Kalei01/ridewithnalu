@@ -10,7 +10,7 @@ Do not edit files in the repo. Write scripts and screenshots only in the session
 
 ## Scope
 
-Work out which pages the change touches from the diff (`git diff origin/main...HEAD` plus uncommitted changes, or what you were given):
+Work out which pages the change touches from the diff (`git diff origin/cloudflare...HEAD` plus uncommitted changes, or what you were given):
 
 - `/`: commute screen. Includes `src/routes/index.tsx`, `src/components/commute/*`, the CSS files in `src/`, and any `src/lib` code that changes displayed text
 - `/welcome`, `/oahu-commute`, `/privacy`, `/terms`, `/disclaimer`, `/reset-password`

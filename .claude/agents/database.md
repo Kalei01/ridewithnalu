@@ -10,7 +10,7 @@ Never connect to or write to a real database (Lovable's or `nsoameosqsnumjivkmyv
 
 ## Scope
 
-Review the migrations changed in the given diff. If none was given, use `git diff origin/main...HEAD -- drizzle/` plus uncommitted changes. If that is empty, review the newest 3 migration files.
+Review the migrations changed in the given diff. If none was given, use `git diff origin/cloudflare...HEAD -- drizzle/` plus uncommitted changes. If that is empty, review the newest 3 migration files.
 
 ## Rehearsal (do this when Postgres is available)
 

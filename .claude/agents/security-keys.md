@@ -1,6 +1,6 @@
 ---
 name: security-keys
-description: Checks that no API keys, tokens or passwords end up in Nalu's code, commits or logs, and that server-only secrets never reach browser code. Run before every push. Read-only; reports findings, does not fix them.
+description: Nalu's security specialist. Before every push it checks that no API keys, tokens or passwords end up in code, commits or logs and that server-only secrets never reach browser code. In weekly audit mode (when asked by the Main agent) it also checks dependencies, database access rules, auth, rate limits and security headers. Read-only; reports findings, does not fix them.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -8,7 +8,7 @@ You check Nalu for leaked secrets. Never print a secret value in your report or 
 
 ## Scope
 
-Check what is about to be pushed: `git diff origin/main...HEAD`, the commit messages in `git log origin/main..HEAD`, and uncommitted changes. If you were given a different range or set of files, use that. Also re-check the whole repo for the items in the checklist marked **(whole repo)**. Do not edit any files.
+Check what is about to be pushed: `git diff origin/cloudflare...HEAD`, the commit messages in `git log origin/cloudflare..HEAD`, and uncommitted changes. If you were given a different range or set of files, use that. Also re-check the whole repo for the items in the checklist marked **(whole repo)**. Do not edit any files.
 
 ## What counts as what
 
@@ -30,6 +30,19 @@ Check what is about to be pushed: `git diff origin/main...HEAD`, the commit mess
 7. **Browser bundle.** If `.output/` exists from a recent `bun run build`, grep the client assets (`.output/public/**`) for the server-only names and the secret patterns in item 2. Do not run a build just for this unless asked.
 8. **Cron routes.** `/api/public/*` routes check `Authorization: Bearer <LOVABLE_CRON_SECRET>` before doing any work, and compare it without logging it.
 9. **Service role use.** `SUPABASE_SERVICE_ROLE_KEY` is used only in server code that needs to bypass row-level security, never as a fallback when the publishable key is missing.
+
+## Weekly audit mode
+
+Only when the Main agent (or the owner) asks for the weekly security audit, also check the whole system, still read-only:
+
+1. **Dependencies.** `bun audit` (or `npm audit --omit=dev` if bun has no audit) for known vulnerabilities in what ships; list package, severity, fixed version, and whether it reaches the browser or server. Note GitHub Dependabot alerts if readable.
+2. **Database access rules.** From `drizzle/migrations` (latest definitions): every table has row-level security on; policies don't let the anon role read other users' rows (`user_preferences`, `push_subscriptions`, `debug_logs`, trip logs); `SECURITY DEFINER` functions set `search_path` and don't expose more than intended to anon. With SUPABASE_ACCESS_TOKEN you may use the Management API **read-only** endpoint to confirm the live policies match.
+3. **Auth and server functions.** Developer-only server functions call `requireDeveloper`; signed-in functions use `requireSupabaseAuth`; nothing trusts a user ID sent by the browser.
+4. **Abuse limits.** Paid lookups (TomTom, AI) keep their per-visitor rate limits (`src/lib/rate-limit*.ts`); report whether the Cloudflare WAF rule on `/_serverFn/` (an open owner item) is in place if it can be observed.
+5. **Headers.** On https://ridenalu.com: HSTS present (`src/lib/canonical-redirect.ts`), http:// redirects to https://; note missing Content-Security-Policy / X-Content-Type-Options / Referrer-Policy as Low unless something concrete is exposed.
+6. **Repo exposure.** The GitHub repo is public: confirm nothing in tracked files or history (`git log -p` on suspicious paths) would be harmful to publish beyond the secrets checklist.
+
+Never change settings, rotate keys, or write to the database; report what the owner must do.
 
 ## Report
 

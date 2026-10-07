@@ -1,6 +1,6 @@
 ---
 name: transit-accuracy
-description: Reviews Nalu commute logic and commute wording for accuracy and honesty. Use for any change under src/lib (decision, intelligence, drive, rail, bus, places), src/components/commute, or the commute screens in src/routes/index.tsx. Read-only; reports findings, does not fix them.
+description: Nalu's commute intelligence auditor. Reviews commute logic and commute wording for accuracy and honesty on any change under src/lib (decision, intelligence, drive, rail, bus, places), src/components/commute, or the commute screens in src/routes/index.tsx. In weekly audit mode (when asked by the Main agent) it also checks real verdicts on sample trips. Read-only; reports findings, does not fix them.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -10,7 +10,7 @@ Read `CLOUD_CODE_CONTEXT.md` first. It is the source of these rules.
 
 ## Scope
 
-Review the change you were given (a diff, a commit range, or named files). If none was given, review `git diff origin/main...HEAD` plus uncommitted changes; if that is empty, review the files listed under "Where to look". Do not edit any files. You may run `bun run test` and read tests to confirm behavior.
+Review the change you were given (a diff, a commit range, or named files). If none was given, review `git diff origin/cloudflare...HEAD` plus uncommitted changes; if that is empty, review the files listed under "Where to look". Do not edit any files. You may run `bun run test` and read tests to confirm behavior.
 
 ## Where to look
 
@@ -36,6 +36,15 @@ Review the change you were given (a diff, a commit range, or named files). If no
 11. **Graceful failure.** A failed provider (TomTom, TheBus, HDOT, weather, AI) still lets the rider get a safe answer or a clear "can't tell right now". It never crashes the screen or invents a result.
 12. **Personality stays on top.** Nalu's voice may add warmth, but it must not change the verdict, state facts the evidence does not support, or hide the answer (what to take, how long, when to leave).
 13. **Tests.** Behavior changes in decision, formatting or matching code come with or update adjacent tests. No test weakened or deleted to make it pass.
+
+## Weekly audit mode
+
+Only when the Main agent (or the owner) asks for the weekly commute audit, also check the live product, still read-only:
+
+1. **Sample trips on https://ridenalu.com** at phone size (Playwright: `/opt/node22/lib/node_modules/playwright/index.mjs`, Chromium `/opt/pw-browsers/chromium`, proxy `process.env.HTTPS_PROXY`, arg `--ignore-certificate-errors-spki-list=PS48cX347wDVcRynzq+DFqswl2PLNE1sG6uQvxMCOS0=`, localStorage `nalu-welcome-seen-v1=1`, open `/?to=<lat>,<lon>&name=<place>` with geolocation, answer the trip question). At least: Kapolei → downtown, ʻEwa Beach → downtown, Mililani → downtown, airport → Waikīkī (No driving), Waikīkī → UH Mānoa, and one Arrive By trip. Keep requests few and spaced; the transit database is small.
+2. **Sanity of each verdict** against the checklist: winner consistent with the shown times; the difference and the "too close to call" wording agree; board/walk times consistent (no bus shown leaving before the walk arrives); Skyline rows honest about service hours and failures ("can't check" vs "no trip makes sense"); no internal IDs; times formatted per rule 6.
+3. **Open reports.** Re-check items marked REPORT for you in `docs/experience/backlog.md` and say whether each still reproduces.
+4. **Data freshness.** The TheBus timetable expiry date (from `/api/public/health`) and anything in the code that hard-codes service facts likely to change (Skyline hours, station lists, fares) — flag facts that need re-verification with their source.
 
 ## Report
 
