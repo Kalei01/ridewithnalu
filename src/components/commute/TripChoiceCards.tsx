@@ -43,7 +43,8 @@ export function TripChoiceCards({
   access,
 }: {
   choices: TripChoice[];
-  selectedKey: TripChoiceKey;
+  /** Null while Nalu is still deciding: no row is marked until there's an answer. */
+  selectedKey: TripChoiceKey | null;
   commitment: boolean;
   formatMinutes: (minutes: number) => string;
   onSelect: (key: TripChoiceKey) => void;
@@ -66,8 +67,12 @@ export function TripChoiceCards({
       )}
       {choices.map((choice) => {
         const Icon = ICONS[choice.key];
-        const selected = selectedKey === choice.key;
         const unavailable = choice.status !== "ready";
+        // A row still checking (or with no trip) is never shown as selected.
+        const selected = selectedKey === choice.key && !unavailable;
+        // Each row's answer fades in as it arrives (opacity only; none with reduced
+        // motion). Keyed on status, so a later ETA update changes in place.
+        const valueIn = choice.status === "loading" ? undefined : "nalu-value-in";
         const dimmed = commitment && !choice.locked;
         return (
           <button
@@ -94,22 +99,24 @@ export function TripChoiceCards({
                 {choice.title}
               </span>
               <span className="whitespace-nowrap text-right text-base font-bold tabular-nums text-foreground">
-                {choice.status === "loading"
-                  ? "Checking…"
-                  : choice.status === "empty"
-                    ? ""
-                    : choice.minutes !== null
-                      ? formatMinutes(choice.minutes)
-                      : "—"}
+                <span key={choice.status} className={valueIn}>
+                  {choice.status === "loading"
+                    ? "Checking…"
+                    : choice.status === "empty"
+                      ? ""
+                      : choice.minutes !== null
+                        ? formatMinutes(choice.minutes)
+                        : "—"}
+                </span>
               </span>
               <span aria-hidden="true" />
               <span className="min-w-0">
                 {choice.locked ? (
-                  <span className="whitespace-nowrap rounded-full bg-recommended px-2 py-0.5 text-xs font-bold text-recommended-foreground">
+                  <span className="nalu-value-in whitespace-nowrap rounded-full bg-recommended px-2 py-0.5 text-xs font-bold text-recommended-foreground">
                     On this trip
                   </span>
                 ) : choice.pick && !commitment ? (
-                  <span className="whitespace-nowrap rounded-full bg-recommended px-2 py-0.5 text-xs font-bold text-recommended-foreground">
+                  <span className="nalu-value-in whitespace-nowrap rounded-full bg-recommended px-2 py-0.5 text-xs font-bold text-recommended-foreground">
                     Nalu’s pick
                   </span>
                 ) : null}
@@ -119,10 +126,14 @@ export function TripChoiceCards({
                   choice.late ? "font-semibold text-warning" : "text-muted-foreground"
                 }`}
               >
-                {choice.status === "ready" ? (choice.late ? "Too late" : choice.timeLabel) : null}
+                {choice.status === "ready" ? (
+                  <span className={valueIn}>{choice.late ? "Too late" : choice.timeLabel}</span>
+                ) : null}
               </span>
               <span className="col-span-2 col-start-2 min-w-0 break-words text-sm text-muted-foreground">
-                {choice.status === "empty" ? choice.emptyText : choice.steps}
+                <span key={choice.status} className={valueIn}>
+                  {choice.status === "empty" ? choice.emptyText : choice.steps}
+                </span>
               </span>
               {choice.note && choice.status === "ready" && (
                 <span className="col-span-2 col-start-2 mt-1 block break-words text-sm text-foreground/85">

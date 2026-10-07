@@ -8,7 +8,7 @@ vi.mock("@/lib/debug-log", () => ({ debugLog: vi.fn() }));
 const driveTime = vi.fn();
 vi.mock("@/lib/drive.functions", () => ({ driveTime: (...args: unknown[]) => driveTime(...args) }));
 
-const { planTransitTrip } = await import("./transit-plan");
+const { planTransitTrip, planTransitTripDetailed } = await import("./transit-plan");
 const { emptySetup } = await import("./commute-model");
 
 type Reply = { data: unknown; error: unknown };
@@ -89,6 +89,67 @@ describe("transit trip planner", () => {
   it("treats empty answers from every planner as a real 'no trip'", async () => {
     answer({});
     await expect(planTransitTrip(context())).resolves.toEqual([]);
+  });
+
+  it("keeps the bus that came back and flags Skyline as unchecked when the rail search times out", async () => {
+    answer({
+      plan_bus_direct: ok([option(8 * 3600 + 600)]),
+      plan_outbound: fail("canceling statement due to statement timeout"),
+    });
+    const result = await planTransitTripDetailed(
+      context({ setup: { ...emptySetup, homeStopId: "1" } }),
+    );
+    expect(result.options).toHaveLength(1);
+    expect(result.unchecked).toEqual({ skyline: true, bus: false });
+  });
+
+  it("flags both kinds of trip when the general planner (bus transfers, bus + Skyline) fails", async () => {
+    answer({
+      plan_bus_direct: ok([option(8 * 3600 + 600)]),
+      plan_transit_general: fail("canceling statement due to statement timeout"),
+    });
+    const result = await planTransitTripDetailed(context());
+    expect(result.options).toHaveLength(1);
+    expect(result.unchecked).toEqual({ skyline: true, bus: true });
+  });
+
+  it("flags the bus as unchecked when the direct-bus search fails", async () => {
+    answer({
+      plan_bus_direct: fail("canceling statement due to statement timeout"),
+      plan_transit_general: ok([option(8 * 3600 + 900, "C")]),
+    });
+    const result = await planTransitTripDetailed(context());
+    expect(result.options).toHaveLength(1);
+    expect(result.unchecked).toEqual({ skyline: false, bus: true });
+  });
+
+  it("flags nothing when every planner answered", async () => {
+    answer({ plan_bus_direct: ok([option(8 * 3600 + 600)]) });
+    const result = await planTransitTripDetailed(context());
+    expect(result.unchecked).toEqual({ skyline: false, bus: false });
+  });
+
+  it("flags both kinds of trip when the general planner is still running past its grace period", async () => {
+    vi.useFakeTimers();
+    // The planner runs in the browser; give its grace-period timer a window.
+    vi.stubGlobal("window", {
+      setTimeout: (handler: () => void, ms: number) => setTimeout(handler, ms),
+    });
+    try {
+      rpc.mockImplementation(async (name: string) => {
+        if (name === "plan_bus_direct") return ok([option(8 * 3600 + 600)]);
+        if (name === "plan_transit_general") return new Promise<Reply>(() => {});
+        return ok([]);
+      });
+      const pending = planTransitTripDetailed(context());
+      await vi.advanceTimersByTimeAsync(8_000);
+      const result = await pending;
+      expect(result.options).toHaveLength(1);
+      expect(result.unchecked).toEqual({ skyline: true, bus: true });
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
   });
 
   it("after midnight, also searches yesterday's late-night service", async () => {

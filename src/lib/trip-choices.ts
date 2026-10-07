@@ -131,6 +131,12 @@ export function skylineEmptyText(input: {
     return input.firstTrain
       ? `Skyline isn’t running yet (first train ${input.firstTrain})`
       : "Skyline isn’t running yet";
-  if (input.failed) return "Can’t check transit right now";
+  // The Skyline search failed or ran out of time: say so, never "no trip".
+  if (input.failed) return "Can’t check Skyline right now";
   return "No Skyline trip that makes sense right now";
+}
+
+/** What the Bus row says when it has no trip. */
+export function busEmptyText(input: { failed: boolean }): string {
+  return input.failed ? "Can’t check TheBus right now" : "No bus trip right now";
 }

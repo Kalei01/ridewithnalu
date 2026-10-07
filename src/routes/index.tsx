@@ -42,6 +42,7 @@ import {
   allowTimeNote,
   parkingNote,
   skylineEmptyText,
+  busEmptyText,
   transitChoices,
   tripSteps,
   usesSkyline,
@@ -279,7 +280,8 @@ const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 
-import { planTransitTrip } from "@/lib/transit-plan";
+import { planTransitTripDetailed } from "@/lib/transit-plan";
+import { tripCheckingStatus, weatherSummaryText } from "@/lib/loading-labels";
 import { honoluluDaysBetween, shiftOptionDays } from "@/lib/service-day";
 
 const HOME_TITLE = "Nalu: Drive, TheBus or Skyline? Oʻahu Commute App";
@@ -1254,9 +1256,10 @@ function Index() {
     planMode === "arrive-by" ? arriveByTarget : null,
   ];
   const {
-    data: options = [],
+    data: planResult,
     isLoading: planLoading,
     isError: planFailed,
+    isPlaceholderData: planPlaceholder,
     dataUpdatedAt: optionsFetchedAt,
   } = useQuery({
     queryKey: planKey,
@@ -1269,7 +1272,7 @@ function Index() {
     placeholderData: (previous, previousQuery) =>
       previousQuery && sameTrip(previousQuery.queryKey, planKey) ? previous : undefined,
     queryFn: () =>
-      planTransitTrip({
+      planTransitTripDetailed({
         arrivalStationId,
         arriveByTarget,
         browseStations,
@@ -1287,6 +1290,10 @@ function Index() {
   // never make a valid door-to-door transit search appear unavailable.
   const optionsLoading = planLoading;
   const optionsFailed = planFailed;
+  const options = useMemo(() => planResult?.options ?? [], [planResult]);
+  // Which rows' searches failed or ran out of time (the rest came back fine).
+  const skylineUnchecked = optionsFailed || Boolean(planResult?.unchecked.skyline);
+  const busUnchecked = optionsFailed || Boolean(planResult?.unchecked.bus);
   const { data: transitDiagnostic } = useQuery({
     queryKey: [
       "transit-diagnostic",
@@ -2945,7 +2952,13 @@ function Index() {
   // row shows its trip length and when to leave.
   const choiceKeyFor = (option: Option | null | undefined): TripChoiceKey =>
     option && usesSkyline(option) ? "skyline" : "bus";
-  const selectedChoice: TripChoiceKey = selectedMode === "drive" ? "drive" : choiceKeyFor(best);
+  // While Nalu is still deciding, no row is marked (unless the rider tapped one).
+  const choicesPending = !commitment && chosenCard === null && (optionsLoading || driveLoading);
+  const selectedChoice: TripChoiceKey | null = choicesPending
+    ? null
+    : selectedMode === "drive"
+      ? "drive"
+      : choiceKeyFor(best);
   // Nalu's pick is its own answer, so it doesn't move when a rider taps a row.
   const computedPick: TripChoiceKey | null =
     verdict === "drive" ? "drive" : verdict === "transit" ? choiceKeyFor(best) : null;
@@ -2978,15 +2991,13 @@ function Index() {
       emptyText:
         key === "skyline"
           ? skylineEmptyText({
-              failed: optionsFailed,
+              failed: skylineUnchecked,
               closedForEvening: railClosedForEvening,
               notRunningYet: railNotRunningYet,
               lastTrain: todayHours ? clockFromSeconds(Number(todayHours.last_seconds)) : null,
               firstTrain: todayHours ? clockFromSeconds(Number(todayHours.first_seconds)) : null,
             })
-          : optionsFailed
-            ? "Can’t check transit right now"
-            : "No bus trip right now",
+          : busEmptyText({ failed: busUnchecked }),
       // A rider with a car hears about the lot (only shown for Keoneʻae mornings).
       note:
         key === "skyline"
@@ -3040,15 +3051,39 @@ function Index() {
     ...(resources.vehicle ? [driveChoice] : []),
     // Any Skyline trip shows, whoever is travelling. With a car available, going
     // out, the row is always there so the rider sees it was checked.
-    // Outside Skyline's hours the row stays, to say it has stopped.
+    // Outside Skyline's hours the row stays, to say it has stopped. A failed
+    // Skyline search keeps it too, to say it couldn't be checked.
     ...(choicePicks.skyline.option ||
     lockedChoice === "skyline" ||
     railServiceClosed ||
+    (skylineUnchecked && !optionsLoading) ||
     (vehicleToSkyline !== "none" && !inbound)
       ? [transitChoice("skyline")]
       : []),
     transitChoice("bus"),
   ];
+  // Rows that came back empty because their search failed: the call only
+  // covers what Nalu could check, so the confidence badge says so.
+  const skylineRowUnchecked = skylineUnchecked && !choicePicks.skyline.option && !railServiceClosed;
+  const busRowUnchecked = busUnchecked && !choicePicks.bus.option;
+  const uncheckedNote =
+    optionsLoading || !activeRegion().hasTransit
+      ? null
+      : skylineRowUnchecked && busRowUnchecked
+        ? "Skyline and TheBus couldn’t be checked"
+        : skylineRowUnchecked
+          ? "Skyline couldn’t be checked"
+          : busRowUnchecked
+            ? "TheBus couldn’t be checked"
+            : null;
+  const pendingStatus = tripCheckingStatus({
+    driveRow: Boolean(resources.vehicle),
+    driveLoading,
+    driveMinutes: driveChoice.status === "ready" ? driveChoice.minutes : null,
+    hasTransit: activeRegion().hasTransit,
+    transitLoading: optionsLoading,
+    formatMinutes: formatDriveMinutes,
+  });
   function chooseTrip(key: TripChoiceKey) {
     if (commitment) return;
     setChosenCard(key);
@@ -3657,7 +3692,7 @@ function Index() {
   const driveTrafficSections = selectedMode === "drive" ? drive?.trafficSections : undefined;
 
   // Browse mode gets one line only, read at wherever the rider is standing now.
-  const { data: browseWeather } = useQuery({
+  const { data: browseWeather, isError: browseWeatherFailed } = useQuery({
     queryKey: ["browse-weather", browseStation?.lat?.toFixed(2), browseStation?.lon?.toFixed(2)],
     enabled: browseActive && Boolean(browseStation),
     staleTime: 20 * 60_000,
@@ -3701,8 +3736,14 @@ function Index() {
     else if (airCategory === 2) parts.push("Moderate AQI");
     else if (airCategory === 3) parts.push("Poor AQI");
     else if (typeof airCategory === "number" && airCategory >= 4) parts.push("Unhealthy AQI");
-    return parts.join(" · ") || "Weather unavailable";
-  }, [browseWeather]);
+    return weatherSummaryText(parts, {
+      hasData: Boolean(browseWeather),
+      failed: browseWeatherFailed,
+      // Waiting for a location is still loading; a denied one with no
+      // fallback station can't load.
+      canLoad: Boolean(browseStation) || !browseLocationDenied,
+    });
+  }, [browseWeather, browseWeatherFailed, browseStation, browseLocationDenied]);
 
   async function refresh() {
     setRefreshing(true);
@@ -4708,9 +4749,15 @@ function Index() {
                       <p className={`text-sm ${TONE_CLASS[browseWeatherLine.tone]}`}>
                         {browseWeatherLine.text}
                       </p>
-                    ) : (
+                    ) : browseWeather ? (
                       <p className="text-sm text-muted-foreground">
                         No weather or air-quality concerns right now.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {browseWeatherFailed || (!browseStation && browseLocationDenied)
+                          ? "Weather isn’t available right now."
+                          : "Checking weather…"}
                       </p>
                     )}
                     <p className="mt-2 text-xs text-muted-foreground">
@@ -5062,6 +5109,8 @@ function Index() {
           driveBufferNote={driveBufferNote}
           driveTotalMinutes={driveDoorToDoorMinutes}
           driveLeaveSeconds={arriveByActive && drivePlan ? drivePlan.leaveBySeconds : null}
+          pendingStatus={pendingStatus}
+          uncheckedNote={uncheckedNote}
           comparison={
             activeRegion().hasTransit ? (
               <TripChoiceCards
@@ -5142,10 +5191,16 @@ function Index() {
                     ))}
                   </div>
                   <div className="mt-3 border-t border-border/50 pt-3 text-xs text-muted-foreground">
-                    <p>{sourceFreshnessLabel(driveTripEstimate.source, now.getTime())}</p>
+                    <p>
+                      {sourceFreshnessLabel(driveTripEstimate.source, now.getTime(), {
+                        loading: driveLoading,
+                      })}
+                    </p>
                     {activeRegion().hasTransit && (
                       <p className="mt-1">
-                        {sourceFreshnessLabel(transitTripEstimate.source, now.getTime())}
+                        {sourceFreshnessLabel(transitTripEstimate.source, now.getTime(), {
+                          loading: optionsLoading || planPlaceholder,
+                        })}
                       </p>
                     )}
                   </div>

@@ -35,6 +35,8 @@ export function VerdictDomain({
   driveTotalMinutes,
   driveLeaveSeconds = null,
   comparison,
+  pendingStatus = null,
+  uncheckedNote = null,
   children,
 }: {
   configured: boolean;
@@ -62,8 +64,15 @@ export function VerdictDomain({
   driveLeaveSeconds?: number | null;
   /** Drive / Skyline / Bus, side by side, so the headline's math is on screen. */
   comparison?: ReactNode;
+  /** While the answer loads: what's in so far, e.g. "Drive 35 min · checking TheBus and Skyline…". */
+  pendingStatus?: string | null;
+  /** A trip kind Nalu couldn't check, so the call covers only what it could, e.g. "Skyline couldn’t be checked". */
+  uncheckedNote?: string | null;
   children?: ReactNode;
 }) {
+  // No claim until there is an answer: a neutral marker while the searches run,
+  // then the check and "Nalu says" fade in. Same size, so nothing moves.
+  const pending = configured && !commitment && (optionsLoading || driveLoading);
   const headline = !configured
     ? "Where to?"
     : verdict === "none"
@@ -85,12 +94,24 @@ export function VerdictDomain({
       className="verdict-lift glass-panel -mx-2 mt-5 rounded-2xl px-5 py-7 animate-in fade-in duration-300"
       aria-labelledby="verdict-title"
     >
-      <div className="mb-5 flex items-center gap-2 text-recommended">
-        <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
-          <Check className="size-4 stroke-[3]" />
-        </span>
-        <span className="text-xs font-semibold">{commitment ? "On this trip" : "Nalu says"}</span>
-      </div>
+      {pending ? (
+        <div key="pending" className="mb-5 flex items-center gap-2 text-muted-foreground">
+          <span
+            aria-hidden="true"
+            className="flex size-6 items-center justify-center rounded-full ring-1 ring-border"
+          >
+            <span className="size-1.5 rounded-full bg-muted-foreground/60" />
+          </span>
+          <span className="text-xs font-semibold">Comparing your options</span>
+        </div>
+      ) : (
+        <div key="answer" className="nalu-value-in mb-5 flex items-center gap-2 text-recommended">
+          <span className="flex size-6 items-center justify-center rounded-full bg-recommended text-recommended-foreground">
+            <Check className="size-4 stroke-[3]" />
+          </span>
+          <span className="text-xs font-semibold">{commitment ? "On this trip" : "Nalu says"}</span>
+        </div>
+      )}
       <h1
         id="verdict-title"
         className="max-w-[390px] text-4xl font-bold leading-none text-foreground"
@@ -103,8 +124,16 @@ export function VerdictDomain({
           without guessing a drive time.
         </p>
       )}
+      {pending && pendingStatus && (
+        <p
+          aria-live="polite"
+          className="mt-3 flex min-h-[26px] items-center text-sm font-medium tabular-nums text-muted-foreground"
+        >
+          {pendingStatus}
+        </p>
+      )}
       {configured && verdict !== "none" && !optionsLoading && !driveLoading && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="nalu-value-in mt-3 flex flex-wrap items-center gap-2">
           <span
             className={
               confidence === "high"
@@ -127,6 +156,7 @@ export function VerdictDomain({
                 : `About ${formatDriveMinutes(differenceMinutes)} apart`}
             </span>
           )}
+          {uncheckedNote && <span className="text-xs text-muted-foreground">{uncheckedNote}</span>}
         </div>
       )}
       {(verdict === "transit" || transitStandaloneAvailable) && best && transitRange && (

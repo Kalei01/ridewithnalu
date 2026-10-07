@@ -4,6 +4,7 @@ import {
   allowTimeNote,
   parkingNote,
   skylineEmptyText,
+  busEmptyText,
   transitChoices,
   tripSteps,
 } from "./trip-choices";
@@ -194,7 +195,13 @@ describe("trip choices", () => {
     expect(skylineEmptyText({ ...base, closedForEvening: true, failed: true })).toMatch(
       /stopped for the night/,
     );
-    expect(skylineEmptyText({ ...base, failed: true })).toBe("Can’t check transit right now");
+    // A failed or timed-out Skyline search never reads as "no trip makes sense".
+    expect(skylineEmptyText({ ...base, failed: true })).toBe("Can’t check Skyline right now");
     expect(skylineEmptyText(base)).toBe("No Skyline trip that makes sense right now");
+  });
+
+  it("the Bus row admits a failed search instead of saying there is no bus", () => {
+    expect(busEmptyText({ failed: true })).toBe("Can’t check TheBus right now");
+    expect(busEmptyText({ failed: false })).toBe("No bus trip right now");
   });
 });

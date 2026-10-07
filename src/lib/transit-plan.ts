@@ -40,11 +40,51 @@ export type TransitPlanContext = {
 };
 
 /**
+ * Which kinds of trip Nalu couldn't fully search this time, because a planner
+ * that looks for them failed or ran out of time. A row with no trip then says
+ * "Can't check Skyline right now", never "no trip makes sense".
+ */
+export type TransitPlanGaps = { skyline: boolean; bus: boolean };
+
+export type TransitPlanResult = { options: Option[]; unchecked: TransitPlanGaps };
+
+/** Which rows a failed planner stage leaves unchecked. */
+const STAGE_GAPS: Record<string, Partial<TransitPlanGaps>> = {
+  plan_bus_direct: { bus: true },
+  // The general planner finds bus transfers and bus + Skyline trips alike.
+  plan_transit_general: { bus: true, skyline: true },
+  plan_outbound: { skyline: true },
+  plan_inbound: { skyline: true },
+  plan_inbound_hub: { skyline: true },
+  rail_stations: { skyline: true },
+  via_skyline: { skyline: true },
+  pickup_inbound: { skyline: true },
+};
+
+/**
  * Finds TheBus and Skyline options for a trip: direct buses, the general
  * planner, rail with park-and-ride, late-night service-day handling and
  * arrive-by paging. Moved out of the trip screen unchanged so it can be tested.
  */
 export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]> {
+  return (await planTransitTripDetailed(ctx)).options;
+}
+
+/**
+ * The same search, plus which kinds of trip couldn't be checked. Successful
+ * results are kept as they are; only the failure is carried to the screen.
+ */
+export async function planTransitTripDetailed(ctx: TransitPlanContext): Promise<TransitPlanResult> {
+  const unchecked: TransitPlanGaps = { skyline: false, bus: false };
+  const options = await searchTransit(ctx, unchecked);
+  // A copy: a slow planner that fails after the answer is out can't change it.
+  return { options, unchecked: { ...unchecked } };
+}
+
+async function searchTransit(
+  ctx: TransitPlanContext,
+  unchecked: TransitPlanGaps,
+): Promise<Option[]> {
   const {
     arrivalStationId,
     arriveByTarget,
@@ -91,6 +131,9 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
   let plannerError: unknown = null;
   const recordTransitRpcError = (stage: string, error: unknown) => {
     if (stage.startsWith("plan_")) plannerError ??= error;
+    const gaps = STAGE_GAPS[stage];
+    if (gaps?.skyline) unchecked.skyline = true;
+    if (gaps?.bus) unchecked.bus = true;
     const e = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
     debugLog("transit_rpc_error", {
       stage,
@@ -289,11 +332,26 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
     // Once a fast planner has a trip, the general planner (normally 1-2 s)
     // gets a grace period; past that it is hitting its time limit.
     const [fastBus, fastOutbound] = await Promise.all([busPromise, outboundPromise]);
+    let generalSettled = false;
+    generalPromise.then(
+      () => (generalSettled = true),
+      () => (generalSettled = true),
+    );
     const primaryTransit =
       fastBus.length || fastOutbound.length
         ? await Promise.race([
             generalPromise,
-            new Promise<Option[]>((resolve) => window.setTimeout(() => resolve([]), 8000)),
+            new Promise<Option[]>((resolve) =>
+              window.setTimeout(() => {
+                // Past the grace period the general planner hasn't answered, so
+                // bus transfers and bus + Skyline trips weren't fully checked.
+                if (!generalSettled) {
+                  unchecked.skyline = true;
+                  unchecked.bus = true;
+                }
+                resolve([]);
+              }, 8000),
+            ),
           ])
         : await generalPromise;
     // Drive to a station + Skyline is a real alternative to the walk-and-ride

@@ -83,3 +83,24 @@
     scroll-behavior: auto;
   }
 }
+
+/* A value that just arrived (a trip row's time, Nalu's answer): a short
+   opacity fade, so new information reads as new without anything moving. */
+.nalu-value-in {
+  animation: nalu-value-in 200ms ease-out both;
+}
+
+@keyframes nalu-value-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nalu-value-in {
+    animation: none;
+  }
+}

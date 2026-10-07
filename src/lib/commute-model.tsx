@@ -452,7 +452,19 @@ export function modeIcon(mode: Leg["mode"]) {
   return Footprints;
 }
 
-export function sourceFreshnessLabel(source: EstimateSource, nowMs: number) {
+export function sourceFreshnessLabel(
+  source: EstimateSource,
+  nowMs: number,
+  options: { loading?: boolean } = {},
+) {
+  // Still on its way: not "unavailable" or "unknown" until a request has failed.
+  if (options.loading && source.fetchedAt === null) {
+    return source.basis === "scheduled"
+      ? "Bus & Skyline times · Checking…"
+      : source.basis === "future-estimate"
+        ? "Future traffic estimate · Checking…"
+        : "Live traffic · Checking…";
+  }
   if (source.quality === "unavailable") {
     return source.basis === "live"
       ? "Live traffic · Not available"
