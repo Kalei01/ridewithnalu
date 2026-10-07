@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { naluHeroVerdictLine } from "@/lib/nalu-voice";
+import { FadeOnChange } from "@/components/commute/FadeOnChange";
 
 function getHeroPersonality(headline: string): string {
   const normalized = headline.toLowerCase();
@@ -50,16 +51,27 @@ export function VerdictCard({
       </div>
 
       {heroPersonality && (
-        <p className="mb-3 max-w-[42rem] text-sm font-medium leading-6 text-muted-foreground">
+        <FadeOnChange
+          as="p"
+          kind="verdict"
+          changeKey={headline.trim().split(/\s+/)[0]?.toLowerCase() ?? ""}
+          className="mb-3 max-w-[42rem] text-sm font-medium leading-6 text-muted-foreground"
+        >
           {heroPersonality}
-        </p>
+        </FadeOnChange>
       )}
 
       <h1
         id="verdict-title"
         className="max-w-[390px] text-[2.75rem] font-bold leading-[0.98] tracking-[-0.035em] text-foreground sm:text-5xl"
       >
-        {headline}
+        {/* Cross-fades only when the recommendation itself flips, not when minutes tick. */}
+        <FadeOnChange
+          changeKey={headline.trim().split(/\s+/)[0]?.toLowerCase() ?? ""}
+          kind="verdict"
+        >
+          {headline}
+        </FadeOnChange>
       </h1>
 
       {metrics?.length ? (
@@ -72,7 +84,9 @@ export function VerdictCard({
                   metric.accent ? "text-recommended" : "text-foreground"
                 }`}
               >
-                {metric.value}
+                <FadeOnChange kind="number" changeKey={metric.value}>
+                  {metric.value}
+                </FadeOnChange>
               </p>
             </div>
           ))}

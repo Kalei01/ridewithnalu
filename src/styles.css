@@ -690,3 +690,19 @@ html[data-nalu-returning] .nalu-returning-only {
 html[data-nalu-returning] .nalu-first-visit-only {
   display: none;
 }
+
+/* Changed information fades in place: opacity only, no movement or reflow. */
+@keyframes nalu-fade-verdict {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes nalu-fade-number {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+.nalu-fade-verdict { animation: nalu-fade-verdict 360ms ease-out both; }
+.nalu-fade-number { animation: nalu-fade-number 220ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .nalu-fade-number { animation: none; }
+  .nalu-fade-verdict { animation-duration: 1ms; }
+}

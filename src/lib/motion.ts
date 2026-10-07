@@ -1,6 +1,9 @@
 /** True when the rider asked their device for less movement. Safe on the server. */
 export function prefersReducedMotion(): boolean {
-  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
+  );
 }
 
 /** Leaflet fly options: a short glide, or an instant move under reduced motion. */
