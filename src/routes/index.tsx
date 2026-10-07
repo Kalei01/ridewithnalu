@@ -718,6 +718,13 @@ function Index() {
 
   function choosePlanMode(next: PlanMode) {
     if (next === "arrive-by" && !gate.require("arrive_by")) return;
+    // Open with a real time (an hour out, to the next quarter hour) instead of "--:-- --".
+    if (next === "arrive-by" && !arriveByInput) {
+      const target = Math.ceil((honoluluSeconds(new Date()) + 3600) / 900) * 900;
+      const hh = String(Math.floor((target % 86400) / 3600)).padStart(2, "0");
+      const mm = String(Math.floor((target % 3600) / 60)).padStart(2, "0");
+      chooseArriveBy(`${hh}:${mm}`);
+    }
     setPlanMode(next);
     window.localStorage.setItem(PLAN_MODE_KEY, next);
   }
@@ -1196,7 +1203,9 @@ function Index() {
         p_bus_limit: 5,
       });
       if (error) throw error;
-      return (data ?? []).map((row): NearbyStop => ({
+      // Closest first, so a 1-minute stop never sits below a 39-minute walk.
+      return (data ?? [])
+        .map((row): NearbyStop => ({
         stopId: row.stop_id,
         stopName: row.stop_name ?? "",
         lat: Number(row.stop_lat),
@@ -1204,7 +1213,8 @@ function Index() {
         routeType: row.route_type,
         distanceM: Number(row.distance_m),
         arrivals: Array.isArray(row.arrivals) ? (row.arrivals as NearbyArrival[]) : [],
-      }));
+      }))
+        .sort((x, y) => x.distanceM - y.distanceM);
     },
   });
 
@@ -4872,7 +4882,7 @@ function Index() {
         >
           {[
             { label: "To destination", value: false },
-            { label: "To home", value: true },
+            { label: savedHome ? "To home" : "Return trip", value: true },
           ].map((tab) => (
             <button
               key={tab.label}
