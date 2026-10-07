@@ -764,6 +764,7 @@ export function SetupDialog({
                         id="destination"
                         className="h-12 bg-surface-raised"
                         placeholder="Search for a place or address"
+                        autoFocus={firstRun}
                         autoComplete="off"
                         value={placeQuery}
                         onChange={(event) => setPlaceQuery(event.target.value)}
