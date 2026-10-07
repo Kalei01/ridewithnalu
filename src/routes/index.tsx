@@ -3066,11 +3066,13 @@ function Index() {
   // covers what Nalu could check, so the confidence badge says so.
   const skylineRowUnchecked = skylineUnchecked && !choicePicks.skyline.option && !railServiceClosed;
   const busRowUnchecked = busUnchecked && !choicePicks.bus.option;
+  // When both rows are empty because both searches failed, the rows already
+  // say so and the card explains it; a third mention is just repetition.
   const uncheckedNote =
     optionsLoading || !activeRegion().hasTransit
       ? null
       : skylineRowUnchecked && busRowUnchecked
-        ? "Skyline and TheBus couldn’t be checked"
+        ? null
         : skylineRowUnchecked
           ? "Skyline couldn’t be checked"
           : busRowUnchecked
