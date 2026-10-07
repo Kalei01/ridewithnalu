@@ -33,7 +33,14 @@ Done: verdict cross-fade (360 ms, opacity only, only when DRIVE/transit flips); 
 - Map: tapping a step should not scroll the page when the map is already visible; map moves ~400 ms; `behavior:"auto"` / `animate:false` under reduced motion (CommuteRouteMap.tsx, NearbyTransitMap.tsx, LiveNavMap.tsx, index.tsx ~3635).
 - Trip question: lucide Car/Bus icons instead of 🚗/🚌; no "drop-/off" break; ~120 ms press feedback.
 
-## Batch 4 — layout and clarity (IN PROGRESS)
+## Batch 4 — layout and clarity (PARTLY DONE 2026-10-07)
+Done: selected row is ice-blue and green is only Nalu's pick; the road line reads "Drive route"; Arrive By opens with a real time (an hour out); "Where to?" field is focused on open; nearest stops sorted closest first; "To home" reads "Return trip" when no Home is saved.
+NEEDS OPUS SESSION — rows above the fold (reworks the top of index.tsx: direction + Leave/Arrive controls).
+NEEDS OPUS SESSION — duplicate facts on the drive screen ("35 min" x4, route x3, parking note x3, "Moving steady" vs "Light"): spread across several cards in index.tsx.
+NEEDS OPUS SESSION — roadwork card saying when a closure isn't during this trip: needs trip-time vs closure-window logic (src/lib/roadwork.ts), which is commute logic.
+NEEDS OPUS SESSION — shared link opening on the trip question instead of Browse + one quiet toast: startup flow in index.tsx.
+Not attempted (small, next run): Browse map switch covering a marker; "Plan my trip" button on /oahu-commute and guides and the hard dark rectangle behind hero text (public pages are shared with the SEO agent — check docs/seo/search-review-log.md first).
+Original list:
 - Rows above the fold: direction + Leave/Arrive toggles take ~300 px; Skyline/Bus start ~y=900 (index.tsx, ArriveByControls.tsx).
 - "Selected" vs "Nalu's pick": ice-blue selection ring (liquid-titanium.css ~837), green only for the pick; ROUTE line follows the selected row or reads "Drive route".
 - Duplicate facts on the drive screen ("35 min" ×4, route ×3, "(parking not included)" ×3, "Moving steady" vs "Light"); roadwork card should say when a closure isn't during this trip (HdotRoadworkNotice.tsx, src/lib/roadwork.ts).
@@ -57,3 +64,4 @@ Morning rush; Skyline-stopped-at-night and not-yet-running rows; a live verdict 
 - 2026-10-06 First audit (read-only). Findings above.
 - 2026-10-07 Database speed work: search staggering shipped; 0063 prepared and rehearsed on a local copy with TheBus's real feed, waiting for someone with database access to apply it; planner time window dropped.
 - 2026-10-07 Batches 2-3 shipped (see their entries). Reviewed by transit-accuracy (fixed: step stays on "board" until board time, scheduled label, roadwork schedule/link kept), mobile-design, security-keys.
+- 2026-10-07 Batch 4 partly shipped; four items marked NEEDS OPUS SESSION (reasons above).
