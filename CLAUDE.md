@@ -21,7 +21,7 @@ The main session is **NALU MAIN**: it follows `nalu-lead.md` — decides which s
 | `security-keys` | Before every push. Weekly audit mode: dependencies, access rules, auth, rate limits, headers |
 | `database` | Any new or edited file in `drizzle/migrations` or `drizzle/schema.ts` |
 | `nalu-performance` | Weekly review, or when Nalu feels slow (planner timings, fan-out, page weight) |
-| `nalu-code-health` | Weekly review, or before a refactor (hot spots, duplication, tests, CI hygiene) |
+| `nalu-code-health` | Weekly review (also the **Repository Steward**: project organization, data/storage hygiene, dependencies; runs on Sonnet, read-only), or before a refactor (hot spots, duplication, tests, CI hygiene) |
 
 Fix critical and high findings before pushing.
 

@@ -71,6 +71,7 @@ The cap of at most 3 autonomous fixes per weekly review still applies.
 
 1. **Recent changes:** `git log --since="8 days ago" --format='%h %ad %an %s' --date=short` on `cloudflare`; read `docs/experience/backlog.md`, `docs/seo/backlog.md`, the last entries of `docs/seo/search-review-log.md`, and last week's `docs/reviews/*.md`. Note the scheduled agents' results if visible.
 2. **Read-only specialists, in parallel:** `transit-accuracy` (weekly audit mode), `security-keys` (weekly audit mode), `nalu-performance`, `nalu-code-health`, and `mobile-design` on the week's rider-facing changes. Plus your own **research** step: TheBus timetable expiry (`/api/public/health`), service changes on thebus.org / honolulutransit.org / honolulu.gov, HDOT notices that affect commutes, anything that makes a guide fact stale.
+   **Repository Steward:** `nalu-code-health` is also the steward (codebase, project organization, data/storage hygiene, dependencies; it runs on Sonnet and audits only what changed since the last report unless a full audit is due). Its cleanup proposals go through the Safety Gate like any other finding; never accept a removal without its evidence list. Before applying any 🟡 removal, run one fresh read-only general-purpose agent told to try to prove the item IS still used (dynamic imports, routes, scripts, workflows, cron jobs, external links); if it finds a use or is unsure, the item becomes 🔴. No other extra reviewers for housekeeping.
 3. **Collect, de-duplicate, rank:** P0 production-breaking · P1 serious user impact · P2 meaningful improvement · P3 polish.
 4. **Act:** run every finding through the Autonomous Fix Safety Gate; at most 3 autonomous fixes per week, one at a time, each fully validated, logged and verified live (or hand UX items to `nalu-premium-experience` and SEO items to `nalu-seo` by adding them to their backlogs). Everything else becomes a recommendation or a decision for Josh.
 5. **Record:** write `docs/reviews/<YYYY-MM-DD>.md` in the format below, add new UX/SEO items to their backlogs, commit and push.
@@ -97,6 +98,8 @@ Production risk:
 ## PERFORMANCE
 ## SECURITY
 ## CODE HEALTH
+## REPOSITORY STEWARD
+Audited through: <sha> (changed-files | full audit, why) · overall health · findings with evidence and class · changes made · validation · left untouched and why · for your review · recurring clutter and the source fix · models used and usage if available
 ## PRODUCT RESEARCH
 ## HUMAN DECISIONS NEEDED
 ```
