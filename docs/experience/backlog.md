@@ -38,10 +38,15 @@ Source: the agent's first audit, Oct 6 2026 (~4:35 PM HST, live site, 390x844).
 ## Reported, not for this agent
 - REPORT B6 Board time vs live bus time (walk arrives 4:46, bus shown 4:45 unlabelled) — transit-accuracy.
 - REPORT B7 "Too close to call · About 26 min apart" (Arrive By 6:30 PM) — verdict engine, transit-accuracy.
-- DECISION Database speed fixes from the Oct 6 read-only investigation (nearby_transit_stops rewrite, general-planner time window, fewer parallel searches, rail_stations cache, numeric time columns) — owner approval required for migrations.
+- APPROVED (owner, Oct 6) Database speed fixes from the Oct 6 read-only investigation:
+  - Fewer parallel searches (src/lib/transit-plan.ts): DONE (2026-10-07, commit "Stagger the Skyline bridge and drop-off station searches").
+  - nearby_transit_stops rewrite (migration 0063 + stop_modes): PREPARED, rehearsed 56/56 identical, NOT yet applied to production (no database access in the session). Steps: scripts/db-speed/README.md.
+  - General-planner time window: NOT ADOPTED (not faster in rehearsal; changed tie picks in 5/72 cases). Reasons in scripts/db-speed/README.md.
+  - rail_stations cache: not needed (25 ms). Numeric time columns: not started.
 
 ## Not yet checked (no tool access in test runs)
 Morning rush; Skyline-stopped-at-night and not-yet-running rows; a live verdict flip; map tiles and camera feel; signed-in features; real iPhone/Safari/VoiceOver.
 
 ## Log
 - 2026-10-06 First audit (read-only). Findings above.
+- 2026-10-07 Database speed work: search staggering shipped; 0063 prepared and rehearsed on a local copy with TheBus's real feed, waiting for someone with database access to apply it; planner time window dropped.

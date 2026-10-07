@@ -266,7 +266,10 @@ async function searchTransit(
       vehicle && !isParkAndRide(home)
         ? nearestParkAndRide(tripDirection.from, browseStations)
         : null;
-    const queries = [fetchOutboundAt(home, vehicle, cursor)];
+    // The home station first, then the other stations together: fewer heavy
+    // searches at once on the database. Every station is still searched.
+    const fromHome = await fetchOutboundAt(home, vehicle, cursor);
+    const queries: Array<Promise<Option[]>> = [];
     const queried = new Set([home, parkStation?.stop_id]);
     if (parkStation && parkStation.stop_id !== home)
       queries.push(fetchOutboundAt(parkStation.stop_id, true, cursor));
@@ -275,7 +278,7 @@ async function searchTransit(
         queries.push(fetchOutboundAt(station.stop_id, true, cursor));
     }
     // Safety net: with no vehicle available, no result may carry a car leg.
-    const found = (await Promise.all(queries))
+    const found = [fromHome, ...(await Promise.all(queries))]
       .flat()
       .filter(
         (option) => vehicleToStation !== "none" || !option.legs.some((leg) => leg.mode === "drive"),
@@ -610,11 +613,18 @@ async function searchTransit(
     }
   };
 
-  /** The normal search plus the Skyline bridge and any pickup trips, run side by side. */
+  /**
+   * The normal search plus the Skyline bridge and any pickup trips. The bridge
+   * starts once the normal search has settled, so fewer heavy searches hit
+   * the database at once; its trips are still always included.
+   */
   const fetchPageWithSkyline = async (cursor: number): Promise<Option[]> => {
-    const bridge = fetchViaSkyline(cursor);
+    let bridge: Promise<Option[]> | null = null;
     const pickup = fetchInboundPickup(cursor);
-    const extras = async () => [...(await bridge), ...(await pickup)];
+    const extras = async () => {
+      bridge ??= fetchViaSkyline(cursor);
+      return [...(await bridge), ...(await pickup)];
+    };
     try {
       const base = await fetchPage(cursor);
       const extra = await extras();

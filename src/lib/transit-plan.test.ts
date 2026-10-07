@@ -278,6 +278,45 @@ describe("transit trip planner: bus → Skyline → bus", () => {
       options[0]?.legs.filter((l) => l.mode === "bus" || l.mode === "rail").map((l) => l.mode),
     ).toEqual(["bus", "rail", "bus"]);
     expect(options.some((o) => o.arrive_seconds === 68940)).toBe(true); // the 42 alone is still listed
+
+    // With a slow normal search, the bridge's searches (to or from a station)
+    // wait until it has answered, and the same trips come back.
+    const atStation = (args: Record<string, unknown>) =>
+      [args["p_origin_lat"], args["p_dest_lat"]].some(
+        (lat) => Math.abs(Number(lat) - 21.33274) < 1e-4,
+      );
+    rpc.mockReset();
+    let normalAnswered = false;
+    let bridgeStartedEarly = false;
+    rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
+      if (name === "rail_stations") return ok([KAHAUIKI, KUALAKAI]);
+      if (name !== "plan_transit_general") return ok([]);
+      if (atStation(args)) {
+        bridgeStartedEarly ||= !normalAnswered;
+        return ok([
+          Math.abs(Number(args["p_dest_lat"]) - 21.33274) < 1e-4 ? toStation : fromStation,
+        ]);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      normalAnswered = true;
+      return ok([busOnly]);
+    });
+    const later = await planTransitTrip(
+      context({
+        nowSeconds: 61200,
+        scheduleAfterSeconds: 61200,
+        tripDirection: {
+          inbound: false,
+          reverseTrip: false,
+          departingFromSavedHome: false,
+          arrivingAtSavedHome: false,
+          from: { lat: 21.3101, lon: -157.8624 },
+          to: { lat: 21.32203, lon: -158.03366 },
+        },
+      }),
+    );
+    expect(bridgeStartedEarly).toBe(false);
+    expect(later).toEqual(options);
   });
 });
 
@@ -469,6 +508,31 @@ describe("transit trip planner: drive to the station + Skyline", () => {
     expect(atKeoneae?.legs.map((l) => l.mode)).toEqual(["drive", "rail", "bus", "walk"]);
     expect(atKeoneae?.leave_by_seconds).toBe(24240 - 12 * 60); // leave 6:32
     expect(options.some((o) => o.arrive_seconds === 28140)).toBe(true); // the car-free 91 stays
+  });
+
+  it("searches the other stations only after the home station answers, with the same trips", async () => {
+    planners();
+    driveTime.mockResolvedValue({ trafficMinutes: 12 });
+    const together = await planTransitTrip(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
+
+    // Same answers, but the home station's search is slow.
+    rpc.mockReset();
+    let homeAnswered = false;
+    let keoneaeStartedEarly = false;
+    rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
+      if (name === "plan_transit_general") return ok([bus91]);
+      if (name !== "plan_outbound") return ok([]);
+      if (args["p_station"] === KEONEAE.stop_id) {
+        keoneaeStartedEarly ||= !homeAnswered;
+        return ok([driveToKeoneae]);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      homeAnswered = true;
+      return ok([driveToKualakai]);
+    });
+    const staggered = await planTransitTrip(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
+    expect(keoneaeStartedEarly).toBe(false);
+    expect(staggered).toEqual(together);
   });
 
   it("lists a drive + rail trip that saves too little over the bus as an alternative, not the pick", async () => {
