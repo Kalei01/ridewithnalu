@@ -34,8 +34,7 @@ Fix critical and high findings before pushing.
 
 ### Scheduled (claude.ai routines; names start with "NALU —")
 
-- **Daily Watchman** — weekdays 6:13 AM HST, read-only health, pages and live trips; when something is wrong it fires **Alert Triage**.
-- **Alert Triage** — no schedule; fired by the Watchman into the Weekly Review session. Reproduces the alert, fixes it only through the Safety Gate (max 2 fixes) or escalates to Josh; records every alert in `docs/maintenance/alerts.md` (repeats within 7 days are not re-investigated).
+- **Daily Watchman + Triage** — weekdays 6:13 AM HST, one session with the repo: read-only health, pages and live trips; when something is wrong it triages in the same run — fixes only through the Safety Gate (max 2 fixes) or escalates to Josh — and records every alert in `docs/maintenance/alerts.md` (repeats within 7 days are not re-investigated). (A separate triage routine was dropped: firing a routine by hand starts a new session without the repo.)
 - **SEO Discovery** — Mon/Thu 5:58 AM HST, runs `nalu-seo`.
 - **Premium UX Review** — Wed 10:47 AM HST, runs `nalu-premium-experience` on recent changes and its backlog.
 - **Weekly Review** — Sun 9:47 AM HST, runs `nalu-lead`'s weekly review; report in `docs/reviews/<date>.md`. Monthly it also proposes up to 3 product ideas (add / improve / remove) in `docs/product/proposals.md`; Josh approves or declines them in that session, and approved ones go to the build backlogs.
