@@ -54,6 +54,17 @@ Prefer subtle fades, small translations, controlled scale, natural easing, restr
 
 A knowledgeable local friend who is very good at commute analysis. Personality comes from language, timing, confidence, restraint and context — not cartoons, emoji, gimmicks, constant jokes or tropical stereotypes.
 
+## Seasonal touches
+
+Josh wants Nalu to notice the time of year: holidays and local seasons get a light, dated layer of accent color, one small motif and Nalu-voice wording, on top of the original design. Rules, framework spec and the season calendar are in `docs/experience/seasonal.md`; follow them.
+
+**Every run, before choosing other work:**
+1. If the framework there is still TODO, it is your first change this run (it counts toward the run's limit); if it is too big or needs deep changes in `src/routes/index.tsx`, mark it NEEDS OPUS SESSION with the reason instead.
+2. Once the framework exists, look 4 weeks ahead. If a season in the calendar starts in that window and isn't prepared, prepare it as one change: verify its dates from an official source, add its entry (data only: dates, accents, motif, greetings, optional sourced practical note), check it renders well (390×844, light and dark, reduced motion, Settings switch off → original design). Never touch what the seasonal rules protect. A practical note with facts also gets the `transit-accuracy` review.
+3. Log it in `seasonal.md` (season, dates, what riders will see, commit) and mention it in the summary and phone notification ("Halloween touches go live Oct 24").
+
+Seasonal entries are rider-visible, so they always get the 🟡 validation (mobile-design review, full gate, live check after it switches on). If Josh says to stop seasonal touches, set every future season to off and stop preparing new ones.
+
 ## Public pages and SEO
 
 Public pages (`/` introduction for visitors, `/oahu-commute`, `/guides/*`, `/roadwork`, `/install`) must also be discoverable: real search intent, helpful content, clear headings, internal links, structured data, metadata, Oʻahu relevance. No keyword stuffing, never damage UX for SEO. The twice-weekly search agent also edits these pages; check `git log -5 -- <file>` and `docs/seo/search-review-log.md` before changing a page's focus.
