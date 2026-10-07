@@ -1,3 +1,4 @@
+import { Bus, Car } from "lucide-react";
 import { TRIP_ACCESS_OPTIONS, type TripAccess } from "@/lib/trip-access";
 
 /**
@@ -43,16 +44,19 @@ export function TripAccessQuestion({
             type="button"
             onClick={() => onChoose(option.value)}
             aria-pressed={current === option.value}
-            className={`flex min-h-16 w-full items-center gap-4 rounded-2xl px-5 py-4 text-left text-lg font-bold text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-recommended active:scale-[0.99] active:bg-recommended/20 active:ring-2 active:ring-recommended ${
+            className={`flex min-h-16 w-full items-center gap-4 rounded-2xl px-5 py-4 text-left text-lg font-bold text-foreground transition duration-[120ms] ease-out focus-visible:ring-2 focus-visible:ring-recommended active:scale-[0.99] active:bg-recommended/20 active:ring-2 active:ring-recommended ${
               current === option.value
                 ? "bg-recommended/10 ring-2 ring-recommended"
                 : "bg-background/40 ring-1 ring-border"
             }`}
           >
-            <span aria-hidden="true" className="text-3xl leading-none">
-              {option.emoji}
-            </span>
-            <span>{option.label}</span>
+            {option.value === "vehicle" ? (
+              <Car aria-hidden="true" className="size-7 shrink-0 text-recommended" />
+            ) : (
+              <Bus aria-hidden="true" className="size-7 shrink-0 text-recommended" />
+            )}
+            {/* Non-breaking hyphen so "drop-off" never wraps as "drop-" / "off". */}
+            <span>{option.label.replace("drop-off", "drop\u2011off")}</span>
           </button>
         ))}
       </div>
