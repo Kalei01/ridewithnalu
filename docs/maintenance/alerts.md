@@ -1,0 +1,23 @@
+# Alert log
+
+Every Watchman alert and what Alert Triage did about it. Newest first. Repeats within 7 days are not re-investigated.
+
+## 2026-10-07 — Kapolei → downtown: Skyline row said "No Skyline trip that makes sense right now"
+
+- **Alert (Watchman, Wed 6:14 AM HST):** first attempt showed the "no Skyline trip" text while Skyline was running; a retry ~65 s later showed "Skyline 1 hr 14 min · Arrive 7:31 AM". Health check bus and rail planner took 5870 ms (flag line 6000 ms). The same text was seen ~10:23 PM Oct 6.
+- **Reproduced?** Not the false "no trip". Live run at ~7:20 AM HST (iPhone SE, Kapolei geolocation): Drive appeared in 0.5 s; Skyline and Bus rows stayed on "Checking…" for **15.2 s**, then Skyline 1 hr 10 min (Arrive 8:30, Walk → Bus 46 → Skyline → Bus C) and Bus 1 hr 10 min. Health check at the same time: planner 1954 ms. So the planner is slow and variable, not stuck.
+- **Timing context:** commit 7c09d21 was deployed Oct 6 ~9:56 PM HST. Both sightings (10:23 PM and 6:14 AM) are after it; I have no pre-7c09d21 timing to compare, so the commit is a suspect, not proven.
+- **Root-cause questions (from `src/lib/transit-plan.ts`):**
+  - What failed? A Skyline row with no trip and no "couldn't check" flag.
+  - Why? Not proven. Every planner error is already flagged as "unchecked" (`recordTransitRpcError`, `STAGE_GAPS`, ~line 130 and the 8 s grace at ~line 340-356), so the plain "no trip" text means every search answered with zero trips — or the screen read the result before the Skyline search finished.
+  - Where? Strongest lead: `fetchOutbound` (~line 262-285). Since 7c09d21 the home-station search must finish before the park-and-ride/drop-off searches start, so their times add. `fetchPage` waits for that whole chain (`Promise.all([busPromise, outboundPromise])`, ~line 337) *before* the 8 s grace for the general planner begins, so the total can run well past 8 s (seen: 15 s).
+  - Why would a change be right? Can't say yet: root cause is uncertain.
+  - What could it affect? Every Leave Now trip with a car available.
+  - How to prove it? Compare planner time per trip with and without 7c09d21 on the same trip, and look at the app's `transit_rpc_error` logs around 6:14 AM HST.
+- **Class:** 🔴 — planner timing/logic, timeouts and the database are off-limits for autonomous fixes, and the root cause is uncertain.
+- **Action:** none changed. No code touched.
+- **Recommendation for Josh (in this order):**
+  1. Apply database speed fix **0063** (prepared, needs you). It speeds up each planner search, which helps whether or not 7c09d21 is the culprit, and it's the only fix that doesn't trade speed for load.
+  2. Then re-time Kapolei → downtown. If the Skyline row still takes more than ~8 s, ask an Opus session to revert or loosen 7c09d21 (run the home-station and drop-off searches together again) — its reviewer already warned the time adds up, and 15 s against an 8 s grace is what that looks like.
+  3. Ask an Opus session to make the "no Skyline trip" text wait for (or flag as "couldn't check") a Skyline search that hasn't finished.
+- **Status:** OPEN — waiting on Josh (0063).
