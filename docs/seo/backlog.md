@@ -33,6 +33,11 @@ Comparison-keyword pages, live traffic pages, ZipperLane hours (unverified), bes
 - November 2026: update /guides/honolulu-marathon-traffic-2026 when official 2026 closures are published.
 - After Dec 5, 2026: TheBus GTFS feed (valid Sept 28–Dec 5) expires; re-check guide facts and LAST_UPDATED.
 
+## Queued Oct 8 (owner) — start only after the current build queue finishes (planner speed 2, then P-3/4/5; check docs/experience/backlog.md and docs/maintenance/alerts.md)
+- TODO Answer-first format on the existing guides: the direct answer in the first two sentences, a short "Key takeaways" table, and a visible "Last updated" date. No new pages; keep each page's focus and sources.
+- TODO Apply the writing rules in `.claude/agents/nalu-seo.md` when touching any guide (no filler intros, no generic AI phrasing, no em dashes).
+- TODO Each run, read `docs/seo/ai-visibility.md`: if Josh logged that an assistant gave a wrong or missing answer about Nalu's topics, treat it as evidence for the next improvement.
+
 ## Owner items to remind (drop when the owner confirms done)
 (Oct 7: the owner won't request indexing manually; Google will crawl on its own. Report index status, but don't remind him to request indexing.)
 Cloudflare WAF rate limit on /_serverFn/ (~300 req/min/IP); check Supabase backups; AirNow API key likely wrong.
