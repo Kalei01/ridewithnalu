@@ -2,6 +2,8 @@ import { DevPanel } from "@/components/DevPanel";
 import { startAutoUpdate } from "@/lib/app-update";
 import { UpgradeSheet } from "@/components/UpgradeSheet";
 import { UsagePing } from "@/components/UsagePing";
+import { funnelLanding, funnelStep } from "@/lib/funnel";
+import { landingStep } from "@/lib/funnel-steps";
 import { WeeklyStatsSync } from "@/components/WeeklyStatsSync";
 import { EmailPrompt } from "@/components/EmailPrompt";
 import { startErrorReporting } from "@/lib/sentry-client";
@@ -184,6 +186,24 @@ function AppRouteGate() {
     // Recorded here, after reading, because a child's effect would run first.
     if (!seen && pathname === "/" && !introductionHidden()) markIntroductionShown();
   }, [pathname]);
+
+  // Anonymous funnel: the browser says when Nalu was added to a Home Screen.
+  useEffect(() => {
+    const onInstalled = () => funnelStep("installed");
+    window.addEventListener("appinstalled", onInstalled);
+    return () => window.removeEventListener("appinstalled", onInstalled);
+  }, []);
+  // Anonymous funnel: where did this visit land (introduction, guide page or the app)?
+  useEffect(() => {
+    if (welcomeSeen === null) return;
+    if (isPublicContentPath(pathname)) {
+      funnelLanding(landingStep(pathname));
+    } else if (pathname === "/" && !sharedTrip && !user && welcomeSeen !== true) {
+      funnelLanding("landed_intro");
+    } else if (!loading) {
+      funnelLanding("landed_app");
+    }
+  }, [pathname, welcomeSeen, sharedTrip, user, loading]);
 
   useEffect(() => {
     initGoogleAnalytics();

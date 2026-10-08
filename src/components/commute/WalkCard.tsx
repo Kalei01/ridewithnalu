@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Footprints } from "lucide-react";
+import { funnelStep } from "@/lib/funnel";
 import { distanceM } from "@/lib/commute-formatting";
 import { WALK_LIMIT_MINUTES, walkTime } from "@/lib/walk.functions";
 
@@ -40,6 +41,7 @@ export function WalkCard({ from, to }: { from: Point; to: Point }) {
       </div>
       <a
         href={walkingDirectionsUrl(to)}
+        onClick={() => funnelStep("maps_opened")}
         className="flex h-11 shrink-0 items-center rounded-lg border border-border bg-background/60 px-4 text-base font-semibold text-foreground"
       >
         Walk

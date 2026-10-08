@@ -59,6 +59,11 @@ function PrivacyPage() {
           </section>
 
           <section>
+            <h2 className="text-lg font-bold text-foreground">Anonymous usage counts</h2>
+            <p className="mt-2">Nalu keeps simple daily totals so we can see where visitors drop off and fix it. Each phone adds one to a counter about once a day for each step: where the visit started (the introduction, a guide page or the app), a trip answer was requested, an answer appeared and whether that took under 5 seconds, 5 to 10 seconds or longer, Open in Maps was tapped, and Nalu was added to the Home Screen. The only extra detail stored with a count is the short tag from a shared link, if you came from one (for example &quot;west&quot;). These counters hold no account, device ID, place, address, route or time of day, so they cannot be traced to you. Separately, Nalu notes once a day that a phone opened the app, using a random ID with no name or location, to count weekly users and how many come back within a week; those records are deleted after about four months. These counts work without your analytics choice, and they skip software such as search crawlers and test browsers.</p>
+          </section>
+
+          <section>
             <h2 className="text-lg font-bold text-foreground">Service providers</h2>
             <p className="mt-2">Nalu relies on third-party services for functions such as authentication, routing, geocoding, traffic, transit, weather, air quality, analytics when you consent, diagnostics, and feedback. Those providers may process information according to their own terms and privacy policies. Nalu only requests information reasonably needed for the related feature.</p>
           </section>

@@ -94,3 +94,22 @@ export const usageStats = createServerFn({ method: "POST" })
     const { data } = await rpc("usage_stats");
     return (data as UsageStats | null) ?? null;
   });
+
+export type FunnelStats = {
+  steps_week: Record<string, number>;
+  steps_week_by_ref: Record<string, number>;
+  new_phones_cohort: number;
+  came_back_within_7_days: number;
+  new_accounts_week: number;
+};
+
+/** Developer-only: the last 7 days of the anonymous visitor funnel. Null until migration 0064 is applied. */
+export const funnelStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FunnelStats | null> => {
+    await requireDeveloper(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const rpc = supabaseAdmin.rpc.bind(supabaseAdmin) as unknown as Rpc;
+    const { data, error } = await rpc("funnel_stats");
+    return error ? null : ((data as FunnelStats | null) ?? null);
+  });

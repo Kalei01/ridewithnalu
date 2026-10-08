@@ -48,6 +48,8 @@ import {
   usesSkyline,
 } from "@/lib/trip-choices";
 import { TripAccessQuestion } from "@/components/commute/TripAccessQuestion";
+import { useFunnelTrip } from "@/hooks/use-funnel-trip";
+import { funnelStep } from "@/lib/funnel";
 import { landingView, mayAutoOpenUsualTrip } from "@/lib/landing-view";
 import {
   accessResources,
@@ -2953,6 +2955,13 @@ function Index() {
       : (commitment?.mode ??
         (optionsLoading || driveLoading ? "uncertain" : (activeDecision?.state ?? "uncertain")));
   const verdict: UiDecisionState = canonicalVerdict as UiDecisionState;
+  useFunnelTrip(
+    tripDirection.to.lat !== null && tripDirection.to.lon !== null
+      ? `${tripDirection.to.lat},${tripDirection.to.lon}`
+      : null,
+    optionsLoading || driveLoading,
+    verdict !== "uncertain",
+  );
 
   useEffect(() => {
     setChosenCard(null);
@@ -5432,6 +5441,7 @@ function Index() {
                     const to = tripDirection.to;
                     if (to.lat !== null && to.lon !== null) {
                       const ios = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+                      funnelStep("maps_opened");
                       window.location.href = ios
                         ? `https://maps.apple.com/?daddr=${to.lat},${to.lon}&dirflg=d`
                         : `https://www.google.com/maps/dir/?api=1&destination=${to.lat},${to.lon}&travelmode=driving`;
