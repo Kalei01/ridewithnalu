@@ -285,7 +285,7 @@ const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 
-import { planTransitTripDetailed } from "@/lib/transit-plan";
+import { planTransitTripDetailed, plannerRpc } from "@/lib/transit-plan";
 import { tripCheckingStatus, weatherSummaryText } from "@/lib/loading-labels";
 import { honoluluDaysBetween, shiftOptionDays } from "@/lib/service-day";
 
@@ -1329,7 +1329,7 @@ function Index() {
     staleTime: 60_000,
     retry: false,
     queryFn: async () => {
-      const diagnoseTransitGeneral = supabase.rpc.bind(supabase) as unknown as (
+      const diagnoseTransitGeneral = plannerRpc as unknown as (
         functionName: string,
         args: Record<string, number>,
       ) => Promise<{ data: string | null; error: unknown }>;
@@ -2526,7 +2526,7 @@ function Index() {
     enabled: hydrated && Boolean(inbound ? arrivalStationId : setup.homeStopId),
     staleTime: 12 * 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("service_hours", {
+      const { data, error } = await plannerRpc("service_hours", {
         p_stop_id: (inbound ? arrivalStationId : setup.homeStopId) as string,
         p_route_type: 1,
       });

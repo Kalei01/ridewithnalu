@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const rpc = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({
@@ -10,6 +10,10 @@ vi.mock("@/lib/drive.functions", () => ({ driveTime: (...args: unknown[]) => dri
 
 const { planTransitTrip, planTransitTripDetailed } = await import("./transit-plan");
 const { emptySetup } = await import("./commute-model");
+const { clearPlannerCache } = await import("./planner-cache");
+
+// Every test starts with no remembered searches, so each sees its own answers.
+beforeEach(() => clearPlannerCache());
 
 type Reply = { data: unknown; error: unknown };
 const ok = (data: unknown): Reply => ({ data, error: null });
@@ -968,5 +972,69 @@ describe("transit trip planner: heading home with a car available", () => {
     const options = await planTransitTrip(trip("none"));
     expect(inboundCalls().some((a) => a["p_allow_drive"] === true)).toBe(false);
     expect(options.some((o) => o.legs.some((leg) => leg.mode === "drive"))).toBe(false);
+  });
+});
+
+describe("remembered timetable searches", () => {
+  beforeEach(() => {
+    rpc.mockReset();
+    driveTime.mockReset();
+    // A weekday morning, when searches are remembered (not near midnight).
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-05T18:00:00Z") });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const table = () =>
+    answer({
+      plan_bus_direct: ok([option(8 * 3600 + 600, "C")]),
+      plan_transit_general: ok([option(8 * 3600 + 300, "40"), option(8 * 3600 + 900, "42")]),
+      service_hours: ok([]),
+    });
+
+  it("gives the same trips from memory as from the database, without searching again", async () => {
+    table();
+    const fresh = await planTransitTripDetailed(context());
+    const searches = rpc.mock.calls.length;
+    expect(searches).toBeGreaterThan(0);
+    const remembered = await planTransitTripDetailed(context());
+    expect(remembered).toEqual(fresh);
+    expect(rpc.mock.calls.length).toBe(searches);
+    // And the same as a search with nothing remembered.
+    clearPlannerCache();
+    expect(await planTransitTripDetailed(context())).toEqual(fresh);
+  });
+
+  it("searches again for a different departure minute (service hours and stations don't change by the minute)", async () => {
+    table();
+    const fixed = new Set(["service_hours", "rail_stations"]);
+    const timed = () => rpc.mock.calls.filter(([name]) => !fixed.has(name)).length;
+    await planTransitTrip(context({ setup: { ...emptySetup, homeStopId: "10047" } }));
+    const searches = timed();
+    await planTransitTrip(
+      context({
+        setup: { ...emptySetup, homeStopId: "10047" },
+        scheduleAfterSeconds: 8 * 3600 + 60,
+        nowSeconds: 8 * 3600 + 60,
+      }),
+    );
+    expect(timed()).toBe(searches * 2);
+    expect(rpc.mock.calls.filter(([name]) => fixed.has(name))).toHaveLength(2);
+  });
+
+  it("never remembers a failed search: a retry runs it again and keeps the good ones", async () => {
+    answer({
+      plan_bus_direct: ok([option(8 * 3600 + 600, "C")]),
+      plan_transit_general: fail("timeout"),
+    });
+    const first = await planTransitTripDetailed(context());
+    expect(first.unchecked.bus).toBe(true);
+    table();
+    const retry = await planTransitTripDetailed(context());
+    const names = rpc.mock.calls.map(([name]) => name);
+    expect(names.filter((n) => n === "plan_transit_general")).toHaveLength(2);
+    expect(names.filter((n) => n === "plan_bus_direct")).toHaveLength(1);
+    expect(retry.unchecked.bus).toBe(false);
+    clearPlannerCache();
+    expect(await planTransitTripDetailed(context())).toEqual(retry);
   });
 });

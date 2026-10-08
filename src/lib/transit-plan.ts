@@ -1,5 +1,6 @@
 import { debugLog } from "@/lib/debug-log";
 import { supabase } from "@/integrations/supabase/client";
+import { cachedPlannerSearch } from "@/lib/planner-cache";
 import { inboundPlannerCoordinates } from "@/lib/trip-direction";
 import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
 import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
@@ -81,6 +82,16 @@ export async function planTransitTripDetailed(ctx: TransitPlanContext): Promise<
   return { options, unchecked: { ...unchecked } };
 }
 
+/**
+ * The planner's timetable searches, remembered for a few minutes by their exact
+ * arguments (see planner-cache): the same search isn't run twice. Typed like
+ * supabase.rpc for its arguments and answer; callers only await it.
+ */
+export const plannerRpc = ((fn: string, args?: Record<string, unknown>) =>
+  cachedPlannerSearch(fn, args, () =>
+    supabase.rpc(fn as never, args as never),
+  )) as unknown as (typeof supabase)["rpc"];
+
 async function searchTransit(
   ctx: TransitPlanContext,
   unchecked: TransitPlanGaps,
@@ -161,7 +172,7 @@ async function searchTransit(
 
   const fetchBusRescueDay = async (cursor: number, dayOffset: number): Promise<Option[]> => {
     try {
-      const { data: busData, error: busError } = await supabase.rpc("plan_bus_direct", {
+      const { data: busData, error: busError } = await plannerRpc("plan_bus_direct", {
         p_origin_lat: tripDirection.from.lat as number,
         p_origin_lon: tripDirection.from.lon as number,
         p_dest_lat: tripDirection.to.lat as number,
@@ -199,7 +210,7 @@ async function searchTransit(
   };
 
   const fetchGeneralTransitDay = async (cursor: number, dayOffset: number): Promise<Option[]> => {
-    const { data, error } = await supabase.rpc("plan_transit_general", {
+    const { data, error } = await plannerRpc("plan_transit_general", {
       p_origin_lat: tripDirection.from.lat as number,
       p_origin_lon: tripDirection.from.lon as number,
       p_dest_lat: tripDirection.to.lat as number,
@@ -230,7 +241,7 @@ async function searchTransit(
     cursor: number,
   ): Promise<Option[]> => {
     try {
-      const { data, error } = await supabase.rpc("plan_outbound", {
+      const { data, error } = await plannerRpc("plan_outbound", {
         p_origin_lat: tripDirection.from.lat as number,
         p_origin_lon: tripDirection.from.lon as number,
         p_station: station,
@@ -307,7 +318,7 @@ async function searchTransit(
     const serviceStopId = inbound ? arrivalStationId : setup.homeStopId;
     if (serviceStopId) {
       try {
-        const { data: serviceRows, error: serviceError } = await supabase.rpc("service_hours", {
+        const { data: serviceRows, error: serviceError } = await plannerRpc("service_hours", {
           p_stop_id: serviceStopId,
           p_route_type: 1,
         });
@@ -390,7 +401,7 @@ async function searchTransit(
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
         };
-        const { data, error } = await supabase.rpc("plan_inbound", params);
+        const { data, error } = await plannerRpc("plan_inbound", params);
         if (error) {
           recordTransitRpcError("plan_inbound", error);
           throw error;
@@ -414,7 +425,7 @@ async function searchTransit(
           primaryAlreadyChecked = true;
         }
 
-        const stationResult = await supabase.rpc("rail_stations");
+        const stationResult = await plannerRpc("rail_stations");
         if (stationResult.error) {
           recordTransitRpcError("rail_stations", stationResult.error);
           throw stationResult.error;
@@ -448,7 +459,7 @@ async function searchTransit(
           stations: stations.filter((station) => station.stop_id !== selectedInboundStation),
           afterSeconds: cursor,
           fetchFromHub: async (hub, after) => {
-            const { data, error } = await supabase.rpc("plan_inbound", {
+            const { data, error } = await plannerRpc("plan_inbound", {
               ...inboundPlannerCoordinates(tripDirection),
               p_dest_lat: hub.lat,
               p_dest_lon: hub.lon,
@@ -489,7 +500,7 @@ async function searchTransit(
     // A valid zero-row response after the targeted fallbacks is a genuine
     // transit miss. Keep the privacy-safe diagnostic path intact.
     try {
-      const diagnoseTransitGeneral = supabase.rpc.bind(supabase) as unknown as (
+      const diagnoseTransitGeneral = plannerRpc as unknown as (
         functionName: string,
         args: Record<string, number>,
       ) => Promise<{ data: string | null; error: unknown }>;
@@ -532,7 +543,7 @@ async function searchTransit(
     let stations: RailStation[] = browseStations;
     if (!stations.length) {
       try {
-        const { data } = await supabase.rpc("rail_stations");
+        const { data } = await plannerRpc("rail_stations");
         stations = (data ?? []) as RailStation[];
       } catch {
         return [];
@@ -545,7 +556,7 @@ async function searchTransit(
       afterSeconds: cursor,
       walkRadiusM: MAX_STOP_WALK_M,
       search: async (leg) => {
-        const { data, error } = await supabase.rpc("plan_transit_general", {
+        const { data, error } = await plannerRpc("plan_transit_general", {
           p_origin_lat: leg.from.lat,
           p_origin_lon: leg.from.lon,
           p_dest_lat: leg.to.lat,
@@ -584,7 +595,7 @@ async function searchTransit(
       );
       const found = await Promise.all(
         stations.map(async (station) => {
-          const { data, error } = await supabase.rpc("plan_inbound", {
+          const { data, error } = await plannerRpc("plan_inbound", {
             ...coordinates,
             p_station: station.stop_id,
             p_allow_drive: true,
