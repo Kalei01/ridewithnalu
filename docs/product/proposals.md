@@ -16,16 +16,16 @@ Statuses: PROPOSED · APPROVED · DECLINED · EXPIRED · DONE
 
 ---
 
-### P-5 — Weekly business snapshot (2026-10-08) — APPROVED 2026-10-08 · IN PROGRESS (build session 2026-10-08)
+### P-5 — Weekly business snapshot (2026-10-08) — DONE 
 - Proposal (add): a "BUSINESS SNAPSHOT" section in the Sunday Weekly Review report and its phone notification headline: weekly users vs last week, where they came from (link tags), the P-1 funnel, costs and usage vs each service's limit (P-3), and what riders said (P-4).
 - Effort: S · Builder: Sonnet (playbook + report format only).
 
-### P-4 — In-app feedback (2026-10-08) — APPROVED 2026-10-08 · IN PROGRESS (build session 2026-10-08)
+### P-4 — In-app feedback (2026-10-08) — DONE 
 - Proposal (add): a small "Tell Nalu something" option (one text box, optional category: wrong answer / idea / other) reachable from Settings and the trip screen, with the trip context attached only if the rider agrees; no account needed; rate-limited; stored in a new table (standing database authorization: additive, locked down, reviewed). The Sunday review reads new feedback; anything urgent (a wrong answer) goes to the Watchman's triage list.
 - Risk: spam/abuse (rate limit, length cap, no links rendered back); privacy wording updated.
 - Effort: S–M · Builder: Sonnet.
 
-### P-3 — Cost and limit guard (2026-10-08) — APPROVED 2026-10-08 · IN PROGRESS (build session 2026-10-08)
+### P-3 — Cost and limit guard (2026-10-08) — DONE 
 - Proposal (add): a weekly check of usage against each paid/free limit — TomTom, Supabase (database size, egress, function calls), Cloudflare Workers requests, Mapbox map loads, Resend email, Firebase messaging — with a phone alert at ~70% of any limit or an unusual jump. Use each provider's usage API where reachable with existing credentials; where a provider needs a new read-only token, list exactly which one for Josh to add as an environment secret (never in chat), and fall back to Nalu's own request counts meanwhile.
 - Effort: M · Builder: Sonnet; runs inside the Daily Watchman (Mondays) or the Sunday review, no new schedule.
 
