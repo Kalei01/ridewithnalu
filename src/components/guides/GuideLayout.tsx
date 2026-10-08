@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 import { markWelcomeSeen } from "@/lib/welcome-seen";
 import { tripHref, type GuideDestination } from "./destinations";
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, Waves } from "lucide-react";
+import { Bus, CarFront, ChevronDown, MapPin, Scale, TrainFront, Waves, type LucideIcon } from "lucide-react";
 import { GUIDES, LAST_UPDATED, type GuideSlug } from "./guides";
 import type { GuideFaq } from "./guide-head";
 import { TryTripPanel } from "./TryTripPanel";
+import { DriveVsRailDiagram } from "./DriveVsRailDiagram";
 
 /**
  * Shared shell for the /guides pages: breadcrumbs, heading, a visible
@@ -87,8 +88,9 @@ export function GuideLayout({
         )}
 
         {destination && (
-          <div className="mt-6">
+          <div className="mt-6 grid gap-6">
             <TryTripPanel destination={destination} />
+            <DriveVsRailDiagram />
           </div>
         )}
 
@@ -210,12 +212,27 @@ function GuideFooter() {
   );
 }
 
-/** A guide section with a real h2. */
+/** Small icons for the sections most guides share, picked by section id. */
+const SECTION_ICONS: Record<string, LucideIcon> = {
+  drive: CarFront,
+  rail: TrainFront,
+  station: MapPin,
+  bus: Bus,
+  choose: Scale,
+};
+
+/** A guide section with a real h2, set in a card with an icon where one fits. */
 export function GuideSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  const Icon = SECTION_ICONS[id];
   return (
-    <section aria-labelledby={id}>
-      <h2 id={id} className="text-2xl font-bold">
-        {title}
+    <section aria-labelledby={id} className="rounded-2xl border border-border bg-card/40 p-5 sm:p-6">
+      <h2 id={id} className="flex items-start gap-3 text-2xl font-bold">
+        {Icon && (
+          <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+            <Icon className="size-5" aria-hidden="true" />
+          </span>
+        )}
+        <span>{title}</span>
       </h2>
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 text-base leading-7 text-muted-foreground">{children}</div>
     </section>
