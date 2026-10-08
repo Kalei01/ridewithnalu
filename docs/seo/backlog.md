@@ -17,9 +17,9 @@ Status words: TODO, IN PROGRESS, DONE (date, commit), DECISION (needs the owner)
 - DONE Oct 6 (search agent, e402e0d): 1. Kapolei and ʻEwa guides use the searched wording with a sourced drive-vs-train rule; 2. technical leftovers — /install title and og:image, canonicals on /privacy, /terms, /disclaimer, footer links to /guides and /roadwork.
 
 ## Next (only with evidence re-checked)
-3. TODO Pearl City / ʻAiea to town guide (Kalauao, Waiawa, Hālawa stations) — one page, only if sourced facts are solid.
-4. TODO Commuting to Pearl Harbor–Hickam (Makalapa station) — one page, sourced.
-5. TODO "Honolulu rush hour": /oahu-commute's focus was set Oct 6 (choosing drive vs TheBus vs Skyline) — don't change its title or focus without Search Console evidence. A sourced rush-hour section on it is fine; it may cite TomTom's published Honolulu figures (2025: 50.5% congestion, 88 hours lost, 10 km in 25:06 morning / 26:19 evening rush) with attribution; no hour-by-hour start/end times without a citable source.
+3. TODO (Oct 8: autocomplete shows "pearl city to downtown honolulu"; still needs sourced station facts) Pearl City / ʻAiea to town guide (Kalauao, Waiawa, Hālawa stations) — one page, only if sourced facts are solid.
+4. TODO (Oct 8: no autocomplete demand for "pearl harbor hickam skyline" or "aiea to downtown honolulu"; lowest priority) Commuting to Pearl Harbor–Hickam (Makalapa station) — one page, sourced.
+5. TODO (Oct 8: autocomplete shows "honolulu rush hour times"; blocked until the TomTom figures below are re-read on tomtom.com/traffic-index/city/honolulu-hi/, which loads them with scripts and could not be fetched as text) "Honolulu rush hour": /oahu-commute's focus was set Oct 6 (choosing drive vs TheBus vs Skyline) — don't change its title or focus without Search Console evidence. A sourced rush-hour section on it is fine; it may cite TomTom's published Honolulu figures (2025: 50.5% congestion, 88 hours lost, 10 km in 25:06 morning / 26:19 evening rush) with attribution; no hour-by-hour start/end times without a citable source.
 6. DECISION First-party drive-time sampling to answer "when to leave" — needs the owner's approval and a TomTom terms check. Never build it unasked.
 
 ## Later
