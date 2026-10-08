@@ -16,7 +16,7 @@ Statuses: PROPOSED · APPROVED · DECLINED · EXPIRED · DONE
 
 ---
 
-### P-2 — Guide pages with personality and interaction (2026-10-08) — PROPOSED
+### P-2 — Guide pages with personality and interaction (2026-10-08) — APPROVED 2026-10-08 (all items)
 - Rider problem: the SEO guide pages are plain text; nothing invites a visitor to try Nalu or shows what it does (Josh, Oct 8).
 - Evidence: owner review; the funnel (P-1) will show how many guide visitors try a trip.
 - Proposal (improve, keep the text for search engines and add on top):
@@ -30,7 +30,7 @@ Statuses: PROPOSED · APPROVED · DECLINED · EXPIRED · DONE
 - Risk to the commute decision: none to the engine; live cards must say when they were updated and never show a stale time as current.
 - Effort: M · Builder: premium agent (Sonnet) for 2, 4, 5; 1 and 3 likely an Opus session (server caching, map on public pages).
 
-### P-1 — Measure the visitor funnel (2026-10-08) — PROPOSED
+### P-1 — Measure the visitor funnel (2026-10-08) — APPROVED 2026-10-08
 - Rider problem: we can't see where visitors drop off between arriving and getting value.
 - Evidence: today only app opens, trip question answered/skipped, trip started and link source are counted.
 - Proposal (add): anonymous step counts, no personal data: landed (intro / guide / shared link) → tried a trip → answer shown (and how long it took) → tapped Open in Maps → came back within 7 days; installs and sign-ups vs visits. The Sunday review reports the weekly funnel.

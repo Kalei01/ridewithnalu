@@ -49,6 +49,11 @@ Original list:
 - Arrive By opens with an empty time ("--:-- --"); "Where to?" field not focused on open; Browse map switch covers a marker; nearest-stop list order (39-min walk above a 1-min stop); "To home" with no Home saved.
 - Public pages: one "Plan my trip" button after the intro on /oahu-commute and guides; hard dark rectangle behind hero text. Check `git log` and docs/seo/search-review-log.md first (the search agent also edits these pages).
 
+## Approved product proposals (Josh, Oct 8 2026 — see docs/product/proposals.md)
+- TODO APPROVED 2026-10-08 (P-1) — visitor funnel: anonymous step counts (landed intro/guide/shared link → tried a trip → answer shown + time to answer → Open in Maps → came back within 7 days; installs and sign-ups vs visits), no personal data, privacy page wording matched; the Sunday review reports it. Builder: Sonnet build session started Oct 8.
+- TODO APPROVED 2026-10-08 (P-2 items 2, 4, 5) — guide pages: "Try this trip" panel (Leave now / Arrive by + time → planner pre-filled); "Nalu's take" box + FAQ accordions (FAQ structured data); cards instead of long paragraphs, simple H-1 vs rail diagram, icons. Text stays server-rendered for search. Builder: Sonnet build session started Oct 8. Coordinate with the search agent (`git log -5 -- <file>`, docs/seo/search-review-log.md).
+- NEEDS OPUS SESSION — APPROVED 2026-10-08 (P-2 items 1, 3): live "Right now" card per trip guide (server-side cache, refresh ≤ every 10 min, shows when updated, never shows stale as current) and a small route/station/park-and-ride map on guide pages.
+
 ## Reported, not for this agent
 - REPORT B6 Board time vs live bus time (walk arrives 4:46, bus shown 4:45 unlabelled) — transit-accuracy.
 - REPORT B7 "Too close to call · About 26 min apart" (Arrive By 6:30 PM) — verdict engine, transit-accuracy.
