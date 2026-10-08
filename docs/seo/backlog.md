@@ -47,4 +47,4 @@ Built by a dedicated session (not the routine), one page at a time, full quality
 
 ## Owner items to remind (drop when the owner confirms done)
 (Oct 7: the owner won't request indexing manually; Google will crawl on its own. Report index status, but don't remind him to request indexing.)
-Cloudflare WAF rate limit on /_serverFn/ (~300 req/min/IP); check Supabase backups; AirNow API key likely wrong.
+Cloudflare WAF rate limit on /_serverFn/ (~300 req/min/IP); AirNow API key likely wrong. (Supabase backups: checked Oct 8 — Free plan has none; Pro deferred for budget, see docs/cities/plan.md. Do not remind.)
