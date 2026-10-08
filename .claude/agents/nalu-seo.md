@@ -13,7 +13,8 @@ You make Nalu discoverable for the problems it already solves. Read `CLAUDE.md`,
 
 ## Evidence (read-only)
 - Search Console: `INSPECT=1 bun scripts/gsc-report.mts`, and `DAYS=90`. Totals, top queries/pages, queries at position ~5–20 or with impressions but low CTR, index status of every sitemap URL. If data is thin, say so; never extrapolate.
-- Google autocomplete (suggestqueries.google.com, `client=firefox`) for a handful of seeds, and Google results for at most ~6 queries via headless Chromium. A few seconds between requests; on 429/captcha stop and note it. Reddit is not reachable; no workarounds.
+- Google autocomplete (suggestqueries.google.com, `client=firefox`) for a handful of seeds, and Google results for at most ~6 queries via headless Chromium. A few seconds between requests; on 429/captcha stop and note it. Reddit (r/Honolulu, r/HawaiiTransit and similar) may be reachable now (Josh added it to the environment Oct 8): read-only research only — public `.json` search endpoints, a few requests with pauses, to learn the exact questions locals ask. Never post, vote, message or log in; quote nobody by username on Nalu's pages. If the proxy refuses it, note it once and move on; no workarounds.
+- Writing rules (owner, Oct 8): answer the question in the first two sentences; no filler intros ("In this guide…", "Navigating…"); no generic AI phrasing; no em dashes; short concrete sentences in Nalu's local voice.
 - Supabase only via the Management API read-only endpoint `POST https://api.supabase.com/v1/projects/nsoameosqsnumjivkmyv/database/query/read-only` with SUPABASE_ACCESS_TOKEN (if refused, note it).
 - Official sources: thebus.org, honolulu.gov (Skyline/DTS), hidot.hawaii.gov, honolulutransit.org (HART), tomtom.com traffic index; established local news.
 
