@@ -68,6 +68,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { TellNaluForm } from "@/components/TellNalu";
 import { addRecent } from "@/lib/places/recents";
 import { formatDistance, stationLabel } from "@/lib/commute-formatting";
 import { LOCATION_DENIED_KEY, PointLike, Setup, profileFirstName } from "@/lib/commute-model";
@@ -1150,8 +1151,8 @@ export function AboutSection() {
       </p>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         Guest trips and saved places can remain on this device. If you choose to sign in, your
-        profile, saved places, and preferences can sync across your devices. Feedback you submit is
-        sent to Nalu for review and is processed through our feedback service provider. To know how
+        profile, saved places, and preferences can sync across your devices. A note you send with Tell
+        Nalu something is stored as plain text for review, with no name or account. To know how
         many people use Nalu each week, each phone is counted once a day under a random number, with
         no name or location. Crash reports go to our error service without your searches or
         location.
@@ -1175,129 +1176,11 @@ export function AboutSection() {
           setFeedbackOpen(true);
         }}
       >
-        Send feedback
+        Tell Nalu something
       </Button>
-      <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
-    </div>
-  );
-}
-
-export const FEEDBACK_ENDPOINT = "https://formspree.io/f/mppwqpaz";
-
-export function FeedbackForm({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const { user } = useAuth();
-  const [message, setMessage] = useState("");
-  const [component, setComponent] = useState("");
-  const [email, setEmail] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  const signedInName = profileFirstName(user);
-  const signedInEmail = typeof user?.email === "string" ? user.email : "";
-
-  useEffect(() => {
-    if (open) {
-      setSent(false);
-      setFailed(false);
-      // Pre-fill from the signed-in account so riders never retype.
-      setEmail((current) => current || signedInEmail);
-    }
-  }, [open, signedInEmail]);
-
-  async function submit() {
-    if (!message.trim() || sending) return;
-    setSending(true);
-    setFailed(false);
-    try {
-      const response = await fetch(FEEDBACK_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          message: message.trim(),
-          component,
-          name: signedInName || undefined,
-          email: email.trim() || undefined,
-        }),
-      });
-      if (!response.ok) throw new Error(`status ${response.status}`);
-      setSent(true);
-      setMessage("");
-      setComponent("");
-      setEmail("");
-    } catch {
-      setFailed(true);
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <div className={open ? "mt-3" : ""}>
-      {open && (
-        <div className="grid gap-3 rounded-lg bg-surface-raised p-4">
-          <div className="grid gap-1.5">
-            <Label htmlFor="feedback-message">What happened?</Label>
-            <Textarea
-              id="feedback-message"
-              rows={4}
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="feedback-component">Which part of the app?</Label>
-            <Select value={component} onValueChange={setComponent}>
-              <SelectTrigger id="feedback-component" className="bg-background">
-                <SelectValue placeholder="Choose one" />
-              </SelectTrigger>
-              <SelectContent>
-                {["Browse mode", "Trip setup", "Verdict", "Departures", "Weather", "Other"].map(
-                  (part) => (
-                    <SelectItem key={part} value={part}>
-                      {part}
-                    </SelectItem>
-                  ),
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="feedback-email">Your email (optional)</Label>
-            <Input
-              id="feedback-email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-            >
-              Cancel
-            </button>
-            <Button
-              size="sm"
-              onClick={submit}
-              disabled={!message.trim() || sending}
-              className="shadow-none"
-            >
-              {sending ? "Sending…" : "Submit"}
-            </Button>
-          </div>
-          {sent && <p className="text-xs text-muted-foreground">Thanks, we read everything.</p>}
-          {failed && (
-            <p className="text-xs text-muted-foreground">Couldn't send · try hello@ridenalu.com</p>
-          )}
+      {feedbackOpen && (
+        <div className="mt-3">
+          <TellNaluForm onDone={() => setFeedbackOpen(false)} />
         </div>
       )}
     </div>

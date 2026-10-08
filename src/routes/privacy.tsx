@@ -64,8 +64,13 @@ function PrivacyPage() {
           </section>
 
           <section>
+            <h2 className="text-lg font-bold text-foreground">Tell Nalu something</h2>
+            <p className="mt-2">If you use &quot;Tell Nalu something&quot;, the note you type is stored as plain text with its category (wrong answer, idea or other) and the time. No account, device ID or contact details are collected, so please don&apos;t put your name or phone number in the note. If you tick &quot;Include this trip&quot;, the short trip line shown under the box is stored too; otherwise no trip is attached. Notes are read by the Nalu team, are never shown to other riders, and are deleted after about six months. Nalu limits how many notes one person can send.</p>
+          </section>
+
+          <section>
             <h2 className="text-lg font-bold text-foreground">Service providers</h2>
-            <p className="mt-2">Nalu relies on third-party services for functions such as authentication, routing, geocoding, traffic, transit, weather, air quality, analytics when you consent, diagnostics, and feedback. Those providers may process information according to their own terms and privacy policies. Nalu only requests information reasonably needed for the related feature.</p>
+            <p className="mt-2">Nalu relies on third-party services for functions such as authentication, routing, geocoding, traffic, transit, weather, air quality, analytics when you consent, and diagnostics. Those providers may process information according to their own terms and privacy policies. Nalu only requests information reasonably needed for the related feature.</p>
           </section>
 
           <section>

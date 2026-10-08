@@ -182,6 +182,7 @@ import {
 import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
 import { ShareButton } from "@/components/ShareButton";
+import { TellNaluLink } from "@/components/TellNalu";
 import {
   etaText,
   etaUrl,
@@ -5526,6 +5527,12 @@ function Index() {
               to={{ lat: tripDirection.to.lat, lon: tripDirection.to.lon }}
             />
           )}
+
+        {!commitment && (
+          <TellNaluLink
+            tripNote={`Trip to ${tripArrivalLabel} (${planMode === "arrive-by" ? "arrive by" : "leave now"})`}
+          />
+        )}
 
         {!commitment &&
           !activeRegion().hasTransit &&
