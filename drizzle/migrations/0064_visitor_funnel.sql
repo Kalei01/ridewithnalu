@@ -93,3 +93,5 @@ BEGIN
   RETURN jsonb_build_object('debug_logs', d1, 'push_deliveries', d2, 'push_subscriptions', d3,
                             'app_problems', d4, 'app_opens', d5, 'device_sources', d6, 'funnel_counts', d7);
 END $$;
+
+-- Rollback: DROP FUNCTION IF EXISTS public.funnel_stats(); DROP FUNCTION IF EXISTS public.record_funnel_step(text, text); DROP TABLE IF EXISTS public.funnel_counts;

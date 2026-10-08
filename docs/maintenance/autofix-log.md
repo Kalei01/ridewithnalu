@@ -17,4 +17,10 @@ Entry format:
 
 ---
 
-_No autonomous fixes yet._
+### 2026-10-08 ~5:35 PM HST — Applied migration 0064 (visitor funnel)
+- Class: 🟡 — standing database authorization (owner, Oct 8)
+- Issue: P-1 funnel counts were discarded until the table existed.
+- Fix: applied `drizzle/migrations/0064_visitor_funnel.sql` (new `funnel_counts` table, `record_funnel_step`, `funnel_stats`; additive, RLS on, service-role only).
+- Validation: database reviewer OK; security-keys no critical/high (Medium: endpoint has no rate limit and accepts any link tag — counts approximate); verified the table and both functions exist with RLS on and anon access denied; live site 200. Automated browsers are excluded by design, so the first real counts will come from riders.
+- Confidence: high
+- Rollback: see the Rollback line at the end of the migration file.
