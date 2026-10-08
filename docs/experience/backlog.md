@@ -54,6 +54,8 @@ Original list:
 - DONE 2026-10-08 (P-2 items 2, 4, 5; commits f0b387c, 5625db7, d3d4e0d, 004f6b6, 07b055b) — guide pages: Try this trip panel (Leave now / Arrive by + time, opens the planner pre-filled), Nalu's take box (5 trip guides) + FAQ accordions (FAQ data unchanged), section cards with icons, H-1 vs Skyline diagram. Left: breadcrumb/inline guide links are under 44 px tall (existing).
 - NEEDS OPUS SESSION — APPROVED 2026-10-08 (P-2 items 1, 3): live "Right now" card per trip guide (server-side cache, refresh ≤ every 10 min, shows when updated, never shows stale as current) and a small route/station/park-and-ride map on guide pages.
 
+- TODO APPROVED 2026-10-08 (P-3, P-4, P-5) — cost and limit guard; in-app feedback; weekly business snapshot. See docs/product/proposals.md. Built one at a time by a dedicated Sonnet build session after the planner-speed session finishes (owner wants one session at a time).
+
 ## Reported, not for this agent
 - REPORT B6 Board time vs live bus time (walk arrives 4:46, bus shown 4:45 unlabelled) — transit-accuracy.
 - REPORT B7 "Too close to call · About 26 min apart" (Arrive By 6:30 PM) — verdict engine, transit-accuracy.
