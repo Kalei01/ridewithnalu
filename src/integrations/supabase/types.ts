@@ -899,6 +899,33 @@ export type Database = {
           total_minutes: number
         }[]
       }
+      plan_outbound_multi: {
+        Args: {
+          p_after_seconds?: number
+          p_allow_drive: boolean[]
+          p_bus_route_id?: string
+          p_dest_lat?: number
+          p_dest_lon?: number
+          p_dest_radius_m?: number
+          p_dest_stop: string
+          p_limits: number[]
+          p_origin_lat: number
+          p_origin_lon: number
+          p_stations: string[]
+          p_transfer_buffer_seconds?: number
+          p_transfer_radius_m?: number
+        }
+        Returns: {
+          arrive_seconds: number
+          depart_seconds: number
+          leave_by_seconds: number
+          legs: Json
+          rail_trip_id: string
+          station: string
+          station_index: number
+          total_minutes: number
+        }[]
+      }
       plan_rail_chains: {
         Args: {
           p_after_seconds?: number

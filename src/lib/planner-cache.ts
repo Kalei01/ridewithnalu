@@ -2,9 +2,10 @@
  * Short-lived memory of timetable searches, kept in this browser tab only.
  *
  * The planner functions (plan_bus_direct, plan_transit_general, plan_outbound,
- * plan_inbound, service_hours, rail_stations, diagnose_transit_general) read
- * only the published TheBus/Skyline timetable: their answer depends on the
- * exact arguments and on which service day it is in Honolulu, nothing live.
+ * plan_outbound_multi, plan_inbound, service_hours, rail_stations,
+ * diagnose_transit_general) read only the published TheBus/Skyline timetable:
+ * their answer depends on the exact arguments and on which service day it is
+ * in Honolulu, nothing live.
  * So the same search, asked again within a few minutes, gets the answer it
  * already got instead of running on the database again: a retry after one
  * failed search, a switch of the trip question, Arrive By pages that repeat,

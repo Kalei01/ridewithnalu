@@ -6,7 +6,8 @@ import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
 import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
 import { type PlanMode } from "@/components/commute/ArriveByControls";
 import { MAX_STOP_WALK_M } from "@/lib/rail/walk-preference";
-import { isParkAndRide, metresBetween, nearestParkAndRide } from "@/lib/rail/park-and-ride";
+import { metresBetween } from "@/lib/rail/park-and-ride";
+import { outboundStations, type OutboundStation } from "@/lib/rail/outbound-stations";
 import { dropOffCandidates, pickupCandidates } from "@/lib/rail/drop-off";
 import type { VehicleToStation } from "@/lib/trip-access";
 import { driveTime } from "@/lib/drive.functions";
@@ -91,6 +92,28 @@ export const plannerRpc = ((fn: string, args?: Record<string, unknown>) =>
   cachedPlannerSearch(fn, args, () =>
     supabase.rpc(fn as never, args as never),
   )) as unknown as (typeof supabase)["rpc"];
+
+/** While the combined station search isn't in the database yet, don't ask for it again for a while. */
+const MULTI_RETRY_MS = 10 * 60_000;
+/** After it failed (e.g. a timeout on a busy database), use the per-station searches for a bit. */
+const MULTI_BACKOFF_MS = 2 * 60_000;
+let outboundMultiMissingUntil = 0;
+
+/** Forget that the combined station search was missing or failed (tests). */
+export function resetOutboundMultiProbe() {
+  outboundMultiMissingUntil = 0;
+}
+
+function errorCode(error: unknown): string {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" ? code : "unknown";
+}
+
+/** PostgREST's "no such function" (PGRST202) or Postgres's (42883). */
+function isMissingFunction(error: unknown): boolean {
+  const code = errorCode(error);
+  return code === "PGRST202" || code === "42883";
+}
 
 async function searchTransit(
   ctx: TransitPlanContext,
@@ -266,34 +289,76 @@ async function searchTransit(
     }
   };
 
-  // The home station (walking, and by car when one is available: the station
-  // nearest home is often the best place to be dropped off even with no lot),
-  // plus the nearest station with a lot (e.g. ʻEwa Beach: Kualakaʻi, or UH West
-  // Oʻahu), and the drop-off stations chosen above.
-  const fetchOutbound = async (cursor: number): Promise<Option[]> => {
-    const home = setup.homeStopId;
-    const vehicle = vehicleToStation === "vehicle";
-    const parkStation =
-      vehicle && !isParkAndRide(home)
-        ? nearestParkAndRide(tripDirection.from, browseStations)
-        : null;
-    // The home station first, then the other stations together: fewer heavy
-    // searches at once on the database. Every station is still searched.
-    const fromHome = await fetchOutboundAt(home, vehicle, cursor);
-    const queries: Array<Promise<Option[]>> = [];
-    const queried = new Set([home, parkStation?.stop_id]);
-    if (parkStation && parkStation.stop_id !== home)
-      queries.push(fetchOutboundAt(parkStation.stop_id, true, cursor));
-    for (const station of dropOffStations) {
-      if (!queried.has(station.stop_id))
-        queries.push(fetchOutboundAt(station.stop_id, true, cursor));
+  // One station at a time, as before: the home station first, then the other
+  // stations together (fewer heavy searches at once on the database).
+  const fetchOutboundEach = async (
+    stations: OutboundStation[],
+    cursor: number,
+  ): Promise<Option[]> => {
+    const [home, ...rest] = stations;
+    const fromHome = home ? await fetchOutboundAt(home.stopId, home.allowDrive, cursor) : [];
+    const others = await Promise.all(
+      rest.map((station) => fetchOutboundAt(station.stopId, station.allowDrive, cursor)),
+    );
+    return [fromHome, ...others].flat();
+  };
+
+  // Every station in one database search: the same rows plan_outbound gives
+  // each station, in the same order (migration 0065). null = not available or
+  // failed; the caller then searches station by station, so riders never lose
+  // a trip to it.
+  const fetchOutboundTogether = async (
+    stations: OutboundStation[],
+    cursor: number,
+  ): Promise<Option[] | null> => {
+    if (Date.now() < outboundMultiMissingUntil) return null;
+    try {
+      const limit = planMode === "arrive-by" ? 8 : 4;
+      const { data, error } = await plannerRpc("plan_outbound_multi", {
+        p_origin_lat: tripDirection.from.lat as number,
+        p_origin_lon: tripDirection.from.lon as number,
+        p_stations: stations.map((station) => station.stopId),
+        p_allow_drive: stations.map((station) => station.allowDrive),
+        p_limits: stations.map(() => limit),
+        p_dest_stop: setup.destStopId,
+        p_after_seconds: cursor,
+        p_dest_lat: tripDirection.to.lat as number,
+        p_dest_lon: tripDirection.to.lon as number,
+      });
+      if (error || !Array.isArray(data)) {
+        outboundMultiMissingUntil =
+          Date.now() + (isMissingFunction(error) ? MULTI_RETRY_MS : MULTI_BACKOFF_MS);
+        debugLog("transit_rpc_fallback", { stage: "plan_outbound_multi", code: errorCode(error) });
+        return null;
+      }
+      return data.map(({ station_index: _index, station: _station, ...row }) => ({
+        ...row,
+        legs: row.legs as unknown as Leg[],
+      })) as Option[];
+    } catch (error) {
+      outboundMultiMissingUntil = Date.now() + MULTI_BACKOFF_MS;
+      debugLog("transit_rpc_fallback", { stage: "plan_outbound_multi", code: errorCode(error) });
+      return null;
     }
+  };
+
+  // The home station (walking, and by car when one is available), the nearest
+  // station with a lot, and the drop-off stations chosen above.
+  const fetchOutbound = async (cursor: number): Promise<Option[]> => {
+    const stations = outboundStations({
+      homeStopId: setup.homeStopId,
+      vehicle: vehicleToStation === "vehicle",
+      origin: tripDirection.from,
+      browseStations,
+      dropOffStations,
+    });
+    const searched =
+      (stations.length > 1 ? await fetchOutboundTogether(stations, cursor) : null) ??
+      (await fetchOutboundEach(stations, cursor));
     // Safety net: with no vehicle available, no result may carry a car leg.
-    const found = [fromHome, ...(await Promise.all(queries))]
-      .flat()
-      .filter(
-        (option) => vehicleToStation !== "none" || !option.legs.some((leg) => leg.mode === "drive"),
-      );
+    const found = searched.filter(
+      (option) => vehicleToStation !== "none" || !option.legs.some((leg) => leg.mode === "drive"),
+    );
     return retimeDriveAccess(found, {
       origin: tripDirection.from,
       stations: browseStations,

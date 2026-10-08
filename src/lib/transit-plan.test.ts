@@ -8,12 +8,16 @@ vi.mock("@/lib/debug-log", () => ({ debugLog: vi.fn() }));
 const driveTime = vi.fn();
 vi.mock("@/lib/drive.functions", () => ({ driveTime: (...args: unknown[]) => driveTime(...args) }));
 
-const { planTransitTrip, planTransitTripDetailed } = await import("./transit-plan");
+const { planTransitTrip, planTransitTripDetailed, resetOutboundMultiProbe } =
+  await import("./transit-plan");
 const { emptySetup } = await import("./commute-model");
 const { clearPlannerCache } = await import("./planner-cache");
 
 // Every test starts with no remembered searches, so each sees its own answers.
-beforeEach(() => clearPlannerCache());
+beforeEach(() => {
+  clearPlannerCache();
+  resetOutboundMultiProbe();
+});
 
 type Reply = { data: unknown; error: unknown };
 const ok = (data: unknown): Reply => ({ data, error: null });
@@ -62,13 +66,52 @@ function context(overrides: Record<string, unknown> = {}) {
   } as unknown as Parameters<typeof planTransitTrip>[0];
 }
 
-/** Each planner answers from this table; anything else returns no rows. */
-function answer(table: Record<string, Reply | ((args: Record<string, unknown>) => Reply)>) {
+/** The database before migration 0065: the combined station search doesn't exist. */
+const missingFunction: Reply = {
+  data: null,
+  error: { code: "PGRST202", message: "Could not find the function public.plan_outbound_multi" },
+};
+
+type Answer = Reply | ((args: Record<string, unknown>) => Reply);
+
+/**
+ * Each planner answers from this table; anything else returns no rows, except
+ * the combined station search, which is missing unless the table has it.
+ */
+function answer(table: Record<string, Answer>) {
   rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
     const entry = table[name];
-    if (!entry) return ok([]);
+    if (!entry) return name === "plan_outbound_multi" ? missingFunction : ok([]);
     return typeof entry === "function" ? entry(args) : entry;
   });
+}
+
+/**
+ * plan_outbound_multi as migration 0065 defines it: for each station in order,
+ * the rows plan_outbound gives that station, tagged with the station.
+ */
+function multiFrom(planOutbound: Answer): (args: Record<string, unknown>) => Reply {
+  return (args) => {
+    const stations = args["p_stations"] as string[];
+    const drive = args["p_allow_drive"] as boolean[];
+    const limits = args["p_limits"] as number[];
+    const rows: unknown[] = [];
+    for (const [i, station] of stations.entries()) {
+      const one =
+        typeof planOutbound === "function"
+          ? planOutbound({
+              ...args,
+              p_station: station,
+              p_allow_drive: drive[i],
+              p_limit: limits[i],
+            })
+          : planOutbound;
+      if (one.error) return one;
+      for (const row of one.data as object[])
+        rows.push({ station_index: i + 1, station, ...structuredClone(row) });
+    }
+    return ok(rows);
+  };
 }
 
 describe("transit trip planner", () => {
@@ -525,6 +568,7 @@ describe("transit trip planner: drive to the station + Skyline", () => {
     let keoneaeStartedEarly = false;
     rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
       if (name === "plan_transit_general") return ok([bus91]);
+      if (name === "plan_outbound_multi") return missingFunction;
       if (name !== "plan_outbound") return ok([]);
       if (args["p_station"] === KEONEAE.stop_id) {
         keoneaeStartedEarly ||= !homeAnswered;
@@ -537,6 +581,97 @@ describe("transit trip planner: drive to the station + Skyline", () => {
     const staggered = await planTransitTrip(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
     expect(keoneaeStartedEarly).toBe(false);
     expect(staggered).toEqual(together);
+  });
+
+  describe("one database search for every station (plan_outbound_multi)", () => {
+    const separately = (args: Record<string, unknown>) =>
+      args["p_station"] === KEONEAE.stop_id ? ok([driveToKeoneae]) : ok([driveToKualakai]);
+    const calls = (name: string) =>
+      rpc.mock.calls.filter(([n]) => n === name).map(([, a]) => a as Record<string, unknown>);
+    const ewa = { lat: 21.32203, lon: -158.03366 };
+
+    async function fallbackAnswer() {
+      answer({ plan_transit_general: ok([bus91]), plan_outbound: separately });
+      return planTransitTrip(trip(ewa, NOW));
+    }
+
+    beforeEach(() => driveTime.mockResolvedValue({ trafficMinutes: 12 }));
+
+    it("gives the same options as the station-by-station searches, in one search", async () => {
+      const before = await fallbackAnswer();
+      expect(calls("plan_outbound").length).toBeGreaterThan(1);
+
+      rpc.mockReset();
+      clearPlannerCache();
+      resetOutboundMultiProbe();
+      answer({
+        plan_transit_general: ok([bus91]),
+        plan_outbound_multi: multiFrom(separately),
+        plan_outbound: fail("must not be called"),
+      });
+      const together = await planTransitTrip(trip(ewa, NOW));
+      expect(together).toEqual(before);
+      expect(calls("plan_outbound")).toHaveLength(0);
+      expect(calls("plan_outbound_multi")).toEqual([
+        expect.objectContaining({
+          p_stations: [KUALAKAI.stop_id, KEONEAE.stop_id],
+          p_allow_drive: [true, true],
+          p_limits: [4, 4],
+          p_dest_stop: emptySetup.destStopId,
+          p_after_seconds: NOW,
+        }),
+      ]);
+    });
+
+    it("falls back to the station-by-station searches when it fails, with the same options", async () => {
+      const before = await fallbackAnswer();
+      rpc.mockReset();
+      clearPlannerCache();
+      resetOutboundMultiProbe();
+      answer({
+        plan_transit_general: ok([bus91]),
+        plan_outbound_multi: fail("canceling statement due to statement timeout"),
+        plan_outbound: separately,
+      });
+      const result = await planTransitTripDetailed(trip(ewa, NOW));
+      expect(calls("plan_outbound_multi")).toHaveLength(1);
+      expect(result.options).toEqual(before);
+      // The failed combined search alone leaves nothing unchecked: the fallback searched.
+      expect(result.unchecked).toEqual({ skyline: false, bus: false });
+      expect(calls("plan_outbound").length).toBeGreaterThan(1);
+
+      // For a little while after, the per-station searches are used directly.
+      clearPlannerCache();
+      await planTransitTrip(trip(ewa, NOW));
+      expect(calls("plan_outbound_multi")).toHaveLength(1);
+    });
+
+    it("when the database doesn't have it yet, asks once and then goes straight to the old searches", async () => {
+      const first = await fallbackAnswer();
+      expect(calls("plan_outbound_multi")).toHaveLength(1);
+      clearPlannerCache();
+      const second = await planTransitTrip(trip(ewa, NOW));
+      expect(second).toEqual(first);
+      expect(calls("plan_outbound_multi")).toHaveLength(1);
+    });
+
+    it("is remembered like the other timetable searches", async () => {
+      answer({
+        plan_transit_general: ok([bus91]),
+        plan_outbound_multi: multiFrom(separately),
+      });
+      const first = await planTransitTrip(trip(ewa, NOW));
+      const second = await planTransitTrip(trip(ewa, NOW));
+      expect(second).toEqual(first);
+      expect(calls("plan_outbound_multi")).toHaveLength(1);
+    });
+
+    it("with only one station to try, uses the single-station search", async () => {
+      answer({ plan_transit_general: ok([bus91]), plan_outbound: separately });
+      await planTransitTrip({ ...trip(ewa, NOW), vehicleToStation: "none" });
+      expect(calls("plan_outbound_multi")).toHaveLength(0);
+      expect(calls("plan_outbound")).toHaveLength(1);
+    });
   });
 
   it("lists a drive + rail trip that saves too little over the bus as an alternative, not the pick", async () => {
