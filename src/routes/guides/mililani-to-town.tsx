@@ -39,7 +39,7 @@ function MililaniGuidePage() {
   return (
     <GuideLayout
       destination={DOWNTOWN}
-      take="Mililani has no station either. Route 52 is the more direct all-day bus, scheduled at about 47 to 56 minutes to King and Alakea streets on weekday mornings. There is no park-and-ride at Waiawa, so a bus or a drop-off is usually simpler than driving there. I check it against H-1 when you ask."
+      take="Mililani has no station of its own. Route 52 is the more direct all-day bus, scheduled at about 47 to 56 minutes to King and Alakea streets on weekday mornings. There is no park-and-ride at Waiawa, so a bus or a drop-off is usually simpler than driving there. I check it against H-1 when you ask."
       breadcrumb="Mililani to town"
       title="Mililani and Central Oʻahu to town: bus, rail or drive"
       faqs={FAQS}

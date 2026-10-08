@@ -38,7 +38,7 @@ function EwaGuidePage() {
   return (
     <GuideLayout
       destination={DOWNTOWN}
-      take="There is no station in ʻEwa Beach itself. The 91 and the CountryExpress E are the direct buses, scheduled at roughly 1 hr 5 min to 1 hr 20 min on weekday mornings. If you would rather ride the train, Routes 47 and 44 connect ʻEwa with Keoneʻae. I compare all of it against H-1 for your exact trip."
+      take="There is no station in ʻEwa Beach itself. The 91 and the CountryExpress E are the direct buses, scheduled at roughly 1 hr to 1 hr 20 min on weekday mornings. If you would rather ride the train, Routes 47 and 44 connect ʻEwa with Keoneʻae. I compare all of it against H-1 for your exact trip."
       breadcrumb="ʻEwa Beach to downtown"
       title="ʻEwa Beach to downtown Honolulu: bus, rail or drive"
       faqs={FAQS}

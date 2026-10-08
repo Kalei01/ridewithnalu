@@ -33,7 +33,7 @@ export function DriveVsRailDiagram() {
         <g fill="currentColor" className="text-foreground" fontSize="13" fontWeight="600">
           <text x="28" y="20">Drive on H-1</text>
           <text x="28" y="86">Skyline</text>
-          <text x="188" y="134">then TheBus</text>
+          <text x="188" y="134">then TheBus if needed</text>
         </g>
         <g fill="currentColor" className="text-muted-foreground" fontSize="12">
           <text x="292" y="20" textAnchor="end">changes with traffic</text>
@@ -41,7 +41,7 @@ export function DriveVsRailDiagram() {
         </g>
       </svg>
       <figcaption className="mt-2 text-base leading-7 text-muted-foreground">
-        The road time moves with traffic; the train does not. Nalu compares both for your exact trip.
+        The road time moves with traffic; the train leg does not. Nalu compares both for your exact trip.
       </figcaption>
     </figure>
   );
