@@ -4,6 +4,7 @@ import { tripHref, type GuideDestination } from "./destinations";
 import { Link } from "@tanstack/react-router";
 import { GUIDES, LAST_UPDATED, type GuideSlug } from "./guides";
 import type { GuideFaq } from "./guide-head";
+import { TryTripPanel } from "./TryTripPanel";
 
 /**
  * Shared shell for the /guides pages: breadcrumbs, heading, a visible
@@ -70,6 +71,12 @@ export function GuideLayout({
           <div className="mt-5 text-lg leading-8 text-foreground/90">{intro}</div>
           <p className="mt-4 text-base text-muted-foreground">Last updated: {LAST_UPDATED}</p>
         </header>
+
+        {destination && (
+          <div className="mt-8">
+            <TryTripPanel destination={destination} />
+          </div>
+        )}
 
         <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-10">{children}</div>
 

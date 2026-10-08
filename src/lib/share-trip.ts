@@ -58,6 +58,18 @@ export function parseSharedDestination(search: string): SharedDestination | null
   return { lat, lon, name };
 }
 
+export type SharedTiming = { mode: "leave-now" } | { mode: "arrive-by"; time: string };
+
+/** Optional timing on a guide link: `when=now`, or `when=arrive&time=HH:MM`. Anything else is ignored. */
+export function parseSharedTiming(search: string): SharedTiming | null {
+  const params = new URLSearchParams(search);
+  const when = params.get("when");
+  if (when === "now") return { mode: "leave-now" };
+  const time = params.get("time")?.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if (when === "arrive" && time) return { mode: "arrive-by", time: `${time[1]}:${time[2]}` };
+  return null;
+}
+
 /**
  * The link preview (Messages, WhatsApp, Facebook) for a link that opens Nalu on
  * a place. It names the question, not an answer: the answer is live, and would

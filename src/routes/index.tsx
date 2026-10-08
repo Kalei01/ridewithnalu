@@ -186,6 +186,7 @@ import {
   etaText,
   etaUrl,
   parseSharedDestination,
+  parseSharedTiming,
   sharedTripPreview,
   shareText,
   shareUrl,
@@ -4083,9 +4084,12 @@ function Index() {
     sharedLinkTried.current = true;
     const shared = parseSharedDestination(window.location.search);
     if (!shared) return;
+    const timing = parseSharedTiming(window.location.search);
     const url = new URL(window.location.href);
     url.searchParams.delete("to");
     url.searchParams.delete("name");
+    url.searchParams.delete("when");
+    url.searchParams.delete("time");
     window.history.replaceState(
       window.history.state,
       "",
@@ -4095,6 +4099,13 @@ function Index() {
       window.sessionStorage.setItem("nalu-autoopen-done", "1");
     } catch {
       /* ignore */
+    }
+    // A guide's "Try this trip" panel can also pick Leave now or Arrive by + time.
+    if (timing?.mode === "arrive-by") {
+      choosePlanMode("arrive-by");
+      chooseArriveBy(timing.time);
+    } else if (timing) {
+      choosePlanMode("leave-now");
     }
     startTripToPlace(
       {

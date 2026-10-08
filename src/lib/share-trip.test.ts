@@ -3,6 +3,7 @@ import {
   etaText,
   etaUrl,
   parseSharedDestination,
+  parseSharedTiming,
   sharedTripPreview,
   shareText,
   shareUrl,
@@ -82,5 +83,17 @@ describe("ETA messages", () => {
 describe("guides linked from the main pages", () => {
   it("are real guides", () => {
     for (const slug of TRIP_GUIDES) expect(GUIDES[slug].path).toMatch(/^\/guides\//);
+  });
+});
+
+describe("parseSharedTiming", () => {
+  it("reads Leave now and Arrive by", () => {
+    expect(parseSharedTiming("?when=now")).toEqual({ mode: "leave-now" });
+    expect(parseSharedTiming("?when=arrive&time=08:30")).toEqual({ mode: "arrive-by", time: "08:30" });
+  });
+  it("ignores bad or missing timing", () => {
+    expect(parseSharedTiming("?when=arrive")).toBeNull();
+    expect(parseSharedTiming("?when=arrive&time=25:00")).toBeNull();
+    expect(parseSharedTiming("?time=08:30")).toBeNull();
   });
 });
