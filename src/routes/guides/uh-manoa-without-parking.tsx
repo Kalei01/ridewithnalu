@@ -55,6 +55,7 @@ function UhGuidePage() {
   return (
     <GuideLayout
       destination={UH_MANOA}
+      take="If you are a UH student, the U-Pass covers both TheBus and Skyline, and campus parking is limited and paid, so riding is often the easy call. Get off at Āhua (Lagoon Drive) and take the A Line to Sinclair Circle, or the weekday U Line. I will tell you when to leave for your class time."
       breadcrumb="UH Mānoa without parking"
       title="Getting to UH Mānoa without parking"
       faqs={FAQS}

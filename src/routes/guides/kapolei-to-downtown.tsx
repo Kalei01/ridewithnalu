@@ -42,6 +42,7 @@ function KapoleiGuidePage() {
   return (
     <GuideLayout
       destination={DOWNTOWN}
+      take="Skyline gets you most of the way from East Kapolei, but it stops short of downtown, so you add a bus. On a clear H-1 morning, driving is hard to beat. On a slow one, the train leg keeps its schedule while H-1 does not. That is why I check both for your exact trip instead of picking a side for you."
       breadcrumb="Kapolei to downtown"
       title="Kapolei to downtown Honolulu: drive, or Skyline and the bus?"
       faqs={FAQS}

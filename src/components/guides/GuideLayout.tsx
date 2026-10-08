@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { markWelcomeSeen } from "@/lib/welcome-seen";
 import { tripHref, type GuideDestination } from "./destinations";
 import { Link } from "@tanstack/react-router";
+import { ChevronDown, Waves } from "lucide-react";
 import { GUIDES, LAST_UPDATED, type GuideSlug } from "./guides";
 import type { GuideFaq } from "./guide-head";
 import { TryTripPanel } from "./TryTripPanel";
@@ -23,6 +24,7 @@ export function GuideLayout({
   children,
   showHubCrumb = true,
   destination,
+  take,
 }: {
   breadcrumb: string;
   eyebrow?: string;
@@ -35,6 +37,8 @@ export function GuideLayout({
   showHubCrumb?: boolean;
   /** Where the "live answer" button starts a trip to, when the guide has one. */
   destination?: GuideDestination;
+  /** "Nalu's take": a few plain sentences in Nalu's voice, built only from facts already on the page. */
+  take?: string;
 }) {
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -72,8 +76,18 @@ export function GuideLayout({
           <p className="mt-4 text-base text-muted-foreground">Last updated: {LAST_UPDATED}</p>
         </header>
 
+        {take && (
+          <aside aria-labelledby="nalu-take" className="mt-8 rounded-2xl border border-primary/30 bg-primary/10 p-5">
+            <h2 id="nalu-take" className="flex items-center gap-2 text-lg font-bold text-foreground">
+              <Waves className="size-5 text-primary" aria-hidden="true" />
+              Nalu&apos;s take
+            </h2>
+            <p className="mt-2 text-base leading-7 text-foreground/90">{take}</p>
+          </aside>
+        )}
+
         {destination && (
-          <div className="mt-8">
+          <div className="mt-6">
             <TryTripPanel destination={destination} />
           </div>
         )}
@@ -87,12 +101,21 @@ export function GuideLayout({
             <h2 id="faq" className="text-2xl font-bold">
               Common questions
             </h2>
-            <div className="mt-4 grid gap-6">
+            <div className="mt-4 grid gap-3">
               {faqs.map((item) => (
-                <div key={item.q}>
-                  <h3 className="text-lg font-semibold">{item.q}</h3>
-                  <p className="mt-1 text-base leading-7 text-muted-foreground">{item.a}</p>
-                </div>
+                <details
+                  key={item.q}
+                  className="group rounded-2xl border border-border bg-card/60 open:bg-card"
+                >
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-lg font-semibold [&::-webkit-details-marker]:hidden">
+                    <h3 className="text-lg font-semibold">{item.q}</h3>
+                    <ChevronDown
+                      className="size-5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <p className="px-4 pb-4 text-base leading-7 text-muted-foreground">{item.a}</p>
+                </details>
               ))}
             </div>
           </section>

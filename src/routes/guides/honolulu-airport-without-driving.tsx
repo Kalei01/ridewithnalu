@@ -56,6 +56,7 @@ function AirportGuidePage() {
   return (
     <GuideLayout
       destination={HNL_AIRPORT}
+      take="Good news: Skyline stops at the airport. Lelepaua station is on the mountain side of Terminal 2. From Waikīkī, TheBus W Line is scheduled at about 30 to 35 minutes. For very early flights, note that the first trains reach the airport at about 4:00 AM."
       breadcrumb="Airport without driving"
       title="Getting to Honolulu airport (HNL) without driving"
       faqs={FAQS}
