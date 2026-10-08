@@ -33,7 +33,7 @@ export function DriveVsRailDiagram() {
         <g fill="currentColor" className="text-foreground" fontSize="13" fontWeight="600">
           <text x="28" y="20">Drive on H-1</text>
           <text x="28" y="86">Skyline</text>
-          <text x="188" y="134">then TheBus if needed</text>
+          <text x="292" y="134" textAnchor="end">then TheBus if needed</text>
         </g>
         <g fill="currentColor" className="text-muted-foreground" fontSize="12">
           <text x="292" y="20" textAnchor="end">changes with traffic</text>
