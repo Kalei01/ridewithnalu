@@ -763,6 +763,52 @@ describe("transit trip planner: drive to the station + Skyline", () => {
     expect(options.some((o) => o.legs.some((l) => l.mode === "drive"))).toBe(false);
   });
 
+  it("says Skyline couldn't be checked, not 'no trip', when live traffic is unavailable", async () => {
+    planners();
+    driveTime.mockResolvedValue(null);
+    const result = await planTransitTripDetailed(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
+    expect(result.options.some((o) => o.legs.some((l) => l.mode === "drive"))).toBe(false);
+    expect(result.unchecked.skyline).toBe(true);
+  });
+
+  it("looks for a later train when rush-hour traffic puts the first ones out of reach", async () => {
+    // The planner assumed a 10-min drive to Keoneʻae for the 6:44 train; live traffic says
+    // 30 min, so that train is gone. The 7:04 train (planner: leave 6:54) is still reachable.
+    const later = {
+      ...driveToKeoneae,
+      leave_by_seconds: 24840,
+      depart_seconds: 25440,
+      arrive_seconds: 28740,
+      legs: driveToKeoneae.legs.map((l, i) =>
+        i === 0
+          ? { ...l, depart_seconds: 24840, arrive_seconds: 25440 }
+          : {
+              ...l,
+              depart_seconds: (l.depart_seconds ?? 0) + 1200,
+              arrive_seconds: (l.arrive_seconds ?? 0) + 1200,
+            },
+      ),
+    };
+    const asked: number[] = [];
+    answer({
+      plan_transit_general: ok([bus91]),
+      plan_outbound: (args) => {
+        if (args["p_station"] !== KEONEAE.stop_id) return ok([]);
+        const after = args["p_after_seconds"] as number;
+        asked.push(after);
+        return after > NOW ? ok([later]) : ok([driveToKeoneae]);
+      },
+    });
+    driveTime.mockResolvedValue({ trafficMinutes: 30 });
+    const result = await planTransitTripDetailed(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
+    // Searched again 20 minutes later (30 live - 10 assumed), not 30: the database adds its own estimate.
+    expect(asked).toEqual([NOW, NOW + 20 * 60]);
+    const skyline = result.options.find((o) => o.legs[0]?.mode === "drive");
+    expect(skyline?.arrive_seconds).toBe(28740);
+    expect(skyline?.leave_by_seconds).toBe(25440 - 30 * 60);
+    expect(result.unchecked.skyline).toBe(false);
+  });
+
   it("doesn't suggest driving to a park-and-ride station within walking distance", async () => {
     // About 600 m from Keoneʻae, which has a lot: walk to the 6:44 train, don't drive.
     const walkKeoneae = {

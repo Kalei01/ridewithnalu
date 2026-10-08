@@ -344,7 +344,7 @@ async function searchTransit(
 
   // The home station (walking, and by car when one is available), the nearest
   // station with a lot, and the drop-off stations chosen above.
-  const fetchOutbound = async (cursor: number): Promise<Option[]> => {
+  const fetchOutbound = async (cursor: number, searchLater = true): Promise<Option[]> => {
     const stations = outboundStations({
       homeStopId: setup.homeStopId,
       vehicle: vehicleToStation === "vehicle",
@@ -359,13 +359,30 @@ async function searchTransit(
     const found = searched.filter(
       (option) => vehicleToStation !== "none" || !option.legs.some((leg) => leg.mode === "drive"),
     );
-    return retimeDriveAccess(found, {
-      origin: tripDirection.from,
-      stations: browseStations,
-      now,
-      nowSeconds,
-      leaveNow: planMode !== "arrive-by",
-    });
+    const report: RetimeReport = {};
+    const leaveNow = planMode !== "arrive-by";
+    const retimed = await retimeDriveAccess(
+      found,
+      { origin: tripDirection.from, stations: browseStations, now, nowSeconds, leaveNow },
+      report,
+    );
+    const driveFirst = (option: Option) => option.legs[0]?.mode === "drive";
+    if (retimed.some(driveFirst) || !found.some(driveFirst)) return retimed;
+    // Every drive-to-station train was dropped. In rush-hour traffic the first
+    // few trains can all be out of reach while a later one isn't: search once
+    // more from when the rider could actually get to the station.
+    if (leaveNow && searchLater && report.trafficDelayMinutes !== undefined) {
+      // The database adds its own no-traffic drive estimate to this start time,
+      // so shift it by only the extra minutes traffic adds.
+      const reachable =
+        Math.max(cursor, nowSeconds) + Math.max(1, Math.ceil(report.trafficDelayMinutes)) * 60;
+      const later = (await fetchOutbound(reachable, false)).filter(driveFirst);
+      if (later.length) return [...retimed, ...later];
+    }
+    // Live traffic couldn't be read, so these trains weren't checked: the
+    // Skyline row says "Can't check Skyline", never "no trip".
+    if (report.noLiveTime) unchecked.skyline = true;
+    return retimed;
   };
 
   const fetchPage = async (cursor: number): Promise<Option[]> => {
@@ -838,6 +855,18 @@ export async function retimeDriveEgress(
   return retimed.filter((option): option is Option => option !== null);
 }
 
+/** Why retimeDriveAccess dropped drive-to-station trips, so "no Skyline trip" is never said by mistake. */
+export type RetimeReport = {
+  /** Some trips were dropped because live traffic couldn't be read. */
+  noLiveTime?: boolean;
+  /**
+   * Some trains were dropped as out of reach in live traffic: the fewest extra
+   * minutes live traffic added over the planner's no-traffic drive estimate
+   * (the smallest shift, so a train still reachable from a nearer station isn't skipped).
+   */
+  trafficDelayMinutes?: number;
+};
+
 /**
  * The planner times "drive to the station" from straight-line distance with no
  * traffic. Before such a trip can be compared with driving all the way (which
@@ -854,6 +883,7 @@ export async function retimeDriveAccess(
     nowSeconds: number;
     leaveNow: boolean;
   },
+  report?: RetimeReport,
 ): Promise<Option[]> {
   const driveFirst = (option: Option) => option.legs[0]?.mode === "drive";
   const drives = options.filter(driveFirst);
@@ -912,12 +942,28 @@ export async function retimeDriveAccess(
     if (!driveFirst(option)) return [option];
     const [access, ...rest] = option.legs;
     const live = liveMinutes.get(keyFor(option));
-    if (!access || live === undefined || access.arrive_seconds == null) return [];
+    if (!access || access.arrive_seconds == null) return [];
+    if (live === undefined) {
+      if (report) report.noLiveTime = true;
+      return [];
+    }
     // Live road time only: parking and the walk to the platform aren't estimated.
     const minutes = Math.ceil(live);
     const leave = access.arrive_seconds - minutes * 60;
     // Leaving now: a train you can't reach in time isn't an option.
-    if (input.leaveNow && leave < input.nowSeconds - 60) return [];
+    if (input.leaveNow && leave < input.nowSeconds - 60) {
+      // How much longer live traffic makes the drive than the planner assumed.
+      const planned =
+        access.depart_seconds == null
+          ? minutes
+          : (access.arrive_seconds - access.depart_seconds) / 60;
+      if (report)
+        report.trafficDelayMinutes = Math.min(
+          report.trafficDelayMinutes ?? Infinity,
+          minutes - planned,
+        );
+      return [];
+    }
     return [
       {
         ...option,
