@@ -16,6 +16,19 @@ Statuses: PROPOSED · APPROVED · DECLINED · EXPIRED · DONE
 
 ---
 
+### P-5 — Weekly business snapshot (2026-10-08) — APPROVED 2026-10-08
+- Proposal (add): a "BUSINESS SNAPSHOT" section in the Sunday Weekly Review report and its phone notification headline: weekly users vs last week, where they came from (link tags), the P-1 funnel, costs and usage vs each service's limit (P-3), and what riders said (P-4).
+- Effort: S · Builder: Sonnet (playbook + report format only).
+
+### P-4 — In-app feedback (2026-10-08) — APPROVED 2026-10-08
+- Proposal (add): a small "Tell Nalu something" option (one text box, optional category: wrong answer / idea / other) reachable from Settings and the trip screen, with the trip context attached only if the rider agrees; no account needed; rate-limited; stored in a new table (standing database authorization: additive, locked down, reviewed). The Sunday review reads new feedback; anything urgent (a wrong answer) goes to the Watchman's triage list.
+- Risk: spam/abuse (rate limit, length cap, no links rendered back); privacy wording updated.
+- Effort: S–M · Builder: Sonnet.
+
+### P-3 — Cost and limit guard (2026-10-08) — APPROVED 2026-10-08
+- Proposal (add): a weekly check of usage against each paid/free limit — TomTom, Supabase (database size, egress, function calls), Cloudflare Workers requests, Mapbox map loads, Resend email, Firebase messaging — with a phone alert at ~70% of any limit or an unusual jump. Use each provider's usage API where reachable with existing credentials; where a provider needs a new read-only token, list exactly which one for Josh to add as an environment secret (never in chat), and fall back to Nalu's own request counts meanwhile.
+- Effort: M · Builder: Sonnet; runs inside the Daily Watchman (Mondays) or the Sunday review, no new schedule.
+
 ### P-2 — Guide pages with personality and interaction (2026-10-08) — APPROVED 2026-10-08 (all items)
 - Rider problem: the SEO guide pages are plain text; nothing invites a visitor to try Nalu or shows what it does (Josh, Oct 8).
 - Evidence: owner review; the funnel (P-1) will show how many guide visitors try a trip.
