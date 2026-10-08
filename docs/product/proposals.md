@@ -16,4 +16,24 @@ Statuses: PROPOSED · APPROVED · DECLINED · EXPIRED · DONE
 
 ---
 
-_No proposals yet. The first review that includes this step is Sunday, Oct 11, 2026; after that, the first Sunday of each month._
+### P-2 — Guide pages with personality and interaction (2026-10-08) — PROPOSED
+- Rider problem: the SEO guide pages are plain text; nothing invites a visitor to try Nalu or shows what it does (Josh, Oct 8).
+- Evidence: owner review; the funnel (P-1) will show how many guide visitors try a trip.
+- Proposal (improve, keep the text for search engines and add on top):
+  1. "Right now" card on each trip guide: today's live Drive / Skyline / Bus times for that commute, refreshed at most every 10 minutes and cached server-side (no extra load per visitor); the page still renders full text without it.
+  2. Mini "Try this trip" panel: Leave now / Arrive by and a time picker that opens the planner pre-filled.
+  3. Small map (the existing map component) of the route, stations and park-and-ride lots; tap a station for its parking and trains.
+  4. "Nalu's take" box in Nalu's voice (sourced, no invented numbers) and FAQ accordions (also eligible for search FAQ results).
+  5. Visual polish: cards instead of long paragraphs, a simple route diagram (H-1 vs rail), icons; seasonal touches apply here too.
+  Later, only with data: a time-of-day chart of drive vs Skyline (needs first-party drive-time sampling, still an owner decision).
+- Riders gain: see the answer and try Nalu in one tap instead of reading.
+- Risk to the commute decision: none to the engine; live cards must say when they were updated and never show a stale time as current.
+- Effort: M · Builder: premium agent (Sonnet) for 2, 4, 5; 1 and 3 likely an Opus session (server caching, map on public pages).
+
+### P-1 — Measure the visitor funnel (2026-10-08) — PROPOSED
+- Rider problem: we can't see where visitors drop off between arriving and getting value.
+- Evidence: today only app opens, trip question answered/skipped, trip started and link source are counted.
+- Proposal (add): anonymous step counts, no personal data: landed (intro / guide / shared link) → tried a trip → answer shown (and how long it took) → tapped Open in Maps → came back within 7 days; installs and sign-ups vs visits. The Sunday review reports the weekly funnel.
+- Riders gain: indirectly — fixes go where people actually drop off (e.g. slow answers like Oct 7's 14 s).
+- Risk to the commute decision: none; privacy policy wording must match what is counted.
+- Effort: S–M · Builder: premium agent (Sonnet), with a security-keys review.
