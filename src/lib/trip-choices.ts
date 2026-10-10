@@ -136,6 +136,21 @@ export function skylineEmptyText(input: {
   return "No Skyline trip that makes sense right now";
 }
 
+/**
+ * A transit row's state. While a fresh search runs, the screen may still show
+ * the previous search's result (for the same trip); a row that result left
+ * empty is still being checked, not "no trip". At rush hour the first search
+ * can start before the station list loads and miss drive-to-Skyline trips.
+ */
+export function transitRowStatus(input: {
+  hasOption: boolean;
+  loading: boolean;
+  showingPreviousResult: boolean;
+}): "ready" | "loading" | "empty" {
+  if (input.hasOption) return "ready";
+  return input.loading || input.showingPreviousResult ? "loading" : "empty";
+}
+
 /** What the Bus row says when it has no trip. */
 export function busEmptyText(input: { failed: boolean }): string {
   return input.failed ? "Can’t check TheBus right now" : "No bus trip right now";

@@ -6,6 +6,7 @@ import {
   skylineEmptyText,
   busEmptyText,
   transitChoices,
+  transitRowStatus,
   tripSteps,
 } from "./trip-choices";
 
@@ -203,5 +204,28 @@ describe("trip choices", () => {
   it("the Bus row admits a failed search instead of saying there is no bus", () => {
     expect(busEmptyText({ failed: true })).toBe("Can’t check TheBus right now");
     expect(busEmptyText({ failed: false })).toBe("No bus trip right now");
+  });
+});
+
+describe("transitRowStatus", () => {
+  it("shows a found trip as ready, even while a newer search runs", () => {
+    expect(transitRowStatus({ hasOption: true, loading: false, showingPreviousResult: true })).toBe(
+      "ready",
+    );
+  });
+  it("keeps checking while the previous result is shown and this row had nothing", () => {
+    // Rush hour: the first search ran before the station list loaded and found no
+    // Skyline trip; the real search is still running, so this must not say "no trip".
+    expect(
+      transitRowStatus({ hasOption: false, loading: false, showingPreviousResult: true }),
+    ).toBe("loading");
+  });
+  it("is loading on the first search and empty only once a real search finished", () => {
+    expect(
+      transitRowStatus({ hasOption: false, loading: true, showingPreviousResult: false }),
+    ).toBe("loading");
+    expect(
+      transitRowStatus({ hasOption: false, loading: false, showingPreviousResult: false }),
+    ).toBe("empty");
   });
 });

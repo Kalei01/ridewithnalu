@@ -44,6 +44,7 @@ import {
   skylineEmptyText,
   busEmptyText,
   transitChoices,
+  transitRowStatus,
   tripSteps,
   usesSkyline,
 } from "@/lib/trip-choices";
@@ -3011,7 +3012,11 @@ function Index() {
           : `Arrive ${clockFromSeconds(option.arrive_seconds)}`
         : null,
       late: arriveByActive && option !== null && !group.makesIt && lockedChoice !== key,
-      status: option ? "ready" : optionsLoading ? "loading" : "empty",
+      status: transitRowStatus({
+        hasOption: Boolean(option),
+        loading: optionsLoading,
+        showingPreviousResult: planPlaceholder,
+      }),
       emptyText:
         key === "skyline"
           ? skylineEmptyText({
