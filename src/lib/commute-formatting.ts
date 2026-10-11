@@ -6,6 +6,7 @@
  */
 
 import { regionTimeZone } from "@/lib/region";
+import { skylineStationFromText, withStation } from "@/lib/rail/station-names";
 
 export type Coords = { lat: number; lon: number };
 
@@ -146,6 +147,8 @@ export function expandName(value: string | null | undefined) {
 
 /** Rail names on the Skyline screen: expanded, with the redundant suffix gone. */
 export function stationLabel(value: string | null | undefined) {
+  const skyline = skylineStationFromText(value);
+  if (skyline) return skyline;
   const expanded = expandName(value)
     .replace(/\s*\bSkyline\b\s*(Station)?\s*$/i, "")
     .replace(/\s*\bStation\b\s*$/i, "");
@@ -154,6 +157,8 @@ export function stationLabel(value: string | null | undefined) {
 
 /** Full line endpoint: remove the redundant brand while retaining useful place type. */
 export function terminusLabel(value: string | null | undefined) {
+  const skyline = skylineStationFromText(value);
+  if (skyline) return skyline;
   const expanded = expandName(value)
     .replace(/\bSkyline\b\s*/gi, "")
     .replace(/\bTransit Center Station\b/gi, "Transit Center");
@@ -182,7 +187,7 @@ export function transitStopName(leg: TransitLegNameSource, endpoint: "from" | "t
   const value = leg[endpoint];
   if (leg.mode === "rail") {
     const station = stationLabel(value);
-    return station ? `${station} Station` : "the station";
+    return station ? withStation(station) : "the station";
   }
   return titleCase(value) || "the stop";
 }

@@ -1,4 +1,10 @@
-import { clockFromSeconds, stationLabel, titleCase, transitStopName } from "@/lib/commute-formatting";
+import {
+  clockFromSeconds,
+  stationLabel,
+  titleCase,
+  transitStopName,
+} from "@/lib/commute-formatting";
+import { withStation } from "@/lib/rail/station-names";
 import { vehicleName, type Leg } from "@/lib/commute-model";
 
 const isTransit = (leg: Leg | undefined) => leg?.mode === "bus" || leg?.mode === "rail";
@@ -11,14 +17,17 @@ export function liveTripSteps(legs: Leg[], arrivingHome = false): string[] {
   return legs.map((leg, index) => {
     const next = legs[index + 1];
     if (isTransit(leg)) {
-      const arrive = leg.arrive_seconds !== null ? ` · arrive ${clockFromSeconds(leg.arrive_seconds)}` : "";
+      const arrive =
+        leg.arrive_seconds !== null ? ` · arrive ${clockFromSeconds(leg.arrive_seconds)}` : "";
       return `Ride ${vehicleName(leg)} to ${transitStopName(leg, "to")}${arrive}`;
     }
     const verb = leg.mode === "drive" ? "Drive" : "Walk";
     const intoStop = isTransit(next);
     const place = intoStop
       ? next?.mode === "rail"
-        ? `${stationLabel(leg.to) || "the"} Station`
+        ? stationLabel(leg.to)
+          ? withStation(stationLabel(leg.to))
+          : "the Station"
         : titleCase(leg.to) || "the stop"
       : titleCase(leg.to) || (arrivingHome ? "home" : "your destination");
     const board =

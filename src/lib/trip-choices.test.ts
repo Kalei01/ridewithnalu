@@ -114,7 +114,7 @@ describe("trip choices", () => {
 
   it("describes each trip in a few words", () => {
     expect(tripSteps(parkRide)).toBe(
-      "Drive to UH West Oʻahu (parking not included) → Skyline → Bus 42",
+      "Drive to UH West Oʻahu (Keoneʻae), parking not included → Skyline → Bus 42",
     );
     expect(tripSteps(bus91)).toBe("Walk → Bus 91");
     expect(tripSteps(busRailBus)).toBe("Walk → Bus 52 → Skyline → Bus 42");
@@ -125,12 +125,14 @@ describe("trip choices", () => {
       leg("drive", 27000, 27600, { to_stop_id: "10055", to: "HALAWA STATION" }),
       leg("rail", 27600, 28600),
     ]);
-    expect(tripSteps(halawa)).toBe("Drive to Hālawa (parking not included) → Skyline");
+    expect(tripSteps(halawa)).toBe(
+      "Drive to Aloha Stadium (Hālawa), parking not included → Skyline",
+    );
     const waiawa = opt([
       leg("drive", 27000, 27300, { to_stop_id: "10053", to: "WAIAWA STATION" }),
       leg("rail", 27300, 28200),
     ]);
-    expect(tripSteps(waiawa)).toBe("Dropped off at Waiawa → Skyline");
+    expect(tripSteps(waiawa)).toBe("Dropped off at Pearl Highlands (Waiawa) → Skyline");
   });
 
   it("notes Keoneʻae parking for weekday morning arrivals only, with the backup lot", () => {
@@ -161,7 +163,7 @@ describe("trip choices", () => {
       leg("rail", 61300, 63600),
       leg("drive", 63600, 64500, { from: "HALAWA STATION", from_stop_id: "10055", to: "Home" }),
     ]);
-    expect(tripSteps(home)).toBe("Walk → Skyline → Picked up at Hālawa");
+    expect(tripSteps(home)).toBe("Walk → Skyline → Picked up at Aloha Stadium (Hālawa)");
   });
 
   it("reminds the rider to allow time instead of guessing it", () => {

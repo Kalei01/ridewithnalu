@@ -1,3 +1,5 @@
+import { skylineStationName } from "@/lib/rail/station-names";
+
 /**
  * Skyline stations with a park-and-ride lot. Source: City and County of
  * Honolulu, Skyline "Stations and Parking" page and station pages (checked
@@ -12,13 +14,10 @@ export const PARK_AND_RIDE_STOP_IDS: ReadonlySet<string> = new Set([
   "10030", // Kahauiki (Kalihi Transit Center)
 ]);
 
-/** How riders know each park-and-ride station. */
-export const PARK_AND_RIDE_NAMES: Readonly<Record<string, string>> = {
-  "10046": "UH West Oʻahu",
-  "10045": "Honouliuli",
-  "10055": "Hālawa",
-  "10030": "Kahauiki",
-};
+/** How riders know each park-and-ride station ("Aloha Stadium (Hālawa)"). */
+export const PARK_AND_RIDE_NAMES: Readonly<Record<string, string>> = Object.fromEntries(
+  [...PARK_AND_RIDE_STOP_IDS].map((id) => [id, skylineStationName(id) ?? id]),
+);
 
 export const isParkAndRide = (stopId: string | null | undefined) =>
   Boolean(stopId && PARK_AND_RIDE_STOP_IDS.has(stopId));

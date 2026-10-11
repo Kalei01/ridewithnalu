@@ -289,6 +289,8 @@ const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 import { planTransitTripDetailed, plannerRpc } from "@/lib/transit-plan";
 import { tripCheckingStatus, weatherSummaryText } from "@/lib/loading-labels";
 import { honoluluDaysBetween, shiftOptionDays } from "@/lib/service-day";
+import { withStation } from "@/lib/rail/station-names";
+import { StationName } from "@/components/commute/StationName";
 
 const HOME_TITLE = "Nalu: Drive, TheBus or Skyline? Oʻahu Commute App";
 const HOME_DESCRIPTION =
@@ -1211,14 +1213,14 @@ function Index() {
       // Closest first, so a 1-minute stop never sits below a 39-minute walk.
       return (data ?? [])
         .map((row): NearbyStop => ({
-        stopId: row.stop_id,
-        stopName: row.stop_name ?? "",
-        lat: Number(row.stop_lat),
-        lon: Number(row.stop_lon),
-        routeType: row.route_type,
-        distanceM: Number(row.distance_m),
-        arrivals: Array.isArray(row.arrivals) ? (row.arrivals as NearbyArrival[]) : [],
-      }))
+          stopId: row.stop_id,
+          stopName: row.stop_name ?? "",
+          lat: Number(row.stop_lat),
+          lon: Number(row.stop_lon),
+          routeType: row.route_type,
+          distanceM: Number(row.distance_m),
+          arrivals: Array.isArray(row.arrivals) ? (row.arrivals as NearbyArrival[]) : [],
+        }))
         .sort((x, y) => x.distanceM - y.distanceM);
     },
   });
@@ -3443,7 +3445,7 @@ function Index() {
                   leg.kind === "egress" && leg.mode === "drive" ? "" : ""
                 }`
               : leg.kind === "access" && leg.mode === "walk"
-                ? `Walk to ${stationLabel(leg.to) || titleCase(leg.to) || "the station"} Station · ${leg.minutes} min${
+                ? `Walk to ${withStation(stationLabel(leg.to) || titleCase(leg.to) || "the station")} · ${leg.minutes} min${
                     leg.minutes !== null ? ` · ${formatDistance(leg.minutes * 80.47)}` : ""
                   } · arrive platform ${clockFromSeconds(leg.arrive_seconds)}`
                 : `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
@@ -3522,7 +3524,7 @@ function Index() {
             if (last && distanceM(last, point) < 20) return;
             points.push({
               id: `${leg.kind}-${index}-station-${stopIndex}-${stop.stopId}`,
-              name: `${stationLabel(stop.stopName)} Station`,
+              name: withStation(stationLabel(stop.stopName)),
               ...point,
               kind: "rail",
             });
@@ -3565,7 +3567,7 @@ function Index() {
         if (last && distanceM(last, point) < 20) return;
         points.push({
           id: `${leg.kind}-${index}-${endpointIndex}`,
-          name: leg.mode === "rail" ? `${stationLabel(name)} Station` : titleCase(name),
+          name: leg.mode === "rail" ? withStation(stationLabel(name)) : titleCase(name),
           ...point,
           kind: transitKind,
         });
@@ -4424,11 +4426,16 @@ function Index() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-semibold text-foreground">
-                          {selectedNearbyStop.routeType === 1
-                            ? `${stationLabel(selectedNearbyStop.stopName)} Station`
-                            : titleCase(selectedNearbyStop.stopName)}
-                        </p>
+                        <div className="font-semibold text-foreground">
+                          {selectedNearbyStop.routeType === 1 ? (
+                            <StationName
+                              name={selectedNearbyStop.stopName}
+                              hawaiianClassName="text-xs font-normal"
+                            />
+                          ) : (
+                            titleCase(selectedNearbyStop.stopName)
+                          )}
+                        </div>
                         <LandmarkHint name={selectedNearbyStop.stopName} />
                         <p className="mt-1 text-xs text-muted-foreground">
                           Walk {walkingEstimate(browseUserPoint, selectedNearbyStop).minutes} min ·{" "}
@@ -4524,18 +4531,21 @@ function Index() {
                 <button
                   type="button"
                   onClick={() => setStationExpanded(true)}
-                  className="glass-panel mt-4 flex w-full min-w-0 items-center gap-2 rounded-full px-4 py-3 text-left text-sm"
+                  className="glass-panel mt-4 flex w-full min-w-0 items-center gap-2 rounded-2xl px-4 py-3 text-left text-sm"
                   aria-label="Show Skyline station details"
                 >
                   <TrainFront className="size-4 shrink-0 text-primary" />
-                  <span className="truncate font-semibold text-foreground">
-                    {stationLabel(browseStation.stopName)}
-                  </span>
-                  <span className="truncate text-muted-foreground">
-                    {browseUserPoint
-                      ? ` · ${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min drive`
-                      : ""}
-                    {trainsEveryMinutes ? ` · Trains every ${trainsEveryMinutes} min` : ""}
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-foreground">
+                      <StationName name={browseStation.stopName} />
+                    </span>
+                    <span className="block text-muted-foreground">
+                      {browseUserPoint
+                        ? `${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min drive`
+                        : ""}
+                      {browseUserPoint && trainsEveryMinutes ? " · " : ""}
+                      {trainsEveryMinutes ? `Trains every ${trainsEveryMinutes} min` : ""}
+                    </span>
                   </span>
                   <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
                 </button>
@@ -4586,7 +4596,7 @@ function Index() {
                           <SelectContent>
                             {browseStations.map((station) => (
                               <SelectItem key={station.stop_id} value={station.stop_id}>
-                                {stationLabel(station.stop_name)}
+                                <StationName name={station.stop_name} />
                               </SelectItem>
                             ))}
                           </SelectContent>
