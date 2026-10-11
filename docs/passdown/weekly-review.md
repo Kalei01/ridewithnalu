@@ -12,6 +12,7 @@ See your run gate in `docs/agents/run-gates.md` before each scheduled run.
 ## Follow-ups for next Sunday
 - First run of the new BUSINESS SNAPSHOT, cost check, feedback and funnel steps (nalu-lead.md).
 - First passdown cleanup (README.md, "Cleanup").
+- Check the run gates (`docs/agents/run-gates.md`, new Oct 11) were followed by each scheduled run this week: skipped when nothing was new, ran when there was work. If a routine ignored its gate (its own prompt overrides it), tell Josh which one; the main session can rebuild that routine with the gate built in.
 
 ## Last cleanup
 - None yet.
