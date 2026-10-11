@@ -2,6 +2,8 @@
 
 Read @CLOUD_CODE_CONTEXT.md before making substantial changes — it holds Nalu's product intent, reasoning model, and engineering rules.
 
+**Passdown:** read `docs/STATUS.md` first — current work, owners, parked items, decisions. Before you finish, update it if you started, finished, parked or handed off work, changed a decision, or learned something the next agent needs (edit in place, keep it short, commit with your change).
+
 Product direction agreed with Josh (Oct 11, 2026): docs/product/direction.md — one screen, door to door, with cost and plain how-to; Hawaiʻi first; fix speed and the Skyline "no trip" alert before anything else.
 
 Also follow @AGENTS.md (Lovable sync: never rewrite pushed history; keep `main` working).
