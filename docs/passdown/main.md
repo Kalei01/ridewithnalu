@@ -1,6 +1,6 @@
-# Nalu — current status (the passdown)
+# Nalu — main passdown (everyone)
 
-**Every agent and session reads this first and updates it before finishing** whenever it starts, finishes, parks or hands off work, changes a decision, or learns something the next agent needs. Keep it short and current: edit lines in place, delete what is done (history lives in git and the logs linked below). Last updated: 2026-10-11 (station-names session).
+Read first, every session. Rules for keeping it current and small: `docs/passdown/README.md`. Each scheduled agent also has its own file in this folder. Last updated: 2026-10-11 (main session).
 
 ## Owner and ground rules
 - Josh, not a developer: plain English, real evidence only, never invent numbers.
@@ -18,7 +18,8 @@
 |---|---|---|
 | Skyline row says "No Skyline trip" on the first rush-hour try (Kapolei → downtown) | Main session; alert in `docs/maintenance/alerts.md` | OPEN since Oct 7. Oct 8 fix 2673c7b live but not the cause. Recorder `scripts/diag/rush-hour-trip-recorder.mjs` runs Mon Oct 12 6:25 AM HST. Candidate guard parked on branch `wip/skyline-row-checking` (unproven, not live). Top priority. |
 | Station names in the app (English + Hawaiian smaller/muted underneath) | Session "NALU — Skyline station names in app (Sonnet)"; branch `wip/station-names` | Shipped to `cloudflare` (see git log "Merge station names"); live since e3a3638; Skyline was closed at check time, so the two-line names still need a look on a daytime Skyline trip. Follow-up: guide/SEO pages use the same names (`docs/seo/backlog.md`). |
-| Trust & authority pages (About, How Nalu decides, footer, listings) | Main session starts an Opus session Tue Oct 13 1:10 PM HST (after Josh's weekly limit resets) | Queued; brief in `docs/seo/backlog.md`. |
+| Fix plan (Phases 0–5) | `docs/architecture/fix-plan.md` | Approved Oct 11. Phase 0 running (Sonnet "NALU — Phase 0 cleanups"); Phase 1 Mon 6:25 AM; Phase 2 (one server request per trip, Opus) Tue Oct 13. |
+| Trust & authority pages (About, How Nalu decides, footer, listings) | After Phase 2 | Moved by Josh's plan approval; Sonnet build + one Opus check of the About page. Brief in `docs/seo/backlog.md`. |
 
 ## Parked / waiting
 - Planner speed: trips take ~12–30 s; migration 0065 parked (54/60 identical) — `scripts/db-speed/README.md`.
