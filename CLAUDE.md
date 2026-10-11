@@ -2,6 +2,8 @@
 
 Read @CLOUD_CODE_CONTEXT.md before making substantial changes — it holds Nalu's product intent, reasoning model, and engineering rules.
 
+Product direction agreed with Josh (Oct 11, 2026): docs/product/direction.md — one screen, door to door, with cost and plain how-to; Hawaiʻi first; fix speed and the Skyline "no trip" alert before anything else.
+
 Also follow @AGENTS.md (Lovable sync: never rewrite pushed history; keep `main` working).
 
 Quality gate before every push: `bun run test` → `bun run typecheck` → `bun run build`.
