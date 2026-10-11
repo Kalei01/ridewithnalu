@@ -16,3 +16,25 @@
 **Design-around trips (Oʻahu):** airport → Waikīkī; getting to a game/event at the stadium; Kapolei → downtown (the daily commute Nalu was built for).
 
 **Quality bar:** real data only; say "can't check" instead of guessing; every cost labelled as a fare or an estimate; transit-accuracy review for every claim.
+
+## Skyline station names (confirmed by Josh, Oct 11, 2026)
+
+Show **English name (Hawaiian name)**, e.g. "Kalihi Transit Center (Kahauiki)". Full names, not shortened. Spelling marks as below. Directions use the train's end-of-line sign: "toward East Kapolei" / "toward Kalihi Transit Center".
+
+| Line order | stop_id | Show riders |
+|---|---|---|
+| 1 (west end) | 10047 | East Kapolei (Kualakaʻi) |
+| 2 | 10046 | UH West Oʻahu (Keoneʻae) |
+| 3 | 10045 | Hoʻopili (Honouliuli) |
+| 4 | 10044 | West Loch (Hōʻaeʻae) |
+| 5 | 10043 | Waipahu Transit Center (Pouhala) |
+| 6 | 10056 | Leeward Community College (Halaulani) |
+| 7 | 10053 | Pearl Highlands (Waiawa) |
+| 8 | 10054 | Pearlridge (Kalauao) |
+| 9 | 10055 | Aloha Stadium (Hālawa) |
+| 10 | 10033 | Joint Base Pearl Harbor–Hickam (Makalapa) |
+| 11 | 10032 | Daniel K. Inouye International Airport (Lelepaua) |
+| 12 | 10031 | Lagoon Drive (Ahua) |
+| 13 (east end) | 10030 | Kalihi Transit Center (Kahauiki) |
+
+Source: stop names in the TheBus/Skyline timetable data (Oct 2026), split and formatted per Josh. If a timetable refresh changes a stop_id or name, re-check this table before relying on it.
