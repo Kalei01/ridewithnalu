@@ -115,7 +115,7 @@ export function TellNaluForm({
           <Checkbox
             checked={includeTrip}
             onCheckedChange={(value) => setIncludeTrip(value === true)}
-            className="mt-0.5 h-5 min-h-0 w-5 self-start border-2 border-muted-foreground bg-background shadow-none data-[state=checked]:border-primary"
+            className="mt-0.5 h-5 !min-h-0 w-5 self-start border-2 border-muted-foreground bg-background shadow-none data-[state=checked]:border-primary"
             aria-label="Include this trip"
           />
           <span>

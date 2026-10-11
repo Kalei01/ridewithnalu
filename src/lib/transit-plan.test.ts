@@ -15,9 +15,16 @@ const { clearPlannerCache } = await import("./planner-cache");
 
 // Every test starts with no remembered searches, so each sees its own answers.
 beforeEach(() => {
+  // The planner cache is off near midnight and Sunday 1-4 AM in Honolulu; pin the
+  // clock to a weekday noon so these tests don't depend on when they run.
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-14T22:00:00Z") });
   clearPlannerCache();
   resetOutboundMultiProbe();
   setUseOutboundMulti(false); // production setting: migration 0065 is not applied
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 type Reply = { data: unknown; error: unknown };
