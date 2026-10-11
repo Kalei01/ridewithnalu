@@ -11,6 +11,7 @@ The goal is a self-sustaining team: any agent (or a new session) can pick up exa
 | `premium.md` | Premium UX Review (`nalu-premium-experience`) | Current focus, open UX threads, season status, next run's plan. |
 | `weekly-review.md` | Weekly Review (`nalu-lead`) and the Repository Steward (`nalu-code-health`) | Decisions waiting on Josh, open P0/P1 items, follow-ups for next Sunday, last cleanup. |
 | `lead.md` | The main session (NALU MAIN) | Reasoning rules learned from mistakes, delegation pattern, watch list, the weekly lead review. |
+| `lead-memory.md` | The main session | Everything the main session knows: Josh, session/routine ids, tools, environment quirks, product and code facts (≤ 150 lines). |
 | `ask-nalu.md` | Ask Nalu (Haiku Q&A) — read-only; others keep it | The short "where to look" map for answering Josh's questions. |
 
 Read-only reviewers (transit-accuracy, mobile-design, security-keys, database, nalu-performance) don't keep files; the session that runs them records results.
