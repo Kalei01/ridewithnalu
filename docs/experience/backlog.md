@@ -67,6 +67,8 @@ Original list:
   - General-planner time window: NOT ADOPTED (not faster in rehearsal; changed tie picks in 5/72 cases). Reasons in scripts/db-speed/README.md.
   - rail_stations cache: not needed (25 ms). Numeric time columns: not started.
 
+- REPORT (weekly review 2026-10-11, mobile-design): Skyline card says "You'll miss this one" and "Miss it? Next train at …" — fold into one line; "Scheduled times · TheBus / DTS" appears twice on one screen; "Kualakaʻi" shown with a plain apostrophe on the Skyline card and "O'AHU COMMUTE" on /welcome (use ʻokina); inline guide links on /oahu-commute are 17–20 px tall (touch targets). Tell Nalu form and trip results not seen by the reviewer — recheck live.
+
 ## Not yet checked (no tool access in test runs)
 Morning rush; Skyline-stopped-at-night and not-yet-running rows; a live verdict flip; map tiles and camera feel; signed-in features; real iPhone/Safari/VoiceOver.
 
@@ -75,3 +77,4 @@ Morning rush; Skyline-stopped-at-night and not-yet-running rows; a live verdict 
 - 2026-10-07 Database speed work: search staggering shipped; 0063 prepared and rehearsed on a local copy with TheBus's real feed, waiting for someone with database access to apply it; planner time window dropped.
 - 2026-10-07 Batches 2-3 shipped (see their entries). Reviewed by transit-accuracy (fixed: step stays on "board" until board time, scheduled label, roadwork schedule/link kept), mobile-design, security-keys.
 - 2026-10-07 Batch 4 partly shipped; four items marked NEEDS OPUS SESSION (reasons above).
+- 2026-10-11 Weekly review: mobile-design live pass (7 public pages, no layout breaks); wording/touch-target items added above.

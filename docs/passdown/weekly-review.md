@@ -1,5 +1,5 @@
 # Passdown — Weekly Review (Sun 9:47 AM HST) and Repository Steward
-Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
+Last updated: 2026-10-11 (weekly review). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Decisions waiting on Josh
 - Supabase Pro ($25/mo: backups + more memory) — deferred for budget; don't push it, mention only if a risk appears.
@@ -11,13 +11,13 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 - Trip answers take ~12–30 s (planner speed; parked).
 
 ## Follow-ups for next Sunday
-- First run of the new BUSINESS SNAPSHOT, cost check, feedback and funnel steps (nalu-lead.md).
-- First passdown cleanup (README.md, "Cleanup").
-- Verify each routine's stored prompt (list_triggers) mentions `run-gates.md`: Watchman trig_01QCwmtYU2ZHYjifd26oYFgG, SEO trig_016zR7zTvdto6qPirJjEVBKb, Premium trig_019g8aU9fGqEwsMhGkDk3nuN, Weekly trig_018WJBnLAGD9BvDv8xDM7qJw (the main session asked each routine's own session to update itself on Oct 11). Any that didn't: report it in one line.
+- BUSINESS SNAPSHOT: `usage_stats()`/`funnel_stats()` returned permission denied for the read-only token and `weekly_by_ref()` doesn't exist (Oct 11) — ask Josh once; re-check next Sunday. Cost check ran fine.
+- Routine prompts verified Oct 11: Watchman, Premium, Weekly, SEO all mention run-gates.md.
 - Check the run gates (`docs/agents/run-gates.md`, new Oct 11) were followed by each scheduled run this week: skipped when nothing was new, ran when there was work. If a routine ignored its gate (its own prompt overrides it), tell Josh which one; the main session can rebuild that routine with the gate built in.
 
 ## Last cleanup
-- None yet.
+- 2026-10-11: nothing to trim (logs under 55 lines and under 90 days; no older reports).
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
-- (none yet)
+- 2026-10-11 R+ (5 specialists ran; no fixes; 4 escalated; report docs/reviews/2026-10-11.md)
+- Also watch: health `drive times (TomTom)` showed `ok:false` Oct 11 (cached); check it cleared. `bun audit` 19 advisories (build-time mostly): one reviewed upgrade pass after Phase 2.
