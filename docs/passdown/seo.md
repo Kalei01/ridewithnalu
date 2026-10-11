@@ -11,5 +11,7 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 - Answer-first format on guides: after the build queue clears.
 - Trust & authority pages are built by a separate Opus session (Tue Oct 13); don't duplicate.
 
+- App station names live since e3a3638; guides can now be updated (English name first, Hawaiian second; table in docs/product/direction.md).
+
 ## Last run
 - Thu Oct 8: RUN OK, review only, no page changes.
