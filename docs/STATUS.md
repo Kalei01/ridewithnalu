@@ -1,6 +1,6 @@
 # Nalu — current status (the passdown)
 
-**Every agent and session reads this first and updates it before finishing** whenever it starts, finishes, parks or hands off work, changes a decision, or learns something the next agent needs. Keep it short and current: edit lines in place, delete what is done (history lives in git and the logs linked below). Last updated: 2026-10-11 (main session).
+**Every agent and session reads this first and updates it before finishing** whenever it starts, finishes, parks or hands off work, changes a decision, or learns something the next agent needs. Keep it short and current: edit lines in place, delete what is done (history lives in git and the logs linked below). Last updated: 2026-10-11 (station-names session).
 
 ## Owner and ground rules
 - Josh, not a developer: plain English, real evidence only, never invent numbers.
@@ -17,7 +17,7 @@
 | Item | Owner / where | State |
 |---|---|---|
 | Skyline row says "No Skyline trip" on the first rush-hour try (Kapolei → downtown) | Main session; alert in `docs/maintenance/alerts.md` | OPEN since Oct 7. Oct 8 fix 2673c7b live but not the cause. Recorder `scripts/diag/rush-hour-trip-recorder.mjs` runs Mon Oct 12 6:25 AM HST. Candidate guard parked on branch `wip/skyline-row-checking` (unproven, not live). Top priority. |
-| Station names in the app (English + Hawaiian smaller/muted underneath) | Session "NALU — Skyline station names in app (Sonnet)"; branch `wip/station-names` | Building; ships to `cloudflare` only after gate + reviews + live check. Guide/SEO pages are a follow-up for the search agent. |
+| Station names in the app (English + Hawaiian smaller/muted underneath) | Session "NALU — Skyline station names in app (Sonnet)"; branch `wip/station-names` | Shipped to `cloudflare` (see git log "Merge station names"); live check recorded in the push. Follow-up: guide/SEO pages use the same names (`docs/seo/backlog.md`). |
 | Trust & authority pages (About, How Nalu decides, footer, listings) | Main session starts an Opus session Tue Oct 13 1:10 PM HST (after Josh's weekly limit resets) | Queued; brief in `docs/seo/backlog.md`. |
 
 ## Parked / waiting
