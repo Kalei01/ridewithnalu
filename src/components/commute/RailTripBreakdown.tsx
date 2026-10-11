@@ -16,6 +16,7 @@ import {
   transitStopName,
 } from "@/lib/commute-formatting";
 import { Leg, Option, modeIcon, vehicleName } from "@/lib/commute-model";
+import { withStation } from "@/lib/rail/station-names";
 
 export const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
 
@@ -83,14 +84,14 @@ export function RailTripBreakdown({
             leg.mode === "bus" && leg.kind !== "access"
               ? busRouteLabel(leg.route_short)
               : leg.mode === "walk" && leg.kind === "connect"
-                ? `Walk to ${toBusStop ? titleCase(leg.to) || "the next stop" : `${stationLabel(leg.to) || "the"} Station`}`
+                ? `Walk to ${toBusStop ? titleCase(leg.to) || "the next stop" : stationLabel(leg.to) ? withStation(stationLabel(leg.to)) : "the Station"}`
                 : leg.kind === "access"
                   ? leg.mode === "walk"
                     ? toBusStop
                       ? `Walk to ${stationName || "the bus stop"}`
-                      : `Walk to ${stationName || "the station"} Station`
+                      : `Walk to ${stationName ? withStation(stationName) : "the station"}`
                     : stationName
-                      ? `To ${stationName}${leg.mode === "bus" ? "" : " Station"}`
+                      ? `To ${leg.mode === "bus" ? stationName : withStation(stationName)}`
                       : leg.mode === "bus"
                         ? "To the stop"
                         : "To the station"

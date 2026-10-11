@@ -50,9 +50,10 @@ export function transitChoices(options: Option[], arriveByTarget: number | null)
 }
 
 /**
- * "Drive to UH West Oʻahu → Skyline → Bus 42", "Walk → Bus 91". A car leg to a
+ * "Drive to UH West Oʻahu (Keoneʻae), parking not included → Skyline → Bus 42",
+ * "Walk → Bus 91". A car leg to a
  * station without a park-and-ride lot can only be a drop-off, so it reads
- * "Dropped off at Waiawa".
+ * "Dropped off at Pearl Highlands (Waiawa)".
  */
 export function tripSteps(option: Option): string {
   const steps: string[] = [];
@@ -68,9 +69,7 @@ export function tripSteps(option: Option): string {
       const station = lot ?? (leg.to_stop_id && leg.to ? stationLabel(leg.to) : undefined);
       if (!station) steps.push("Drive");
       else
-        steps.push(
-          lot ? `Drive to ${station} (parking not included)` : `Dropped off at ${station}`,
-        );
+        steps.push(lot ? `Drive to ${station}, parking not included` : `Dropped off at ${station}`);
     } else if (leg.mode === "rail") steps.push("Skyline");
     else if (leg.mode === "bus") {
       const route = leg.route_short?.trim() || leg.route_long?.trim();
@@ -96,7 +95,7 @@ export function parkingNote(option: Option | null, isoDow: number): string | nul
   if (isoDow < 1 || isoDow > 5) return null;
   const atStation = access.arrive_seconds;
   if (atStation == null || atStation < 7 * 3600 || atStation >= 11 * 3600) return null;
-  return "This lot is often full by 8 AM on weekdays; some riders park on a nearby grass lot. Or try Honouliuli, the next stop toward town.";
+  return "This lot is often full by 8 AM on weekdays; some riders park on a nearby grass lot. Or try Hoʻopili (Honouliuli), the next stop toward town.";
 }
 
 /**

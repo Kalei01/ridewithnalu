@@ -289,6 +289,7 @@ const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 import { planTransitTripDetailed, plannerRpc } from "@/lib/transit-plan";
 import { tripCheckingStatus, weatherSummaryText } from "@/lib/loading-labels";
 import { honoluluDaysBetween, shiftOptionDays } from "@/lib/service-day";
+import { withStation } from "@/lib/rail/station-names";
 
 const HOME_TITLE = "Nalu: Drive, TheBus or Skyline? Oʻahu Commute App";
 const HOME_DESCRIPTION =
@@ -3443,7 +3444,7 @@ function Index() {
                   leg.kind === "egress" && leg.mode === "drive" ? "" : ""
                 }`
               : leg.kind === "access" && leg.mode === "walk"
-                ? `Walk to ${stationLabel(leg.to) || titleCase(leg.to) || "the station"} Station · ${leg.minutes} min${
+                ? `Walk to ${withStation(stationLabel(leg.to) || titleCase(leg.to) || "the station")} · ${leg.minutes} min${
                     leg.minutes !== null ? ` · ${formatDistance(leg.minutes * 80.47)}` : ""
                   } · arrive platform ${clockFromSeconds(leg.arrive_seconds)}`
                 : `${leg.minutes} min from ${titleCase(leg.from) || "your location"} to ${
@@ -3522,7 +3523,7 @@ function Index() {
             if (last && distanceM(last, point) < 20) return;
             points.push({
               id: `${leg.kind}-${index}-station-${stopIndex}-${stop.stopId}`,
-              name: `${stationLabel(stop.stopName)} Station`,
+              name: withStation(stationLabel(stop.stopName)),
               ...point,
               kind: "rail",
             });
@@ -3565,7 +3566,7 @@ function Index() {
         if (last && distanceM(last, point) < 20) return;
         points.push({
           id: `${leg.kind}-${index}-${endpointIndex}`,
-          name: leg.mode === "rail" ? `${stationLabel(name)} Station` : titleCase(name),
+          name: leg.mode === "rail" ? withStation(stationLabel(name)) : titleCase(name),
           ...point,
           kind: transitKind,
         });
@@ -4426,7 +4427,7 @@ function Index() {
                       <div className="min-w-0">
                         <p className="font-semibold text-foreground">
                           {selectedNearbyStop.routeType === 1
-                            ? `${stationLabel(selectedNearbyStop.stopName)} Station`
+                            ? withStation(stationLabel(selectedNearbyStop.stopName))
                             : titleCase(selectedNearbyStop.stopName)}
                         </p>
                         <LandmarkHint name={selectedNearbyStop.stopName} />
