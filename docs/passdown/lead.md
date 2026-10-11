@@ -1,5 +1,5 @@
 # Passdown — Lead (NALU MAIN): judgment, lessons, how to lead
-Last updated: 2026-10-11. Kept by the main session; refreshed in the weekly lead review (Sun after the Weekly Review). ≤ 60 lines.
+Last updated: 2026-10-11. Kept by the main session; refreshed in the lead checks (Sun and Wed). ≤ 60 lines.
 
 ## Josh's standing intent
 Perfection with the lowest credit cost. Decide and lead; ask him only per run-gates.md §4. Self-sustaining team; Hawaiʻi first; "fast and right" before features.
@@ -22,8 +22,11 @@ Brief = goal, starting point (branch/commit), known pitfalls, exact gate, review
 - Whether routines follow run gates (needs Josh's one-line confirmation in each routine session).
 - Weekly usage: 65% used by Sun Oct 11 (reset Tue 1 PM HST). Keep weekend spend small.
 
-## Weekly lead review (brief, Sun ~11:30 AM HST)
-Gate: skip if nothing changed since the last review (no new commits, reports or alerts). Otherwise ≤ 12 tool calls: read this week's report, every passdown's "Recent runs", alerts; decide: (a) adjust run gates or briefs where data shows waste or misses; (b) add a lesson here when something went wrong or right; (c) queue the next build per the fix plan; (d) tell Josh only §4 items. No builds in this session.
+## Succession (when to hand the lead to a fresh Opus session)
+Hand over when any holds: this session's context is over ~650k tokens (check get_session → context_usage); it was compacted and lost track of open threads; or a wake costs noticeably more than the work it does. Procedure: (1) update main.md + this file so they are complete; (2) create_session — model claude-opus-5-5, effort medium, title "NALU — MAIN COMMAND (n)", repo Kalei01/ridewithnalu, branch cloudflare — with a brief: "You are NALU MAIN; read CLAUDE.md, docs/passdown/main.md and lead.md first; Josh's rules there"; (3) re-create every routine/reminder bound to this session (list_triggers: the lead checks and any pending send_later) on the new session, then disable the old ones; (4) note the handover in main.md and tell Josh in 2 lines which session to use. Planned: evaluate at Tuesday's Phase 2 wake (context ~480k on Oct 11).
+
+## Lead checks (brief)
+**Sunday 11:31 AM HST (after the Weekly Review)** and **Wednesday 1:59 PM HST (after the Premium review)**. Gate: skip if nothing changed since the last check (no new code commits, reports, alerts or finished sessions). Otherwise ≤ 12 tool calls on Sunday, ≤ 8 on Wednesday: read this week's report, every passdown's "Recent runs", alerts; decide: (a) adjust run gates or briefs where data shows waste or misses; (b) add a lesson here when something went wrong or right; (c) queue the next build per the fix plan; (d) tell Josh only §4 items. No builds in this session.
 
 ## Lessons log (newest first, keep ≤ 10; older ones fold into the rules above)
 - 2026-10-11: Gates + adaptive cadence added; prompts need Josh in each routine session.
