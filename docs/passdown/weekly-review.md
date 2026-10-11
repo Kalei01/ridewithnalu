@@ -5,6 +5,8 @@ See your run gate in `docs/agents/run-gates.md` before each scheduled run.
 ## Decisions waiting on Josh
 - Supabase Pro ($25/mo: backups + more memory) — deferred for budget; don't push it, mention only if a risk appears.
 
+- Lovable leftovers still in code (sign-in broker fallback, AI/push `LOVABLE_API_KEY` fallbacks, cron-secret fallback): remove once Josh confirms OPENAI_API_KEY, Firebase service account and CRON_SECRET are set in Cloudflare and Lovable is cancelled.
+
 ## Open P0/P1
 - Skyline "no trip" on first rush-hour try (main session; alerts.md).
 - Trip answers take ~12–30 s (planner speed; parked).

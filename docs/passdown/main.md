@@ -18,7 +18,7 @@ Read first, every session. Rules for keeping it current and small: `docs/passdow
 |---|---|---|
 | Skyline row says "No Skyline trip" on the first rush-hour try (Kapolei → downtown) | Main session; alert in `docs/maintenance/alerts.md` | OPEN since Oct 7. Oct 8 fix 2673c7b live but not the cause. Recorder `scripts/diag/rush-hour-trip-recorder.mjs` runs Mon Oct 12 6:25 AM HST. Candidate guard parked on branch `wip/skyline-row-checking` (unproven, not live). Top priority. |
 | Station names in the app (English + Hawaiian smaller/muted underneath) | Session "NALU — Skyline station names in app (Sonnet)"; branch `wip/station-names` | Shipped to `cloudflare` (see git log "Merge station names"); live since e3a3638; Skyline was closed at check time, so the two-line names still need a look on a daytime Skyline trip. Follow-up: guide/SEO pages use the same names (`docs/seo/backlog.md`). |
-| Fix plan (Phases 0–5) | `docs/architecture/fix-plan.md` | Approved Oct 11. Phase 0 running (Sonnet "NALU — Phase 0 cleanups"); Phase 1 Mon 6:25 AM; Phase 2 (one server request per trip, Opus) Tue Oct 13. |
+| Fix plan (Phases 0–5) | `docs/architecture/fix-plan.md` | Approved Oct 11. Phase 0 DONE Oct 11 (f6f9204: combined search off; 2b0ecfd: Lovable no-ops removed; left for Josh: Lovable fallbacks in `docs/maintenance/autofix-log.md`); Phase 1 Mon 6:25 AM; Phase 2 (one server request per trip, Opus) Tue Oct 13. |
 | Trust & authority pages (About, How Nalu decides, footer, listings) | After Phase 2 | Moved by Josh's plan approval; Sonnet build + one Opus check of the About page. Brief in `docs/seo/backlog.md`. |
 
 ## Parked / waiting
