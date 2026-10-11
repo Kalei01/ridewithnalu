@@ -97,7 +97,7 @@ export function TellNaluForm({
         ))}
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="tell-nalu-message">Tell Nalu something</Label>
+        <Label htmlFor="tell-nalu-message">Your note</Label>
         <Textarea
           id="tell-nalu-message"
           rows={4}
@@ -115,7 +115,7 @@ export function TellNaluForm({
           <Checkbox
             checked={includeTrip}
             onCheckedChange={(value) => setIncludeTrip(value === true)}
-            className="mt-0.5"
+            className="mt-0.5 size-5 border-2 border-muted-foreground bg-background shadow-none data-[state=checked]:border-primary"
             aria-label="Include this trip"
           />
           <span>

@@ -56,7 +56,7 @@ Original list:
 
 - DONE  (P-4 commit 0308e15; P-3 and P-5 next commit) APPROVED (P-3, P-4, P-5) — feedback "Tell Nalu something" (Settings > About + trip screen link), cost/limit check (scripts/usage-check.mts, docs/maintenance/service-limits.md), BUSINESS SNAPSHOT in the weekly review. Migration 0066 applied Oct 7 10:27 PM HST (see docs/maintenance/autofix-log.md); notes are now stored. Optional: add CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID secrets for Workers coverage. — cost and limit guard; in-app feedback; weekly business snapshot. See docs/product/proposals.md. Built one at a time by a dedicated Sonnet build session after the planner-speed session finishes (owner wants one session at a time).
 
-- TODO (polish, seen live Oct 7 at 390×844) — "Tell Nalu something" form: the "Include this trip" switch reads as an empty outline when off (give the off state a visible track/thumb), and the title and the text-box label both say "Tell Nalu something" (relabel the box, e.g. "Your note"). src/components/TellNalu.tsx.
+- DONE (Oct 11; off checkbox now has a visible border and fill, box relabelled "Your note") (polish, seen live Oct 7 at 390×844) — "Tell Nalu something" form: the "Include this trip" switch reads as an empty outline when off (give the off state a visible track/thumb), and the title and the text-box label both say "Tell Nalu something" (relabel the box, e.g. "Your note"). src/components/TellNalu.tsx.
 
 ## Reported, not for this agent
 - REPORT B6 Board time vs live bus time (walk arrives 4:46, bus shown 4:45 unlabelled) — transit-accuracy.

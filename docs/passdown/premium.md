@@ -4,7 +4,7 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 ## Current focus
 - Backlog: `docs/experience/backlog.md`; seasons: `docs/experience/seasonal.md`; direction: `docs/product/direction.md`.
 - Station names: being built by "NALU — Skyline station names in app (Sonnet)" (English name, Hawaiian name smaller and muted underneath). Review it live on your next run if shipped.
-- "Tell Nalu something" form polish (switch off-state, duplicate label): TODO in the backlog.
+- "Tell Nalu something" form polish: done Oct 11 (visible off checkbox, "Your note" label).
 
 ## Don't touch
 - Planner/verdict logic, timeouts, database (main session). Guide pages' focus (SEO agent).
