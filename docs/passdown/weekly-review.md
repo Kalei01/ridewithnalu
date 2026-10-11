@@ -13,6 +13,7 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 ## Follow-ups for next Sunday
 - First run of the new BUSINESS SNAPSHOT, cost check, feedback and funnel steps (nalu-lead.md).
 - First passdown cleanup (README.md, "Cleanup").
+- Verify each routine's stored prompt (list_triggers) mentions `run-gates.md`: Watchman trig_01QCwmtYU2ZHYjifd26oYFgG, SEO trig_016zR7zTvdto6qPirJjEVBKb, Premium trig_019g8aU9fGqEwsMhGkDk3nuN, Weekly trig_018WJBnLAGD9BvDv8xDM7qJw (the main session asked each routine's own session to update itself on Oct 11). Any that didn't: report it in one line.
 - Check the run gates (`docs/agents/run-gates.md`, new Oct 11) were followed by each scheduled run this week: skipped when nothing was new, ran when there was work. If a routine ignored its gate (its own prompt overrides it), tell Josh which one; the main session can rebuild that routine with the gate built in.
 
 ## Last cleanup
