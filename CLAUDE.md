@@ -2,7 +2,7 @@
 
 Read @CLOUD_CODE_CONTEXT.md before making substantial changes — it holds Nalu's product intent, reasoning model, and engineering rules.
 
-**Passdown:** read `docs/STATUS.md` first — current work, owners, parked items, decisions. Before you finish, update it if you started, finished, parked or handed off work, changed a decision, or learned something the next agent needs (edit in place, keep it short, commit with your change).
+**Passdowns (`docs/passdown/`):** read `main.md` first, then your own file — Daily Watchman `watchman.md`, SEO Discovery `seo.md`, Premium UX Review `premium.md`, Weekly Review and Repository Steward `weekly-review.md`, Ask Nalu `ask-nalu.md`. Before you finish, update your file, and `main.md` when the change matters to others (started, finished, parked or handed off work; a decision by Josh). Edit in place, keep within the size limits, commit with your change. Rules and the automatic Sunday cleanup: `docs/passdown/README.md`.
 
 Product direction agreed with Josh (Oct 11, 2026): docs/product/direction.md — one screen, door to door, with cost and plain how-to; Hawaiʻi first; fix speed and the Skyline "no trip" alert before anything else.
 
