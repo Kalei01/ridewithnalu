@@ -8,7 +8,7 @@ vi.mock("@/lib/debug-log", () => ({ debugLog: vi.fn() }));
 const driveTime = vi.fn();
 vi.mock("@/lib/drive.functions", () => ({ driveTime: (...args: unknown[]) => driveTime(...args) }));
 
-const { planTransitTrip, planTransitTripDetailed, resetOutboundMultiProbe } =
+const { planTransitTrip, planTransitTripDetailed, resetOutboundMultiProbe, setUseOutboundMulti } =
   await import("./transit-plan");
 const { emptySetup } = await import("./commute-model");
 const { clearPlannerCache } = await import("./planner-cache");
@@ -17,6 +17,7 @@ const { clearPlannerCache } = await import("./planner-cache");
 beforeEach(() => {
   clearPlannerCache();
   resetOutboundMultiProbe();
+  setUseOutboundMulti(false); // production setting: migration 0065 is not applied
 });
 
 type Reply = { data: unknown; error: unknown };
@@ -583,6 +584,19 @@ describe("transit trip planner: drive to the station + Skyline", () => {
     expect(staggered).toEqual(together);
   });
 
+  it("never asks for plan_outbound_multi while the switch is off (production), and still searches every station", async () => {
+    driveTime.mockResolvedValue({ trafficMinutes: 12 });
+    answer({
+      plan_transit_general: ok([bus91]),
+      plan_outbound: (args: Record<string, unknown>) =>
+        args["p_station"] === KEONEAE.stop_id ? ok([driveToKeoneae]) : ok([driveToKualakai]),
+    });
+    await planTransitTrip(trip({ lat: 21.32203, lon: -158.03366 }, NOW));
+    const names = rpc.mock.calls.map(([n]) => n);
+    expect(names).not.toContain("plan_outbound_multi");
+    expect(names.filter((n) => n === "plan_outbound").length).toBeGreaterThan(1);
+  });
+
   describe("one database search for every station (plan_outbound_multi)", () => {
     const separately = (args: Record<string, unknown>) =>
       args["p_station"] === KEONEAE.stop_id ? ok([driveToKeoneae]) : ok([driveToKualakai]);
@@ -595,7 +609,10 @@ describe("transit trip planner: drive to the station + Skyline", () => {
       return planTransitTrip(trip(ewa, NOW));
     }
 
-    beforeEach(() => driveTime.mockResolvedValue({ trafficMinutes: 12 }));
+    beforeEach(() => {
+      setUseOutboundMulti(true); // the switch is off in production; these cover the parked path
+      driveTime.mockResolvedValue({ trafficMinutes: 12 });
+    });
 
     it("gives the same options as the station-by-station searches, in one search", async () => {
       const before = await fallbackAnswer();

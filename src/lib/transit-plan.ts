@@ -99,6 +99,20 @@ const MULTI_RETRY_MS = 10 * 60_000;
 const MULTI_BACKOFF_MS = 2 * 60_000;
 let outboundMultiMissingUntil = 0;
 
+/**
+ * Switch for the combined station search (plan_outbound_multi, migration
+ * 0065). Off: that migration is parked and NOT applied in production
+ * (scripts/db-speed/README.md), so every call was a 404 before falling back to
+ * the per-station searches. Turn on only after 0065 is fixed and applied.
+ */
+const USE_OUTBOUND_MULTI = false;
+let useOutboundMulti = USE_OUTBOUND_MULTI;
+
+/** Turn the combined station search on or off (tests; the code path stays covered). */
+export function setUseOutboundMulti(on: boolean) {
+  useOutboundMulti = on;
+}
+
 /** Forget that the combined station search was missing or failed (tests). */
 export function resetOutboundMultiProbe() {
   outboundMultiMissingUntil = 0;
@@ -353,8 +367,9 @@ async function searchTransit(
       dropOffStations,
     });
     const searched =
-      (stations.length > 1 ? await fetchOutboundTogether(stations, cursor) : null) ??
-      (await fetchOutboundEach(stations, cursor));
+      (useOutboundMulti && stations.length > 1
+        ? await fetchOutboundTogether(stations, cursor)
+        : null) ?? (await fetchOutboundEach(stations, cursor));
     // Safety net: with no vehicle available, no result may carry a car leg.
     const found = searched.filter(
       (option) => vehicleToStation !== "none" || !option.legs.some((leg) => leg.mode === "drive"),
