@@ -1,6 +1,5 @@
 # Passdown — SEO Discovery (Mon/Thu 5:58 AM HST)
-Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md.
-See your run gate in `docs/agents/run-gates.md` before each scheduled run.
+Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Current focus
 - Backlog: `docs/seo/backlog.md`; log: `docs/seo/search-review-log.md`.
@@ -13,6 +12,9 @@ See your run gate in `docs/agents/run-gates.md` before each scheduled run.
 - Trust & authority pages are built by a separate Opus session (Tue Oct 13); don't duplicate.
 
 - App station names live since e3a3638; guides can now be updated (English name first, Hawaiian second; table in docs/product/direction.md).
+
+## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- (none yet)
 
 ## Last run
 - Thu Oct 8: RUN OK, review only, no page changes.

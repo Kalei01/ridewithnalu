@@ -1,6 +1,5 @@
 # Passdown — Weekly Review (Sun 9:47 AM HST) and Repository Steward
-Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md.
-See your run gate in `docs/agents/run-gates.md` before each scheduled run.
+Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Decisions waiting on Josh
 - Supabase Pro ($25/mo: backups + more memory) — deferred for budget; don't push it, mention only if a risk appears.
@@ -18,3 +17,6 @@ See your run gate in `docs/agents/run-gates.md` before each scheduled run.
 
 ## Last cleanup
 - None yet.
+
+## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- (none yet)
