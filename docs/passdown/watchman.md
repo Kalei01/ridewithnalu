@@ -1,5 +1,6 @@
 # Passdown — Daily Watchman + Triage (weekdays 6:13 AM HST)
 Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md.
+See your run gate in `docs/agents/run-gates.md` before each scheduled run.
 
 ## Watching
 - **Skyline "No Skyline trip" on the first rush-hour try, Kapolei → downtown** (OPEN since Oct 7; alerts.md). Main session owns the fix; recorder runs Mon Oct 12 6:25 AM HST. Keep running the SILENT FAILURES check and the 60 s retry; log "seen again" lines, don't re-investigate.

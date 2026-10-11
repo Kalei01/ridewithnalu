@@ -1,5 +1,6 @@
 # Passdown — SEO Discovery (Mon/Thu 5:58 AM HST)
 Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md.
+See your run gate in `docs/agents/run-gates.md` before each scheduled run.
 
 ## Current focus
 - Backlog: `docs/seo/backlog.md`; log: `docs/seo/search-review-log.md`.

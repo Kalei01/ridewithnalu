@@ -1,5 +1,6 @@
 # Passdown — Premium UX Review (Wed 10:47 AM HST)
 Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md.
+See your run gate in `docs/agents/run-gates.md` before each scheduled run.
 
 ## Current focus
 - Backlog: `docs/experience/backlog.md`; seasons: `docs/experience/seasonal.md`; direction: `docs/product/direction.md`.
