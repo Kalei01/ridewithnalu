@@ -48,3 +48,5 @@ Built by a dedicated session (not the routine), one page at a time, full quality
 ## Owner items to remind (drop when the owner confirms done)
 (Oct 7: the owner won't request indexing manually; Google will crawl on its own. Report index status, but don't remind him to request indexing.)
 Cloudflare WAF rate limit on /_serverFn/ (~300 req/min/IP); AirNow API key likely wrong. (Supabase backups: checked Oct 8 — Free plan has none; Pro deferred for budget, see docs/cities/plan.md. Do not remind.)
+
+- **Skyline station names on guide/SEO pages** (from the station-names build, Oct 11, 2026): the app now shows "English name" with the Hawaiian name under it (table in docs/product/direction.md). Update the public guide pages to use the same names and spelling. Not done by the build session; SEO owns these pages.

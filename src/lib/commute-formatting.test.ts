@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { busRouteLabel, stationLabel, terminusLabel, titleCase } from "./commute-formatting";
-import { skylineStationFromText, skylineStationName, withStation } from "./rail/station-names";
+import {
+  skylineStationFromText,
+  skylineStationName,
+  skylineStationParts,
+  withStation,
+} from "./rail/station-names";
 
 describe("display names", () => {
   it("spells Kualakaʻi with the ʻokina however GTFS or typed text has it", () => {
@@ -55,6 +60,22 @@ describe("Skyline station names riders see (confirmed Oct 11, 2026)", () => {
   it("names a station by its stop id", () => {
     expect(skylineStationName("10045")).toBe("Hoʻopili (Honouliuli)");
     expect(skylineStationName("99999")).toBeUndefined();
+  });
+});
+
+describe("skylineStationParts", () => {
+  it("splits a station into English and Hawaiian for the two-line display", () => {
+    expect(skylineStationParts("KAHAUIKI KALIHI TRN CTR SKYLINE STATION")).toEqual({
+      english: "Kalihi Transit Center",
+      hawaiian: "Kahauiki",
+    });
+    expect(skylineStationParts("Hālawa")).toEqual({ english: "Aloha Stadium", hawaiian: "Hālawa" });
+  });
+
+  it("is undefined for streets and bus stops", () => {
+    expect(skylineStationParts("KUALAKAI PKWY KAPOLEI")).toBeUndefined();
+    expect(skylineStationParts("MAKALAPA DR PEARL HARBOR")).toBeUndefined();
+    expect(skylineStationParts(null)).toBeUndefined();
   });
 });
 

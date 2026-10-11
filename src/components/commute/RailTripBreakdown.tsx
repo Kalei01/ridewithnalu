@@ -16,7 +16,8 @@ import {
   transitStopName,
 } from "@/lib/commute-formatting";
 import { Leg, Option, modeIcon, vehicleName } from "@/lib/commute-model";
-import { withStation } from "@/lib/rail/station-names";
+import { skylineStationParts, withStation } from "@/lib/rail/station-names";
+import { StationName } from "@/components/commute/StationName";
 
 export const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
 
@@ -118,7 +119,7 @@ export function RailTripBreakdown({
               : leg.kind === "access"
                 ? leg.mode === "bus" || toBusStop
                   ? `${stationName || titleCase(leg.to) || "stop"}`
-                  : `${stationName || titleCase(leg.to) || "station"} Station platform`
+                  : `${withStation(stationName || titleCase(leg.to) || "station")} platform`
                 : titleCase(leg.to);
           const liveArrival =
             leg.mode === "bus"
@@ -259,17 +260,25 @@ export function RailTripBreakdown({
                   </div>
                 ) : leg.mode === "rail" ? (
                   <div className="mt-2 space-y-1.5">
-                    <p className="text-sm font-semibold text-foreground">
-                      Board at: {transitStopName(leg, "from")} ·{" "}
-                      {clockFromSeconds(leg.depart_seconds)}
-                    </p>
+                    <div className="flex items-start justify-between gap-2 text-sm font-semibold text-foreground">
+                      <span className="min-w-0">
+                        Board at:
+                        <RailStop name={leg.from} />
+                      </span>
+                      <span className="shrink-0 tabular-nums">
+                        {clockFromSeconds(leg.depart_seconds)}
+                      </span>
+                    </div>
                     <LandmarkHint name={transitStopName(leg, "from")} />
-                    <p className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
-                      <span>Get off at: {transitStopName(leg, "to")}</span>
+                    <div className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-recommended/50 bg-recommended/10 px-2.5 py-2 text-sm font-bold text-foreground">
+                      <span className="min-w-0">
+                        Get off at:
+                        <RailStop name={leg.to} />
+                      </span>
                       <span className="shrink-0 tabular-nums">
                         {clockFromSeconds(leg.arrive_seconds)}
                       </span>
-                    </p>
+                    </div>
                     <LandmarkHint name={transitStopName(leg, "to")} />
                   </div>
                 ) : (
@@ -438,4 +447,11 @@ export function BusArrivalTime({
       </p>
     </div>
   );
+}
+
+/** A rail stop on its own line(s): English name, Hawaiian name under it for Skyline stations. */
+function RailStop({ name }: { name: string | null }) {
+  if (skylineStationParts(name)) return <StationName name={name} />;
+  const label = stationLabel(name);
+  return <span className="block">{label ? withStation(label) : "the station"}</span>;
 }

@@ -102,6 +102,9 @@ const STATIONS: ReadonlyArray<{
 const riderName = (station: (typeof STATIONS)[number]) =>
   `${station.english} (${station.hawaiian})`;
 
+/** A Skyline station's two names, for screens that show the Hawaiian name on its own line. */
+export type StationParts = { english: string; hawaiian: string };
+
 /**
  * A station label as a place to go: "Kalihi Transit Center (Kahauiki)" stays as
  * it is; any other name gets " Station" ("Lelepaua Station").
@@ -122,6 +125,17 @@ export function skylineStationName(stopId: string | null | undefined): string | 
  * undefined when the text isn't a Skyline station.
  */
 export function skylineStationFromText(value: string | null | undefined): string | undefined {
+  const station = findStation(value);
+  return station ? riderName(station) : undefined;
+}
+
+/** The English and Hawaiian names apart ("Kalihi Transit Center", "Kahauiki"), or undefined. */
+export function skylineStationParts(value: string | null | undefined): StationParts | undefined {
+  const station = findStation(value);
+  return station ? { english: station.english, hawaiian: station.hawaiian } : undefined;
+}
+
+function findStation(value: string | null | undefined) {
   if (!value) return undefined;
   const text = value
     .normalize("NFD")
@@ -131,13 +145,13 @@ export function skylineStationFromText(value: string | null | undefined): string
     .replace(/[^A-Z0-9]+/g, " ")
     .trim();
   for (const station of STATIONS) {
-    if (text === station.key) return riderName(station);
+    if (text === station.key) return station;
     if (!text.startsWith(`${station.key} `)) continue;
     const rest = text.slice(station.key.length + 1);
     // Only a station's own name: a bus stop like "KUALAKAI PKWY KAPOLEI" stays a street.
     const stationWord = /\b(STATION|STN|SKYLINE)\b/.test(rest);
     if (stationWord && (rest.includes(station.place) || /^(SKYLINE )?(STATION|STN)$/.test(rest)))
-      return riderName(station);
+      return station;
   }
   return undefined;
 }
