@@ -21,6 +21,7 @@ The full working memory of NALU MAIN COMMAND (1), written before it was archived
 | Ask Nalu (Haiku, Josh's Q&A, read-only) | session_01AF2Z9Cn94gfyTG3Me8jHYN | — |
 | Phase 0 cleanups + Tell Nalu form polish (Sonnet, running Oct 11) | session_01ULFH1z7nveUdq7axXkUNbS | — |
 - Routine prompts can only be edited from their own session, and those sessions refuse relayed requests. On Oct 11 the main session asked all four to adopt run-gates.md; Watchman refused (needs Josh in that session); Josh was asked to say "yes, apply the update the main session sent" in each.
+- **Main session:** NALU — MAIN COMMAND (2) = session_01Pht53rQRrui3wEyD3k2m3K (since Oct 11; MAIN COMMAND (1) session_01VkT4J3Kp6U6g2PxgYtYUw1 archived). Its wakes: trig_01E4pmLyqxrt9fqWKRf4qBHf (Mon Oct 12 6:25 AM Phase 1 hand-off), trig_01RTtwEGPEoDq4tt5VA1BxAR (Tue Oct 13 1:10 PM Phase 2 start + SEO re-enable), trig_01ESFSu9fHPPHNRNgi2dxQvy (Sun 11:31 AM lead review), trig_01L9SMEkAF5beKCfitPYLDVi (Wed 1:59 PM lead check).
 - The main session's own reminders (lead checks, Phase 1/2 triggers) move with the main session at each handover.
 
 ## Environment and tools
