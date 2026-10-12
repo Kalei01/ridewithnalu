@@ -2,7 +2,7 @@
 Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Watching
-- **Skyline "No Skyline trip" on the first rush-hour try, Kapolei → downtown** (OPEN since Oct 7; alerts.md). Main session owns the fix; recorder runs Mon Oct 12 6:25 AM HST. Keep running the SILENT FAILURES check and the 60 s retry; log "seen again" lines, don't re-investigate.
+- **Skyline "No Skyline trip" on the first rush-hour try, Kapolei → downtown** (OPEN since Oct 7; alerts.md). Main session owns the fix; Oct 12 recording showed it OK (no repro), fix folded into Phase 2 (Tue Oct 13). Keep running the SILENT FAILURES check and the 60 s retry; log "seen again" lines, don't re-investigate.
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
