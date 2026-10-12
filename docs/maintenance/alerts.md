@@ -2,16 +2,6 @@
 
 Every Watchman alert and what Alert Triage did about it. Newest first. Repeats within 7 days are not re-investigated.
 
-## 2026-10-12 — Drive ETA: Nalu 43 min vs Google/Apple 31–33 (Josh's Home (ʻEwa Beach) → 55 Merchant St) — no bug found, nothing changed
-
-- **Reported:** ~7:00 AM HST Mon Oct 12, Nalu 43 min; Google/Apple 31–33.
-- **Measured 7:23 AM HST (390×844, geolocation = Home point 21.319, -158.032, `?to=21.309,-157.863`):** Drive row **41 min**, TomTom live 41 vs typical (historical) 43 (−2 min delay), **34.2 km**, "Via H-1 East → Nimitz Hwy", parking not included (+0). Same minute: Kapolei → Merchant 34 live / 35 typical, 32.7 km. Average speed ≈ 50 km/h (Google's 32 min on the same ~34 km would be ≈ 64 km/h).
-- **Places:** Merchant St lands at 21.309, -157.863 (street match). Nalu's search has no exact Kamakana number (offers neighbouring 91-20xx numbers on the street); used a point on Kamakana St, within ~300 m of Home. Not a cause: the route starts on the right street.
-- **Checked:** route is the usual Fort Weaver/Kunia Rd → H-1 East → Nimitz (no detour); no `vehicleHeadingInDegrees` sent (optional, origin snaps correctly); request is `traffic: live`, `routeType: fast`, car, correct for now; the row is TomTom `travelDurationInSeconds` rounded, no buffer, no HDOT/incident minutes added; live is *below* typical, so cache/stale is not inflating it.
-- **Verdict:** TomTom's own live and historical estimates are simply higher than Google's/Apple's for this trip. No bug → no code change.
-- **Options (Josh's call, 🔴 because it changes the verdict):** (a) keep TomTom's number and label it honestly (e.g. "TomTom live traffic"); (b) calibrate against Google/Apple. Recommendation: (a), unless Tuesday readings keep showing a 8+ min gap.
-- **Tuesday readings** (6:45, 7:00, 7:15 AM HST, `node scripts/diag/drive-eta-check.mjs`): pending.
-
 ## 2026-10-08 — Planner speed 2: one database search for every boarding station (Opus session, Josh approved "speed first")
 
 - **What:** a trip with a car ran 4–5 `plan_outbound` searches (home station first, then park-and-ride + drop-off stations). New database function `plan_outbound_multi` (migration `0065`, additive; nothing else changed) searches all stations in one call: the per-station part runs exactly as `plan_outbound`, the destination-side bus search (the expensive part) runs once. The app calls it once when there are 2+ stations and falls back to the old per-station searches if it's missing or fails (missing → re-checks after 10 min; failure → 2 min), so the app ships before the database change with no rider-visible difference.
