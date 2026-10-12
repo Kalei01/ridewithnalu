@@ -38,3 +38,4 @@ Read first, every session. Rules for keeping it current and small: `docs/passdow
 
 ## Where things are recorded
 Alerts `docs/maintenance/alerts.md` · autonomous fixes `docs/maintenance/autofix-log.md` · weekly reports `docs/reviews/` · UX backlog `docs/experience/backlog.md` · SEO backlog/log `docs/seo/` · proposals `docs/product/proposals.md` · service limits `docs/maintenance/service-limits.md` · cities `docs/cities/`.
+- Josh, Oct 11: Lovable is cancelled and the AI key, Firebase service account and CRON_SECRET are set in Cloudflare, so remove the Lovable fallbacks, dependency and `.lovable/` in ONE Sonnet cleanup after Phase 2 (security-keys review; sign-in must keep working live). Business stats: Josh is granting the read-only role EXECUTE on usage_stats()/funnel_stats(). No Cloudflare cost token (not needed).
