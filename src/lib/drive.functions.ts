@@ -97,6 +97,53 @@ function round(value: number) {
   return Math.round(value * 10000) / 10000;
 }
 
+const ORBIS_ROUTE_URL = "https://api.tomtom.com/maps/orbis/routing/routes/calculate?apiVersion=3";
+
+/** One cache key per trip ends, departure (5-min bucket) and heading. */
+function driveCacheKey(data: z.infer<typeof schema>) {
+  const from = `${round(data.fromLat)},${round(data.fromLon)}`;
+  const to = `${round(data.toLat)},${round(data.toLon)}`;
+  const departureBucket = data.departureTime
+    ? Math.floor(new Date(data.departureTime).getTime() / (5 * 60_000))
+    : "now";
+  const headingBucket =
+    data.bearing === undefined ? "none" : Math.round((data.bearing % 360) / 15) * 15;
+  return `${from}:${to}:${departureBucket}:${headingBucket}`;
+}
+
+/** The live (or future-estimate) route request, the same for every caller. */
+function orbisRouteBody(data: z.infer<typeof schema>) {
+  return {
+    routePlanningLocations: {
+      origin: { type: "Point", coordinates: [data.fromLon, data.fromLat] },
+      destination: { type: "Point", coordinates: [data.toLon, data.toLat] },
+    },
+    traffic: "live",
+    routeType: "fast",
+    travelMode: "car",
+    vehicleEngineType: "combustion",
+    ...(data.departureTime ? { departureDateTime: data.departureTime } : {}),
+    ...(data.bearing === undefined ? {} : { vehicleHeadingInDegrees: Math.round(data.bearing % 360) }),
+    guidance: "instructions",
+    instructionPhonetics: "ipa",
+  };
+}
+
+function requestOrbisRoute(key: string, routeBody: ReturnType<typeof orbisRouteBody>) {
+  return fetch(ORBIS_ROUTE_URL, { signal: AbortSignal.timeout(8000),
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "TomTom-Api-Key": key,
+      "TomTom-Api-Version": "3",
+      Accept: "application/json",
+      Attributes: "routes",
+      "Accept-Language": "en-GB",
+    },
+    body: JSON.stringify(routeBody),
+  });
+}
+
 /** Live driving time with traffic plus any incident on the route, via TomTom. */
 export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<DriveTime | null> {
   const key = tomtomKey();
@@ -106,14 +153,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
   }
 
   try {
-    const from = `${round(data.fromLat)},${round(data.fromLon)}`;
-    const to = `${round(data.toLat)},${round(data.toLon)}`;
-    const departureBucket = data.departureTime
-      ? Math.floor(new Date(data.departureTime).getTime() / (5 * 60_000))
-      : "now";
-    const headingBucket =
-      data.bearing === undefined ? "none" : Math.round((data.bearing % 360) / 15) * 15;
-    const cacheKey = `${from}:${to}:${departureBucket}:${headingBucket}`;
+    const cacheKey = driveCacheKey(data);
     const cached = cache.get(cacheKey);
     if (!data.forceRefresh && cached && Date.now() - cached.fetchedAt < CACHE_MS) {
       console.info("[drive] cache_hit", { trafficBasis: cached.trafficBasis });
@@ -123,34 +163,9 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     });
 
-    const routeUrl = "https://api.tomtom.com/maps/orbis/routing/routes/calculate?apiVersion=3";
-    const routeBody = {
-      routePlanningLocations: {
-        origin: { type: "Point", coordinates: [data.fromLon, data.fromLat] },
-        destination: { type: "Point", coordinates: [data.toLon, data.toLat] },
-      },
-      traffic: "live",
-      routeType: "fast",
-      travelMode: "car",
-      vehicleEngineType: "combustion",
-      ...(data.departureTime ? { departureDateTime: data.departureTime } : {}),
-      ...(data.bearing === undefined ? {} : { vehicleHeadingInDegrees: Math.round(data.bearing % 360) }),
-      guidance: "instructions",
-      instructionPhonetics: "ipa",
-    };
-
-    const response = await fetch(routeUrl, { signal: AbortSignal.timeout(8000),
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "TomTom-Api-Key": key,
-        "TomTom-Api-Version": "3",
-        Accept: "application/json",
-        Attributes: "routes",
-        "Accept-Language": "en-GB",
-      },
-      body: JSON.stringify(routeBody),
-    });
+    const routeUrl = ORBIS_ROUTE_URL;
+    const routeBody = orbisRouteBody(data);
+    const response = await requestOrbisRoute(key, routeBody);
     if (!response.ok) {
       console.error(`[drive] Orbis routing unavailable: TomTom returned ${response.status}`);
       return null;
@@ -254,6 +269,56 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
   } catch {
     // An unavailable route is not a zero-minute drive. The caller can keep
     // rendering rail and cached schedules without a failed server action.
+    console.error("[drive] routing unavailable: TomTom request failed");
+    return null;
+  }
+}
+
+const trafficCache = new Map<string, { trafficMinutes: number; fetchedAt: number }>();
+
+/**
+ * Only the live road time, for timing a drive to a Skyline station on the
+ * server (transit-plan.server.ts): the same route request, the same rounding
+ * and the same two-minute memory as lookupDriveTime's trafficMinutes, without
+ * the typical-traffic, incident and roadwork lookups only the Drive row shows.
+ * One outgoing request instead of up to five, so a trip search fits the
+ * server's per-request limit.
+ */
+export async function lookupTrafficMinutes(
+  data: z.infer<typeof schema>,
+): Promise<{ trafficMinutes: number } | null> {
+  const key = tomtomKey();
+  if (!key) {
+    console.error("[drive] routing unavailable: TOMTOM_API_KEY is not set");
+    return null;
+  }
+  const cacheKey = driveCacheKey(data);
+  const full = cache.get(cacheKey);
+  if (full && Date.now() - full.fetchedAt < CACHE_MS) return { trafficMinutes: full.trafficMinutes };
+  const remembered = trafficCache.get(cacheKey);
+  if (remembered && Date.now() - remembered.fetchedAt < CACHE_MS)
+    return { trafficMinutes: remembered.trafficMinutes };
+  try {
+    const response = await requestOrbisRoute(key, orbisRouteBody(data));
+    if (!response.ok) {
+      console.error(`[drive] Orbis routing unavailable: TomTom returned ${response.status}`);
+      return null;
+    }
+    const payload = (await response.json()) as {
+      routes?: Array<{ summary?: { travelDurationInSeconds?: number } }>;
+    };
+    const seconds = payload.routes?.[0]?.summary?.travelDurationInSeconds;
+    if (!seconds) return null;
+    const trafficMinutes = Math.round(seconds / 60);
+    trafficCache.delete(cacheKey);
+    trafficCache.set(cacheKey, { trafficMinutes, fetchedAt: Date.now() });
+    while (trafficCache.size > MAX_CACHE_ENTRIES) {
+      const oldest = trafficCache.keys().next().value;
+      if (typeof oldest !== "string") break;
+      trafficCache.delete(oldest);
+    }
+    return { trafficMinutes };
+  } catch {
     console.error("[drive] routing unavailable: TomTom request failed");
     return null;
   }
