@@ -22,6 +22,14 @@ Status words: TODO, IN PROGRESS, DONE (date, commit), DECISION (needs the owner)
 5. TODO (Oct 8: autocomplete shows "honolulu rush hour times"; blocked until the TomTom figures below are re-read on tomtom.com/traffic-index/city/honolulu-hi/, which loads them with scripts and could not be fetched as text) "Honolulu rush hour": /oahu-commute's focus was set Oct 6 (choosing drive vs TheBus vs Skyline) — don't change its title or focus without Search Console evidence. A sourced rush-hour section on it is fine; it may cite TomTom's published Honolulu figures (2025: 50.5% congestion, 88 hours lost, 10 km in 25:06 morning / 26:19 evening rush) with attribution; no hour-by-hour start/end times without a citable source.
 6. DECISION First-party drive-time sampling to answer "when to leave" — needs the owner's approval and a TomTom terms check. Never build it unasked.
 
+## Josh's SEO pass (Oct 13, 2026; trimmed by NALU MAIN, approved by Josh). Start after Phase 2; 1–2 items per run, top-down
+7. TODO Missing structured data only: Organization + WebApplication (free, PWA, Add to Home Screen) on / and /install; Article with dateModified from the page's "Last updated" on guides. FAQ/HowTo/Breadcrumb/WebSite already exist in src/components/guides/guide-head.ts; reuse them and don't duplicate. Validate the JSON-LD.
+8. TODO Titles and descriptions: rewrite only pages where Search Console shows impressions with low CTR. Location keyword first, ≤ 60 chars incl. " | Nalu", descriptions 140–160 chars. Leave /oahu-commute's title alone (rule 5 above).
+9. TODO New page: /guides/skyline-fares-and-hours (hours, frequency, fares, first/last trains), official sources only (DTS/HART/TheBus), month/year labelled. Check the transfer window (believed 2.5 h, not 2) and which stations are open now. Publish nothing unverified.
+10. TODO New page, only if Search Console or autocomplete shows demand: /guides/kailua-kaneohe-to-honolulu (bus routes; Pali vs Likelike vs H-3; no rail). Sourced.
+11. TODO Speed, after Phase 2 lands (it rewrites src/routes/index.tsx): lazy-load the homepage map/trip widget so it doesn't block LCP; guides fully server-rendered; image width/height/alt; cache headers (immutable hashed assets, short TTL /roadwork). Measure before/after (LCP, CLS, TBT). Run the mobile-design and nalu-performance reviewers.
+SKIP from that prompt: an "airport to Waikīkī" page (duplicates /guides/honolulu-airport-without-driving; improve that page instead if data shows demand); a "Nalu vs Moovit vs Transit" title (comparison phrasing isn't searched); Waikīkī car-free, HOLO card, Ko Olina and Hawaiʻi Kai pages for now (no evidence yet; never batch pages); publishing [VERIFY] facts.
+
 ## Later
 - "Is Skyline running today" (only with an official live alerts feed).
 - HART Dillingham closures on /roadwork.
