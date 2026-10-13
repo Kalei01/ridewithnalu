@@ -9,8 +9,8 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 - If the main session has shipped a Skyline fix (see main.md), confirm it at rush hour and say clearly whether it held.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R0 (Tue Oct 13: all clear, trips yes; Skyline OK first try, 2nd morning in a row)
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Mon Oct 12, 6:16 AM HST (trips: yes — Monday + OPEN alert): health OK (planner 5380 ms), 19/19 pages OK, http→https 301. Kapolei, ʻEwa Beach and Airport trips all showed Skyline + Bus + Drive on the FIRST try (3.1–5.7 s); the "no Skyline trip" did not appear (retries also fine). One good morning doesn't close the alert; keep checking.
-- WEEKLY: timetable valid until 2026-12-05 (54 days). Users this week 39 (previous week 130), accounts 3, new accounts 0, all direct.
+- Tue Oct 13, 6:18 AM HST (trips: yes — OPEN alert): health OK (planner 4881 ms), 19/19 pages OK, http→https 301. Kapolei, ʻEwa Beach, Airport: Skyline + Bus + Drive on the first try (2.6–6.7 s); no "no Skyline trip"; retries fine. Rush-hour Drive was 1 hr 11 min (Kapolei) — real traffic, not an error. Skyline held 2 mornings in a row (Oct 12, 13).
