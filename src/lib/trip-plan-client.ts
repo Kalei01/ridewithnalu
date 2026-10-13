@@ -53,11 +53,14 @@ export async function planTrip(ctx: TransitPlanContext): Promise<TransitPlanResu
   }
   debugLog("trip_plan_server", {
     ms: answer.timing.ms,
-    searches: answer.timing.searches,
+    searches: answer.timing.searchesSent,
     drives: answer.timing.driveLookups,
     late: answer.timing.late,
     failed: answer.failed,
+    over_budget: answer.overBudget,
   });
+  // Too big for one server request: the phone runs it, so the answer is never cut short.
+  if (answer.overBudget) return planTransitTripDetailed(ctx);
   // Same as a planner failure on the phone: both rows say "Can't check".
   if (answer.failed) throw new Error("Trip search failed on the server");
   return { options: answer.options, unchecked: answer.unchecked };

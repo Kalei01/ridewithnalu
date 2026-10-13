@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PLANNER_CACHE_TTL_MS, cachedPlannerSearch, clearPlannerCache } from "./planner-cache";
+import {
+  PLANNER_CACHE_TTL_MS,
+  cachedPlannerSearch,
+  clearPlannerCache,
+  settledPlannerSearch,
+} from "./planner-cache";
 
 const T0 = Date.parse("2026-10-08T17:00:00Z"); // 7:00 AM in Honolulu
 
@@ -70,5 +75,46 @@ describe("planner cache", () => {
     first.data[0]!.legs[0]!.minutes = 99;
     const second = await cachedPlannerSearch("plan_x", {}, search, T0);
     expect(second.data[0]!.legs[0]!.minutes).toBe(5);
+  });
+});
+
+describe("server memory (settledPlannerSearch)", () => {
+  const NOON = Date.parse("2026-10-14T22:00:00Z");
+
+  it("shares a finished answer between requests, but never a search still running", async () => {
+    clearPlannerCache();
+    let runs = 0;
+    const finishers: Array<(value: { data: number[]; error: null }) => void> = [];
+    const slow = () =>
+      new Promise<{ data: number[]; error: null }>((resolve) => {
+        runs += 1;
+        finishers.push(resolve);
+      });
+    const requestA = new Map<string, Promise<unknown>>();
+    const requestB = new Map<string, Promise<unknown>>();
+    const a1 = settledPlannerSearch("plan_bus_direct", { p: 1 }, slow, requestA, NOON);
+    const a2 = settledPlannerSearch("plan_bus_direct", { p: 1 }, slow, requestA, NOON);
+    // Another request does not wait on request A's connection.
+    settledPlannerSearch("plan_bus_direct", { p: 1 }, slow, requestB, NOON);
+    expect(runs).toBe(2);
+    for (const finish of finishers) finish({ data: [1], error: null });
+    expect(await a1).toEqual({ data: [1], error: null });
+    expect(await a2).toEqual({ data: [1], error: null });
+    // Once finished, a third request gets it without a search.
+    const later = await settledPlannerSearch("plan_bus_direct", { p: 1 }, slow, new Map(), NOON);
+    expect(later).toEqual({ data: [1], error: null });
+    expect(runs).toBe(2);
+  });
+
+  it("never keeps a failure", async () => {
+    clearPlannerCache();
+    let runs = 0;
+    const failing = async () => {
+      runs += 1;
+      return { data: null, error: { message: "timeout" } };
+    };
+    await settledPlannerSearch("plan_outbound", { p: 2 }, failing, new Map(), NOON);
+    await settledPlannerSearch("plan_outbound", { p: 2 }, failing, new Map(), NOON);
+    expect(runs).toBe(2);
   });
 });

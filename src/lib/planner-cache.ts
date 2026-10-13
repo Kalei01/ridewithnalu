@@ -1,5 +1,7 @@
 /**
- * Short-lived memory of timetable searches, kept in this browser tab only.
+ * Short-lived memory of timetable searches: in the phone's browser tab
+ * (cachedPlannerSearch) and, for the server trip search, in the server
+ * (settledPlannerSearch, finished answers only; Phase 2).
  *
  * The planner functions (plan_bus_direct, plan_transit_general, plan_outbound,
  * plan_outbound_multi, plan_inbound, service_hours, rail_stations,
@@ -107,7 +109,48 @@ export function cachedPlannerSearch<T>(
   return answer.then(copy);
 }
 
+const settled = new Map<string, { expires: number; answer: unknown }>();
+
+/**
+ * The server's version: finished answers are shared between requests (the
+ * same exact search within a few minutes), while a search still running is
+ * shared only inside the request that started it (`inflight`, one per
+ * request): a server request can't wait on another request's connection.
+ */
+export function settledPlannerSearch<T>(
+  fn: string,
+  args: Record<string, unknown> | undefined,
+  search: () => PromiseLike<T>,
+  inflight: Map<string, Promise<unknown>>,
+  nowMs: number = Date.now(),
+): Promise<T> {
+  if (plannerCacheOff(nowMs)) return Promise.resolve(search());
+  const key = `${fn}|${honoluluDay.format(nowMs)}|${stable(args ?? {})}`;
+  const hit = settled.get(key);
+  if (hit && hit.expires > nowMs) return Promise.resolve(copy(hit.answer as T));
+  if (hit) settled.delete(key);
+  const running = inflight.get(key);
+  if (running) return running.then((answer) => copy(answer as T));
+
+  const answer = new Promise<T>((resolve) => resolve(search()));
+  inflight.set(key, answer);
+  answer.then(
+    (result) => {
+      if (failed(result)) return;
+      settled.set(key, { expires: nowMs + PLANNER_CACHE_TTL_MS, answer: result });
+      while (settled.size > MAX_ENTRIES) {
+        const oldest = settled.keys().next().value;
+        if (oldest === undefined) break;
+        settled.delete(oldest);
+      }
+    },
+    () => {},
+  );
+  return answer.then(copy);
+}
+
 /** Forget every remembered search (tests). */
 export function clearPlannerCache() {
   entries.clear();
+  settled.clear();
 }

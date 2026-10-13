@@ -14,21 +14,37 @@ vi.mock("@/lib/drive.functions", () => ({
 vi.mock("@/lib/rate-limit.server", () => ({ rateLimit: () => ({}) }));
 
 const { planTransitTripDetailed } = await import("./transit-plan");
-const { planTripOnServer, serverDeps } = await import("./transit-plan.server");
-const { toTripPlanInput, fromTripPlanInput, tripPlanInput } = await import(
-  "./transit-plan.functions"
-);
+const { planTripOnServer, serverDeps, emptyStats } = await import("./transit-plan.server");
+const { toTripPlanInput, fromTripPlanInput, tripPlanInput } =
+  await import("./transit-plan.functions");
 const { emptySetup } = await import("./commute-model");
 const { clearPlannerCache } = await import("./planner-cache");
 
 type Reply = { data: unknown; error: unknown };
 const ok = (data: unknown): Reply => ({ data, error: null });
 
-const HOME_STATION = { stop_id: "10047", stop_name: "KUALAKAI", stop_lat: 21.3386, stop_lon: -158.0662 };
-const LOT_STATION = { stop_id: "10053", stop_name: "KEONEAE", stop_lat: 21.3554, stop_lon: -158.0548 };
+const HOME_STATION = {
+  stop_id: "10047",
+  stop_name: "KUALAKAI",
+  stop_lat: 21.3386,
+  stop_lon: -158.0662,
+};
+const LOT_STATION = {
+  stop_id: "10053",
+  stop_name: "KEONEAE",
+  stop_lat: 21.3554,
+  stop_lon: -158.0548,
+};
 const NOW = 6 * 3600 + 30 * 60;
 
-function leg(mode: string, from: string, to: string, depart: number, arrive: number, toStop?: string) {
+function leg(
+  mode: string,
+  from: string,
+  to: string,
+  depart: number,
+  arrive: number,
+  toStop?: string,
+) {
   return {
     mode,
     from,
@@ -61,7 +77,10 @@ const bus91 = {
   depart_seconds: NOW + 600,
   arrive_seconds: NOW + 4800,
   total_minutes: 75,
-  legs: [leg("bus", "Fort Weaver Rd", "S King St", NOW + 600, NOW + 4700), leg("walk", "S King St", "Your destination", NOW + 4700, NOW + 4800)],
+  legs: [
+    leg("bus", "Fort Weaver Rd", "S King St", NOW + 600, NOW + 4700),
+    leg("walk", "S King St", "Your destination", NOW + 4700, NOW + 4800),
+  ],
 };
 
 /** One database answer table, used by both paths. */
@@ -98,7 +117,7 @@ function context(overrides: Record<string, unknown> = {}) {
   } as unknown as Parameters<typeof planTransitTripDetailed>[0];
 }
 
-const stats = () => ({ searches: 0, driveLookups: 0, late: 0 });
+const stats = emptyStats;
 const drive = async () => ({ trafficMinutes: 9 });
 
 beforeEach(() => {
@@ -195,11 +214,55 @@ describe("trip search on the server", () => {
   });
 
   it("reports a planner failure as 'couldn't check' on both rows, without throwing", async () => {
-    const search = async () => ({ data: null, error: { code: "57014", message: "statement timeout" } });
+    const search = async () => ({
+      data: null,
+      error: { code: "57014", message: "statement timeout" },
+    });
     const result = await planTripOnServer(context(), (s) => serverDeps(s, { search, drive }));
     expect(result.failed).toBe(true);
     expect(result.options).toEqual([]);
     expect(result.unchecked).toEqual({ skyline: true, bus: true });
+  });
+});
+
+describe("server limits", () => {
+  it("waits for a slow general planner instead of cutting it at the phone's 8 s grace", async () => {
+    vi.useFakeTimers({ now: new Date("2026-10-14T22:00:00Z") });
+    const search = (fn: string, args: Record<string, unknown> | undefined) =>
+      fn === "plan_transit_general"
+        ? new Promise<Reply>((resolve) => setTimeout(() => resolve(table(fn, args ?? {})), 9_500))
+        : Promise.resolve(table(fn, args ?? {}));
+    const pending = planTripOnServer(context(), (s) => serverDeps(s, { search, drive }));
+    await vi.advanceTimersByTimeAsync(10_000);
+    const result = await pending;
+    expect(result.unchecked).toEqual({ skyline: false, bus: false });
+    expect(result.options.some((o) => o.arrive_seconds === bus91.arrive_seconds)).toBe(true);
+  });
+
+  it("asks the same live drive time once per trip search", async () => {
+    const lookups = vi.fn((_data: unknown) => drive());
+    const s = stats();
+    await planTripOnServer(context(), () =>
+      serverDeps(s, { search: async (fn, args) => table(fn, args ?? {}), drive: lookups }),
+    );
+    const keys = lookups.mock.calls.map((call) => JSON.stringify(call[0]));
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(s.driveLookups).toBe(keys.length);
+  });
+
+  it("reports a trip too big for one request instead of answering it cut short", async () => {
+    const result = await planTripOnServer(context(), (s) =>
+      serverDeps(s, { search: async (fn, args) => table(fn, args ?? {}), drive, budget: 3 }),
+    );
+    expect(result.overBudget).toBe(true);
+    expect(result.timing.searchesSent + result.timing.driveLookups).toBeLessThanOrEqual(3);
+  });
+
+  it("within budget, says so", async () => {
+    const result = await planTripOnServer(context(), (s) =>
+      serverDeps(s, { search: async (fn, args) => table(fn, args ?? {}), drive }),
+    );
+    expect(result.overBudget).toBe(false);
   });
 });
 
@@ -228,11 +291,21 @@ describe("what the phone sends", () => {
   it("refuses oversized or malformed trips", () => {
     const sent = toTripPlanInput(context());
     expect(() =>
-      tripPlanInput.parse({ ...sent, browseStations: Array(61).fill(sent.browseStations[0]) }),
+      tripPlanInput.parse({ ...sent, browseStations: Array(31).fill(sent.browseStations[0]) }),
     ).toThrow();
     expect(() => tripPlanInput.parse({ ...sent, planMode: "teleport" })).toThrow();
     expect(() =>
-      tripPlanInput.parse({ ...sent, tripDirection: { ...sent.tripDirection, from: { lat: 200, lon: 0 } } }),
+      tripPlanInput.parse({
+        ...sent,
+        tripDirection: { ...sent.tripDirection, from: { lat: 200, lon: 0 } },
+      }),
+    ).toThrow();
+    // Outside Hawaiʻi: refused (no searches or traffic lookups elsewhere).
+    expect(() =>
+      tripPlanInput.parse({
+        ...sent,
+        tripDirection: { ...sent.tripDirection, to: { lat: 37.77, lon: -122.42 } },
+      }),
     ).toThrow();
   });
 });

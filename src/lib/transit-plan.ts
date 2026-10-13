@@ -78,6 +78,13 @@ export type TransitPlanDeps = {
    * server runs them together. Same searches, same answers.
    */
   parallel: boolean;
+  /**
+   * How long the general planner may run after a faster planner has a trip
+   * before its rows are marked "Can't check" (the phone: 8 s). null = wait for
+   * it: the server bounds every search with its own deadline instead, so the
+   * general planner is never cut sooner than on the phone.
+   */
+  generalGraceMs: number | null;
 };
 
 function phoneDeps(): TransitPlanDeps {
@@ -87,6 +94,7 @@ function phoneDeps(): TransitPlanDeps {
     setTimer: (handler, ms) => window.setTimeout(handler, ms),
     log: debugLog,
     parallel: false,
+    generalGraceMs: 8000,
   };
 }
 
@@ -177,7 +185,7 @@ async function searchTransit(
   unchecked: TransitPlanGaps,
   deps: TransitPlanDeps,
 ): Promise<Option[]> {
-  const { rpc, driveLookup, setTimer, log: debugLog, parallel } = deps;
+  const { rpc, driveLookup, setTimer, log: debugLog, parallel, generalGraceMs } = deps;
   const {
     arrivalStationId,
     arriveByTarget,
@@ -501,7 +509,7 @@ async function searchTransit(
       () => (generalSettled = true),
     );
     const primaryTransit =
-      fastBus.length || fastOutbound.length
+      (fastBus.length || fastOutbound.length) && generalGraceMs !== null
         ? await Promise.race([
             generalPromise,
             new Promise<Option[]>((resolve) =>
@@ -513,7 +521,7 @@ async function searchTransit(
                   unchecked.bus = true;
                 }
                 resolve([]);
-              }, 8000),
+              }, generalGraceMs),
             ),
           ])
         : await generalPromise;

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { cachedPlannerSearch } from "@/lib/planner-cache";
+import { settledPlannerSearch } from "@/lib/planner-cache";
 import { lookupTrafficMinutes } from "@/lib/drive.functions";
 import {
   planTransitTripDetailed,
@@ -19,18 +19,31 @@ import {
 
 /**
  * The database stops any search at 10 s (anon/authenticated statement_timeout,
- * migration 0021). A search still unanswered a little after that is treated as
+ * migration 0021). A search still unanswered well after that is treated as
  * failed, so its row says "Can't check Skyline right now", never "no trip".
- * Above the database's own limit on purpose: no search it would have answered
- * is cut short.
+ * Counted from when the search is actually sent (see MAX_OPEN), and above the
+ * database's own limit on purpose: no search it would have answered is cut short.
  */
-export const SEARCH_DEADLINE_MS = 12_000;
+export const SEARCH_DEADLINE_MS = 15_000;
 /**
  * A live drive time that takes longer than this is treated as unreadable: the
  * drive-to-station trips it would time are dropped and Skyline is flagged
  * "Can't check", exactly as when TomTom fails.
  */
-export const DRIVE_DEADLINE_MS = 12_000;
+export const DRIVE_DEADLINE_MS = 15_000;
+/**
+ * Cloudflare Workers keep at most 6 outgoing connections open per request; the
+ * rest wait. The server queues them itself so each deadline starts when its
+ * call is sent, not while it waits its turn.
+ */
+export const MAX_OPEN = 6;
+/**
+ * Cloudflare Workers (free plan) allow 50 outgoing requests per request. A
+ * trip that would need more (a long Arrive By search with a car) stops here
+ * and is reported as over budget; the phone then runs it the old way, so the
+ * rider gets the same answer instead of a cut-short one.
+ */
+export const OUTGOING_BUDGET = 45;
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -78,8 +91,52 @@ function withDeadline<T>(work: PromiseLike<T>, ms: number, late: () => T): Promi
   ]);
 }
 
+/** Runs at most `max` calls at once, the rest in order of asking. */
+function openLimit(max: number) {
+  let open = 0;
+  const waiting: Array<() => void> = [];
+  return async <T>(work: () => PromiseLike<T>): Promise<T> => {
+    if (open >= max) await new Promise<void>((resolve) => waiting.push(resolve));
+    open += 1;
+    try {
+      return await work();
+    } finally {
+      open -= 1;
+      waiting.shift()?.();
+    }
+  };
+}
+
 /** Counts for one trip, for timing reports (no places, no times of day). */
-export type ServerPlanStats = { searches: number; driveLookups: number; late: number };
+export type ServerPlanStats = {
+  /** Timetable searches asked for, and how many went to the database. */
+  searches: number;
+  searchesSent: number;
+  /** Live drive times asked for (each at most one TomTom request). */
+  driveLookups: number;
+  late: number;
+  /** Calls refused because the request's outgoing budget was used up. */
+  overBudget: number;
+};
+
+export const emptyStats = (): ServerPlanStats => ({
+  searches: 0,
+  searchesSent: 0,
+  driveLookups: 0,
+  late: 0,
+  overBudget: 0,
+});
+
+/** Planner diagnostics on the server: stage and error code only, never arguments. */
+function serverLog(type: string, data: Record<string, unknown>) {
+  const pick = (key: string, max: number) =>
+    typeof data[key] === "string" ? (data[key] as string).slice(0, max) : undefined;
+  console.info(`[plan] ${type}`, {
+    stage: pick("stage", 40),
+    code: pick("code", 20),
+    message: pick("message", 80),
+  });
+}
 
 /** The server's planner dependencies for one request. */
 export function serverDeps(
@@ -89,6 +146,7 @@ export function serverDeps(
     drive?: DriveLookup;
     searchDeadlineMs?: number;
     driveDeadlineMs?: number;
+    budget?: number;
   } = {},
 ): TransitPlanDeps {
   const search =
@@ -98,46 +156,90 @@ export function serverDeps(
   const drive: DriveLookup = options.drive ?? ((data) => lookupTrafficMinutes(data));
   const searchDeadline = options.searchDeadlineMs ?? SEARCH_DEADLINE_MS;
   const driveDeadline = options.driveDeadlineMs ?? DRIVE_DEADLINE_MS;
+  const budget = options.budget ?? OUTGOING_BUDGET;
+  let outgoing = 0;
+  const spend = () => {
+    if (outgoing >= budget) {
+      stats.overBudget += 1;
+      return false;
+    }
+    outgoing += 1;
+    return true;
+  };
+  // Shared only inside this request (see settledPlannerSearch).
+  const inflight = new Map<string, Promise<unknown>>();
+  const drives = new Map<string, Promise<{ trafficMinutes: number } | null>>();
+
+  const send = openLimit(MAX_OPEN);
 
   // Timetable answers are remembered for a few minutes by their exact
-  // arguments (planner-cache): the same trip in the same minute isn't searched
-  // twice. The deadline sits outside that memory, so a late answer still lands
-  // there for the next ask instead of being thrown away.
+  // arguments: the same trip in the same minute isn't searched twice.
   const rpc = ((fn: string, args?: Record<string, unknown>) => {
     stats.searches += 1;
-    return withDeadline(
-      cachedPlannerSearch(fn, args, () => search(fn, args)),
-      searchDeadline,
-      (): Reply => {
-        stats.late += 1;
-        return {
-          data: null,
-          error: { code: "deadline", message: `${fn} ran past ${searchDeadline} ms` },
-        };
+    return settledPlannerSearch(
+      fn,
+      args,
+      (): PromiseLike<Reply> => {
+        if (!spend())
+          return Promise.resolve({
+            data: null,
+            error: { code: "budget", message: "outgoing request budget used up" },
+          });
+        stats.searchesSent += 1;
+        return send(() =>
+          withDeadline(search(fn, args), searchDeadline, (): Reply => {
+            stats.late += 1;
+            return {
+              data: null,
+              error: { code: "deadline", message: `${fn} ran past ${searchDeadline} ms` },
+            };
+          }),
+        );
       },
+      inflight,
     );
   }) as unknown as typeof plannerRpc;
 
   return {
     rpc,
     driveLookup: (data) => {
-      stats.driveLookups += 1;
-      // The lookup keeps its own two-minute memory of live traffic.
-      return withDeadline(drive(data), driveDeadline, () => {
-        stats.late += 1;
-        return null;
-      });
+      // The same lookup twice in one trip search is asked once; the lookup
+      // also keeps its own two-minute memory of live traffic.
+      const key = JSON.stringify([
+        data.fromLat,
+        data.fromLon,
+        data.toLat,
+        data.toLon,
+        data.departureTime ?? null,
+      ]);
+      let lookup = drives.get(key);
+      if (!lookup) {
+        if (!spend()) return Promise.resolve(null);
+        stats.driveLookups += 1;
+        lookup = send(() =>
+          withDeadline(drive(data), driveDeadline, () => {
+            stats.late += 1;
+            return null;
+          }),
+        );
+        drives.set(key, lookup);
+      }
+      return lookup;
     },
     setTimer: (handler, ms) => setTimeout(handler, ms),
-    // Planner diagnostics carry stage and error codes only (never places).
-    log: (type, data) => console.info(`[plan] ${type}`, data),
+    log: serverLog,
     parallel: true,
+    // Each search has its own deadline here, so the general planner is never
+    // cut short sooner than the phone would (see TransitPlanDeps).
+    generalGraceMs: null,
   };
 }
 
 export type ServerPlanAnswer = TransitPlanResult & {
   /** The planner threw (every search failed): the phone shows both rows as "Can't check". */
   failed: boolean;
+  /** The trip needed more outgoing requests than one server request allows: the phone runs it itself. */
+  overBudget: boolean;
   timing: ServerPlanStats & { ms: number };
 };
 
@@ -147,10 +249,15 @@ export async function planTripOnServer(
   deps?: (stats: ServerPlanStats) => TransitPlanDeps,
 ): Promise<ServerPlanAnswer> {
   const started = Date.now();
-  const stats: ServerPlanStats = { searches: 0, driveLookups: 0, late: 0 };
+  const stats = emptyStats();
   try {
     const result = await planTransitTripDetailed(ctx, (deps ?? serverDeps)(stats));
-    return { ...result, failed: false, timing: { ...stats, ms: Date.now() - started } };
+    return {
+      ...result,
+      failed: false,
+      overBudget: stats.overBudget > 0,
+      timing: { ...stats, ms: Date.now() - started },
+    };
   } catch (error) {
     const e = error as { code?: unknown; message?: unknown } | null;
     console.info("[plan] trip_failed", {
@@ -161,6 +268,7 @@ export async function planTripOnServer(
       options: [],
       unchecked: { skyline: true, bus: true },
       failed: true,
+      overBudget: stats.overBudget > 0,
       timing: { ...stats, ms: Date.now() - started },
     };
   }

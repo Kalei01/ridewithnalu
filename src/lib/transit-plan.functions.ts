@@ -9,12 +9,16 @@ import { planTripOnServer } from "./transit-plan.server";
 // stops scripts. Each search also spends live-traffic lookups.
 const planLimit = rateLimit("plan", 120);
 
-const point = z.object({
-  lat: z.number().min(-90).max(90).nullable(),
-  lon: z.number().min(-180).max(180).nullable(),
-});
+// Hawaiʻi only (with room around the islands): no searches or traffic lookups elsewhere.
+const lat = z.number().min(18).max(23);
+const lon = z.number().min(-161.5).max(-154);
+const point = z.object({ lat: lat.nullable(), lon: lon.nullable() });
 const stopId = z.string().max(40);
-const seconds = z.number().int().min(-86_400).max(3 * 86_400);
+const seconds = z
+  .number()
+  .int()
+  .min(-86_400)
+  .max(3 * 86_400);
 
 /**
  * Only what the trip search reads: the two ends, the trip question, the rider's
@@ -28,11 +32,12 @@ export const tripPlanInput = z.object({
       z.object({
         stop_id: stopId,
         stop_name: z.string().max(120).nullable(),
-        stop_lat: z.number().nullable(),
-        stop_lon: z.number().nullable(),
+        stop_lat: lat.nullable(),
+        stop_lon: lon.nullable(),
       }),
     )
-    .max(60),
+    // Room for the whole Skyline line (about 20 stations when complete).
+    .max(30),
   vehicleToStation: z.enum(["vehicle", "none"]),
   inbound: z.boolean(),
   now: z.string().datetime({ offset: true }),
