@@ -286,7 +286,8 @@ const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
 const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
 
-import { planTransitTripDetailed, plannerRpc } from "@/lib/transit-plan";
+import { plannerRpc } from "@/lib/transit-plan";
+import { planTrip } from "@/lib/trip-plan-client";
 import { tripCheckingStatus, weatherSummaryText } from "@/lib/loading-labels";
 import { honoluluDaysBetween, shiftOptionDays } from "@/lib/service-day";
 import { withStation } from "@/lib/rail/station-names";
@@ -1291,7 +1292,7 @@ function Index() {
     placeholderData: (previous, previousQuery) =>
       previousQuery && sameTrip(previousQuery.queryKey, planKey) ? previous : undefined,
     queryFn: () =>
-      planTransitTripDetailed({
+      planTrip({
         arrivalStationId,
         arriveByTarget,
         browseStations,
