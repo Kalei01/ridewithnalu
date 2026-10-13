@@ -50,6 +50,46 @@ export type TransitPlanGaps = { skyline: boolean; bus: boolean };
 
 export type TransitPlanResult = { options: Option[]; unchecked: TransitPlanGaps };
 
+/** A live drive-time lookup: only the traffic minutes are used here. */
+export type DriveLookup = (data: {
+  fromLat: number;
+  fromLon: number;
+  toLat: number;
+  toLon: number;
+  departureTime?: string;
+}) => Promise<{ trafficMinutes: number } | null>;
+
+/** The phone's live drive-time lookup: one server request per lookup. */
+const phoneDriveLookup: DriveLookup = (data) => driveTime({ data });
+
+/**
+ * Where the planner's searches and live drive times come from. The phone uses
+ * the defaults; the server (transit-plan.functions.ts) passes its own. Only
+ * where and how quickly the searches run changes, never the rules that decide.
+ */
+export type TransitPlanDeps = {
+  rpc: typeof plannerRpc;
+  driveLookup: DriveLookup;
+  setTimer: (handler: () => void, ms: number) => unknown;
+  log: (type: string, data: Record<string, unknown>) => void;
+  /**
+   * Start every station search and the Skyline bridge at once. The phone
+   * staggers them to keep fewer heavy searches open from one device; the
+   * server runs them together. Same searches, same answers.
+   */
+  parallel: boolean;
+};
+
+function phoneDeps(): TransitPlanDeps {
+  return {
+    rpc: plannerRpc,
+    driveLookup: phoneDriveLookup,
+    setTimer: (handler, ms) => window.setTimeout(handler, ms),
+    log: debugLog,
+    parallel: false,
+  };
+}
+
 /** Which rows a failed planner stage leaves unchecked. */
 const STAGE_GAPS: Record<string, Partial<TransitPlanGaps>> = {
   plan_bus_direct: { bus: true },
@@ -76,9 +116,12 @@ export async function planTransitTrip(ctx: TransitPlanContext): Promise<Option[]
  * The same search, plus which kinds of trip couldn't be checked. Successful
  * results are kept as they are; only the failure is carried to the screen.
  */
-export async function planTransitTripDetailed(ctx: TransitPlanContext): Promise<TransitPlanResult> {
+export async function planTransitTripDetailed(
+  ctx: TransitPlanContext,
+  deps: TransitPlanDeps = phoneDeps(),
+): Promise<TransitPlanResult> {
   const unchecked: TransitPlanGaps = { skyline: false, bus: false };
-  const options = await searchTransit(ctx, unchecked);
+  const options = await searchTransit(ctx, unchecked, deps);
   // A copy: a slow planner that fails after the answer is out can't change it.
   return { options, unchecked: { ...unchecked } };
 }
@@ -132,7 +175,9 @@ function isMissingFunction(error: unknown): boolean {
 async function searchTransit(
   ctx: TransitPlanContext,
   unchecked: TransitPlanGaps,
+  deps: TransitPlanDeps,
 ): Promise<Option[]> {
+  const { rpc, driveLookup, setTimer, log: debugLog, parallel } = deps;
   const {
     arrivalStationId,
     arriveByTarget,
@@ -209,7 +254,7 @@ async function searchTransit(
 
   const fetchBusRescueDay = async (cursor: number, dayOffset: number): Promise<Option[]> => {
     try {
-      const { data: busData, error: busError } = await plannerRpc("plan_bus_direct", {
+      const { data: busData, error: busError } = await rpc("plan_bus_direct", {
         p_origin_lat: tripDirection.from.lat as number,
         p_origin_lon: tripDirection.from.lon as number,
         p_dest_lat: tripDirection.to.lat as number,
@@ -247,7 +292,7 @@ async function searchTransit(
   };
 
   const fetchGeneralTransitDay = async (cursor: number, dayOffset: number): Promise<Option[]> => {
-    const { data, error } = await plannerRpc("plan_transit_general", {
+    const { data, error } = await rpc("plan_transit_general", {
       p_origin_lat: tripDirection.from.lat as number,
       p_origin_lon: tripDirection.from.lon as number,
       p_dest_lat: tripDirection.to.lat as number,
@@ -278,7 +323,7 @@ async function searchTransit(
     cursor: number,
   ): Promise<Option[]> => {
     try {
-      const { data, error } = await plannerRpc("plan_outbound", {
+      const { data, error } = await rpc("plan_outbound", {
         p_origin_lat: tripDirection.from.lat as number,
         p_origin_lon: tripDirection.from.lon as number,
         p_station: station,
@@ -309,6 +354,12 @@ async function searchTransit(
     stations: OutboundStation[],
     cursor: number,
   ): Promise<Option[]> => {
+    if (parallel)
+      return (
+        await Promise.all(
+          stations.map((station) => fetchOutboundAt(station.stopId, station.allowDrive, cursor)),
+        )
+      ).flat();
     const [home, ...rest] = stations;
     const fromHome = home ? await fetchOutboundAt(home.stopId, home.allowDrive, cursor) : [];
     const others = await Promise.all(
@@ -328,7 +379,7 @@ async function searchTransit(
     if (Date.now() < outboundMultiMissingUntil) return null;
     try {
       const limit = planMode === "arrive-by" ? 8 : 4;
-      const { data, error } = await plannerRpc("plan_outbound_multi", {
+      const { data, error } = await rpc("plan_outbound_multi", {
         p_origin_lat: tripDirection.from.lat as number,
         p_origin_lon: tripDirection.from.lon as number,
         p_stations: stations.map((station) => station.stopId),
@@ -380,6 +431,7 @@ async function searchTransit(
       found,
       { origin: tripDirection.from, stations: browseStations, now, nowSeconds, leaveNow },
       report,
+      driveLookup,
     );
     const driveFirst = (option: Option) => option.legs[0]?.mode === "drive";
     if (retimed.some(driveFirst) || !found.some(driveFirst)) return retimed;
@@ -415,7 +467,7 @@ async function searchTransit(
     const serviceStopId = inbound ? arrivalStationId : setup.homeStopId;
     if (serviceStopId) {
       try {
-        const { data: serviceRows, error: serviceError } = await plannerRpc("service_hours", {
+        const { data: serviceRows, error: serviceError } = await rpc("service_hours", {
           p_stop_id: serviceStopId,
           p_route_type: 1,
         });
@@ -453,7 +505,7 @@ async function searchTransit(
         ? await Promise.race([
             generalPromise,
             new Promise<Option[]>((resolve) =>
-              window.setTimeout(() => {
+              setTimer(() => {
                 // Past the grace period the general planner hasn't answered, so
                 // bus transfers and bus + Skyline trips weren't fully checked.
                 if (!generalSettled) {
@@ -498,7 +550,7 @@ async function searchTransit(
           p_after_seconds: cursor,
           p_limit: planMode === "arrive-by" ? 8 : 4,
         };
-        const { data, error } = await plannerRpc("plan_inbound", params);
+        const { data, error } = await rpc("plan_inbound", params);
         if (error) {
           recordTransitRpcError("plan_inbound", error);
           throw error;
@@ -522,7 +574,7 @@ async function searchTransit(
           primaryAlreadyChecked = true;
         }
 
-        const stationResult = await plannerRpc("rail_stations");
+        const stationResult = await rpc("rail_stations");
         if (stationResult.error) {
           recordTransitRpcError("rail_stations", stationResult.error);
           throw stationResult.error;
@@ -556,7 +608,7 @@ async function searchTransit(
           stations: stations.filter((station) => station.stop_id !== selectedInboundStation),
           afterSeconds: cursor,
           fetchFromHub: async (hub, after) => {
-            const { data, error } = await plannerRpc("plan_inbound", {
+            const { data, error } = await rpc("plan_inbound", {
               ...inboundPlannerCoordinates(tripDirection),
               p_dest_lat: hub.lat,
               p_dest_lon: hub.lon,
@@ -597,7 +649,7 @@ async function searchTransit(
     // A valid zero-row response after the targeted fallbacks is a genuine
     // transit miss. Keep the privacy-safe diagnostic path intact.
     try {
-      const diagnoseTransitGeneral = plannerRpc as unknown as (
+      const diagnoseTransitGeneral = rpc as unknown as (
         functionName: string,
         args: Record<string, number>,
       ) => Promise<{ data: string | null; error: unknown }>;
@@ -640,7 +692,7 @@ async function searchTransit(
     let stations: RailStation[] = browseStations;
     if (!stations.length) {
       try {
-        const { data } = await plannerRpc("rail_stations");
+        const { data } = await rpc("rail_stations");
         stations = (data ?? []) as RailStation[];
       } catch {
         return [];
@@ -653,7 +705,7 @@ async function searchTransit(
       afterSeconds: cursor,
       walkRadiusM: MAX_STOP_WALK_M,
       search: async (leg) => {
-        const { data, error } = await plannerRpc("plan_transit_general", {
+        const { data, error } = await rpc("plan_transit_general", {
           p_origin_lat: leg.from.lat,
           p_origin_lon: leg.from.lon,
           p_dest_lat: leg.to.lat,
@@ -692,7 +744,7 @@ async function searchTransit(
       );
       const found = await Promise.all(
         stations.map(async (station) => {
-          const { data, error } = await plannerRpc("plan_inbound", {
+          const { data, error } = await rpc("plan_inbound", {
             ...coordinates,
             p_station: station.stop_id,
             p_allow_drive: true,
@@ -711,6 +763,7 @@ async function searchTransit(
           return retimeDriveEgress(
             rows.filter((option) => option.legs.at(-1)?.mode === "drive"),
             { station, home: tripDirection.to, now, nowSeconds },
+            driveLookup,
           );
         }),
       );
@@ -729,6 +782,11 @@ async function searchTransit(
   const fetchPageWithSkyline = async (cursor: number): Promise<Option[]> => {
     let bridge: Promise<Option[]> | null = null;
     const pickup = fetchInboundPickup(cursor);
+    if (parallel) {
+      bridge = fetchViaSkyline(cursor);
+      // Awaited below; this only keeps an early failure from going unhandled.
+      bridge.catch(() => {});
+    }
     const extras = async () => {
       bridge ??= fetchViaSkyline(cursor);
       return [...(await bridge), ...(await pickup)];
@@ -818,6 +876,7 @@ export async function retimeDriveEgress(
     now: Date;
     nowSeconds: number;
   },
+  drive: DriveLookup = phoneDriveLookup,
 ): Promise<Option[]> {
   const { station, home } = input;
   if (station.stop_lat == null || station.stop_lon == null || home.lat == null || home.lon == null)
@@ -829,20 +888,18 @@ export async function retimeDriveEgress(
       if (!car || car.mode !== "drive" || !before || before.arrive_seconds == null) return null;
       const start = before.arrive_seconds;
       try {
-        const result = await driveTime({
-          data: {
-            fromLat: Number(station.stop_lat),
-            fromLon: Number(station.stop_lon),
-            toLat: home.lat as number,
-            toLon: home.lon as number,
-            ...(start > input.nowSeconds + 300
-              ? {
-                  departureTime: new Date(
-                    input.now.getTime() + (start - input.nowSeconds) * 1000,
-                  ).toISOString(),
-                }
-              : {}),
-          },
+        const result = await drive({
+          fromLat: Number(station.stop_lat),
+          fromLon: Number(station.stop_lon),
+          toLat: home.lat as number,
+          toLon: home.lon as number,
+          ...(start > input.nowSeconds + 300
+            ? {
+                departureTime: new Date(
+                  input.now.getTime() + (start - input.nowSeconds) * 1000,
+                ).toISOString(),
+              }
+            : {}),
         });
         if (!result || !Number.isFinite(result.trafficMinutes)) return null;
         const minutes = Math.ceil(result.trafficMinutes);
@@ -899,6 +956,7 @@ export async function retimeDriveAccess(
     leaveNow: boolean;
   },
   report?: RetimeReport,
+  drive: DriveLookup = phoneDriveLookup,
 ): Promise<Option[]> {
   const driveFirst = (option: Option) => option.legs[0]?.mode === "drive";
   const drives = options.filter(driveFirst);
@@ -936,14 +994,12 @@ export async function retimeDriveAccess(
           ? undefined
           : new Date(input.now.getTime() + (leave - input.nowSeconds) * 1000).toISOString();
       try {
-        const result = await driveTime({
-          data: {
-            fromLat: origin.lat,
-            fromLon: origin.lon,
-            toLat: Number(station.stop_lat),
-            toLon: Number(station.stop_lon),
-            ...(departureTime ? { departureTime } : {}),
-          },
+        const result = await drive({
+          fromLat: origin.lat,
+          fromLon: origin.lon,
+          toLat: Number(station.stop_lat),
+          toLon: Number(station.stop_lon),
+          ...(departureTime ? { departureTime } : {}),
         });
         if (result && Number.isFinite(result.trafficMinutes))
           liveMinutes.set(key, result.trafficMinutes);
