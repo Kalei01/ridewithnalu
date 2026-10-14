@@ -40,9 +40,8 @@ main.nh-commute .nh-waves {
 main.nh-commute .nalu-card-surface,
 main.nh-commute [aria-labelledby="plan-mode-title"],
 main.nh-commute .alternative-panel,
-main.nh-commute .commitment-panel,
-main.nh-commute .glass-panel,
-main.nh-commute .bg-surface-raised,
+main.nh-commute .glass-panel:not(.sticky, .rounded-full),
+main.nh-commute .bg-surface-raised:not(.sticky, .rounded-full),
 main.nh-commute .map-shell {
   border: 1px solid var(--nh-line) !important;
   border-radius: 1.25rem !important;

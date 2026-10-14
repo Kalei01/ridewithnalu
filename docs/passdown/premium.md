@@ -23,6 +23,12 @@ Last updated: 2026-10-14 (home redesign preview ready). Keep ≤ 60 lines; see R
 - Live check 390×844 dark/light/reduced motion: Skyline departures + bus stop times show, 0 page errors, no sideways scroll. Shots: `docs/experience/browse-redesign/` (before-/after-); script `scripts/diag/browse-shots.mjs`.
 - Reviewers: transit-accuracy (no high/med), mobile-design (no high; mediums: nearby-stop row has no scroll cue, H-1 header wraps when delayed). nalu-performance and security-keys not run (CSS/markup only; no server or key changes); no speed numbers taken.
 
+## Commute page redesign (Oct 14, Sonnet build) — LIVE (31648e8 + follow-up)
+- Look only: `src/commute-home-look.css` (scoped to `main.nh-commute`; registered in __root.tsx) gives the answer screen flat hairline cards, the wave motif (`Waves` at top), a hero glow (green when Skyline is the pick) and safe-area sides. Rows, pick, wording and M1–M18 motion untouched. Sticky bars (en-route/passed-stop) and `.commitment-panel` (live tint) deliberately excluded after transit-accuracy's High/Medium.
+- Live check Kapolei→downtown and ʻEwa→Merchant: Drive/Skyline/Bus rows + pick intact, 0 errors, no sideways scroll. Shots `docs/experience/commute-redesign/` (before-/after-), script `scripts/diag/commute-shots.mjs`.
+- OPEN: Airport→Waikīkī shows "Can't check traffic / Skyline right now" (Bus works) both before and after my change (CSS-only, so not mine). Needs a look by MAIN/Watchman (transit DB or TomTom timeout?).
+- Not checked: en-route/Live-trip screens in the new look (need a real trip); reduced-motion shots of the commute page.
+
 ## Don't touch
 - Planner/verdict logic, timeouts, database (main session). Guide pages' focus (SEO agent).
 
