@@ -17,6 +17,16 @@ Entry format:
 
 ---
 
+### 2026-10-14 HST — Phase 0c: Lovable leftovers removed (one cleanup)
+- Class: 🟡 — Josh's Oct 11 instruction; keys confirmed set in Cloudflare
+- Issue: Lovable fallbacks left after the move to Cloudflare (Phase 0b KEPT list).
+- Fix: removed the sign-in broker (`src/integrations/lovable`, `@lovable.dev/cloud-auth-js`; Google/Apple now call Supabase directly), `LOVABLE_API_KEY` fallbacks (AI needs `OPENAI_API_KEY`, push needs the Firebase service account), `LOVABLE_CRON_SECRET` fallback, `previewAuthStorage.ts`, `.lovable/`, "Lovable Cloud" error wording, 3 `bunfig.toml` excludes; README one line. KEPT: `@lovable.dev/vite-tanstack-config`, `VITE_LOVABLE_CONNECTOR_*` env names (read by Firebase web, Mapbox, PostHog code), AGENTS.md. Left for later: stale names in `.claude/agents/security-keys.md`, unused `VITE_AUTH_PROVIDER` in `.env`.
+- Validation: 641 tests, typecheck, build; security-keys: no critical/high (cron still fails closed). Live checks: see below.
+- Confidence: high
+- Rollback: git revert de1058b 101109d and the third cleanup commit
+
+---
+
 ### 2026-10-13 ~2:30 PM HST — Phase 2: one server request per trip (switch ON)
 - Class: 🟡 — approved build (fix-plan Phase 2), no change to decision rules
 - Issue: the phone ran 10+ planner calls per trip (12–30 s at rush hour, silent gaps; Skyline "no trip" alert).

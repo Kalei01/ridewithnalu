@@ -27,9 +27,9 @@ checked on the new host.
 | `SUPABASE_PUBLISHABLE_KEY` | Supabase → API keys | |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → API keys | Server-only. Never expose to the browser |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Firebase → Project settings → Service accounts → Generate key | Whole JSON file as one secret. Enables direct push (`src/lib/fcm-direct.server.ts`) |
-| `CRON_SECRET` (old name `LOVABLE_CRON_SECRET` still accepted) | Generate a long random string; same value as Vault secret `nalu_cron_secret` | Nalu's own password for `/api/public/*` scheduled jobs. Do not delete it with the Lovable leftovers |
+| `CRON_SECRET` | Generate a long random string; same value as Vault secret `nalu_cron_secret` | Nalu's own password for `/api/public/*` scheduled jobs. Do not delete it with the Lovable leftovers |
 
-No longer needed once self-hosted: `LOVABLE_API_KEY`, `FIREBASE_MESSAGING_API_KEY`.
+No longer used: `LOVABLE_API_KEY`, `LOVABLE_CRON_SECRET`, `FIREBASE_MESSAGING_API_KEY`.
 
 Cloudflare Workers Logs is on in the dashboard; add `observability.enabled` to the Worker config so deploys keep it on.
 

@@ -10,7 +10,7 @@ Checked 2026-10-08 with web searches (the provider pages themselves could not be
 | Mapbox | live navigation map | Free: 50,000 web map loads/month | https://www.mapbox.com/pricing | Dashboard only |
 | Resend | account/alert email | Free: 3,000 emails/month, 100/day | https://resend.com/pricing | The sending key cannot read usage |
 | Firebase messaging (FCM) | push notifications | No per-message charge documented; quota unknown | https://firebase.google.com/pricing | Nalu's own count of recent sends only (7 days kept) |
-| OpenAI-compatible AI | Nalu's spoken lines (OPENAI_*, LOVABLE_API_KEY) | unknown | — | no |
+| OpenAI-compatible AI | Nalu's spoken lines (OPENAI_*) | unknown | — | no |
 | AirNow, HEA, HDOT, GA4, PostHog, Sentry | air quality, extras, analytics, errors | unknown / free tiers | — | no |
 
 Thresholds: WATCH at 70% of a limit, ALERT at 90% or when a day's Supabase API requests are over 2x the previous average (and at least 1,000).
