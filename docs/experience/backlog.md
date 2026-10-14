@@ -84,7 +84,7 @@ Rules: lightweight SVG and CSS or the Web Animations API only, no heavy animatio
 - M1 DONE (2026-10-14, 4b24a95; live check pending) "Checking" progress: three lines (traffic, Skyline, TheBus) tick in as each real answer arrives. Driven by actual results, never a fake timer.
 - M2 DONE (2026-10-14, 3a0c8ce) Welcome scene: an Oʻahu outline, a route line drawing Kapolei → town, and a car and a Skyline train moving side by side (illustrative, not a claim about speed). About 3 s, then rests. Inline SVG.
 - M3 DONE (2026-10-14, c42b044) Guide diagrams: the Skyline line with its stations lighting in order (rail guide); park-and-ride lots along the line (park-and-ride guide). Server-rendered SVG, animated on scroll into view.
-- M4 PARTLY DONE (2026-10-14, 84f83ca: button press feedback, cards ease in on public pages; left: in-app cards and the soft "leave now" pulse, which touch the answer screen) Polish: button press feedback, cards easing in on scroll, a soft pulse on "leave now" moments.
+- M4 DONE (in-app part 2026-10-14, 65bbeee; public part earlier): (was PARTLY DONE) (2026-10-14, 84f83ca: button press feedback, cards ease in on public pages; left: in-app cards and the soft "leave now" pulse, which touch the answer screen) Polish: button press feedback, cards easing in on scroll, a soft pulse on "leave now" moments.
 
 ## Batch M2 — more motion (Josh approved all, Oct 13, 2026; after Batch M, same rules)
 Extra rules for "implemented properly":
@@ -101,17 +101,17 @@ Answer screen:
 - M8 DONE (2026-10-14, b485e68; live check pending) Route preview: the route line draws on the map as the answer appears.
 
 Moments:
-- M9 TODO Rain: soft drops on the backdrop only when showers are near the trip (existing weather data).
-- M10 TODO Night: a calm night look after dark; a sleeping train when Skyline has stopped for the night.
-- M11 TODO Celebrations: a small shaka after 5 mornings in a row (device-only count); a quick wave when Skyline beats the drive.
+- M9 DONE (2026-10-14, efb9de6; live check pending) Rain: soft drops on the backdrop only when showers are near the trip (existing weather data).
+- M10 DONE (2026-10-14, 57ce56c; live check pending) Night: a calm night look after dark; a sleeping train when Skyline has stopped for the night.
+- M11 DONE (2026-10-14, 24e1dab; live check pending) Celebrations: a small shaka after 5 mornings in a row (device-only count); a quick wave when Skyline beats the drive.
 
 Around the app:
 - M12 DONE (2026-10-14, 83701ea) Install walkthrough: a short animated "Add to Home Screen" for iPhone and for Android on /install.
-- M13 TODO Screen changes: a smooth slide between screens (View Transitions API where supported, instant otherwise).
-- M14 TODO Pull to refresh: a wave curl ("nalu" = wave) while it re-checks; works only on the app screen.
+- M13 DONE (2026-10-14, 4118d16; live check pending) Screen changes: a smooth slide between screens (View Transitions API where supported, instant otherwise).
+- M14 DONE (2026-10-14, d0deb81; live check pending) Pull to refresh: a wave curl ("nalu" = wave) while it re-checks; works only on the app screen.
 
 Add-ons (lead):
 - M15 DONE (2026-10-14, 359eafe) Time-of-day header tint: sunrise, day, sunset or night, following Honolulu time, very subtle.
-- M16 TODO Station names: the Hawaiian name fades in under the English one (direction.md format).
-- M17 TODO "Can't check" states: a calm icon with a gentle fade, never a shake or red flash; a retry button with a press response.
+- M16 DONE (2026-10-14, bd07731; live check pending) Station names: the Hawaiian name fades in under the English one (direction.md format).
+- M17 DONE (2026-10-14, 6bfb6be; live check pending) "Can't check" states: a calm icon with a gentle fade, never a shake or red flash; a retry button with a press response.
 - M18 DONE (2026-10-14, 4dc9346; live check pending) Android haptic tick when the pick lands (navigator.vibrate, off when reduced motion is on; iOS has no web haptics, so skip it there).
