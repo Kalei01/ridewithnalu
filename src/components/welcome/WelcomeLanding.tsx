@@ -190,7 +190,7 @@ export function WelcomeLanding({
                 "You get one answer and when to leave, with the other ways to go right below it.",
               ],
             ].map(([title, body], index) => (
-              <li key={title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <li key={title} className="ease-in-view rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <p className="flex items-center gap-3 text-lg font-bold">
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-base font-black text-primary-foreground">
                     {index + 1}
@@ -222,7 +222,7 @@ export function WelcomeLanding({
             Questions
           </h2>
           <div className="mt-6 grid gap-3">
-            <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <details className="ease-in-view rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <summary className="flex min-h-12 cursor-pointer items-center py-2 text-base font-semibold">
                 Does Nalu replace Google Maps or Apple Maps?
               </summary>
@@ -231,7 +231,7 @@ export function WelcomeLanding({
                 now, and when should you leave. It’s built for Oʻahu.
               </p>
             </details>
-            <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <details className="ease-in-view rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <summary className="flex min-h-12 cursor-pointer items-center py-2 text-base font-semibold">
                 Where does the information come from?
               </summary>
@@ -240,7 +240,7 @@ export function WelcomeLanding({
                 TheBus’s official timetable. Weather comes from the National Weather Service.
               </p>
             </details>
-            <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <details className="ease-in-view rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <summary className="flex min-h-12 cursor-pointer items-center py-2 text-base font-semibold">
                 Is Nalu free?
               </summary>
@@ -249,7 +249,7 @@ export function WelcomeLanding({
                 turns on alerts. Getting home safe will always be free.
               </p>
             </details>
-            <details className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <details className="ease-in-view rounded-2xl border border-white/10 bg-white/[0.03] p-4">
               <summary className="flex min-h-12 cursor-pointer items-center py-2 text-base font-semibold">
                 How accurate is it?
               </summary>

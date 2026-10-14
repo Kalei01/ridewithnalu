@@ -696,3 +696,26 @@ html[data-nalu-returning] .nalu-first-visit-only {
   .nalu-fade-number { animation: none; }
   .nalu-fade-verdict { animation-duration: 1ms; }
 }
+
+/* Cards ease in as they scroll into view (public pages). Scroll-driven, so no
+   JavaScript; browsers without it, and reduced motion, just show the card. Never
+   fully transparent, so the text is always there for readers and search engines. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .ease-in-view {
+      animation: ease-in-view linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+  }
+}
+@keyframes ease-in-view {
+  from {
+    opacity: 0.35;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
