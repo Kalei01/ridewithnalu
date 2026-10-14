@@ -20,17 +20,7 @@ Key requirements from the spec:
 - Mobile-first target (390px viewport), PWA manifest + icons configured for standalone display mode.
 - Use realistic Oahu placeholder data. Keep it focused strictly on the rail vs drive decision (no maps, turn-by-turn, surf, weather, or extra widgets).
 
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://ridewithnalu.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/bb6c215d-7e11-4ba1-b07e-7558b27603e7).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+Nalu moved off Lovable to Cloudflare; the live app is https://ridenalu.com (the `cloudflare` branch).
 
 ## Development
 
