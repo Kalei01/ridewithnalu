@@ -91,11 +91,6 @@ Links and mentions from real Hawaiʻi sources are the biggest remaining lever; a
 - Monthly: AI visibility log; competitors' dates (is the KITV or Oahuist page still older than ours?).
 - Log everything in docs/seo/search-review-log.md; never report a result before the data supports it.
 
-## 12. What only Josh can do
-1. Outreach in your name: send the pitch to 3 to 5 local sources (a reporter, UH West Oʻahu, one neighbourhood board). I will draft each message; you send it. About 30 minutes each, once.
-2. Submit the one-time listings (AlternativeTo, Product Hunt, one or two Hawaiʻi directories) from docs/seo/listings.md. Use your real accounts.
-3. Reddit: if you want, answer two or three real r/Honolulu questions yourself, saying you built Nalu. Do not use alt accounts.
-4. Monthly 5-minute AI check from docs/seo/ai-visibility.md.
-5. Search Console: confirm the new AI performance report appears for ridenalu.com (screenshot to the lead session); nothing else needs requesting, Google crawls on its own.
-6. Decide backlog item 6 (first-party drive-time sampling): approve or reject. It is the one source of original data that could earn links, and it needs a TomTom terms check.
-7. Money: none required. Optional later: Google Ads is allowed without a Business Profile, but it is not SEO; do not spend until the planner is fast.
+## 12. Josh's rule (Oct 13, 2026): organic only
+Josh will NOT pitch, do outreach, submit listings or directories, or post on Reddit or anywhere else. Never ask him to. All traffic must come organically, from the site itself: the best, freshest, sourced answers, technical quality, structured data, internal links and AI-answer visibility. Strike any plan step that depends on Josh contacting people or submitting the site. Links come only if people choose to link on their own.
+Still open for Josh: decide backlog item 6 (first-party drive-time sampling; needs a TomTom terms check).

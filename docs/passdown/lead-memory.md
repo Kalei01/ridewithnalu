@@ -44,3 +44,4 @@ The full working memory of NALU MAIN COMMAND (1), written before it was archived
 
 ## Open owner items (remind only in the Sunday report)
 Cloudflare WAF rate limit on /_serverFn/; AirNow key likely wrong; optional CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID; one-line "yes" in each routine session for the gate update; Pro plan when budget allows.
+- Josh, Oct 13: (1) organic traffic only. He won't pitch, do outreach, submit listings or post on Reddit; never ask. (2) Fix forward: every change is an update, and we revert only if absolutely necessary (riders broken, no quick forward fix).

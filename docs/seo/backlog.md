@@ -1,5 +1,7 @@
 # Nalu search backlog
 
+**Josh's rule (Oct 13):** organic only. No pitching, outreach, listings, directory submissions or Reddit posts; never ask Josh to do them. Grow from the site itself.
+
 The `nalu-seo` agent's to-do list (moved here from the search routine's prompt on Oct 7, 2026, so it can be updated in the repo). The agent works top-down, updates statuses here, and records each run in `docs/seo/search-review-log.md`.
 
 Status words: TODO, IN PROGRESS, DONE (date, commit), DECISION (needs the owner), SKIP.
@@ -13,13 +15,10 @@ Statuses stay on the numbered items below; this list only sets the order.
 5. Item 5: rush-hour section with TomTom figures, once the numbers are re-read at the source.
 6. Item 3, then 10: only if autocomplete or Search Console still shows demand.
 7. Item 11: homepage speed, after Phase 3.
-Not in the routine's hands: trust pages (separate session), listings file (docs/seo/listings.md, Josh submits), outreach, item 6.
+Not in the routine's hands: trust pages (separate session), item 6 (listings and outreach dropped: organic only).
 Each run: check the 10 target queries in strategy.md section 4 with `bun scripts/gsc-report.mts`, record positions in the log.
 
 ## Josh asks (short; details in docs/seo/strategy.md section 12)
-- Send 3 to 5 outreach messages in your name (reporter, UH West Oʻahu, a neighbourhood board); drafts will be provided.
-- Submit the one-time listings from docs/seo/listings.md with your real accounts.
-- Optional: answer 2 or 3 real r/Honolulu questions yourself, saying you built Nalu.
 - Monthly: the 5-minute AI check in docs/seo/ai-visibility.md.
 - Check Search Console for the new AI performance report on ridenalu.com.
 - Decide item 6 (first-party drive-time sampling).
@@ -72,7 +71,7 @@ Built by a dedicated session (not the routine), one page at a time, full quality
 1. **About page** (`/about`) — Josh's story, told warmly and simply. ONLY these facts (never invent more: no wife's name, no neighborhood, no job, no dates, no quotes he didn't say): his name is Josh; he's local to Oʻahu; he built Nalu mostly for his wife, so she'd know each morning whether to drive, take TheBus or ride Skyline, and when to leave. What Nalu promises (from the product rules): the core answer stays free; it decides and hands off to Google/Apple Maps; real data, never invented times; built and tested on Oʻahu for Oʻahu. Mahalo / local voice without tourist Hawaiian. Contact: the in-app "Tell Nalu something" box (from P-4). JSON-LD: AboutPage + Organization (founder: Person "Josh"), linked from the footer and the intro page.
 2. **How Nalu decides** (`/how-nalu-decides`) — the methodology and data sources, accurate to the code (read `src/lib/intelligence/*`, `src/lib/transit-plan.ts`, CLOUD_CODE_CONTEXT.md; transit-accuracy must approve every claim): live drive time (TomTom), TheBus/Skyline timetable (GTFS, valid-through date), park-and-ride and drop-off, walking limits, Arrive by / Leave now, traffic and HDOT closures, weather, freshness/confidence labels, what Nalu doesn't do (no parking estimates, not a navigation app), how often data refreshes, and how to report a wrong answer. Plain English, a simple diagram, FAQ with FAQPage schema, links to official sources.
 3. **Footer/E-E-A-T polish** — About, How Nalu decides, Privacy, Terms, Disclaimer and contact in a consistent footer on every public page; Organization `sameAs` only for profiles that really exist (ask none; omit if none); visible "Last updated" on these pages.
-4. **Listings for Josh (one-time, he submits)** — `docs/seo/listings.md`: 5–10 real, currently-accepting places to be listed (verify each page exists and how to submit: e.g. UH Mānoa commuter/transportation resources, AlternativeTo, community or employer commute pages, Hawaiʻi tech/startup directories; no paid or link-scheme sites), each with the submission URL and ready-to-paste text (short and long description, category, one sentence on what's different). No posting by agents.
+4. SKIP (Josh, Oct 13: organic only, no listings or submissions).
 
 ## Owner items to remind (drop when the owner confirms done)
 (Oct 7: the owner won't request indexing manually; Google will crawl on its own. Report index status, but don't remind him to request indexing.)
