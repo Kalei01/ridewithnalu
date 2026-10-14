@@ -38,10 +38,9 @@ main.nh-commute .nh-waves {
 
 /* Flat hairline cards, like the home page's. */
 main.nh-commute .nalu-card-surface,
-main.nh-commute [aria-labelledby="plan-mode-title"],
 main.nh-commute .alternative-panel,
-main.nh-commute .glass-panel:not(.sticky, .rounded-full),
-main.nh-commute .bg-surface-raised:not(.sticky, .rounded-full),
+main.nh-commute .glass-panel:not(.sticky, .rounded-full, [class*="border-chart"], [class*="border-warning"], [class*="border-destructive"]),
+main.nh-commute .bg-surface-raised:not(.sticky, .rounded-full, [class*="border-chart"], [class*="border-warning"], [class*="border-destructive"]),
 main.nh-commute .map-shell {
   border: 1px solid var(--nh-line) !important;
   border-radius: 1.25rem !important;
@@ -68,4 +67,14 @@ main.nh-commute .verdict-lift[aria-labelledby="verdict-title"] {
 }
 main.nh-commute .verdict-lift[aria-labelledby="verdict-title"]::before {
   display: none;
+}
+
+/* The Leave now / Arrive by switch is its own pill: no second box around it. */
+main.nh-commute [aria-labelledby="plan-mode-title"] {
+  border: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }

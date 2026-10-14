@@ -117,6 +117,7 @@ import {
 import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Waves } from "@/components/home/Waves";
+import "@/components/home/home.css";
 import {
   autoOpenAllowed,
   noteIgnored,

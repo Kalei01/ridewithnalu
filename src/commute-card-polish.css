@@ -163,36 +163,7 @@
   }
 }
 
-/* Rain (M9): soft drops on the backdrop, only while the forecast puts showers near the
-   trip (data-rain is set by the trip screen). Behind the cards, never over the answer. */
-@media (prefers-reduced-motion: no-preference) {
-  html[data-rain="true"] main.bg-page-gradient::after {
-    content: "";
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: -130px;
-    height: calc(100vh + 130px);
-    z-index: -1;
-    pointer-events: none;
-    opacity: 0.8;
-    background-image:
-      linear-gradient(100deg, transparent 48%, rgba(170, 205, 255, 0.28) 50%, transparent 52%),
-      linear-gradient(100deg, transparent 48%, rgba(170, 205, 255, 0.2) 50%, transparent 52%);
-    background-size:
-      26px 130px,
-      41px 130px;
-    background-position:
-      0 0,
-      13px 50px;
-    animation: rain-fall 4s linear infinite;
-  }
-}
-@keyframes rain-fall {
-  to {
-    transform: translateY(130px);
-  }
-}
+/* Rain (M9) removed from the trip screen (Josh, Oct 14: it covered the page). */
 
 /* Night (M10): a few quiet stars in the top wash after dark, and a sleeping train's "z"
    on the Skyline row once service has stopped for the night. */
