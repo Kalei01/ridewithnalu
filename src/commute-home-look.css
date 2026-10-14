@@ -29,7 +29,9 @@ main.nh-commute.commute-radiance-rail::before {
     radial-gradient(120% 70% at 85% -10%, rgb(48 209 88 / 20%), transparent 60%),
     radial-gradient(90% 60% at -10% 30%, rgb(10 132 255 / 9%), transparent 60%);
 }
-main.nh-commute .nh-waves {
+/* liquid-titanium.css makes every direct child of the page position:relative, which put the wave in the flow (an empty band above the header). */
+main.nh-commute > .nh-waves {
+  position: absolute !important;
   top: 0;
   bottom: auto;
   height: 150px;
