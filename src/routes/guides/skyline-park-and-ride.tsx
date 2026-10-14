@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { SkylineLineDiagram } from "@/components/guides/SkylineLineDiagram";
 import { GUIDES } from "@/components/guides/guides";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/components/guides/GuideLayout";
@@ -63,6 +64,7 @@ function SkylineParkAndRidePage() {
       }
     >
       <GuideSection id="lots" title="The four lots">
+        <SkylineLineDiagram mode="parking" />
         <GuideTable
           caption="Skyline park-and-ride lots listed by the City and County of Honolulu (October 2026)"
           head={["Station", "Stalls", "TheBus stop?"]}

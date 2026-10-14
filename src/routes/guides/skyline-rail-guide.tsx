@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { SkylineLineDiagram } from "@/components/guides/SkylineLineDiagram";
 import { GUIDES } from "@/components/guides/guides";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/components/guides/GuideLayout";
@@ -99,6 +100,7 @@ function SkylineGuidePage() {
           The minutes below are from TheBus's official timetable for a train leaving East Kapolei. A full
           end-to-end ride takes about 34 to 36 minutes. Westbound trips take about the same time.
         </p>
+        <SkylineLineDiagram mode="line" />
         <GuideTable
           caption="Skyline stations, west to east (timetable, October 2026)"
           head={["Station", "Min. from East Kapolei", "TheBus connections"]}

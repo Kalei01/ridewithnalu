@@ -1,0 +1,71 @@
+@property --lit {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+.skyline-line__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.skyline-line__row {
+  --lit: var(--primary);
+  --unlit: color-mix(in oklch, var(--color-foreground, currentColor) 28%, transparent);
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 2.5rem;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.skyline-line__row[data-lit="false"] {
+  --lit: var(--unlit);
+}
+.skyline-line__row::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--lit);
+}
+.skyline-line__row:first-child::before {
+  top: 50%;
+}
+.skyline-line__row:last-child::before {
+  bottom: 50%;
+}
+.skyline-line__mark {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+.skyline-line__dot {
+  fill: var(--lit);
+}
+.skyline-line__p {
+  fill: var(--primary-foreground, #fff);
+  font-size: 12px;
+  font-weight: 800;
+}
+.skyline-line__meta {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skyline-line[data-reveal="pending"] .skyline-line__row {
+    --lit: var(--unlit);
+  }
+  .skyline-line[data-reveal="in"] .skyline-line__row[data-lit="true"] {
+    animation: skyline-line-light 420ms ease-out calc(var(--i) * 90ms) both;
+  }
+}
+@keyframes skyline-line-light {
+  from {
+    --lit: var(--unlit);
+  }
+}
