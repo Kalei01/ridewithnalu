@@ -57,6 +57,7 @@ export type VerdictSectionProps = {
   options: import("@/lib/commute-model").Option[];
   optionsFailed: boolean;
   optionsLoading: boolean;
+  onRetry: () => void;
   pendingSteps: import("@/lib/loading-labels").CheckingStep[] | null;
   planPlaceholder: boolean;
   reasoning: string | null;
@@ -101,6 +102,7 @@ export function VerdictSection(props: VerdictSectionProps) {
     options,
     optionsFailed,
     optionsLoading,
+    onRetry,
     pendingSteps,
     planPlaceholder,
     reasoning,
@@ -169,6 +171,7 @@ export function VerdictSection(props: VerdictSectionProps) {
               commitment={Boolean(commitment)}
               formatMinutes={formatDriveMinutes}
               onSelect={chooseTrip}
+              onRetry={onRetry}
               access={
                 tripAccess
                   ? { label: tripAccessLabel(tripAccess), onChange: () => chooseTripAccess(null) }

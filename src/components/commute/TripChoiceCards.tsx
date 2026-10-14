@@ -1,4 +1,4 @@
-import { Bus, Car, TrainFront } from "lucide-react";
+import { Bus, Car, CloudOff, RefreshCw, TrainFront } from "lucide-react";
 import { trafficBar } from "@/lib/traffic-bar";
 import { usePickLanded } from "@/hooks/use-pick-landed";
 
@@ -17,6 +17,8 @@ export type TripChoice = {
   /** Arrive By only: this way doesn't get there in time. */
   late?: boolean;
   status: "ready" | "loading" | "empty";
+  /** The search for this row failed or ran out of time (not "there is no trip"). */
+  failed?: boolean;
   /** Shown instead of minutes when there's no trip: "No bus trip right now", "Can't check right now". */
   emptyText?: string;
   /** A short factual caveat, e.g. the lot that often fills. */
@@ -45,6 +47,7 @@ export function TripChoiceCards({
   formatMinutes,
   onSelect,
   access,
+  onRetry,
 }: {
   choices: TripChoice[];
   /** Null while Nalu is still deciding: no row is marked until there's an answer. */
@@ -54,6 +57,8 @@ export function TripChoiceCards({
   onSelect: (key: TripChoiceKey) => void;
   /** What the rider said works for this trip, with a way to change it. */
   access?: { label: string; onChange: () => void } | null;
+  /** Re-runs the checks that failed. */
+  onRetry?: () => void;
 }) {
   // Once Nalu has a pick, it lifts a little and the other ready rows soften.
   const hasPick = !commitment && choices.some((c) => c.pick && c.status === "ready");
@@ -144,6 +149,9 @@ export function TripChoiceCards({
               </span>
               <span className="col-span-2 col-start-2 min-w-0 break-words text-sm text-muted-foreground">
                 <span key={choice.status} className={valueIn}>
+                  {choice.status === "empty" && choice.failed && (
+                    <CloudOff aria-hidden="true" className="mr-1.5 -mt-0.5 inline size-4" />
+                  )}
                   {choice.status === "empty" ? choice.emptyText : choice.steps}
                 </span>
               </span>
@@ -159,6 +167,16 @@ export function TripChoiceCards({
           </button>
         );
       })}
+      {onRetry && !commitment && choices.some((c) => c.failed && c.status === "empty") && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="nalu-value-in inline-flex min-h-11 items-center gap-2 justify-self-start rounded-full px-3 text-sm font-semibold text-primary transition-transform duration-100 active:scale-[0.97] motion-reduce:active:scale-100"
+        >
+          <RefreshCw aria-hidden="true" className="size-4" />
+          Try again
+        </button>
+      )}
     </div>
   );
 }

@@ -1183,6 +1183,7 @@ function Index() {
     isError: planFailed,
     isPlaceholderData: planPlaceholder,
     dataUpdatedAt: optionsFetchedAt,
+    refetch: refetchPlan,
   } = useQuery({
     queryKey: planKey,
     // Wait for the answer: it decides which itineraries may be built.
@@ -2917,6 +2918,7 @@ function Index() {
         : null,
       late: arriveByActive && option !== null && !group.makesIt && lockedChoice !== key,
       status: option ? "ready" : optionsLoading ? "loading" : "empty",
+      failed: !option && (key === "skyline" ? skylineUnchecked : busUnchecked),
       emptyText:
         key === "skyline"
           ? skylineEmptyText({
@@ -2965,6 +2967,7 @@ function Index() {
       : driveTripEstimate.availability === "available"
         ? "ready"
         : "empty",
+    failed: driveTripEstimate.availability === "data-error",
     emptyText:
       driveTripEstimate.availability === "car-unavailable"
         ? "No car for this trip"
@@ -3012,6 +3015,11 @@ function Index() {
           : busRowUnchecked
             ? "TheBus couldn’t be checked"
             : null;
+  // "Try again" on a row that couldn't be checked: ask traffic and the timetable again.
+  const retryChecks = () => {
+    void queryClient.invalidateQueries({ queryKey: ["drive"] });
+    void refetchPlan();
+  };
   const pendingSteps = tripCheckingSteps({
     driveRow: Boolean(resources.vehicle),
     driveLoading,
@@ -4295,6 +4303,7 @@ function Index() {
           options={options}
           optionsFailed={optionsFailed}
           optionsLoading={optionsLoading}
+          onRetry={retryChecks}
           pendingSteps={pendingSteps}
           planPlaceholder={planPlaceholder}
           reasoning={reasoning}
