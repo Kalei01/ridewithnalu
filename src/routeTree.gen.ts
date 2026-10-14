@@ -31,6 +31,8 @@ import { Route as GuidesSkylineParkAndRideRouteImport } from './routes/guides/sk
 import { Route as GuidesSkylineRailGuideRouteImport } from './routes/guides/skyline-rail-guide'
 import { Route as GuidesUhManoaWithoutParkingRouteImport } from './routes/guides/uh-manoa-without-parking'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
+import { Route as ApiPublicHomeLiveRouteImport } from './routes/api/public/home-live'
+import { Route as ApiPublicHomeRaceRouteImport } from './routes/api/public/home-race'
 import { Route as ApiPublicImportGtfsRouteImport } from './routes/api/public/import-gtfs'
 import { Route as ApiPublicLeaveAlertsRouteImport } from './routes/api/public/leave-alerts'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push-dispatch'
@@ -154,6 +156,16 @@ const ApiPublicHealthRoute = ApiPublicHealthRouteImport.update({
   path: '/api/public/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHomeLiveRoute = ApiPublicHomeLiveRouteImport.update({
+  id: '/api/public/home-live',
+  path: '/api/public/home-live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHomeRaceRoute = ApiPublicHomeRaceRouteImport.update({
+  id: '/api/public/home-race',
+  path: '/api/public/home-race',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicImportGtfsRoute = ApiPublicImportGtfsRouteImport.update({
   id: '/api/public/import-gtfs',
   path: '/api/public/import-gtfs',
@@ -208,6 +220,8 @@ export interface FileRoutesByFullPath {
   '/guides/uh-manoa-without-parking': typeof GuidesUhManoaWithoutParkingRoute
   '/guides/': typeof GuidesIndexRoute
   '/api/public/health': typeof ApiPublicHealthRoute
+  '/api/public/home-live': typeof ApiPublicHomeLiveRoute
+  '/api/public/home-race': typeof ApiPublicHomeRaceRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
@@ -238,6 +252,8 @@ export interface FileRoutesByTo {
   '/guides/uh-manoa-without-parking': typeof GuidesUhManoaWithoutParkingRoute
   '/guides': typeof GuidesIndexRoute
   '/api/public/health': typeof ApiPublicHealthRoute
+  '/api/public/home-live': typeof ApiPublicHomeLiveRoute
+  '/api/public/home-race': typeof ApiPublicHomeRaceRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
@@ -269,6 +285,8 @@ export interface FileRoutesById {
   '/guides/uh-manoa-without-parking': typeof GuidesUhManoaWithoutParkingRoute
   '/guides/': typeof GuidesIndexRoute
   '/api/public/health': typeof ApiPublicHealthRoute
+  '/api/public/home-live': typeof ApiPublicHomeLiveRoute
+  '/api/public/home-race': typeof ApiPublicHomeRaceRoute
   '/api/public/import-gtfs': typeof ApiPublicImportGtfsRoute
   '/api/public/leave-alerts': typeof ApiPublicLeaveAlertsRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
@@ -301,6 +319,8 @@ export interface FileRouteTypes {
     | '/guides/uh-manoa-without-parking'
     | '/guides/'
     | '/api/public/health'
+    | '/api/public/home-live'
+    | '/api/public/home-race'
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
@@ -331,6 +351,8 @@ export interface FileRouteTypes {
     | '/guides/uh-manoa-without-parking'
     | '/guides'
     | '/api/public/health'
+    | '/api/public/home-live'
+    | '/api/public/home-race'
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
@@ -361,6 +383,8 @@ export interface FileRouteTypes {
     | '/guides/uh-manoa-without-parking'
     | '/guides/'
     | '/api/public/health'
+    | '/api/public/home-live'
+    | '/api/public/home-race'
     | '/api/public/import-gtfs'
     | '/api/public/leave-alerts'
     | '/api/public/push-dispatch'
@@ -392,6 +416,8 @@ export interface RootRouteChildren {
   GuidesUhManoaWithoutParkingRoute: typeof GuidesUhManoaWithoutParkingRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
   ApiPublicHealthRoute: typeof ApiPublicHealthRoute
+  ApiPublicHomeLiveRoute: typeof ApiPublicHomeLiveRoute
+  ApiPublicHomeRaceRoute: typeof ApiPublicHomeRaceRoute
   ApiPublicImportGtfsRoute: typeof ApiPublicImportGtfsRoute
   ApiPublicLeaveAlertsRoute: typeof ApiPublicLeaveAlertsRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
@@ -556,6 +582,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/home-live': {
+      id: '/api/public/home-live'
+      path: '/api/public/home-live'
+      fullPath: '/api/public/home-live'
+      preLoaderRoute: typeof ApiPublicHomeLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/home-race': {
+      id: '/api/public/home-race'
+      path: '/api/public/home-race'
+      fullPath: '/api/public/home-race'
+      preLoaderRoute: typeof ApiPublicHomeRaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/import-gtfs': {
       id: '/api/public/import-gtfs'
       path: '/api/public/import-gtfs'
@@ -626,6 +666,8 @@ const rootRouteChildren: RootRouteChildren = {
   GuidesUhManoaWithoutParkingRoute: GuidesUhManoaWithoutParkingRoute,
   GuidesIndexRoute: GuidesIndexRoute,
   ApiPublicHealthRoute: ApiPublicHealthRoute,
+  ApiPublicHomeLiveRoute: ApiPublicHomeLiveRoute,
+  ApiPublicHomeRaceRoute: ApiPublicHomeRaceRoute,
   ApiPublicImportGtfsRoute: ApiPublicImportGtfsRoute,
   ApiPublicLeaveAlertsRoute: ApiPublicLeaveAlertsRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,

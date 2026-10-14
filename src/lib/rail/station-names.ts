@@ -129,6 +129,11 @@ export function skylineStationFromText(value: string | null | undefined): string
   return station ? riderName(station) : undefined;
 }
 
+/** The GTFS stop id of a Skyline station written any way GTFS has it (e.g. a trip headsign), or undefined. */
+export function skylineStationIdFromText(value: string | null | undefined): string | undefined {
+  return findStation(value)?.stopId;
+}
+
 /** The English and Hawaiian names apart ("Kalihi Transit Center", "Kahauiki"), or undefined. */
 export function skylineStationParts(value: string | null | undefined): StationParts | undefined {
   const station = findStation(value);

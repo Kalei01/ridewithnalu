@@ -654,3 +654,45 @@ export function naluPulseTagline(
 ): string {
   return naluCommuteLine("normal", date, { ...context, period });
 }
+
+/** What the home page knows right now (every field from a real check, or empty). */
+export type NaluHomeContext = {
+  period: "morning" | "evening" | "other";
+  /** Minutes slower than usual on the Kapolei ↔ town drive (live traffic), or null when unchecked. */
+  delayMinutes: number | null;
+  /** The live route runs on H-1 (so it may be named). */
+  onH1: boolean;
+  /** Minutes between scheduled Skyline trains now, when the timetable shows a steady gap. */
+  skylineEvery: number | null;
+  /** The timetable has no more Skyline trains tonight. */
+  skylineStopped: boolean;
+  /** A named area where NWS expects showers this hour. */
+  showersArea: string | null;
+};
+
+/**
+ * The home page's one friendly line ("Pau hana traffic building on H-1 —
+ * Skyline's every 10 min."). Built from real conditions only; with nothing
+ * checked it says nothing.
+ */
+export function naluHomeLine(context: NaluHomeContext): string | null {
+  const { period, delayMinutes, onH1, skylineEvery, skylineStopped, showersArea } = context;
+  const road = onH1 ? "H-1" : "the drive into town";
+  const skyline = skylineEvery ? ` — Skyline's every ${skylineEvery} min.` : ".";
+  if (delayMinutes !== null && delayMinutes >= 3 && period !== "other") {
+    const heavy = delayMinutes >= 10;
+    if (period === "evening")
+      return `Pau hana traffic ${heavy ? "is heavy" : "building"} on ${road}${skyline}`;
+    return `Morning rush ${heavy ? "is heavy" : "building"} on ${road}${skyline}`;
+  }
+  if (delayMinutes !== null && delayMinutes >= 5)
+    return `${capitalize(road)}'s slower than usual right now${skyline}`;
+  if (skylineStopped && delayMinutes !== null && delayMinutes <= 2)
+    return `Skyline's pau for the night, and ${road}'s moving like usual.`;
+  if (showersArea) return `Showers near ${showersArea} — maybe keep an umbrella handy.`;
+  if (delayMinutes !== null && delayMinutes <= 1 && period !== "other")
+    return `${capitalize(road)}'s moving like usual right now${skyline}`;
+  return null;
+}
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);

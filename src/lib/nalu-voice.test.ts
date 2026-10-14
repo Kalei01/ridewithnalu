@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateSmartNaluInsight } from "./nalu-voice";
+import { generateSmartNaluInsight, naluHomeLine } from "./nalu-voice";
 
 describe("drive tone follows live traffic", () => {
   const base = { driveMinutes: 20, transitMinutes: 78, selectedMode: "drive" as const };
@@ -253,5 +253,42 @@ describe("generateSmartNaluInsight", () => {
       incidents: [{ road: "H1 Eastbound", description: "Crash" }],
     });
     expect(unmeasured).not.toMatch(/slowing/);
+  });
+});
+
+describe("naluHomeLine", () => {
+  const base = {
+    period: "evening" as const,
+    delayMinutes: 6,
+    onH1: true,
+    skylineEvery: 10,
+    skylineStopped: false,
+    showersArea: null,
+  };
+  it("talks pau hana traffic only from a real delay", () => {
+    expect(naluHomeLine(base)).toBe("Pau hana traffic building on H-1 — Skyline's every 10 min.");
+    expect(naluHomeLine({ ...base, delayMinutes: 14 })).toBe(
+      "Pau hana traffic is heavy on H-1 — Skyline's every 10 min.",
+    );
+  });
+  it("says the morning rush in the morning", () => {
+    expect(naluHomeLine({ ...base, period: "morning", skylineEvery: null })).toBe(
+      "Morning rush building on H-1.",
+    );
+  });
+  it("never names H-1 when the route isn't on it", () => {
+    expect(naluHomeLine({ ...base, onH1: false })).toBe(
+      "Pau hana traffic building on the drive into town — Skyline's every 10 min.",
+    );
+  });
+  it("mentions showers when traffic is unremarkable", () => {
+    expect(naluHomeLine({ ...base, delayMinutes: 2, showersArea: "Mānoa" })).toBe(
+      "Showers near Mānoa — maybe keep an umbrella handy.",
+    );
+  });
+  it("says nothing without evidence", () => {
+    expect(
+      naluHomeLine({ ...base, delayMinutes: null, skylineEvery: null, period: "other" }),
+    ).toBeNull();
   });
 });

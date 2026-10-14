@@ -41,7 +41,7 @@ const USER_AGENT = `(NaluApp/1.0, ${SITE_URL})`;
 const FORECAST_TTL_MS = 20 * 60_000;
 const AIR_TTL_MS = 60 * 60_000;
 
-type HourlyPeriod = {
+export type HourlyPeriod = {
   startTime?: string;
   endTime?: string;
   temperature?: number;
@@ -111,7 +111,8 @@ function edgeCached(init: RequestInit, seconds: number): RequestInit {
   return { ...init, cf: { cacheTtl: seconds, cacheEverything: true } } as RequestInit;
 }
 
-async function getHourly(lat: number, lon: number): Promise<HourlyPeriod[] | null> {
+/** NWS hourly forecast for a point (cached; a few hours stale beats nothing). Also used by the home page. */
+export async function getHourly(lat: number, lon: number): Promise<HourlyPeriod[] | null> {
   const key = coordKey(lat, lon);
   const cached = forecastCache.get(key);
   if (cached && Date.now() - cached.at < FORECAST_TTL_MS) return cached.periods;
@@ -165,7 +166,7 @@ async function getHourly(lat: number, lon: number): Promise<HourlyPeriod[] | nul
   return request;
 }
 
-function periodAt(periods: HourlyPeriod[], when: number): HourlyPeriod | null {
+export function periodAt(periods: HourlyPeriod[], when: number): HourlyPeriod | null {
   for (const period of periods) {
     const start = period.startTime ? Date.parse(period.startTime) : NaN;
     const end = period.endTime ? Date.parse(period.endTime) : NaN;

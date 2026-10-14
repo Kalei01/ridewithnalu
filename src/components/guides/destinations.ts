@@ -18,3 +18,12 @@ export function tripHref(destination: GuideDestination): string {
   const params = new URLSearchParams({ to: `${destination.lat},${destination.lon}`, name: destination.name });
   return `/?${params.toString()}`;
 }
+
+// Kuhio Ave + Seaside Ave
+export const WAIKIKI: GuideDestination = { name: "Waikīkī", lat: 21.28041, lon: -157.827239 };
+// Ala Moana Bl + Ala Moana Center
+export const ALA_MOANA: GuideDestination = {
+  name: "Ala Moana Center",
+  lat: 21.289919,
+  lon: -157.844622,
+};

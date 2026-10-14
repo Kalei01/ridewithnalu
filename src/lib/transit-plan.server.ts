@@ -61,7 +61,7 @@ let client: ReturnType<typeof createClient<Database>> | undefined;
  * planner functions read only the published timetable. No session is kept,
  * so nothing about one rider can reach another's request.
  */
-function plannerClient() {
+export function plannerClient() {
   if (client) return client;
   const url = process.env["SUPABASE_URL"] || import.meta.env["VITE_SUPABASE_URL"];
   const key =
