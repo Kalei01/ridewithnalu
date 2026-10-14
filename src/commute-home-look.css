@@ -1,0 +1,72 @@
+/*
+ * The commute (answer) screen in the home page's look. Presentation only, and
+ * scoped to main.nh-commute so no other page changes. It restyles the surfaces
+ * (flat hairline cards, big radius, soft blue glow on the pick, a wave motif and
+ * a sea-night hero glow); it never touches the rows, the pick, the motion
+ * (M1–M18) or any wording. Tokens (--nh-*) come from home.css's .nh scope.
+ */
+main.nh-commute {
+  background: var(--color-background) !important;
+  background-attachment: scroll !important;
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+}
+/* Hero glow: blue by default, green when Skyline is the pick (as the old radiance tinted it). */
+main.nh-commute::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 520px;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 70% at 85% -10%, rgb(10 132 255 / 22%), transparent 60%),
+    radial-gradient(90% 60% at -10% 30%, rgb(48 209 88 / 9%), transparent 60%);
+}
+main.nh-commute.commute-radiance-rail::before {
+  background:
+    radial-gradient(120% 70% at 85% -10%, rgb(48 209 88 / 20%), transparent 60%),
+    radial-gradient(90% 60% at -10% 30%, rgb(10 132 255 / 9%), transparent 60%);
+}
+main.nh-commute .nh-waves {
+  top: 0;
+  bottom: auto;
+  height: 150px;
+  z-index: -1;
+}
+
+/* Flat hairline cards, like the home page's. */
+main.nh-commute .nalu-card-surface,
+main.nh-commute [aria-labelledby="plan-mode-title"],
+main.nh-commute .alternative-panel,
+main.nh-commute .commitment-panel,
+main.nh-commute .glass-panel,
+main.nh-commute .bg-surface-raised,
+main.nh-commute .map-shell {
+  border: 1px solid var(--nh-line) !important;
+  border-radius: 1.25rem !important;
+  background: var(--nh-card) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+main.nh-commute .nalu-card-surface::after,
+main.nh-commute .alternative-panel::after {
+  display: none;
+}
+/* The answer card: the same family, with the soft glow the live island has. */
+main.nh-commute .verdict-lift[aria-labelledby="verdict-title"] {
+  border: 1px solid rgb(125 196 255 / 18%) !important;
+  border-radius: 1.5rem !important;
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgb(10 132 255 / 10%), transparent 70%),
+    rgb(255 255 255 / 4%) !important;
+  box-shadow: 0 30px 60px -30px rgb(10 132 255 / 35%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+main.nh-commute .verdict-lift[aria-labelledby="verdict-title"]::before {
+  display: none;
+}

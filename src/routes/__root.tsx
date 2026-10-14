@@ -24,6 +24,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import liquidTitaniumCss from "../liquid-titanium.css?url";
 import commuteCardPolishCss from "../commute-card-polish.css?url";
+import commuteHomeLookCss from "../commute-home-look.css?url";
 import { AuthProvider, useAuth } from "../hooks/use-auth";
 import { Toaster } from "../components/ui/sonner";
 import { initGoogleAnalytics, trackGooglePageView } from "../lib/google-analytics";
@@ -88,6 +89,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: liquidTitaniumCss },
       { rel: "stylesheet", href: commuteCardPolishCss },
+      { rel: "stylesheet", href: commuteHomeLookCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "icon", href: "/icons/nalu-icon.svg", type: "image/svg+xml" },

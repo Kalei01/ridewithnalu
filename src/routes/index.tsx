@@ -116,6 +116,7 @@ import {
 } from "@/lib/navigation-voice";
 import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
+import { Waves } from "@/components/home/Waves";
 import {
   autoOpenAllowed,
   noteIgnored,
@@ -4195,7 +4196,8 @@ function Index() {
   // After the destination is chosen and before any result: what works for this trip.
   if (needsAccessAnswer) {
     return (
-      <main className="min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+      <main className="nh nh-commute nh-pad-x min-h-dvh bg-page-gradient pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
+        <Waves />
         <div className="mx-auto flex w-full max-w-[680px] flex-col">
           <CommuteHeader
             heading={arrivingHome ? "Heading home" : inbound ? "Heading west" : "Heading out"}
@@ -4224,8 +4226,9 @@ function Index() {
 
   return (
     <main
-      className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "transit" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
+      className={`nh nh-commute nh-pad-x min-h-dvh bg-page-gradient pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "transit" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
     >
+      <Waves />
       <PullToRefresh onRefresh={refresh} refreshing={refreshing} enabled={!commitment} />
       <div className="mx-auto flex w-full max-w-[680px] flex-col">
         <CommuteHeader
