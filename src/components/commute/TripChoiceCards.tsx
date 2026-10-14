@@ -1,4 +1,5 @@
 import { Bus, Car, TrainFront } from "lucide-react";
+import { usePickLanded } from "@/hooks/use-pick-landed";
 
 export type TripChoiceKey = "drive" | "skyline" | "bus";
 
@@ -53,6 +54,7 @@ export function TripChoiceCards({
 }) {
   // Once Nalu has a pick, it lifts a little and the other ready rows soften.
   const hasPick = !commitment && choices.some((c) => c.pick && c.status === "ready");
+  usePickLanded(hasPick ? (choices.find((c) => c.pick)?.key ?? null) : null);
   return (
     <div role="radiogroup" aria-label="Ways to make this trip" className="mt-4 grid gap-2">
       {access && !commitment && (
