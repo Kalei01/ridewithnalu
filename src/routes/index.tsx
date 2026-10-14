@@ -1,3 +1,4 @@
+import { VerdictSection } from "@/components/commute/sections/VerdictSection";
 import { VerdictFollowUpSection } from "@/components/commute/sections/VerdictFollowUpSection";
 import { TripCommitmentSection } from "@/components/commute/sections/TripCommitmentSection";
 import { MapSection, type TransitMapSegment } from "@/components/commute/sections/MapSection";
@@ -18,14 +19,8 @@ import { RefreshCw, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { reverseGeocode } from "@/lib/geocode.functions";
-import { RouteCorridor } from "@/components/commute/RouteCorridor";
-import { NightCard } from "@/components/commute/NightCard";
 import { CommuteHeader } from "@/components/commute/CommuteHeader";
-import {
-  TripChoiceCards,
-  type TripChoice,
-  type TripChoiceKey,
-} from "@/components/commute/TripChoiceCards";
+import { type TripChoice, type TripChoiceKey } from "@/components/commute/TripChoiceCards";
 import {
   allowTimeNote,
   parkingNote,
@@ -41,7 +36,6 @@ import { landingView, mayAutoOpenUsualTrip } from "@/lib/landing-view";
 import {
   accessResources,
   carTripAvailable,
-  tripAccessLabel,
   tripAccessExpired,
   vehicleToStation,
   type TripAccess,
@@ -104,7 +98,6 @@ import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
 import { driveEstimate, transitEstimate } from "@/lib/decision/trip-estimate";
 import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
 import { type PlanMode } from "@/components/commute/ArriveByControls";
-import { VerdictDomain } from "@/components/commute/VerdictDomain";
 import { AccountDialog, type PlacesSyncStatus } from "@/components/account/AccountDialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useWakeLock } from "@/hooks/use-wake-lock";
@@ -187,7 +180,6 @@ import {
   optionIdentity,
   parseCommitment,
   rainLine,
-  sourceFreshnessLabel,
   vehicleName,
 } from "@/lib/commute-model";
 import { SettingsPageId, SetupDialog } from "@/components/settings/SetupDialog";
@@ -4274,180 +4266,48 @@ function Index() {
           tripArrivalLabel={tripArrivalLabel}
         />
 
-        {!commitment && activeRegion().hasTransit && (
-          <NightCard
-            nowSeconds={nowSeconds}
-            options={options}
-            plannerAnswered={!optionsLoading && !optionsFailed}
-            destination={
-              tripDirection.to.lat !== null && tripDirection.to.lon !== null
-                ? { lat: tripDirection.to.lat, lon: tripDirection.to.lon, name: tripArrivalLabel }
-                : null
-            }
-          />
-        )}
-
-        <VerdictDomain
-          configured={configured}
-          commitment={Boolean(commitment)}
-          verdict={verdict}
-          transitStandaloneAvailable={transitStandaloneAvailable}
-          transitLabel={transitLabel}
-          optionsLoading={optionsLoading}
-          driveLoading={driveLoading}
-          confidence={verdictConfidence}
-          differenceMinutes={activeDecision.differenceMinutes}
+        <VerdictSection
+          activeDecision={activeDecision}
           arriveByActive={arriveByActive}
-          driveMinutes={
-            driveTripEstimate.doorToDoorMinutes ?? driveTripEstimate.expectedDurationMinutes
-          }
-          driveRange={driveRange}
-          transitMinutes={transitTripEstimate.expectedDurationMinutes}
-          transitRange={transitRange}
-          best={best ?? null}
-          transitWindow={transitWindow}
-          driveAvailable={Boolean(drive && driveRange && driveArrival)}
-          driveArrivalSeconds={
-            driveTripEstimate.arrivalTime ?? driveArrival?.expectedSeconds ?? null
-          }
-          driveWindow={driveWindow}
+          best={best}
+          chooseTrip={chooseTrip}
+          chooseTripAccess={chooseTripAccess}
+          commitment={commitment}
+          configured={configured}
+          decisionChanges={decisionChanges}
+          decisionSignals={decisionSignals}
+          drive={drive}
+          driveArrival={driveArrival}
           driveBufferNote={driveBufferNote}
-          driveTotalMinutes={driveDoorToDoorMinutes}
-          driveLeaveSeconds={arriveByActive && drivePlan ? drivePlan.leaveBySeconds : null}
+          driveDoorToDoorMinutes={driveDoorToDoorMinutes}
+          driveLoading={driveLoading}
+          drivePlan={drivePlan}
+          driveRange={driveRange}
+          driveTripEstimate={driveTripEstimate}
+          driveWindow={driveWindow}
+          now={now}
+          nowSeconds={nowSeconds}
+          options={options}
+          optionsFailed={optionsFailed}
+          optionsLoading={optionsLoading}
           pendingStatus={pendingStatus}
+          planPlaceholder={planPlaceholder}
+          reasoning={reasoning}
+          selectedChoice={selectedChoice}
+          transitLabel={transitLabel}
+          transitRange={transitRange}
+          transitStandaloneAvailable={transitStandaloneAvailable}
+          transitTripEstimate={transitTripEstimate}
+          transitWindow={transitWindow}
+          tripAccess={tripAccess}
+          tripArrivalLabel={tripArrivalLabel}
+          tripChoices={tripChoices}
+          tripDirection={tripDirection}
           uncheckedNote={uncheckedNote}
-          comparison={
-            activeRegion().hasTransit ? (
-              <TripChoiceCards
-                choices={tripChoices}
-                selectedKey={selectedChoice}
-                commitment={Boolean(commitment)}
-                formatMinutes={formatDriveMinutes}
-                onSelect={chooseTrip}
-                access={
-                  tripAccess
-                    ? { label: tripAccessLabel(tripAccess), onChange: () => chooseTripAccess(null) }
-                    : null
-                }
-              />
-            ) : null
-          }
-        >
-          <>
-            {verdict === "drive" && drive && <RouteCorridor label={drive.corridorLabel} />}
-            {/* No reason line until both searches finish, so a pending search never reads as "no trip". */}
-            {configured &&
-              !optionsLoading &&
-              !driveLoading &&
-              (verdict === "same" || verdict === "none" || verdict === "uncertain") && (
-                <p className="mt-4 text-lg font-medium text-muted-foreground">
-                  {verdict === "same"
-                    ? "Both options are close once arrival ranges are considered."
-                    : activeDecision.primary.text}
-                </p>
-              )}
-            {configured && (verdict === "transit" || verdict === "drive") && reasoning && (
-              <p className="mt-3 text-base font-medium text-foreground">{reasoning}</p>
-            )}
-            {configured && !commitment && decisionSignals.length > 0 && (
-              <section
-                className="nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25"
-                aria-label="What Nalu is watching"
-              >
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <span
-                    className="size-1.5 shrink-0 animate-pulse rounded-full bg-primary"
-                    aria-hidden="true"
-                  />
-                  <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                    Nalu is watching
-                  </span>
-                  <span className="ml-auto text-xs font-semibold text-muted-foreground">
-                    Live conditions
-                  </span>
-                </div>
-                <div className="border-t border-border/50 px-4 py-3">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {decisionSignals.map((signal) => (
-                      <div
-                        key={signal.label}
-                        className="rounded-xl border border-border/50 bg-background/35 px-3 py-2.5"
-                      >
-                        <p className="text-xs font-semibold text-muted-foreground">
-                          {signal.label}
-                        </p>
-                        <p
-                          className={
-                            signal.tone === "alert"
-                              ? "mt-0.5 text-sm font-bold leading-5 text-warning"
-                              : signal.tone === "positive"
-                                ? "mt-0.5 text-sm font-bold leading-5 text-primary"
-                                : "mt-0.5 text-sm font-bold leading-5 text-foreground"
-                          }
-                        >
-                          {signal.value}
-                        </p>
-                        {signal.detail && (
-                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            {signal.detail}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 border-t border-border/50 pt-3 text-xs text-muted-foreground">
-                    <p>
-                      {sourceFreshnessLabel(driveTripEstimate.source, now.getTime(), {
-                        loading: driveLoading,
-                      })}
-                    </p>
-                    {activeRegion().hasTransit && (
-                      <p className="mt-1">
-                        {sourceFreshnessLabel(transitTripEstimate.source, now.getTime(), {
-                          loading: optionsLoading || planPlaceholder,
-                        })}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </section>
-            )}
-            {configured && !commitment && decisionChanges.length > 0 && (
-              <details className="mt-3 overflow-hidden rounded-2xl border border-border/60 bg-background/25 text-sm">
-                <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-foreground marker:hidden">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">↻</span>
-                    What changed?
-                  </span>
-                </summary>
-                <div className="border-t border-border/50 px-4 py-4">
-                  <p className="text-sm font-semibold leading-6 text-foreground">
-                    {decisionChanges[0]}
-                  </p>
-                  {decisionChanges.slice(1).map((change) => (
-                    <p key={change} className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {change}
-                    </p>
-                  ))}
-                  {whyNaluText && (
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{whyNaluText}</p>
-                  )}
-                  {verdict === "same" && (
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Driving is about {formatDriveMinutes(driveDoorToDoorMinutes ?? 0)}; transit is
-                      about {formatDriveMinutes(transitTripEstimate.expectedDurationMinutes ?? 0)}.
-                    </p>
-                  )}
-                  {verdict === "uncertain" && (
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {activeDecision.primary.text}.
-                    </p>
-                  )}
-                </div>
-              </details>
-            )}
-          </>
-        </VerdictDomain>
+          verdict={verdict}
+          verdictConfidence={verdictConfidence}
+          whyNaluText={whyNaluText}
+        />
 
         <VerdictFollowUpSection
           activeDecision={activeDecision}
