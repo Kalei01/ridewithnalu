@@ -141,9 +141,23 @@ export function mergeTransitOptionsWith(
   const all = Array.from(unique.values());
   const simpler = all.filter((option) => !option.extraTransfers).sort(byArrival);
   const tagged = all.filter((option) => option.extraTransfers).sort(byArrival);
+  // Planner order: simpler trips by arrival, then the extra-transfer ones.
+  const ranked = [...simpler, ...tagged];
   // Keep room for the earliest extra-transfer trip so it can still be shown.
-  return [...simpler.slice(0, tagged.length ? 7 : 8), ...tagged].slice(0, 8);
+  const keep = new Set([...simpler.slice(0, tagged.length ? 7 : 8), ...tagged].slice(0, 8));
+  // Each row (Skyline, Bus) keeps its best trip in planner order, on top of
+  // the 8. Without this a long list of plain bus trips pushed every
+  // drive + Skyline trip out and the Skyline row said "no trip" when there was
+  // one. Nothing already kept is dropped, so no other row's pick changes.
+  for (const rides of [usesRail, (option: Option) => !usesRail(option)]) {
+    const best = ranked.find(rides);
+    if (best && ![...keep].some(rides)) keep.add(best);
+  }
+  return ranked.filter((option) => keep.has(option));
 }
+
+/** Rides Skyline: the Skyline row's kind of trip (see trip-choices.ts). */
+const usesRail = (option: Option) => option.legs.some((leg) => leg.mode === "rail");
 
 export const STORAGE_KEY = "nalu-setup-v3";
 export const SETUP_DISMISSED_KEY = "nalu-setup-dismissed-v1";
