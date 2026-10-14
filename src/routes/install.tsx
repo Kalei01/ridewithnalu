@@ -1,3 +1,4 @@
+import { InstallWalkthrough } from "@/components/InstallWalkthrough";
 import { LegalFooter } from "@/components/LegalFooter";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { SITE_URL } from "@/lib/site";
@@ -114,6 +115,7 @@ function InstallPage() {
 
         <section className="mt-10 rounded-2xl border border-border p-5" aria-labelledby="iphone">
           <h2 id="iphone" className="text-2xl font-bold">iPhone</h2>
+          <InstallWalkthrough platform="ios" />
           <Steps
             items={[
               "Open ridenalu.com in Safari.",
@@ -129,6 +131,7 @@ function InstallPage() {
 
         <section className="mt-6 rounded-2xl border border-border p-5" aria-labelledby="android">
           <h2 id="android" className="text-2xl font-bold">Android</h2>
+          <InstallWalkthrough platform="android" />
           <Steps
             items={[
               "Open ridenalu.com in Chrome.",

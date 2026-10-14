@@ -1,0 +1,190 @@
+.install-walk {
+  --iw-line: color-mix(in oklch, var(--color-foreground, currentColor) 18%, transparent);
+  --iw-soft: color-mix(in oklch, var(--color-foreground, currentColor) 10%, transparent);
+  margin: 1rem auto 0;
+  width: 11rem;
+}
+.install-walk__phone {
+  position: relative;
+  aspect-ratio: 9 / 15;
+  overflow: hidden;
+  border: 2px solid var(--iw-line);
+  border-radius: 1.5rem;
+  background: var(--color-background, #000);
+}
+.install-walk__scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+/* Finished state (server markup, reduced motion, no JavaScript): the Home Screen. */
+.install-walk__scene--3 {
+  opacity: 1;
+}
+.install-walk__page {
+  display: grid;
+  gap: 0.5rem;
+  padding: 2.25rem 0.9rem 0;
+}
+.install-walk__page span {
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--iw-soft);
+}
+.install-walk__page span:first-child {
+  width: 55%;
+  height: 0.9rem;
+}
+.install-walk__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  background: var(--iw-soft);
+}
+.install-walk__bar--bottom {
+  bottom: 0;
+}
+.install-walk__bar--top {
+  top: 0;
+  justify-content: space-between;
+}
+.install-walk__url {
+  flex: 1;
+  height: 1.2rem;
+  border-radius: 999px;
+  background: var(--iw-line);
+}
+.install-walk__tap {
+  color: var(--primary);
+  border-radius: 999px;
+}
+.install-walk__menu {
+  position: absolute;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  border: 1px solid var(--iw-line);
+  border-radius: 0.9rem;
+  background: var(--color-card, #111);
+  font-size: 0.8rem;
+}
+[data-platform="ios"] .install-walk__menu {
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+}
+[data-platform="android"] .install-walk__menu {
+  top: 0.5rem;
+  right: 0.5rem;
+  left: 2.5rem;
+}
+.install-walk__menu li {
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.6rem;
+}
+.install-walk__menu li[data-pick="true"] {
+  background: color-mix(in oklch, var(--primary) 22%, transparent);
+  font-weight: 700;
+}
+.install-walk__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.9rem 0.5rem;
+  padding: 2.25rem 0.75rem 0;
+  justify-items: center;
+}
+.install-walk__ghost {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 22%;
+  background: var(--iw-soft);
+}
+.install-walk__app {
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+}
+.install-walk__app img {
+  border-radius: 22%;
+}
+.install-walk__app small {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Before it scrolls into view: hold on the first frame. */
+  .install-walk[data-reveal="pending"] .install-walk__scene--1 {
+    opacity: 1;
+  }
+  .install-walk[data-reveal="pending"] .install-walk__scene--3 {
+    opacity: 0;
+  }
+  .install-walk[data-reveal="in"] .install-walk__scene--1 {
+    opacity: 1;
+    animation: install-walk-out 300ms ease-in 2.2s forwards;
+  }
+  .install-walk[data-reveal="in"] .install-walk__scene--2 {
+    animation: install-walk-in-out 3s ease-in-out 2.2s both;
+  }
+  .install-walk[data-reveal="in"] .install-walk__scene--3 {
+    opacity: 0;
+    animation: install-walk-in 400ms ease-out 5s forwards;
+  }
+  .install-walk[data-reveal="in"] .install-walk__scene--1 .install-walk__tap,
+  .install-walk[data-reveal="in"] .install-walk__menu li[data-pick="true"] {
+    animation: install-walk-tap 700ms ease-out 1.3s both;
+  }
+  .install-walk[data-reveal="in"] .install-walk__menu li[data-pick="true"] {
+    animation-delay: 3.9s;
+  }
+  .install-walk[data-reveal="in"] .install-walk__app {
+    animation: install-walk-pop 450ms cubic-bezier(0.2, 0.9, 0.3, 1.2) 5.2s both;
+  }
+}
+@keyframes install-walk-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes install-walk-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes install-walk-in-out {
+  0% {
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes install-walk-tap {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+@keyframes install-walk-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
