@@ -199,7 +199,7 @@ export function VerdictSection(props: VerdictSectionProps) {
           )}
           {configured && !commitment && decisionSignals.length > 0 && (
             <section
-              className="nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25"
+              className="ease-in-view nalu-card-surface mt-4 overflow-hidden rounded-2xl border border-border/60 bg-background/25"
               aria-label="What Nalu is watching"
             >
               <div className="flex items-center gap-3 px-4 py-3">

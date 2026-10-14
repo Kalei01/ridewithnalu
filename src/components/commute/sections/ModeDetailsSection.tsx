@@ -87,7 +87,7 @@ export function ModeDetailsSection(props: ModeDetailsSectionProps) {
   } = props;
   return (
     <>
-      <section className="py-6" aria-labelledby="mode-details-title">
+      <section className="ease-in-view py-6" aria-labelledby="mode-details-title">
         <h2 id="mode-details-title" className="sr-only">
           Trip details
         </h2>

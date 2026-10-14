@@ -18,7 +18,7 @@ export function LeaveCountdown({ leaveBySeconds }: { leaveBySeconds: number }) {
   return (
     <p
       className={`mt-1 whitespace-nowrap text-xs font-semibold tabular-nums transition-colors duration-300 ${
-        countdown.tone === "ahead" ? "text-muted-foreground" : "text-warning"
+        countdown.tone === "ahead" ? "text-muted-foreground" : "leave-pulse text-warning"
       }`}
     >
       <span key={countdown.text} className="nalu-value-in">

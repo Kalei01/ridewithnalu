@@ -145,7 +145,7 @@ export function MapSection(props: MapSectionProps) {
     <>
       {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
         <section
-          className="map-shell mt-3 overflow-hidden rounded-xl"
+          className="ease-in-view map-shell mt-3 overflow-hidden rounded-xl"
           aria-labelledby="trip-map-title"
         >
           <div className="flex items-center justify-between px-4 py-3">

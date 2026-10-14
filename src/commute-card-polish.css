@@ -265,3 +265,19 @@ html[data-ptr="true"] {
     transform: rotate(8deg) translateY(-3px);
   }
 }
+
+/* A soft pulse on "leave now" moments (the amber countdown): three slow beats, then still. */
+@media (prefers-reduced-motion: no-preference) {
+  .leave-pulse {
+    animation: leave-pulse 1.6s ease-in-out 3;
+  }
+}
+@keyframes leave-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
