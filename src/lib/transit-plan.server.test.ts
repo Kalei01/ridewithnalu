@@ -239,6 +239,28 @@ describe("server limits", () => {
     expect(result.options.length).toBeGreaterThan(0);
   });
 
+  it("cancels a search that runs past its deadline", async () => {
+    vi.useFakeTimers({ now: new Date("2026-10-14T22:00:00Z") });
+    const signals: AbortSignal[] = [];
+    const search = (
+      fn: string,
+      args: Record<string, unknown> | undefined,
+      signal?: AbortSignal,
+    ) => {
+      if (fn !== "plan_outbound") return Promise.resolve(table(fn, args ?? {}));
+      if (signal) signals.push(signal);
+      return new Promise<Reply>(() => {});
+    };
+    const pending = planTripOnServer(context(), (s) =>
+      serverDeps(s, { search, drive, searchDeadlineMs: 25_000 }),
+    );
+    await vi.advanceTimersByTimeAsync(25_000);
+    const result = await pending;
+    expect(result.unchecked.skyline).toBe(true);
+    expect(signals.length).toBeGreaterThan(0);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
+
   it("sends the general search first, so the queue never holds it back", async () => {
     const order: string[] = [];
     const search = async (fn: string, args: Record<string, unknown> | undefined) => {

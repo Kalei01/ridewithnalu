@@ -23,7 +23,7 @@ import {
  * before that clock starts (seen: 15 s+ in the Oct 13 side-by-side). A search
  * still unanswered after this is treated as failed, so its row says "Can't
  * check Skyline right now", never "no trip". It only stops a stuck search from
- * hanging the answer: counted from when the search is sent (see MAX_OPEN) and
+ * hanging the answer: counted from when the search is sent (see MAX_OPEN_SEARCHES) and
  * far above the database's own limit, so a slow search that answers is kept.
  */
 export const SEARCH_DEADLINE_MS = 25_000;
@@ -36,9 +36,12 @@ export const DRIVE_DEADLINE_MS = 25_000;
 /**
  * Cloudflare Workers keep at most 6 outgoing connections open per request; the
  * rest wait. The server queues them itself so each deadline starts when its
- * call is sent, not while it waits its turn.
+ * call is sent, not while it waits its turn: at most 4 database searches at
+ * once (the general search goes first; a small, shared database), and 2 live
+ * drive times.
  */
-export const MAX_OPEN = 6;
+export const MAX_OPEN_SEARCHES = 4;
+export const MAX_OPEN_DRIVES = 2;
 /**
  * Cloudflare Workers (free plan) allow 50 outgoing requests per request. A
  * trip that would need more (a long Arrive By search with a car) stops here
@@ -144,7 +147,11 @@ function serverLog(type: string, data: Record<string, unknown>) {
 export function serverDeps(
   stats: ServerPlanStats,
   options: {
-    search?: (fn: string, args: Record<string, unknown> | undefined) => PromiseLike<Reply>;
+    search?: (
+      fn: string,
+      args: Record<string, unknown> | undefined,
+      signal?: AbortSignal,
+    ) => PromiseLike<Reply>;
     drive?: DriveLookup;
     searchDeadlineMs?: number;
     driveDeadlineMs?: number;
@@ -153,8 +160,10 @@ export function serverDeps(
 ): TransitPlanDeps {
   const search =
     options.search ??
-    ((fn: string, args: Record<string, unknown> | undefined) =>
-      plannerClient().rpc(fn as never, args as never) as unknown as PromiseLike<Reply>);
+    ((fn: string, args: Record<string, unknown> | undefined, signal?: AbortSignal) => {
+      const call = plannerClient().rpc(fn as never, args as never);
+      return (signal ? call.abortSignal(signal) : call) as unknown as PromiseLike<Reply>;
+    });
   const drive: DriveLookup = options.drive ?? ((data) => lookupTrafficMinutes(data));
   const searchDeadline = options.searchDeadlineMs ?? SEARCH_DEADLINE_MS;
   const driveDeadline = options.driveDeadlineMs ?? DRIVE_DEADLINE_MS;
@@ -172,7 +181,8 @@ export function serverDeps(
   const inflight = new Map<string, Promise<unknown>>();
   const drives = new Map<string, Promise<{ trafficMinutes: number } | null>>();
 
-  const send = openLimit(MAX_OPEN);
+  const sendSearch = openLimit(MAX_OPEN_SEARCHES);
+  const sendDrive = openLimit(MAX_OPEN_DRIVES);
 
   // Timetable answers are remembered for a few minutes by their exact
   // arguments: the same trip in the same minute isn't searched twice.
@@ -188,15 +198,18 @@ export function serverDeps(
             error: { code: "budget", message: "outgoing request budget used up" },
           });
         stats.searchesSent += 1;
-        return send(() =>
-          withDeadline(search(fn, args), searchDeadline, (): Reply => {
+        return sendSearch(() => {
+          // A search past its deadline is cancelled, so it stops holding a connection.
+          const cancel = new AbortController();
+          return withDeadline(search(fn, args, cancel.signal), searchDeadline, (): Reply => {
             stats.late += 1;
+            cancel.abort();
             return {
               data: null,
               error: { code: "deadline", message: `${fn} ran past ${searchDeadline} ms` },
             };
-          }),
-        );
+          });
+        });
       },
       inflight,
     );
@@ -218,7 +231,7 @@ export function serverDeps(
       if (!lookup) {
         if (!spend()) return Promise.resolve(null);
         stats.driveLookups += 1;
-        lookup = send(() =>
+        lookup = sendDrive(() =>
           withDeadline(drive(data), driveDeadline, () => {
             stats.late += 1;
             return null;
