@@ -42,17 +42,21 @@ const realRpc = (fn: string, args?: Record<string, unknown>) => {
     error: unknown;
   }>;
 };
-/** The old path's database answers for the current trip, by exact search (REPLAY=1). */
-const oldReplies = new Map<string, Promise<string>>();
+/**
+ * The old path's database answers for the current trip, by exact search, in
+ * the order they were asked (REPLAY=1): a search asked twice replays both.
+ */
+const oldReplies = new Map<string, Array<Promise<string>>>();
 const replyKey = (fn: string, args?: Record<string, unknown>) =>
   `${fn}|${JSON.stringify(args ?? {})}`;
 /** The phone path's database: live, and every answer remembered as text. */
 const phoneRpc = (fn: string, args?: Record<string, unknown>) => {
   const reply = realRpc(fn, args);
-  oldReplies.set(
-    replyKey(fn, args),
+  const key = replyKey(fn, args);
+  oldReplies.set(key, [
+    ...(oldReplies.get(key) ?? []),
     reply.then((r) => JSON.stringify({ data: r.data ?? null, error: r.error ?? null })),
-  );
+  ]);
   return reply;
 };
 vi.mock("@/integrations/supabase/client", () => ({
@@ -82,7 +86,7 @@ function report(text: string) {
   else console.log(text);
 }
 
-const { planTransitTripDetailed, plannerRpc } = await import("@/lib/transit-plan");
+const { planTransitTripDetailed } = await import("@/lib/transit-plan");
 const { planTripOnServer, serverDeps, emptyStats } = await import("@/lib/transit-plan.server");
 const { emptySetup } = await import("@/lib/commute-model");
 const { clearPlannerCache } = await import("@/lib/planner-cache");
@@ -311,7 +315,9 @@ describe("Phase 2 side-by-side: old (phone) vs new (server)", () => {
         const replayOld = process.env["REPLAY"] === "1";
         let replayedLive = 0;
         const source = (fn: string, args: Record<string, unknown> | undefined) => {
-          const old = replayOld ? oldReplies.get(replyKey(fn, args)) : undefined;
+          const queue = replayOld ? oldReplies.get(replyKey(fn, args)) : undefined;
+          // Each answer in turn; a repeat beyond what the old path asked gets the last one.
+          const old = queue && (queue.length > 1 ? queue.shift() : queue[0]);
           if (old) return old.then((text) => JSON.parse(text) as { data: unknown; error: unknown });
           if (replayOld) replayedLive += 1;
           return realRpc(fn, args);
@@ -321,7 +327,23 @@ describe("Phase 2 side-by-side: old (phone) vs new (server)", () => {
             recorded.set(`${fn}|${JSON.stringify(args ?? {})}`, JSON.stringify(reply));
             return reply;
           });
-        const fresh = await planTripOnServer(ctx, () => serverDeps(stats, { search: live }));
+        const planLines: string[] = [];
+        const spy = vi.spyOn(console, "info").mockImplementation((...parts: unknown[]) => {
+          planLines.push(
+            parts.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" "),
+          );
+        });
+        const driveCalls: string[] = [];
+        const fresh = await planTripOnServer(ctx, () =>
+          serverDeps(stats, {
+            search: live,
+            drive: (data) => {
+              driveCalls.push(`${data.toLat.toFixed(4)},${data.toLon.toFixed(4)}`);
+              return standInDrive(data);
+            },
+          }),
+        );
+        spy.mockRestore();
         const newMs = Date.now() - t1;
         const cpu = process.cpuUsage(cpu0);
 
@@ -347,29 +369,11 @@ describe("Phase 2 side-by-side: old (phone) vs new (server)", () => {
           : { options: fresh.options, unchecked: fresh.unchecked };
         let same =
           JSON.stringify(old.ok ? oldAnswer : { failed: true }) === JSON.stringify(newAnswer);
-        // The one designed difference: the phone marks both rows "Can't check" when
-        // the general planner runs past its 8 s grace; the server waits for it
-        // (bounded by its deadline). Prove that is the only cause: the old path,
-        // staggered as on the phone, with only the grace turned off.
-        let explained = "";
-        if (!same && old.ok && old.value.unchecked.bus && old.value.unchecked.skyline) {
-          clearPlannerCache();
-          const noGrace = await settle(() =>
-            planTransitTripDetailed(ctx, {
-              rpc: plannerRpc,
-              driveLookup: (data) => standInDrive(data),
-              setTimer: (h, ms) => setTimeout(h, ms),
-              log: () => {},
-              parallel: false,
-              generalGraceMs: null,
-            }),
+        const explained = "";
+        if (!same)
+          report(
+            `  server log: ${planLines.join(" | ") || "(none)"}\n  server drive lookups: ${driveCalls.join(" ")}`,
           );
-          if (noGrace.ok && JSON.stringify(noGrace.value) === JSON.stringify(newAnswer)) {
-            same = true;
-            explained =
-              " (explained: the phone's 8 s grace ran out; without it the old path gives the server's answer)";
-          }
-        }
         report(
           [
             `${same ? "SAME" : "DIFF"} | ${trip.name} | round ${round}${process.env["REPLAY"] === "1" ? ` | replay (${replayedLive} searches not in the old run)` : ""}${explained}`,

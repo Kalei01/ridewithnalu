@@ -226,7 +226,7 @@ describe("trip search on the server", () => {
 });
 
 describe("server limits", () => {
-  it("waits for a slow general planner instead of cutting it at the phone's 8 s grace", async () => {
+  it("keeps the phone's 8 s grace for a slow general planner (same rule)", async () => {
     vi.useFakeTimers({ now: new Date("2026-10-14T22:00:00Z") });
     const search = (fn: string, args: Record<string, unknown> | undefined) =>
       fn === "plan_transit_general"
@@ -235,8 +235,18 @@ describe("server limits", () => {
     const pending = planTripOnServer(context(), (s) => serverDeps(s, { search, drive }));
     await vi.advanceTimersByTimeAsync(10_000);
     const result = await pending;
-    expect(result.unchecked).toEqual({ skyline: false, bus: false });
-    expect(result.options.some((o) => o.arrive_seconds === bus91.arrive_seconds)).toBe(true);
+    expect(result.unchecked).toEqual({ skyline: true, bus: true });
+    expect(result.options.length).toBeGreaterThan(0);
+  });
+
+  it("sends the general search first, so the queue never holds it back", async () => {
+    const order: string[] = [];
+    const search = async (fn: string, args: Record<string, unknown> | undefined) => {
+      order.push(fn);
+      return table(fn, args ?? {});
+    };
+    await planTripOnServer(context(), (s) => serverDeps(s, { search, drive }));
+    expect(order[0]).toBe("plan_transit_general");
   });
 
   it("asks the same live drive time once per trip search", async () => {

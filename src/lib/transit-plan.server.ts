@@ -231,9 +231,6 @@ export function serverDeps(
     setTimer: (handler, ms) => setTimeout(handler, ms),
     log: serverLog,
     parallel: true,
-    // Each search has its own deadline here, so the general planner is never
-    // cut short sooner than the phone would (see TransitPlanDeps).
-    generalGraceMs: null,
   };
 }
 

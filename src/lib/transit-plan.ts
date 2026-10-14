@@ -78,13 +78,6 @@ export type TransitPlanDeps = {
    * server runs them together. Same searches, same answers.
    */
   parallel: boolean;
-  /**
-   * How long the general planner may run after a faster planner has a trip
-   * before its rows are marked "Can't check" (the phone: 8 s). null = wait for
-   * it: the server bounds every search with its own deadline instead, so the
-   * general planner is never cut sooner than on the phone.
-   */
-  generalGraceMs: number | null;
 };
 
 function phoneDeps(): TransitPlanDeps {
@@ -94,7 +87,6 @@ function phoneDeps(): TransitPlanDeps {
     setTimer: (handler, ms) => window.setTimeout(handler, ms),
     log: debugLog,
     parallel: false,
-    generalGraceMs: 8000,
   };
 }
 
@@ -185,7 +177,7 @@ async function searchTransit(
   unchecked: TransitPlanGaps,
   deps: TransitPlanDeps,
 ): Promise<Option[]> {
-  const { rpc, driveLookup, setTimer, log: debugLog, parallel, generalGraceMs } = deps;
+  const { rpc, driveLookup, setTimer, log: debugLog, parallel } = deps;
   const {
     arrivalStationId,
     arriveByTarget,
@@ -464,9 +456,11 @@ async function searchTransit(
     // The direct-bus and Skyline planners answer in about a second, while the
     // generalized planner can run into its time limit. Start them together so
     // a slow general search never hides a direct bus that arrives sooner.
+    // The general search is sent first: where calls queue (the server sends
+    // at most a few at once), the slowest search is never the one waiting.
+    const generalPromise = fetchGeneralTransit(cursor);
     const busPromise = fetchBusRescue(cursor);
     const outboundPromise = inbound ? Promise.resolve<Option[]>([]) : fetchOutbound(cursor);
-    const generalPromise = fetchGeneralTransit(cursor);
 
     // When Skyline is outside its published service window, do not let a
     // rail-inclusive planner result hide the remaining TheBus option. The
@@ -509,7 +503,7 @@ async function searchTransit(
       () => (generalSettled = true),
     );
     const primaryTransit =
-      (fastBus.length || fastOutbound.length) && generalGraceMs !== null
+      fastBus.length || fastOutbound.length
         ? await Promise.race([
             generalPromise,
             new Promise<Option[]>((resolve) =>
@@ -521,7 +515,7 @@ async function searchTransit(
                   unchecked.bus = true;
                 }
                 resolve([]);
-              }, generalGraceMs),
+              }, 8000),
             ),
           ])
         : await generalPromise;
@@ -789,18 +783,21 @@ async function searchTransit(
    */
   const fetchPageWithSkyline = async (cursor: number): Promise<Option[]> => {
     let bridge: Promise<Option[]> | null = null;
+    // The normal search's calls go out first (see fetchPage).
+    const page = fetchPage(cursor);
     const pickup = fetchInboundPickup(cursor);
     if (parallel) {
       bridge = fetchViaSkyline(cursor);
-      // Awaited below; this only keeps an early failure from going unhandled.
+      // Awaited below; these only keep an early failure from going unhandled.
       bridge.catch(() => {});
+      page.catch(() => {});
     }
     const extras = async () => {
       bridge ??= fetchViaSkyline(cursor);
       return [...(await bridge), ...(await pickup)];
     };
     try {
-      const base = await fetchPage(cursor);
+      const base = await page;
       const extra = await extras();
       return extra.length ? mergeTransitOptions(base, extra) : base;
     } catch (error) {
