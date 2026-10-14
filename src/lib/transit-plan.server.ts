@@ -19,18 +19,20 @@ import {
 
 /**
  * The database stops any search at 10 s (anon/authenticated statement_timeout,
- * migration 0021). A search still unanswered well after that is treated as
- * failed, so its row says "Can't check Skyline right now", never "no trip".
- * Counted from when the search is actually sent (see MAX_OPEN), and above the
- * database's own limit on purpose: no search it would have answered is cut short.
+ * migration 0021), but on a busy database a search can also wait its turn
+ * before that clock starts (seen: 15 s+ in the Oct 13 side-by-side). A search
+ * still unanswered after this is treated as failed, so its row says "Can't
+ * check Skyline right now", never "no trip". It only stops a stuck search from
+ * hanging the answer: counted from when the search is sent (see MAX_OPEN) and
+ * far above the database's own limit, so a slow search that answers is kept.
  */
-export const SEARCH_DEADLINE_MS = 15_000;
+export const SEARCH_DEADLINE_MS = 25_000;
 /**
  * A live drive time that takes longer than this is treated as unreadable: the
  * drive-to-station trips it would time are dropped and Skyline is flagged
  * "Can't check", exactly as when TomTom fails.
  */
-export const DRIVE_DEADLINE_MS = 15_000;
+export const DRIVE_DEADLINE_MS = 25_000;
 /**
  * Cloudflare Workers keep at most 6 outgoing connections open per request; the
  * rest wait. The server queues them itself so each deadline starts when its
