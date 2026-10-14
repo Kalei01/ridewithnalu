@@ -19,6 +19,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RoadworkRouteImport } from './routes/roadwork'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WelcomeRouteImport } from './routes/welcome'
+import { Route as WelcomeClassicRouteImport } from './routes/welcome-classic'
 import { Route as GuidesIndexRouteImport } from './routes/guides/index'
 import { Route as GuidesAboutNaluRouteImport } from './routes/guides/about-nalu'
 import { Route as GuidesEwaBeachToDowntownRouteImport } from './routes/guides/ewa-beach-to-downtown'
@@ -89,6 +90,11 @@ const TermsRoute = TermsRouteImport.update({
 const WelcomeRoute = WelcomeRouteImport.update({
   id: '/welcome',
   path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeClassicRoute = WelcomeClassicRouteImport.update({
+  id: '/welcome-classic',
+  path: '/welcome-classic',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuidesIndexRoute = GuidesIndexRouteImport.update({
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/roadwork': typeof RoadworkRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/welcome-classic': typeof WelcomeClassicRoute
   '/guides/about-nalu': typeof GuidesAboutNaluRoute
   '/guides/ewa-beach-to-downtown': typeof GuidesEwaBeachToDowntownRoute
   '/guides/honolulu-airport-without-driving': typeof GuidesHonoluluAirportWithoutDrivingRoute
@@ -247,6 +254,7 @@ export interface FileRoutesByTo {
   '/roadwork': typeof RoadworkRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/welcome-classic': typeof WelcomeClassicRoute
   '/guides/about-nalu': typeof GuidesAboutNaluRoute
   '/guides/ewa-beach-to-downtown': typeof GuidesEwaBeachToDowntownRoute
   '/guides/honolulu-airport-without-driving': typeof GuidesHonoluluAirportWithoutDrivingRoute
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   '/roadwork': typeof RoadworkRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/welcome-classic': typeof WelcomeClassicRoute
   '/guides/about-nalu': typeof GuidesAboutNaluRoute
   '/guides/ewa-beach-to-downtown': typeof GuidesEwaBeachToDowntownRoute
   '/guides/honolulu-airport-without-driving': typeof GuidesHonoluluAirportWithoutDrivingRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/roadwork'
     | '/terms'
     | '/welcome'
+    | '/welcome-classic'
     | '/guides/about-nalu'
     | '/guides/ewa-beach-to-downtown'
     | '/guides/honolulu-airport-without-driving'
@@ -349,6 +359,7 @@ export interface FileRouteTypes {
     | '/roadwork'
     | '/terms'
     | '/welcome'
+    | '/welcome-classic'
     | '/guides/about-nalu'
     | '/guides/ewa-beach-to-downtown'
     | '/guides/honolulu-airport-without-driving'
@@ -382,6 +393,7 @@ export interface FileRouteTypes {
     | '/roadwork'
     | '/terms'
     | '/welcome'
+    | '/welcome-classic'
     | '/guides/about-nalu'
     | '/guides/ewa-beach-to-downtown'
     | '/guides/honolulu-airport-without-driving'
@@ -416,6 +428,7 @@ export interface RootRouteChildren {
   RoadworkRoute: typeof RoadworkRoute
   TermsRoute: typeof TermsRoute
   WelcomeRoute: typeof WelcomeRoute
+  WelcomeClassicRoute: typeof WelcomeClassicRoute
   GuidesAboutNaluRoute: typeof GuidesAboutNaluRoute
   GuidesEwaBeachToDowntownRoute: typeof GuidesEwaBeachToDowntownRoute
   GuidesHonoluluAirportWithoutDrivingRoute: typeof GuidesHonoluluAirportWithoutDrivingRoute
@@ -509,6 +522,13 @@ declare module '@tanstack/react-router' {
       path: '/welcome'
       fullPath: '/welcome'
       preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome-classic': {
+      id: '/welcome-classic'
+      path: '/welcome-classic'
+      fullPath: '/welcome-classic'
+      preLoaderRoute: typeof WelcomeClassicRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guides/': {
@@ -672,6 +692,7 @@ const rootRouteChildren: RootRouteChildren = {
   RoadworkRoute: RoadworkRoute,
   TermsRoute: TermsRoute,
   WelcomeRoute: WelcomeRoute,
+  WelcomeClassicRoute: WelcomeClassicRoute,
   GuidesAboutNaluRoute: GuidesAboutNaluRoute,
   GuidesEwaBeachToDowntownRoute: GuidesEwaBeachToDowntownRoute,
   GuidesHonoluluAirportWithoutDrivingRoute:

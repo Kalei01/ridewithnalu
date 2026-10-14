@@ -28,7 +28,7 @@ import { AuthProvider, useAuth } from "../hooks/use-auth";
 import { Toaster } from "../components/ui/sonner";
 import { initGoogleAnalytics, trackGooglePageView } from "../lib/google-analytics";
 import { onAnalyticsConsentChange } from "../lib/analytics";
-import { WelcomeLanding } from "../components/welcome/WelcomeLanding";
+import { HomeLanding } from "../components/home/HomeLanding";
 import { timeOfDay } from "../lib/time-of-day";
 import { RETURNING_VISITOR_SCRIPT, hasSeenWelcome, introductionHidden, markIntroductionShown } from "../lib/welcome-seen";
 
@@ -146,7 +146,7 @@ function RootComponent() {
   );
 }
 
-const PUBLIC_PAGES = new Set(["/welcome", "/home-preview", "/install", "/oahu-commute", "/roadwork", "/privacy", "/terms", "/disclaimer"]);
+const PUBLIC_PAGES = new Set(["/welcome", "/welcome-classic", "/home-preview", "/install", "/oahu-commute", "/roadwork", "/privacy", "/terms", "/disclaimer"]);
 
 /** Pages anyone (and any search engine) can read without the app's sign-in check. */
 export function isPublicContentPath(pathname: string): boolean {
@@ -236,7 +236,7 @@ function AppRouteGate() {
           <LoadingScreen />
         </div>
         <div className="nalu-first-visit-only">
-          <WelcomeLanding onStart={() => setWelcomeSeen(true)} markSeenOnMount={false} />
+          <HomeLanding onStart={() => setWelcomeSeen(true)} markSeenOnMount={false} />
         </div>
       </>
     );

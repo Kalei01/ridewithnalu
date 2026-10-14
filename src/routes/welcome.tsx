@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { WelcomeLanding } from "@/components/welcome/WelcomeLanding";
+import { HomeLanding } from "@/components/home/HomeLanding";
 import { SITE_URL } from "@/lib/site";
 
 export const Route = createFileRoute("/welcome")({
@@ -35,5 +35,5 @@ export const Route = createFileRoute("/welcome")({
 });
 
 function WelcomePage() {
-  return <WelcomeLanding />;
+  return <HomeLanding />;
 }

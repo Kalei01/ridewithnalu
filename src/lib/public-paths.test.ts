@@ -3,7 +3,7 @@ import { isPublicContentPath } from "@/routes/__root";
 
 describe("public pages skip the sign-in loading screen", () => {
   it("covers content pages and guides", () => {
-    for (const path of ["/welcome", "/home-preview", "/install", "/roadwork", "/oahu-commute", "/guides", "/guides/kapolei-to-downtown", "/install/"]) {
+    for (const path of ["/welcome", "/welcome-classic", "/home-preview", "/install", "/roadwork", "/oahu-commute", "/guides", "/guides/kapolei-to-downtown", "/install/"]) {
       expect(isPublicContentPath(path)).toBe(true);
     }
   });
