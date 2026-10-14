@@ -42,7 +42,7 @@ main.nh-commute > .nh-waves {
 main.nh-commute .nalu-card-surface,
 main.nh-commute .alternative-panel,
 main.nh-commute .glass-panel:not(.sticky, .rounded-full, [class*="border-chart"], [class*="border-warning"], [class*="border-destructive"]),
-main.nh-commute .bg-surface-raised:not(.sticky, .rounded-full, [class*="border-chart"], [class*="border-warning"], [class*="border-destructive"]),
+main.nh-commute .bg-surface-raised:not(section[aria-label="Trip time"], .sticky, .rounded-full, [class*="border-chart"], [class*="border-warning"], [class*="border-destructive"]),
 main.nh-commute .map-shell {
   border: 1px solid var(--nh-line) !important;
   border-radius: 1.25rem !important;
@@ -72,6 +72,10 @@ main.nh-commute .verdict-lift[aria-labelledby="verdict-title"]::before {
 }
 
 /* The Leave now / Arrive by switch is its own pill: no second box around it. */
+main.nh-commute section[aria-label="Trip time"] {
+  padding: 0 !important;
+}
+main.nh-commute section[aria-label="Trip time"],
 main.nh-commute [aria-labelledby="plan-mode-title"] {
   border: 0 !important;
   background: transparent !important;
