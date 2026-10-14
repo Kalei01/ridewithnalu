@@ -16,7 +16,7 @@ for (const [name, options] of [["dark", { colorScheme: "dark" }], ["light", { co
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 160)));
   await page.goto(url, { waitUntil: "networkidle", timeout: 90_000 }).catch(() => {});
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(9000);
   await page.screenshot({ path: `${out}/${prefix}-${name}-first-screen.png` });
   await page.screenshot({ path: `${out}/${prefix}-${name}-full.png`, fullPage: true });
   const sideways = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
