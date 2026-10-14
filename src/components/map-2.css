@@ -247,3 +247,17 @@
     transition: none !important;
   }
 }
+
+/* Route preview: the line draws on from its start when the route appears. */
+@media (prefers-reduced-motion: no-preference) {
+  .nalu-draw-on {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: nalu-draw-on 700ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+}
+@keyframes nalu-draw-on {
+  to {
+    stroke-dashoffset: 0;
+  }
+}

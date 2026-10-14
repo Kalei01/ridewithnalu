@@ -98,6 +98,15 @@ function tooltip(label: string, value: string) {
   return content;
 }
 
+/** Draws a route line on from its start (the answer "appears"); skipped under reduced motion. */
+function drawOn(line: L.Polyline) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const el = line.getElement();
+  if (!el) return;
+  el.setAttribute("pathLength", "1");
+  el.classList.add("nalu-draw-on");
+}
+
 export default function CommuteRouteMap({
   points,
   livePoint,
@@ -329,7 +338,9 @@ export default function CommuteRouteMap({
         lineJoin: "round",
         className: "nalu-journey-line-casing",
       }).addTo(routeLayer);
-      L.polyline(latLngs, {
+      const casing = routeLayer.getLayers().at(-1);
+      if (casing instanceof L.Polyline && !walking) drawOn(casing);
+      const journeyLine = L.polyline(latLngs, {
         color,
         weight: walking ? 3 : 5,
         opacity: 1,
@@ -338,6 +349,7 @@ export default function CommuteRouteMap({
         lineJoin: "round",
         className: `nalu-journey-line nalu-journey-line-${segment.mode}`,
       }).addTo(routeLayer);
+      if (!walking) drawOn(journeyLine);
     }
 
     for (const incident of incidentsRef.current ?? []) {
