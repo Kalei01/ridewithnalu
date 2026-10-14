@@ -78,3 +78,10 @@ Morning rush; Skyline-stopped-at-night and not-yet-running rows; a live verdict 
 - 2026-10-07 Batches 2-3 shipped (see their entries). Reviewed by transit-accuracy (fixed: step stays on "board" until board time, scheduled label, roadwork schedule/link kept), mobile-design, security-keys.
 - 2026-10-07 Batch 4 partly shipped; four items marked NEEDS OPUS SESSION (reasons above).
 - 2026-10-11 Weekly review: mobile-design live pass (7 public pages, no layout breaks); wording/touch-target items added above.
+
+## Batch M — motion (Josh approved Oct 13, 2026; build after the Skyline P1 is fixed, on the split files, one item per commit)
+Rules: lightweight SVG and CSS or the Web Animations API only, no heavy animation libraries. No layout shift, no hit to LCP. Everything respects prefers-reduced-motion (static or opacity-only). Never delays an answer. Run the mobile-design reviewer and nalu-performance (page weight) for each.
+- M1 TODO "Checking" progress: three lines (traffic, Skyline, TheBus) tick in as each real answer arrives. Driven by actual results, never a fake timer.
+- M2 TODO Welcome scene: an Oʻahu outline, a route line drawing Kapolei → town, and a car and a Skyline train moving side by side (illustrative, not a claim about speed). About 3 s, then rests. Inline SVG.
+- M3 TODO Guide diagrams: the Skyline line with its stations lighting in order (rail guide); park-and-ride lots along the line (park-and-ride guide). Server-rendered SVG, animated on scroll into view.
+- M4 TODO Polish: button press feedback, cards easing in on scroll, a soft pulse on "leave now" moments.
