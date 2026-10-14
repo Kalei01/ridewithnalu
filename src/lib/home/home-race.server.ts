@@ -22,6 +22,8 @@ export const RACE_TO = { name: "downtown Honolulu", ...DOWNTOWN_POINT };
 export const HOME_RACE_MAX_AGE_MS = 3 * 60_000;
 const LAST_KNOWN_KEY = "home-race-last-v1";
 const LAST_KNOWN_TTL_S = 7 * 24 * 3600;
+const MISS_KEY = "home-race-miss-v1";
+const MISS_TTL_S = 60;
 
 type StopRow = {
   stop_id: string;
@@ -187,11 +189,16 @@ export async function buildHomeRace(): Promise<HomeRace | null> {
 
 /** A fresh race (shared a few minutes), else the last good one labelled as such, else null. */
 export async function homeRace(): Promise<HomeRace | null> {
-  const fresh = await sharedAnswer("home-race-v1", HOME_RACE_MAX_AGE_MS, async () => {
-    const race = await buildHomeRace().catch(() => null);
-    if (race) await writeShared(LAST_KNOWN_KEY, race, LAST_KNOWN_TTL_S);
-    return race;
-  });
+  // A check that found no race (late night, a planner failure) isn't repeated for a minute.
+  const missed = await readShared<boolean>(MISS_KEY, MISS_TTL_S * 1000);
+  const fresh = missed
+    ? await readShared<HomeRace>("home-race-v1", HOME_RACE_MAX_AGE_MS)
+    : await sharedAnswer("home-race-v1", HOME_RACE_MAX_AGE_MS, async () => {
+        const race = await buildHomeRace().catch(() => null);
+        if (race) await writeShared(LAST_KNOWN_KEY, race, LAST_KNOWN_TTL_S);
+        else await writeShared(MISS_KEY, true, MISS_TTL_S);
+        return race;
+      });
   if (fresh) return fresh.value;
   const last = await readShared<HomeRace>(LAST_KNOWN_KEY, LAST_KNOWN_TTL_S * 1000);
   return last ? { ...last.value, lastKnown: true } : null;
