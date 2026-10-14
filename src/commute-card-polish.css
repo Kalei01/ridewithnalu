@@ -245,3 +245,23 @@ html[data-tod="night"]::before {
     transform: rotate(-4deg);
   }
 }
+
+/* Pull to refresh (M14): hand the pull gesture to the app on the trip screen. */
+html[data-ptr="true"] {
+  overscroll-behavior-y: contain;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ptr-curl {
+    transform-origin: 50% 70%;
+    animation: ptr-curl 900ms ease-in-out infinite;
+  }
+}
+@keyframes ptr-curl {
+  0%,
+  100% {
+    transform: rotate(-8deg) translateY(0);
+  }
+  50% {
+    transform: rotate(8deg) translateY(-3px);
+  }
+}

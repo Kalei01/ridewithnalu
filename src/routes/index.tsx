@@ -17,6 +17,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { debugLog, endDebugSession, flushDebugLogs, startDebugSession } from "@/lib/debug-log";
 import { RefreshCw, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { PullToRefresh } from "@/components/commute/PullToRefresh";
 import { useCelebrations } from "@/hooks/use-celebrations";
 import { supabase } from "@/integrations/supabase/client";
 import { reverseGeocode } from "@/lib/geocode.functions";
@@ -4119,6 +4120,8 @@ function Index() {
 
   if (browseActive) {
     return (
+      <>
+        <PullToRefresh onRefresh={refresh} refreshing={refreshing} enabled />
       <BrowseScreen
         browseDeparturesFailed={browseDeparturesFailed}
         browseDeparturesLoading={browseDeparturesLoading}
@@ -4173,6 +4176,7 @@ function Index() {
         westboundTrafficFailed={westboundTrafficFailed}
         westboundTrafficLoading={westboundTrafficLoading}
       />
+      </>
     );
   }
 
@@ -4210,6 +4214,7 @@ function Index() {
     <main
       className={`min-h-dvh bg-page-gradient px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground ${verdict === "transit" ? "commute-radiance-rail" : verdict === "drive" ? "commute-radiance-drive" : ""}`}
     >
+      <PullToRefresh onRefresh={refresh} refreshing={refreshing} enabled={!commitment} />
       <div className="mx-auto flex w-full max-w-[680px] flex-col">
         <CommuteHeader
           heading={arrivingHome ? "Heading home" : inbound ? "Heading west" : "Heading out"}
