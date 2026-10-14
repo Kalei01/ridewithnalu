@@ -81,7 +81,7 @@ Morning rush; Skyline-stopped-at-night and not-yet-running rows; a live verdict 
 
 ## Batch M — motion (Josh approved Oct 13, 2026; build after the Skyline P1 is fixed, on the split files, one item per commit)
 Rules: lightweight SVG and CSS or the Web Animations API only, no heavy animation libraries. No layout shift, no hit to LCP. Everything respects prefers-reduced-motion (static or opacity-only). Never delays an answer. Run the mobile-design reviewer and nalu-performance (page weight) for each.
-- M1 TODO "Checking" progress: three lines (traffic, Skyline, TheBus) tick in as each real answer arrives. Driven by actual results, never a fake timer.
+- M1 DONE (2026-10-14, 4b24a95; live check pending) "Checking" progress: three lines (traffic, Skyline, TheBus) tick in as each real answer arrives. Driven by actual results, never a fake timer.
 - M2 DONE (2026-10-14, 3a0c8ce) Welcome scene: an Oʻahu outline, a route line drawing Kapolei → town, and a car and a Skyline train moving side by side (illustrative, not a claim about speed). About 3 s, then rests. Inline SVG.
 - M3 DONE (2026-10-14, c42b044) Guide diagrams: the Skyline line with its stations lighting in order (rail guide); park-and-ride lots along the line (park-and-ride guide). Server-rendered SVG, animated on scroll into view.
 - M4 PARTLY DONE (2026-10-14, 84f83ca: button press feedback, cards ease in on public pages; left: in-app cards and the soft "leave now" pulse, which touch the answer screen) Polish: button press feedback, cards easing in on scroll, a soft pulse on "leave now" moments.
@@ -95,10 +95,10 @@ Extra rules for "implemented properly":
 - One item per commit, with tests where there's logic, and the mobile-design and nalu-performance reviewers. Live check at 390×844 in light and dark.
 
 Answer screen:
-- M5 TODO The pick lands: the winning row lifts slightly while the others dim.
-- M6 TODO Live countdown: "Next Skyline in 6 min" ticks smoothly and turns amber when it's time to go.
-- M7 TODO Traffic bar on the Drive row (green → amber → red from live vs typical minutes), tied to the real delay.
-- M8 TODO Route preview: the route line draws on the map as the answer appears.
+- M5 DONE (2026-10-14, e5739f7; live check pending) The pick lands: the winning row lifts slightly while the others dim.
+- M6 DONE (2026-10-14, 58073d2; live check pending) Live countdown: "Next Skyline in 6 min" ticks smoothly and turns amber when it's time to go.
+- M7 DONE (2026-10-14, a6550bf; live check pending) Traffic bar on the Drive row (green → amber → red from live vs typical minutes), tied to the real delay.
+- M8 DONE (2026-10-14, b485e68; live check pending) Route preview: the route line draws on the map as the answer appears.
 
 Moments:
 - M9 TODO Rain: soft drops on the backdrop only when showers are near the trip (existing weather data).
@@ -114,4 +114,4 @@ Add-ons (lead):
 - M15 DONE (2026-10-14, 359eafe) Time-of-day header tint: sunrise, day, sunset or night, following Honolulu time, very subtle.
 - M16 TODO Station names: the Hawaiian name fades in under the English one (direction.md format).
 - M17 TODO "Can't check" states: a calm icon with a gentle fade, never a shake or red flash; a retry button with a press response.
-- M18 TODO Android haptic tick when the pick lands (navigator.vibrate, off when reduced motion is on; iOS has no web haptics, so skip it there).
+- M18 DONE (2026-10-14, 4dc9346; live check pending) Android haptic tick when the pick lands (navigator.vibrate, off when reduced motion is on; iOS has no web haptics, so skip it there).
