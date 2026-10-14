@@ -1,10 +1,19 @@
 # Passdown — Premium UX Review (Wed 10:47 AM HST)
-Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
+Last updated: 2026-10-14 (home redesign preview ready). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Current focus
 - Backlog: `docs/experience/backlog.md`; seasons: `docs/experience/seasonal.md`; direction: `docs/product/direction.md`.
 - Station names: being built by "NALU — Skyline station names in app (Sonnet)" (English name, Hawaiian name smaller and muted underneath). Review it live on your next run if shipped.
 - "Tell Nalu something" form polish: done Oct 11 (visible off checkbox, "Your note" label).
+
+## Home redesign (Opus build session, Oct 14) — PREVIEW READY, waiting for Josh
+- Preview: https://ridenalu.com/home-preview (noindex, canonical "/"). "/" is unchanged until Josh or NALU MAIN approves.
+- Screenshots 390×844 (light, dark, reduced motion; first screen, race midway, race, full): `docs/experience/home-redesign/`. Nalu is dark-only, so light = dark.
+- Built: Where to? search + 5 chips (open the real planner); "Right now on Oʻahu" (live H-1 delay, next scheduled Skyline, NWS showers; hidden without evidence) led by Nalu's line; live island from real data (Census coast + OSM Pearl Harbor, GTFS Skyline line, trains as scheduled, H-1 tint from the live check); Kapolei → town race (one shared planner call, real routes, walking never timed); swipe cards; FAQ/commutes/plan-ahead/account as `<details>`.
+- Checks: reviewers security-keys (M1/M2 fixed), transit-accuracy (2 high + 5 medium fixed), mobile-design (no high; mediums fixed). nalu-performance hit a usage limit mid-run, so the speed check was done here: median LCP preview 1.05–1.08 s vs "/" 1.22–1.62 s, CLS 0 both, 437 vs 549 KB script; added JS ≈ 20 KB gzip (island lazy). Script: `scripts/diag/home-speed.mjs`.
+- What Josh should look at: (1) the island map — does it look professional now? (2) tap "Race it" — is the race exciting and clear? (3) the "Nalu says" line and the live strip at commute time; (4) type a place in Where to? and tap a chip; (5) length: 3.3 screens incl. footer (was 6.3) — want it shorter? (6) no "winner" line in the race on purpose (car is door to door, transit stops at the last stop with walking left out) — want one?
+- Known, not mine: "ala moana" search ranks shops above the mall (shared geocoder, also in the app). Data refresh: re-run `scripts/home/bake-island.mts` when TheBus changes Skyline run times (feed ends Dec 5).
+- Home redesign: next step — on approval, switch "/" in one commit (HomeLanding in AppRouteGate in `src/routes/__root.tsx` in place of WelcomeLanding; keep old page at /welcome-classic for one week, then remove), run the live check and speed script, report in inbox.md.
 
 ## Don't touch
 - Planner/verdict logic, timeouts, database (main session). Guide pages' focus (SEO agent).
