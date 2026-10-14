@@ -20,7 +20,9 @@ export function StationName({
   return (
     <span className={`flex min-w-0 flex-col ${className}`}>
       <span className="min-w-0 break-words">{parts.english}</span>
-      <span className={`min-w-0 break-words text-muted-foreground ${hawaiianClassName}`}>
+      <span
+        className={`station-hawaiian-in min-w-0 break-words text-muted-foreground ${hawaiianClassName}`}
+      >
         {parts.hawaiian}
       </span>
     </span>

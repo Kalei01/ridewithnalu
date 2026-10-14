@@ -150,3 +150,15 @@
     transition: none;
   }
 }
+
+/* The Hawaiian station name fades in just after the English one (opacity only). */
+@media (prefers-reduced-motion: no-preference) {
+  .station-hawaiian-in {
+    animation: station-hawaiian-in 320ms ease-out 140ms both;
+  }
+}
+@keyframes station-hawaiian-in {
+  from {
+    opacity: 0;
+  }
+}
