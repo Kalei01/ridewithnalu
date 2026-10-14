@@ -9,9 +9,10 @@ export type HomeTraffic = {
   /** "eastbound" = Kapolei → downtown, "westbound" = downtown → Kapolei. */
   direction: "eastbound" | "westbound";
   minutes: number;
-  typicalMinutes: number;
-  /** Minutes slower than usual right now (negative when better than usual). */
-  delayMinutes: number;
+  /** What it usually takes now (TomTom's historic profile), or null when that couldn't be read. */
+  typicalMinutes: number | null;
+  /** Minutes slower than usual right now (negative when better), or null with no usual to compare. */
+  delayMinutes: number | null;
   /** "Via Kualakaʻi Pkwy → H-1 East", when TomTom names the roads. */
   corridor: string | null;
   /** When the traffic was read (ms). */
@@ -95,4 +96,6 @@ export type HomeRace = {
   entrants: HomeRaceEntrant[];
   /** True when this is the last good answer, not a fresh one (shown with its date and time). */
   lastKnown: boolean;
+  /** Skyline couldn't be fully searched (a search failed or ran out of time): never say "no Skyline trip". */
+  skylineUnchecked: boolean;
 };

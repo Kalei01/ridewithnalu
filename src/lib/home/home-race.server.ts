@@ -6,10 +6,10 @@ import {
   type RailStation,
 } from "@/lib/commute-model";
 import { honoluluSeconds } from "@/lib/commute-formatting";
-import { lookupDriveTime } from "@/lib/drive.functions";
 import { planTripOnServer, plannerClient } from "@/lib/transit-plan.server";
 import { resolveTripDirection } from "@/lib/trip-direction";
 import { transitChoices, tripSteps } from "@/lib/trip-choices";
+import { freshDrive } from "./home-live.server";
 import { readShared, sharedAnswer, writeShared } from "./shared-cache.server";
 import { simplifyPath } from "./simplify-path";
 import type { HomeRace, HomeRaceEntrant, HomeRaceLeg } from "./home-types";
@@ -99,7 +99,7 @@ export async function buildHomeRace(): Promise<HomeRace | null> {
   const nowSeconds = honoluluSeconds(now);
   const db = plannerClient();
   const [drive, stationReply, destReply, stationsReply] = await Promise.all([
-    lookupDriveTime({
+    freshDrive({
       fromLat: RACE_FROM.lat,
       fromLon: RACE_FROM.lon,
       toLat: RACE_TO.lat,
@@ -184,6 +184,7 @@ export async function buildHomeRace(): Promise<HomeRace | null> {
     drivePath: drive && drive.trafficBasis === "live" ? simplifyPath(drive.path, 40) : null,
     entrants,
     lastKnown: false,
+    skylineUnchecked: plan.failed || plan.unchecked.skyline,
   };
 }
 

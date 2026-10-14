@@ -10,6 +10,7 @@ export function homeLineFor(live: HomeLive, seconds: number): string | null {
   const later = live.skyline ? nextSkyline(live.skyline, seconds) : null;
   return naluHomeLine({
     period: commutePeriod(seconds),
+    direction: traffic?.direction ?? (westward ? "westbound" : "eastbound"),
     delayMinutes: traffic ? traffic.delayMinutes : null,
     onH1: traffic?.corridor ? /\bH-1\b/.test(traffic.corridor) : false,
     skylineEvery: live.skyline ? skylineEveryMinutes(trains, seconds) : null,

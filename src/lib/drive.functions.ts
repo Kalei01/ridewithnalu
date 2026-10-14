@@ -45,6 +45,8 @@ export type DriveTime = {
   trafficMinutes: number;
   /** What this trip usually takes at this time of day, from TomTom's historic profile. */
   typicalMinutes: number;
+  /** TomTom's historic profile answered; otherwise typicalMinutes is just the live time (no "usual" to compare). */
+  typicalChecked?: boolean;
   /** Minutes slower than usual right now (negative when it is running better). */
   delayMinutes: number;
   /** Low end of the plausible range. */
@@ -189,6 +191,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
 
     const trafficSeconds = summary.travelDurationInSeconds;
     let typicalSeconds = trafficSeconds;
+    let typicalChecked = false;
     if (!data.departureTime) {
       try {
         const historicalResponse = await fetch(routeUrl, { signal: AbortSignal.timeout(8000),
@@ -206,7 +209,10 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
         if (historicalResponse.ok) {
           const historical = (await historicalResponse.json()) as { routes?: Array<{ summary?: { travelDurationInSeconds?: number } }> };
           const historicalSeconds = historical.routes?.[0]?.summary?.travelDurationInSeconds;
-          if (typeof historicalSeconds === "number" && historicalSeconds > 0) typicalSeconds = historicalSeconds;
+          if (typeof historicalSeconds === "number" && historicalSeconds > 0) {
+            typicalSeconds = historicalSeconds;
+            typicalChecked = true;
+          }
         }
       } catch {
         // Historical baseline is supplemental; keep the live route if unavailable.
@@ -244,6 +250,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     const result: DriveTime = {
       trafficMinutes,
       typicalMinutes,
+      typicalChecked,
       delayMinutes: trafficMinutes - typicalMinutes,
       // No fabricated uncertainty: the live provider ETA is the only
       // defensible current-trip duration. Keep the legacy fields equal so

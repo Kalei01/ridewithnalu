@@ -658,11 +658,13 @@ export function naluPulseTagline(
 /** What the home page knows right now (every field from a real check, or empty). */
 export type NaluHomeContext = {
   period: "morning" | "evening" | "other";
-  /** Minutes slower than usual on the Kapolei ↔ town drive (live traffic), or null when unchecked. */
+  /** Which drive the numbers are for: into town (eastbound) or home (westbound). */
+  direction: "eastbound" | "westbound";
+  /** Minutes slower than usual on that drive (live vs TomTom's usual), or null when there's no usual to compare. */
   delayMinutes: number | null;
-  /** The live route runs on H-1 (so it may be named). */
+  /** The live route runs via H-1 (so it may be named). */
   onH1: boolean;
-  /** Minutes between scheduled Skyline trains now, when the timetable shows a steady gap. */
+  /** Minutes between the next scheduled Skyline trains, when the timetable shows a steady gap. */
   skylineEvery: number | null;
   /** The timetable has no more Skyline trains tonight. */
   skylineStopped: boolean;
@@ -671,27 +673,25 @@ export type NaluHomeContext = {
 };
 
 /**
- * The home page's one friendly line ("Pau hana traffic building on H-1 —
- * Skyline's every 10 min."). Built from real conditions only; with nothing
- * checked it says nothing.
+ * The home page's one friendly line ("Pau hana traffic: the drive home via
+ * H-1 is 6 min slower than usual — Skyline's every 15 min."). Built from real
+ * conditions only (one traffic check, so no trends); with nothing checked it
+ * says nothing.
  */
 export function naluHomeLine(context: NaluHomeContext): string | null {
-  const { period, delayMinutes, onH1, skylineEvery, skylineStopped, showersArea } = context;
-  const road = onH1 ? "H-1" : "the drive into town";
+  const { period, direction, delayMinutes, onH1, skylineEvery, skylineStopped, showersArea } = context;
+  const drive = `${direction === "eastbound" ? "the drive into town" : "the drive home"}${onH1 ? " via H-1" : ""}`;
   const skyline = skylineEvery ? ` — Skyline's every ${skylineEvery} min.` : ".";
-  if (delayMinutes !== null && delayMinutes >= 3 && period !== "other") {
-    const heavy = delayMinutes >= 10;
-    if (period === "evening")
-      return `Pau hana traffic ${heavy ? "is heavy" : "building"} on ${road}${skyline}`;
-    return `Morning rush ${heavy ? "is heavy" : "building"} on ${road}${skyline}`;
-  }
+  const slower = delayMinutes !== null ? `${formatDriveMinutes(delayMinutes)} slower than usual` : "";
+  if (delayMinutes !== null && delayMinutes >= 3 && period !== "other")
+    return `${period === "evening" ? "Pau hana traffic" : "Morning rush"}: ${drive} is ${slower}${skyline}`;
   if (delayMinutes !== null && delayMinutes >= 5)
-    return `${capitalize(road)}'s slower than usual right now${skyline}`;
+    return `${capitalize(drive)} is ${slower} right now${skyline}`;
   if (skylineStopped && delayMinutes !== null && delayMinutes <= 2)
-    return `Skyline's pau for the night, and ${road}'s moving like usual.`;
+    return `Skyline's pau for the night, and ${drive}'s moving like usual.`;
   if (showersArea) return `Showers near ${showersArea} — maybe keep an umbrella handy.`;
   if (delayMinutes !== null && delayMinutes <= 1 && period !== "other")
-    return `${capitalize(road)}'s moving like usual right now${skyline}`;
+    return `${capitalize(drive)}'s moving like usual right now${skyline}`;
   return null;
 }
 

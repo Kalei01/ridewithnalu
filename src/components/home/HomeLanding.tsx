@@ -292,7 +292,7 @@ export function HomeLanding({
             Free, no account needed.{" "}
             <Link
               to="/install"
-              className="font-semibold text-primary underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 items-center font-semibold text-primary underline-offset-4 hover:underline"
             >
               Put it on your phone
             </Link>

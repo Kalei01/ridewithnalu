@@ -259,32 +259,36 @@ describe("generateSmartNaluInsight", () => {
 describe("naluHomeLine", () => {
   const base = {
     period: "evening" as const,
+    direction: "westbound" as const,
     delayMinutes: 6,
     onH1: true,
-    skylineEvery: 10,
+    skylineEvery: 15,
     skylineStopped: false,
     showersArea: null,
   };
-  it("talks pau hana traffic only from a real delay", () => {
-    expect(naluHomeLine(base)).toBe("Pau hana traffic building on H-1 — Skyline's every 10 min.");
-    expect(naluHomeLine({ ...base, delayMinutes: 14 })).toBe(
-      "Pau hana traffic is heavy on H-1 — Skyline's every 10 min.",
+  it("says pau hana traffic from one real check, without a trend", () => {
+    expect(naluHomeLine(base)).toBe(
+      "Pau hana traffic: the drive home via H-1 is 6 min slower than usual — Skyline's every 15 min.",
     );
   });
-  it("says the morning rush in the morning", () => {
-    expect(naluHomeLine({ ...base, period: "morning", skylineEvery: null })).toBe(
-      "Morning rush building on H-1.",
-    );
+  it("says the morning rush on the drive into town", () => {
+    expect(
+      naluHomeLine({ ...base, period: "morning", direction: "eastbound", skylineEvery: null }),
+    ).toBe("Morning rush: the drive into town via H-1 is 6 min slower than usual.");
   });
   it("never names H-1 when the route isn't on it", () => {
-    expect(naluHomeLine({ ...base, onH1: false })).toBe(
-      "Pau hana traffic building on the drive into town — Skyline's every 10 min.",
+    expect(naluHomeLine({ ...base, onH1: false, skylineEvery: null })).toBe(
+      "Pau hana traffic: the drive home is 6 min slower than usual.",
     );
   });
   it("mentions showers when traffic is unremarkable", () => {
     expect(naluHomeLine({ ...base, delayMinutes: 2, showersArea: "Mānoa" })).toBe(
       "Showers near Mānoa — maybe keep an umbrella handy.",
     );
+  });
+  it("never says 'like usual' without a usual to compare", () => {
+    expect(naluHomeLine({ ...base, delayMinutes: null, period: "morning" })).toBeNull();
+    expect(naluHomeLine({ ...base, delayMinutes: null, skylineStopped: true })).toBeNull();
   });
   it("says nothing without evidence", () => {
     expect(

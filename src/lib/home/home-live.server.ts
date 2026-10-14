@@ -4,6 +4,7 @@ import { lookupDriveTime, type DriveTime } from "@/lib/drive.functions";
 import { getHourly, periodAt } from "@/lib/weather.functions";
 import { plannerClient } from "@/lib/transit-plan.server";
 import { skylineStationIdFromText } from "@/lib/rail/station-names";
+import { SKYLINE_RUN_SECONDS } from "@/components/home/island-data";
 import { sharedAnswer } from "./shared-cache.server";
 import { simplifyPath } from "./simplify-path";
 import type { HomeLive, HomeShowers, HomeSkyline, HomeTraffic, HomeTrain } from "./home-types";
@@ -16,7 +17,7 @@ const TRAFFIC_REFRESH_MS = 90_000;
 /** Skyline's two end stations (GTFS stop ids) and the longest scheduled run, plus a margin. */
 const EAST_KAPOLEI = "10047";
 const KALIHI_TC = "10030";
-const LONGEST_RUN_SECONDS = 2_100 + 120;
+const LONGEST_RUN_SECONDS = Math.max(SKYLINE_RUN_SECONDS.east, SKYLINE_RUN_SECONDS.west) + 120;
 
 /** Named areas for "showers near …": the commute's two ends and the wetter sides of town. */
 export const SHOWER_AREAS = [
@@ -34,8 +35,9 @@ function trafficFrom(direction: HomeTraffic["direction"], drive: DriveTime): Hom
   return {
     direction,
     minutes: drive.trafficMinutes,
-    typicalMinutes: drive.typicalMinutes,
-    delayMinutes: drive.delayMinutes,
+    // Without TomTom's usual-traffic answer there's nothing to compare: say no delay at all, not "about usual".
+    typicalMinutes: drive.typicalChecked ? drive.typicalMinutes : null,
+    delayMinutes: drive.typicalChecked ? drive.delayMinutes : null,
     corridor: drive.corridorLabel,
     fetchedAt: drive.fetchedAt,
     path: simplifyPath(drive.path, 40),
@@ -46,15 +48,26 @@ function trafficFrom(direction: HomeTraffic["direction"], drive: DriveTime): Hom
   };
 }
 
+/** A live drive time no more than ~90 s old (the lookup's own cache can be 2 min old). */
+export async function freshDrive(ends: {
+  fromLat: number;
+  fromLon: number;
+  toLat: number;
+  toLon: number;
+}): Promise<DriveTime | null> {
+  let drive = await lookupDriveTime(ends);
+  if (drive && Date.now() - drive.fetchedAt > TRAFFIC_REFRESH_MS)
+    drive = await lookupDriveTime({ ...ends, forceRefresh: true });
+  return drive;
+}
+
 /** Kapolei ↔ downtown with live traffic: the same lookup (and two-minute cache) as Browse's H-1 check. */
 async function liveTraffic(direction: HomeTraffic["direction"]): Promise<HomeTraffic | null> {
   const [from, to] =
     direction === "eastbound" ? [KAPOLEI_POINT, DOWNTOWN_POINT] : [DOWNTOWN_POINT, KAPOLEI_POINT];
   const ends = { fromLat: from.lat, fromLon: from.lon, toLat: to.lat, toLon: to.lon };
   try {
-    let drive = await lookupDriveTime(ends);
-    if (drive && Date.now() - drive.fetchedAt > TRAFFIC_REFRESH_MS)
-      drive = await lookupDriveTime({ ...ends, forceRefresh: true });
+    const drive = await freshDrive(ends);
     // Only live traffic tints the map; a future estimate or a failed check shows nothing.
     if (!drive || drive.trafficBasis !== "live") return null;
     return trafficFrom(direction, drive);

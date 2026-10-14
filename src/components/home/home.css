@@ -116,6 +116,12 @@
   color: var(--color-foreground);
   outline: none;
 }
+.nh-search-input:focus,
+.nh-search-input:focus-visible {
+  /* The rounded field shows focus (see .nh-search-field:focus-within). */
+  outline: none;
+  box-shadow: none;
+}
 .nh-search-input::placeholder {
   color: rgb(235 235 245 / 72%);
 }

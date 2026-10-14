@@ -94,6 +94,18 @@ describe("strip", () => {
     const items = stripItems(live(), 16 * 3600);
     expect(items[0]?.text).toBe("Town → Kapolei 47 min, about usual");
   });
+  it("never says 'about usual' without TomTom's usual-traffic answer", () => {
+    const items = stripItems(
+      live({
+        traffic: {
+          eastbound: traffic({ delayMinutes: null, typicalMinutes: null }),
+          westbound: null,
+        },
+      }),
+      8 * 3600,
+    );
+    expect(items[0]?.text).toBe("Kapolei → town 47 min");
+  });
   it("leaves out everything it couldn't check", () => {
     expect(
       stripItems(live({ traffic: { eastbound: null, westbound: null }, skyline: null }), 8 * 3600),
@@ -110,7 +122,7 @@ describe("strip", () => {
       8 * 3600,
     );
     expect(items.find((i) => i.id === "skyline")?.text).toBe(
-      "Next train from East Kapolei (Kualakaʻi): 8:07 AM",
+      "Next scheduled train from East Kapolei (Kualakaʻi): 8:07 AM",
     );
   });
   it("mentions showers only with the area and NWS chance", () => {
@@ -137,6 +149,13 @@ describe("small phrases", () => {
     expect(commutePeriod(17 * 3600)).toBe("evening");
     expect(commutePeriod(12 * 3600)).toBe("other");
   });
+  it("gives the gap riders will get next, not the one that just ended", () => {
+    const trains = [0, 600, 1200, 1800, 2700, 3600, 4500].map((s) => ({
+      departSeconds: s,
+      endStopId: null,
+    }));
+    expect(skylineEveryMinutes(trains, 1900)).toBe(15);
+  });
   it("gives a train frequency only for a steady service", () => {
     const steady = [0, 600, 1200, 1800].map((s) => ({ departSeconds: 3600 + s, endStopId: null }));
     expect(skylineEveryMinutes(steady, 3600)).toBe(10);
@@ -154,7 +173,7 @@ describe("small phrases", () => {
       8 * 3600,
     );
     expect(items.find((i) => i.id === "skyline")?.text).toBe(
-      "Next train from East Kapolei (Kualakaʻi): 8:07 AM, to Pearl Highlands (Waiawa)",
+      "Next scheduled train from East Kapolei (Kualakaʻi): 8:07 AM, to Pearl Highlands (Waiawa)",
     );
   });
   it("finds no next train after the last one", () => {

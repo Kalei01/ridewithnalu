@@ -3,6 +3,7 @@ import { Flag, RotateCcw } from "lucide-react";
 import { clockFromSeconds } from "@/lib/commute-formatting";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { prefersReducedMotion } from "@/lib/motion";
+import { skylineEmptyText } from "@/lib/trip-choices";
 import { featuredTraffic, trainPositions, type TrainPosition } from "@/lib/home/home-now";
 import { raceProgress, raceSegments, raceSpan, type RaceSegment } from "@/lib/home/race-timeline";
 import type { HomeRace, HomeRaceEntrant } from "@/lib/home/home-types";
@@ -15,7 +16,7 @@ type View = [number, number, number, number];
 
 const FULL_VIEW: View = [0, 0, OAHU_VIEW.width, OAHU_VIEW.height];
 /** The south shore, Kapolei to Waikīkī: where the race happens (same shape as the full view). */
-const RACE_VIEW: View = [150, 262, 290, 230];
+const RACE_VIEW: View = [165, 255, 260, 206];
 /** The whole real trip plays in this long. */
 const RACE_MS = 8_000;
 
@@ -324,6 +325,14 @@ export default function LiveIsland() {
         };
       })
     : [];
+  // Closed for the night: the timetable was read and no train leaves either end later tonight.
+  const liveSeconds = live ? honoluluNowSeconds(live) : 0;
+  const skylineClosed = Boolean(
+    live?.skyline &&
+    liveSeconds >= 20 * 3600 &&
+    !live.skyline.eastbound.some((t) => t.departSeconds >= liveSeconds) &&
+    !live.skyline.westbound.some((t) => t.departSeconds >= liveSeconds),
+  );
   const ordered = race ? [...race.entrants].sort((a, b) => a.finishSeconds - b.finishSeconds) : [];
   const finishXY = race ? projectPoint(race.to.lat, race.to.lon) : null;
   const startXY = race ? projectPoint(race.from.lat, race.from.lon) : null;
@@ -483,11 +492,18 @@ export default function LiveIsland() {
         </span>
         {traffic && (
           <span className="inline-flex items-center gap-2">
+            <span aria-hidden="true" className="inline-block h-1 w-4 rounded-full bg-white/30" />
+            {onH1 ? "Drive via H-1" : "Kapolei ↔ town drive"}, live traffic{" "}
+            {minutesAgo(traffic.fetchedAt)}
+          </span>
+        )}
+        {traffic && slow.length > 0 && (
+          <span className="inline-flex items-center gap-2">
             <span
               aria-hidden="true"
               className="inline-block h-1 w-4 rounded-full bg-[var(--nh-slow)]"
             />
-            {onH1 ? "H-1" : "Kapolei ↔ town"} live traffic, {minutesAgo(traffic.fetchedAt)}
+            Slow stretches
           </span>
         )}
       </p>
@@ -499,9 +515,13 @@ export default function LiveIsland() {
       <div className="mt-5 nh-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-bold">Kapolei → town, right now</h3>
+            <h3 className="text-lg font-bold">
+              {race?.lastKnown ? "Kapolei → town" : "Kapolei → town, right now"}
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Car, Skyline and the bus, at today’s real times.
+              {race?.lastKnown
+                ? `Car, Skyline and the bus, last checked ${checkedLabel(race)}.`
+                : "Car, Skyline and the bus, at today’s real times."}
             </p>
           </div>
           <button
@@ -550,7 +570,7 @@ export default function LiveIsland() {
                     />
                     <span className="min-w-0">
                       <span className="block font-bold">{LABEL[entrant.kind]}</span>
-                      <span className="block truncate text-sm text-muted-foreground">
+                      <span className="block text-sm leading-5 text-muted-foreground">
                         {entrant.steps}
                       </span>
                     </span>
@@ -561,11 +581,8 @@ export default function LiveIsland() {
                             {clockFromSeconds(entrant.finishSeconds)}
                           </span>
                           <span className="block text-xs text-muted-foreground">
-                            {entrant.kind === "drive"
-                              ? formatDriveMinutes(
-                                  (entrant.finishSeconds - entrant.startSeconds) / 60,
-                                )
-                              : "at the stop"}
+                            {formatDriveMinutes((entrant.finishSeconds - race.checkedSeconds) / 60)}
+                            {entrant.kind === "drive" ? ", door to door" : ", at its last stop"}
                           </span>
                         </>
                       ) : (
@@ -583,7 +600,13 @@ export default function LiveIsland() {
                 ? `Last checked ${checkedLabel(race)}; live times aren’t available right now.`
                 : `Checked ${clockFromSeconds(race.checkedSeconds)} today.`}
               {!race.entrants.some((e) => e.kind === "skyline") &&
-                " No Skyline trip in the timetable for this trip right now."}
+                ` ${skylineEmptyText({
+                  failed: race.skylineUnchecked,
+                  closedForEvening: skylineClosed,
+                  notRunningYet: false,
+                  lastTrain: null,
+                  firstTrain: null,
+                })}.`}
             </p>
           </>
         )}

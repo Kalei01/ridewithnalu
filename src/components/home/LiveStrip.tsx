@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CloudRain, Car, TrainFront } from "lucide-react";
-import { stripItems, type StripItem } from "@/lib/home/home-now";
+import { featuredTraffic, stripItems, type StripItem } from "@/lib/home/home-now";
 import { homeLineFor } from "@/lib/home/home-line";
 import { honoluluNowSeconds, useHomeLive } from "./use-home-live";
 
@@ -50,7 +50,15 @@ export function LiveStrip() {
           Right now on Oʻahu
         </h2>
         {data && (
-          <span className="text-xs text-muted-foreground">{agoText(data.generatedAt, now)}</span>
+          <span className="text-xs text-muted-foreground">
+            {agoText(
+              Math.min(
+                data.generatedAt,
+                featuredTraffic(data, seconds)?.fetchedAt ?? data.generatedAt,
+              ),
+              now,
+            )}
+          </span>
         )}
       </div>
       <ul className="nh-rail-scroll mt-3" aria-live="polite">

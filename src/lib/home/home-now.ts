@@ -91,7 +91,7 @@ export function featuredTraffic(live: HomeLive, nowSeconds: number): HomeTraffic
   if (period === "morning") return eastbound ?? westbound;
   if (period === "evening") return westbound ?? eastbound;
   if (eastbound && westbound)
-    return westbound.delayMinutes > eastbound.delayMinutes ? westbound : eastbound;
+    return (westbound.delayMinutes ?? 0) > (eastbound.delayMinutes ?? 0) ? westbound : eastbound;
   return eastbound ?? westbound;
 }
 
@@ -128,7 +128,8 @@ export function nextSkyline(
 
 /** Minutes between scheduled trains around now (from one end), when the timetable shows a steady gap. */
 export function skylineEveryMinutes(trains: HomeTrain[], nowSeconds: number): number | null {
-  const upcoming = trains.filter((t) => t.departSeconds >= nowSeconds - 1800).slice(0, 4);
+  // Trains still to come: the gap riders will actually get, not the one that just ended.
+  const upcoming = trains.filter((t) => t.departSeconds >= nowSeconds).slice(0, 4);
   if (upcoming.length < 3) return null;
   const gaps = upcoming.slice(1).map((t, i) => t.departSeconds - upcoming[i]!.departSeconds);
   const shortest = Math.min(...gaps);
@@ -150,7 +151,11 @@ export function stripItems(live: HomeLive, nowSeconds: number): StripItem[] {
     items.push({
       id: "traffic",
       label: onH1 ? "H-1" : "Drive",
-      text: `${trip} ${formatDriveMinutes(traffic.minutes)}, ${delayPhrase(traffic.delayMinutes)}`,
+      // "About usual" only when TomTom's usual-traffic profile answered.
+      text:
+        traffic.delayMinutes === null
+          ? `${trip} ${formatDriveMinutes(traffic.minutes)}`
+          : `${trip} ${formatDriveMinutes(traffic.minutes)}, ${delayPhrase(traffic.delayMinutes)}`,
     });
   }
   if (live.skyline) {
@@ -160,7 +165,7 @@ export function stripItems(live: HomeLive, nowSeconds: number): StripItem[] {
         id: "skyline",
         label: "Skyline",
         // From an end of the line every train runs the same way; only a short trip names where it ends.
-        text: `Next train from ${next.from}: ${clockFromSeconds(next.departSeconds)}${next.shortTrip ? `, to ${next.toward}` : ""}`,
+        text: `Next scheduled train from ${next.from}: ${clockFromSeconds(next.departSeconds)}${next.shortTrip ? `, to ${next.toward}` : ""}`,
       });
   }
   if (live.showers) {
