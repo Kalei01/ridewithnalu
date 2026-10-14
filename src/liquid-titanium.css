@@ -1188,3 +1188,40 @@ body::after {
 [aria-label="Live navigation"] .mapboxgl-ctrl-bottom-right {
   margin-bottom: calc(6.5rem + env(safe-area-inset-bottom));
 }
+
+/* Time-of-day tint (M15): a very soft wash behind the top of the screen, by
+   Honolulu time (data-tod is set in __root). Decorative, never over content. */
+html[data-tod] {
+  --tod-tint: transparent;
+}
+html[data-tod="sunrise"] {
+  --tod-tint: rgba(255, 176, 110, 0.1);
+}
+html[data-tod="day"] {
+  --tod-tint: rgba(105, 183, 245, 0.07);
+}
+html[data-tod="sunset"] {
+  --tod-tint: rgba(255, 120, 100, 0.1);
+}
+html[data-tod="night"] {
+  --tod-tint: rgba(90, 100, 190, 0.09);
+}
+html[data-tod]::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 16rem;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--tod-tint), transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html[data-tod]::before {
+    animation: tod-fade-in 900ms ease-out both;
+  }
+}
+@keyframes tod-fade-in {
+  from {
+    opacity: 0;
+  }
+}

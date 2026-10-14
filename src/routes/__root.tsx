@@ -29,6 +29,7 @@ import { Toaster } from "../components/ui/sonner";
 import { initGoogleAnalytics, trackGooglePageView } from "../lib/google-analytics";
 import { onAnalyticsConsentChange } from "../lib/analytics";
 import { WelcomeLanding } from "../components/welcome/WelcomeLanding";
+import { timeOfDay } from "../lib/time-of-day";
 import { RETURNING_VISITOR_SCRIPT, hasSeenWelcome, introductionHidden, markIntroductionShown } from "../lib/welcome-seen";
 
 function NotFoundComponent() {
@@ -114,6 +115,13 @@ function RootComponent() {
   useEffect(() => startAutoUpdate(), []);
   useEffect(() => {
     void startErrorReporting();
+  }, []);
+  // Honolulu time of day, for the soft header tint (CSS reads data-tod).
+  useEffect(() => {
+    const apply = () => document.documentElement.setAttribute("data-tod", timeOfDay());
+    apply();
+    const id = window.setInterval(apply, 5 * 60 * 1000);
+    return () => window.clearInterval(id);
   }, []);
 
   return (
