@@ -6,12 +6,12 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
-- **Skyline cap fix live Oct 13 ~6:55 PM (ae30373).** Confirm Kapolei → downtown at rush hour: Skyline row on the FIRST try, on the default path and once on `?plan=phone`. If it shows, close the Skyline alert in alerts.md. If it says "No Skyline trip", log "seen again" and escalate to MAIN (inbox.md). A Skyline trip slower than the bus is expected: the row shows its best trip, and the bus can still be the pick.
-- Phase 2 is live: confirm Kapolei → downtown at rush hour on the default (server) path — Skyline on the first try, rows-ready time, no "no Skyline trip". Report rows-ready vs the phone path (`?plan=phone`) once. If trips break, rollback is `SERVER_TRIP_PLAN = false` (src/lib/trip-plan-client.ts) — 🟢 revert, then report.
+- Skyline alert is CLOSED (Oct 14). Keep the SILENT FAILURES check + 60 s retry; if "No Skyline trip" returns, reopen in alerts.md and escalate to MAIN (inbox.md). Planner health 5.4–6.4 s: only flag if >6000 AND new info; known issue.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R0 (Wed Oct 14: Skyline first-try OK on default + phone path → alert closed; only health planner 6403 ms, known)
 - R0 (Tue Oct 13: all clear, trips yes; Skyline OK first try, 2nd morning in a row)
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Tue Oct 13, 6:18 AM HST (trips: yes — OPEN alert): health OK (planner 4881 ms), 19/19 pages OK, http→https 301. Kapolei, ʻEwa Beach, Airport: Skyline + Bus + Drive on the first try (2.6–6.7 s); no "no Skyline trip"; retries fine. Rush-hour Drive was 1 hr 11 min (Kapolei) — real traffic, not an error. Skyline held 2 mornings in a row (Oct 12, 13).
+- Wed Oct 14, 6:15 AM HST (trips: yes — OPEN alert + code changes): health OK, planner 6403 ms (over 6000, known), 19/19 pages OK, http→https 301. Kapolei (default 4.6 s, `?plan=phone` 8.6 s), ʻEwa Beach, Airport: Skyline + Bus + Drive first try; no "no Skyline trip"; retries fine. Skyline alert closed.
