@@ -40,5 +40,5 @@ Read first, every session. Rules for keeping it current and small: `docs/passdow
 ## Where things are recorded
 Alerts `docs/maintenance/alerts.md` · autonomous fixes `docs/maintenance/autofix-log.md` · weekly reports `docs/reviews/` · UX backlog `docs/experience/backlog.md` · SEO backlog/log `docs/seo/` · proposals `docs/product/proposals.md` · service limits `docs/maintenance/service-limits.md` · cities `docs/cities/`.
 - Oct 13 ~2:30 PM HST: Phase 2 FINISHED and live (e9daeec; rollback `SERVER_TRIP_PLAN = false` in src/lib/trip-plan-client.ts). SEO routine re-enabled (next Thu 5:58 AM).
-
 - Oct 14: Lovable leftovers removed in one cleanup (sign-in broker, LOVABLE_* fallbacks, previewAuthStorage, `.lovable/`, bunfig excludes). Kept: build wrapper, `VITE_LOVABLE_CONNECTOR_*` env names, AGENTS.md. Business stats grant: Josh is granting EXECUTE on usage_stats()/funnel_stats().
+- Oct 13 (lead) build queue after Phase 2, one at a time: (1) Lovable cleanup DONE Oct 14; (2) dependency upgrade pass (Sonnet, security-keys); (3) Phase 3 split of src/routes/index.tsx, one area per session; (4) Arrive By with car: Workers CPU read. SEO pass items 7–11 run in the SEO routine from Thu (1–2 per run). Stats access granted by Josh, verified Oct 13.
