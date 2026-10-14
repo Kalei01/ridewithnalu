@@ -719,3 +719,33 @@ html[data-nalu-returning] .nalu-first-visit-only {
     transform: none;
   }
 }
+
+/* Screen changes (M13): View Transitions, a short fade with a small slide. The browser
+   skips this where it has no View Transitions; nothing at all under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: vt-out 160ms ease-in both;
+  }
+  ::view-transition-new(root) {
+    animation: vt-in 240ms ease-out both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}

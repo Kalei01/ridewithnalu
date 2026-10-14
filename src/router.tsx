@@ -34,6 +34,8 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
+    // A soft slide between pages where the browser supports View Transitions (instant elsewhere).
+    defaultViewTransition: true,
   });
 
   return router;
