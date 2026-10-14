@@ -17,6 +17,14 @@ Entry format:
 
 ---
 
+### 2026-10-13 ~2:30 PM HST — Phase 2: one server request per trip (switch ON)
+- Class: 🟡 — approved build (fix-plan Phase 2), no change to decision rules
+- Issue: the phone ran 10+ planner calls per trip (12–30 s at rush hour, silent gaps; Skyline "no trip" alert).
+- Fix: `planTripServer` (src/lib/transit-plan.functions.ts, transit-plan.server.ts) runs `planTransitTripDetailed` on Cloudflare with parallel searches, deadlines, limits and caches; `lookupTrafficMinutes` (drive.functions.ts); switch + fallback in src/lib/trip-plan-client.ts; planner dependencies injectable (transit-plan.ts). Arrive By with a car stays on the phone.
+- Validation: 641 tests, typecheck, build, eslint on touched files; replay side-by-side 30/30 identical, live phone vs server identical on 3 trips (scripts/phase2/); transit-accuracy (HIGH grace + subrequests found and fixed; re-check: safe), security-keys (no critical/high; Mediums fixed: Hawaiʻi-only input, 30 stations, redacted server logs), nalu-performance (fixed: abort past deadline, 4+2 open calls; Arrive By with a car held on the phone), mobile-design (no difference). Live e9daeec: default path uses the server, rows identical to the phone path.
+- Confidence: high for Leave Now; rush hour still to be confirmed by the Watchman.
+- Rollback: set `SERVER_TRIP_PLAN = false` in src/lib/trip-plan-client.ts (or git revert e9daeec).
+
 ### 2026-10-11 ~11:20 PM HST — Phase 0a: stop calling the unapplied combined station search
 - Class: 🟢
 - Issue: every trip sent `plan_outbound_multi` (migration 0065, parked, not in production), got a 404, then fell back to `plan_outbound`; the 10-minute "missing" memory is per browser.

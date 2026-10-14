@@ -2,11 +2,11 @@
 Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Watching
-- **Skyline "No Skyline trip" on the first rush-hour try, Kapolei → downtown** (OPEN since Oct 7; alerts.md). Main session owns the fix; Oct 12 recording showed it OK (no repro), fix folded into Phase 2 (Tue Oct 13). Keep running the SILENT FAILURES check and the 60 s retry; log "seen again" lines, don't re-investigate.
+- **Skyline "No Skyline trip" on the first rush-hour try, Kapolei → downtown** (OPEN since Oct 7; alerts.md). Phase 2 went live Oct 13 ~2:30 PM (trip search now one server request). Keep running the SILENT FAILURES check and the 60 s retry; log "seen again" lines, don't re-investigate.
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
-- If the main session has shipped a Skyline fix (see main.md), confirm it at rush hour and say clearly whether it held.
+- Phase 2 is live: confirm Kapolei → downtown at rush hour on the default (server) path — Skyline on the first try, rows-ready time, no "no Skyline trip". Report rows-ready vs the phone path (`?plan=phone`) once. If trips break, rollback is `SERVER_TRIP_PLAN = false` (src/lib/trip-plan-client.ts) — 🟢 revert, then report.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
 - R0 (Tue Oct 13: all clear, trips yes; Skyline OK first try, 2nd morning in a row)

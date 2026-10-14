@@ -1,6 +1,6 @@
 # Nalu — main passdown (everyone)
 
-Read first, every session. Rules for keeping it current and small: `docs/passdown/README.md`. Each scheduled agent also has its own file in this folder. Last updated: 2026-10-11 (main session).
+Read first, every session. Rules for keeping it current and small: `docs/passdown/README.md`. Each scheduled agent also has its own file in this folder. Last updated: 2026-10-13 (Phase 2 build session).
 
 ## Owner and ground rules
 - Josh, not a developer: plain English, real evidence only, never invent numbers.
@@ -17,13 +17,13 @@ Read first, every session. Rules for keeping it current and small: `docs/passdow
 | Item | Owner / where | State |
 |---|---|---|
 | Drive ETA looks ~10 min long (Josh, Mon Oct 12: Nalu 43 vs Google/Apple 31–33) | Closed (finding only) | NO bug. Live 7:23 AM HST Home→Merchant St: 41 min live / 43 typical, 34.2 km, normal Fort Weaver→H-1 East→Nimitz route, no padding, no heading sent; TomTom's own estimate is just higher than Google's. Josh trimmed scope: no alert, no options, no Tuesday repeats. No code changed. Re-check script: `scripts/diag/drive-eta-check.mjs`. |
-| Skyline row says "No Skyline trip" on the first rush-hour try (Kapolei → downtown) | Main session; alert in `docs/maintenance/alerts.md` | OPEN since Oct 7. Oct 8 fix 2673c7b live but not the cause. Oct 12 6:26 AM recording: bug did NOT appear (both attempts OK, 13.1 s / 10.6 s, no errors) — see alert. Decision: fold into Phase 2 (deadline marks late rows unchecked), no small fix. Candidate guard parked on branch `wip/skyline-row-checking` (unproven, not live). Top priority. |
+| Skyline row says "No Skyline trip" on the first rush-hour try (Kapolei → downtown) | Watchman confirms; alert in `docs/maintenance/alerts.md` | OPEN since Oct 7, good mornings Oct 12–13. Phase 2 live Oct 13 (a stuck search now always says "Can't check"). Close after the server path passes a weekday rush-hour first try. Parked guard branch `wip/skyline-row-checking` no longer needed. |
 | Station names in the app (English + Hawaiian smaller/muted underneath) | Session "NALU — Skyline station names in app (Sonnet)"; branch `wip/station-names` | Shipped to `cloudflare` (see git log "Merge station names"); live since e3a3638; Skyline was closed at check time, so the two-line names still need a look on a daytime Skyline trip. Follow-up: guide/SEO pages use the same names (`docs/seo/backlog.md`). |
-| Fix plan (Phases 0–5) | `docs/architecture/fix-plan.md` | Approved Oct 11. Phase 0 DONE Oct 11 (f6f9204: combined search off; 2b0ecfd: Lovable no-ops removed; left for Josh: Lovable fallbacks in `docs/maintenance/autofix-log.md`); Phase 1 DONE Oct 12 (recording, no repro; fold into Phase 2); Phase 2 (one server request per trip, Opus) Tue Oct 13. |
+| Fix plan (Phases 0–5) | `docs/architecture/fix-plan.md` | Approved Oct 11. Phase 0 DONE Oct 11 (f6f9204: combined search off; 2b0ecfd: Lovable no-ops removed; left for Josh: Lovable fallbacks in `docs/maintenance/autofix-log.md`); Phase 1 DONE Oct 12 (recording, no repro; fold into Phase 2); Phase 2 LIVE Oct 13 (e9daeec, switch ON; result + follow-ups in fix-plan.md). Next: Phase 3 (split index.tsx) and the Lovable cleanup. |
 | Trust & authority pages (About, How Nalu decides, footer, listings) | After Phase 2 | Moved by Josh's plan approval; Sonnet build + one Opus check of the About page. Brief in `docs/seo/backlog.md`. |
 
 ## Parked / waiting
-- Planner speed: trips take ~12–30 s; migration 0065 parked (54/60 identical) — `scripts/db-speed/README.md`.
+- Planner speed: Phase 2 cut rows-ready (Kapolei midday 5–10 s → 3.6–4.6 s); the database itself is still the limit at rush hour. Migration 0065 parked (54/60 identical) — `scripts/db-speed/README.md`. Arrive By with a car still on the phone until its Workers CPU time is read (`fix-plan.md`).
 - P-2 items 1 and 3 (live "Right now" card, map on guides): need an Opus session; live card waits for planner speed.
 - Bay Area ("Nalu · Bay Area"): plan and data size in `docs/cities/`; `BAY511_API_KEY` exists. Waits for budget and Oʻahu being fast and right.
 - Answer-first guide format: SEO agent, after the build queue.
@@ -40,4 +40,4 @@ Read first, every session. Rules for keeping it current and small: `docs/passdow
 ## Where things are recorded
 Alerts `docs/maintenance/alerts.md` · autonomous fixes `docs/maintenance/autofix-log.md` · weekly reports `docs/reviews/` · UX backlog `docs/experience/backlog.md` · SEO backlog/log `docs/seo/` · proposals `docs/product/proposals.md` · service limits `docs/maintenance/service-limits.md` · cities `docs/cities/`.
 - Josh, Oct 11: Lovable is cancelled and the AI key, Firebase service account and CRON_SECRET are set in Cloudflare, so remove the Lovable fallbacks, dependency and `.lovable/` in ONE Sonnet cleanup after Phase 2 (security-keys review; sign-in must keep working live). Business stats: Josh is granting the read-only role EXECUTE on usage_stats()/funnel_stats(). No Cloudflare cost token (not needed).
-- Oct 13 1:11 PM HST: Phase 2 build STARTED (Opus, session_01Vvxy3TJQez1YLmDcvWBAFu); one build at a time until it lands. SEO routine re-enabled (next Thu 5:58 AM).
+- Oct 13 ~2:30 PM HST: Phase 2 FINISHED and live (e9daeec; rollback `SERVER_TRIP_PLAN = false` in src/lib/trip-plan-client.ts). SEO routine re-enabled (next Thu 5:58 AM).
