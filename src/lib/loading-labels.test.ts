@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tripCheckingStatus, weatherSummaryText } from "./loading-labels";
+import { checkingStepsSummary, tripCheckingSteps, weatherSummaryText } from "./loading-labels";
 import { sourceFreshnessLabel } from "./commute-model";
 
 const minutes = (m: number) => `${m} min`;
@@ -12,37 +12,59 @@ const base = {
   formatMinutes: minutes,
 };
 
-describe("trip checking status", () => {
-  it("names everything still being checked", () => {
-    expect(tripCheckingStatus(base)).toBe("Checking traffic, TheBus and Skyline…");
+describe("trip checking steps", () => {
+  const states = (steps: ReturnType<typeof tripCheckingSteps>) =>
+    steps?.map((s) => `${s.key}:${s.state}${s.detail ? `:${s.detail}` : ""}`);
+
+  it("lists traffic, Skyline and TheBus, all still checking", () => {
+    expect(states(tripCheckingSteps(base))).toEqual([
+      "traffic:checking",
+      "skyline:checking",
+      "bus:checking",
+    ]);
   });
 
-  it("shows the drive time as soon as it arrives, while transit is still checking", () => {
-    expect(tripCheckingStatus({ ...base, driveLoading: false, driveMinutes: 35 })).toBe(
-      "Drive 35 min · checking TheBus and Skyline…",
-    );
+  it("ticks traffic with the real drive time as soon as it arrives", () => {
+    expect(states(tripCheckingSteps({ ...base, driveLoading: false, driveMinutes: 35 }))).toEqual([
+      "traffic:done:35 min",
+      "skyline:checking",
+      "bus:checking",
+    ]);
   });
 
   it("doesn't invent a drive time when traffic couldn't be checked", () => {
-    expect(tripCheckingStatus({ ...base, driveLoading: false, driveMinutes: null })).toBe(
-      "Checking TheBus and Skyline…",
+    expect(states(tripCheckingSteps({ ...base, driveLoading: false, driveMinutes: null }))).toEqual(
+      ["traffic:unavailable", "skyline:checking", "bus:checking"],
     );
   });
 
-  it("leaves drive out for a rider without a car", () => {
-    expect(tripCheckingStatus({ ...base, driveRow: false, driveMinutes: 35 })).toBe(
-      "Checking TheBus and Skyline…",
-    );
+  it("leaves traffic out for a rider without a car", () => {
+    expect(states(tripCheckingSteps({ ...base, driveRow: false }))).toEqual([
+      "skyline:checking",
+      "bus:checking",
+    ]);
   });
 
-  it("waits only on traffic once transit is in", () => {
-    expect(tripCheckingStatus({ ...base, transitLoading: false })).toBe("Checking traffic…");
+  it("ticks Skyline and TheBus together once the timetable search is in", () => {
+    expect(states(tripCheckingSteps({ ...base, transitLoading: false }))).toEqual([
+      "traffic:checking",
+      "skyline:done",
+      "bus:done",
+    ]);
   });
 
-  it("says nothing once every answer is in", () => {
+  it("is null once every answer is in", () => {
     expect(
-      tripCheckingStatus({ ...base, driveLoading: false, transitLoading: false, driveMinutes: 35 }),
+      tripCheckingSteps({ ...base, driveLoading: false, transitLoading: false, driveMinutes: 35 }),
     ).toBeNull();
+  });
+
+  it("describes progress in words for screen readers", () => {
+    expect(
+      checkingStepsSummary(
+        tripCheckingSteps({ ...base, driveLoading: false, driveMinutes: 35 }) ?? [],
+      ),
+    ).toBe("Traffic 35 min in. Checking Skyline and TheBus…");
   });
 });
 

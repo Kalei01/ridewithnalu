@@ -57,7 +57,7 @@ export type VerdictSectionProps = {
   options: import("@/lib/commute-model").Option[];
   optionsFailed: boolean;
   optionsLoading: boolean;
-  pendingStatus: string | null;
+  pendingSteps: import("@/lib/loading-labels").CheckingStep[] | null;
   planPlaceholder: boolean;
   reasoning: string | null;
   selectedChoice: import("@/components/commute/TripChoiceCards").TripChoiceKey | null;
@@ -101,7 +101,7 @@ export function VerdictSection(props: VerdictSectionProps) {
     options,
     optionsFailed,
     optionsLoading,
-    pendingStatus,
+    pendingSteps,
     planPlaceholder,
     reasoning,
     selectedChoice,
@@ -159,7 +159,7 @@ export function VerdictSection(props: VerdictSectionProps) {
         driveBufferNote={driveBufferNote}
         driveTotalMinutes={driveDoorToDoorMinutes}
         driveLeaveSeconds={arriveByActive && drivePlan ? drivePlan.leaveBySeconds : null}
-        pendingStatus={pendingStatus}
+        pendingSteps={pendingSteps}
         uncheckedNote={uncheckedNote}
         comparison={
           activeRegion().hasTransit ? (

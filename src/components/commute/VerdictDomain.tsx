@@ -2,6 +2,8 @@ import { Check } from "lucide-react";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { clockFromSeconds } from "@/lib/commute-formatting";
 import type { ReactNode } from "react";
+import { CheckingSteps } from "@/components/commute/CheckingSteps";
+import type { CheckingStep } from "@/lib/loading-labels";
 
 type Range = { low: number; high: number } | null;
 type TransitOption = {
@@ -35,7 +37,7 @@ export function VerdictDomain({
   driveTotalMinutes,
   driveLeaveSeconds = null,
   comparison,
-  pendingStatus = null,
+  pendingSteps = null,
   uncheckedNote = null,
   children,
 }: {
@@ -64,8 +66,8 @@ export function VerdictDomain({
   driveLeaveSeconds?: number | null;
   /** Drive / Skyline / Bus, side by side, so the headline's math is on screen. */
   comparison?: ReactNode;
-  /** While the answer loads: what's in so far, e.g. "Drive 35 min · checking TheBus and Skyline…". */
-  pendingStatus?: string | null;
+  /** While the answer loads: traffic, Skyline and TheBus, each ticked when its real answer is in. */
+  pendingSteps?: CheckingStep[] | null;
   /** A trip kind Nalu couldn't check, so the call covers only what it could, e.g. "Skyline couldn’t be checked". */
   uncheckedNote?: string | null;
   children?: ReactNode;
@@ -124,14 +126,7 @@ export function VerdictDomain({
           without guessing a drive time.
         </p>
       )}
-      {pending && pendingStatus && (
-        <p
-          aria-live="polite"
-          className="mt-3 flex min-h-[26px] items-center text-sm font-medium tabular-nums text-muted-foreground"
-        >
-          {pendingStatus}
-        </p>
-      )}
+      {pending && pendingSteps && <CheckingSteps steps={pendingSteps} />}
       {configured && verdict !== "none" && !optionsLoading && !driveLoading && (
         <div className="nalu-value-in mt-3 flex flex-wrap items-center gap-2">
           <span

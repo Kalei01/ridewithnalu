@@ -3,12 +3,22 @@
  * until a request has actually failed; only then "unavailable".
  */
 
+export type CheckingStep = {
+  key: "traffic" | "skyline" | "bus";
+  label: string;
+  /** checking: still waiting; done: answered; unavailable: the request failed. */
+  state: "checking" | "done" | "unavailable";
+  /** Real result we already know, e.g. the live drive time. Never a guess. */
+  detail?: string;
+};
+
 /**
- * The short line under "Checking…" while a trip loads, naming what's in so far:
- * "Drive 35 min · checking TheBus and Skyline…". Drive usually answers in about
- * a second and the timetable search takes longer, so the rider sees progress.
+ * The steps shown under "Comparing your options" while a trip loads: traffic,
+ * Skyline and TheBus, each ticking over when its own real answer arrives. Drive
+ * usually answers in about a second; the timetable search (Skyline and TheBus
+ * come from one search) takes longer. Null once nothing is left to wait on.
  */
-export function tripCheckingStatus(input: {
+export function tripCheckingSteps(input: {
   /** The rider has a car for this trip, so there is a Drive row. */
   driveRow: boolean;
   driveLoading: boolean;
@@ -18,15 +28,44 @@ export function tripCheckingStatus(input: {
   hasTransit: boolean;
   transitLoading: boolean;
   formatMinutes: (minutes: number) => string;
-}): string | null {
+}): CheckingStep[] | null {
   const checkDrive = input.driveRow && input.driveLoading;
   const checkTransit = input.hasTransit && input.transitLoading;
   if (!checkDrive && !checkTransit) return null;
-  if (checkDrive && checkTransit) return "Checking traffic, TheBus and Skyline…";
-  if (checkDrive) return "Checking traffic…";
-  if (input.driveRow && input.driveMinutes !== null)
-    return `Drive ${input.formatMinutes(input.driveMinutes)} · checking TheBus and Skyline…`;
-  return "Checking TheBus and Skyline…";
+  const steps: CheckingStep[] = [];
+  if (input.driveRow) {
+    steps.push(
+      input.driveLoading
+        ? { key: "traffic", label: "Traffic", state: "checking" }
+        : input.driveMinutes !== null
+          ? {
+              key: "traffic",
+              label: "Traffic",
+              state: "done",
+              detail: input.formatMinutes(input.driveMinutes),
+            }
+          : { key: "traffic", label: "Traffic", state: "unavailable" },
+    );
+  }
+  if (input.hasTransit) {
+    const state = input.transitLoading ? "checking" : "done";
+    steps.push({ key: "skyline", label: "Skyline", state }, { key: "bus", label: "TheBus", state });
+  }
+  return steps;
+}
+
+/** Plain text for screen readers: "Traffic 35 min. Checking Skyline and TheBus." */
+export function checkingStepsSummary(steps: CheckingStep[]): string {
+  const done = steps
+    .filter((s) => s.state === "done")
+    .map((s) => (s.detail ? `${s.label} ${s.detail}` : s.label));
+  const waiting = steps.filter((s) => s.state === "checking").map((s) => s.label);
+  return [
+    done.length ? `${done.join(", ")} in.` : "",
+    waiting.length ? `Checking ${waiting.join(" and ")}…` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /**

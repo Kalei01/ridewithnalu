@@ -191,7 +191,7 @@ import { liveTripSteps } from "@/lib/live-trip-steps";
 
 import { plannerRpc } from "@/lib/transit-plan";
 import { planTrip } from "@/lib/trip-plan-client";
-import { tripCheckingStatus, weatherSummaryText } from "@/lib/loading-labels";
+import { tripCheckingSteps, weatherSummaryText } from "@/lib/loading-labels";
 import { honoluluDaysBetween, shiftOptionDays } from "@/lib/service-day";
 import { withStation } from "@/lib/rail/station-names";
 
@@ -3007,7 +3007,7 @@ function Index() {
           : busRowUnchecked
             ? "TheBus couldn’t be checked"
             : null;
-  const pendingStatus = tripCheckingStatus({
+  const pendingSteps = tripCheckingSteps({
     driveRow: Boolean(resources.vehicle),
     driveLoading,
     driveMinutes: driveChoice.status === "ready" ? driveChoice.minutes : null,
@@ -4290,7 +4290,7 @@ function Index() {
           options={options}
           optionsFailed={optionsFailed}
           optionsLoading={optionsLoading}
-          pendingStatus={pendingStatus}
+          pendingSteps={pendingSteps}
           planPlaceholder={planPlaceholder}
           reasoning={reasoning}
           selectedChoice={selectedChoice}
