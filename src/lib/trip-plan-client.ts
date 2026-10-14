@@ -10,8 +10,9 @@ import { debugLog } from "@/lib/debug-log";
  * The on/off switch for Phase 2 (docs/architecture/fix-plan.md).
  * On: the phone asks the server for the whole trip search in one request.
  * Off: the phone runs every search itself, as before. Rollback = set false.
+ * On since Oct 13, 2026 after the side-by-side proof (scripts/phase2/).
  */
-export const SERVER_TRIP_PLAN = false;
+export const SERVER_TRIP_PLAN = true;
 
 const OVERRIDE_KEY = "nalu-plan-path";
 
@@ -34,6 +35,16 @@ export function serverTripPlanOn(): boolean {
 }
 
 /**
+ * Arrive By with a car times every station for every departure (up to ~40
+ * outgoing calls and the most server work per trip; Workers' free plan allows
+ * 50 calls and 10 ms of CPU). Until its real CPU time on Cloudflare has been
+ * read, it stays on the phone path rather than risk being run twice.
+ */
+export function fitsOneServerRequest(ctx: TransitPlanContext): boolean {
+  return !(ctx.planMode === "arrive-by" && ctx.vehicleToStation === "vehicle");
+}
+
+/**
  * The trip search the trip screen runs. With the switch on it is one server
  * request; if that request itself can't be made (offline, server error, too
  * many requests), the phone runs the same search itself so the rider still
@@ -41,7 +52,7 @@ export function serverTripPlanOn(): boolean {
  * "Can't check", exactly as on the phone path.
  */
 export async function planTrip(ctx: TransitPlanContext): Promise<TransitPlanResult> {
-  if (!serverTripPlanOn()) return planTransitTripDetailed(ctx);
+  if (!serverTripPlanOn() || !fitsOneServerRequest(ctx)) return planTransitTripDetailed(ctx);
   let answer: Awaited<ReturnType<typeof planTripServer>>;
   try {
     answer = await planTripServer({ data: toTripPlanInput(ctx) });
