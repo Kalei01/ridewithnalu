@@ -82,9 +82,9 @@ Morning rush; Skyline-stopped-at-night and not-yet-running rows; a live verdict 
 ## Batch M — motion (Josh approved Oct 13, 2026; build after the Skyline P1 is fixed, on the split files, one item per commit)
 Rules: lightweight SVG and CSS or the Web Animations API only, no heavy animation libraries. No layout shift, no hit to LCP. Everything respects prefers-reduced-motion (static or opacity-only). Never delays an answer. Run the mobile-design reviewer and nalu-performance (page weight) for each.
 - M1 TODO "Checking" progress: three lines (traffic, Skyline, TheBus) tick in as each real answer arrives. Driven by actual results, never a fake timer.
-- M2 TODO Welcome scene: an Oʻahu outline, a route line drawing Kapolei → town, and a car and a Skyline train moving side by side (illustrative, not a claim about speed). About 3 s, then rests. Inline SVG.
-- M3 TODO Guide diagrams: the Skyline line with its stations lighting in order (rail guide); park-and-ride lots along the line (park-and-ride guide). Server-rendered SVG, animated on scroll into view.
-- M4 TODO Polish: button press feedback, cards easing in on scroll, a soft pulse on "leave now" moments.
+- M2 DONE (2026-10-14, 3a0c8ce) Welcome scene: an Oʻahu outline, a route line drawing Kapolei → town, and a car and a Skyline train moving side by side (illustrative, not a claim about speed). About 3 s, then rests. Inline SVG.
+- M3 DONE (2026-10-14, c42b044) Guide diagrams: the Skyline line with its stations lighting in order (rail guide); park-and-ride lots along the line (park-and-ride guide). Server-rendered SVG, animated on scroll into view.
+- M4 PARTLY DONE (2026-10-14, 84f83ca: button press feedback, cards ease in on public pages; left: in-app cards and the soft "leave now" pulse, which touch the answer screen) Polish: button press feedback, cards easing in on scroll, a soft pulse on "leave now" moments.
 
 ## Batch M2 — more motion (Josh approved all, Oct 13, 2026; after Batch M, same rules)
 Extra rules for "implemented properly":
@@ -106,12 +106,12 @@ Moments:
 - M11 TODO Celebrations: a small shaka after 5 mornings in a row (device-only count); a quick wave when Skyline beats the drive.
 
 Around the app:
-- M12 TODO Install walkthrough: a short animated "Add to Home Screen" for iPhone and for Android on /install.
+- M12 DONE (2026-10-14, 83701ea) Install walkthrough: a short animated "Add to Home Screen" for iPhone and for Android on /install.
 - M13 TODO Screen changes: a smooth slide between screens (View Transitions API where supported, instant otherwise).
 - M14 TODO Pull to refresh: a wave curl ("nalu" = wave) while it re-checks; works only on the app screen.
 
 Add-ons (lead):
-- M15 TODO Time-of-day header tint: sunrise, day, sunset or night, following Honolulu time, very subtle.
+- M15 DONE (2026-10-14, 359eafe) Time-of-day header tint: sunrise, day, sunset or night, following Honolulu time, very subtle.
 - M16 TODO Station names: the Hawaiian name fades in under the English one (direction.md format).
 - M17 TODO "Can't check" states: a calm icon with a gentle fade, never a shake or red flash; a retry button with a press response.
 - M18 TODO Android haptic tick when the pick lands (navigator.vibrate, off when reduced motion is on; iOS has no web haptics, so skip it there).

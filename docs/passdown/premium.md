@@ -13,4 +13,5 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 - (none yet)
 
 ## Last run
+- Motion batches (Oct 14, build session): M2, M3, M12, M15 and public-page M4 done (see backlog). Next item = M1 etc. only after the Skyline P1 is marked fixed in main.md/alerts.md (don't touch src/routes/index.tsx or commute/sections before). Hook `use-reveal` and `data-tod` on <html> exist for reuse (M10).
 - Oct 7 run skipped by Josh. Next run Wed Oct 14.
