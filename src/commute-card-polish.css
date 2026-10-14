@@ -222,3 +222,26 @@ html[data-tod="night"]::before {
     transform: translate(2px, -2px);
   }
 }
+
+/* A quick wave of the Nalu mark when Skyline beats the drive (set for ~1.6 s). */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-celebrate="wave"] .nalu-brand .nalu-honu {
+    transform-origin: 30% 80%;
+    animation: nalu-wave 1.2s ease-in-out 1;
+  }
+}
+@keyframes nalu-wave {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(-9deg);
+  }
+  45% {
+    transform: rotate(7deg);
+  }
+  70% {
+    transform: rotate(-4deg);
+  }
+}

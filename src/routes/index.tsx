@@ -17,6 +17,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { debugLog, endDebugSession, flushDebugLogs, startDebugSession } from "@/lib/debug-log";
 import { RefreshCw, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { useCelebrations } from "@/hooks/use-celebrations";
 import { supabase } from "@/integrations/supabase/client";
 import { reverseGeocode } from "@/lib/geocode.functions";
 import { CommuteHeader } from "@/components/commute/CommuteHeader";
@@ -2903,6 +2904,23 @@ function Index() {
   // Nalu's pick is its own answer, so it doesn't move when a rider taps a row.
   const computedPick: TripChoiceKey | null =
     verdict === "drive" ? "drive" : verdict === "transit" ? choiceKeyFor(best) : null;
+  // Local-only moments of warmth: a shaka after 5 mornings in a row, a quick wave of the
+  // Nalu mark when Skyline beats the drive. Never changes the answer.
+  useCelebrations({
+    answered:
+      configured &&
+      !commitment &&
+      !optionsLoading &&
+      !driveLoading &&
+      (verdict === "drive" || verdict === "transit" || verdict === "same"),
+    skylineBeatsDrive:
+      !commitment &&
+      !arriveByActive &&
+      computedPick === "skyline" &&
+      driveTripEstimate.availability === "available" &&
+      (activeDecision?.differenceMinutes ?? 0) > 0,
+    tripKey: decisionKey,
+  });
   const [naluPick, setNaluPick] = useState<TripChoiceKey | null>(null);
   useEffect(() => {
     if (chosenCard === null && !commitment) setNaluPick(computedPick);
