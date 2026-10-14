@@ -17,7 +17,7 @@ export function LeaveCountdown({ leaveBySeconds }: { leaveBySeconds: number }) {
   if (!countdown) return null;
   return (
     <p
-      className={`mt-1 text-xs font-semibold tabular-nums transition-colors duration-300 ${
+      className={`mt-1 whitespace-nowrap text-xs font-semibold tabular-nums transition-colors duration-300 ${
         countdown.tone === "ahead" ? "text-muted-foreground" : "text-warning"
       }`}
     >

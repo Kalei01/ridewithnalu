@@ -19,6 +19,6 @@ export function leaveCountdown(leaveBySeconds: number, nowSeconds: number): Leav
   if (diff > 90 * 60 || diff < -10 * 60) return null;
   if (diff <= 0) return { text: "Time to go", tone: "go" };
   const minutes = Math.ceil(diff / 60);
-  if (diff <= 60) return { text: "Leave in under a minute", tone: "soon" };
-  return { text: `Leave in ${minutes} min`, tone: minutes <= 2 ? "soon" : "ahead" };
+  if (diff <= 60) return { text: "In under a minute", tone: "soon" };
+  return { text: `In ${minutes} min`, tone: minutes <= 2 ? "soon" : "ahead" };
 }
