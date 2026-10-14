@@ -1,3 +1,4 @@
+import { MapSection, type TransitMapSegment } from "@/components/commute/sections/MapSection";
 import { ModeDetailsSection } from "@/components/commute/sections/ModeDetailsSection";
 import { ArriveBySection } from "@/components/commute/sections/ArriveBySection";
 import { BrowseScreen } from "@/components/commute/BrowseScreen";
@@ -7,8 +8,8 @@ import { useGate } from "@/hooks/use-gate";
 import { SettingsHint } from "@/components/SettingsHint";
 import { RideCard } from "@/components/commute/RideCard";
 import { WalkCard } from "@/components/commute/WalkCard";
-import { ClientOnly, createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { debugLog, endDebugSession, flushDebugLogs, startDebugSession } from "@/lib/debug-log";
@@ -46,7 +47,7 @@ import {
   type TripAccess,
 } from "@/lib/trip-access";
 import { DataExpiryNotice, useDataExpiry } from "@/components/commute/DataExpiry";
-import { ApproachBanner, NavShell } from "@/components/commute/LiveTripControls";
+import { ApproachBanner } from "@/components/commute/LiveTripControls";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { busArrivals } from "@/lib/bus-arrivals.functions";
@@ -118,7 +119,6 @@ import {
   nextManeuver,
   smoothBearing,
   routeBearingAt,
-  turnGlyph,
   startRoutePhrase,
   distanceAlongPath,
 } from "@/lib/navigation-voice";
@@ -210,11 +210,8 @@ import { useRailStations } from "@/hooks/use-rail-stations";
 import { matchLiveArrival } from "@/components/commute/RailTripBreakdown";
 import { QuickPlaceDialog, resolveShortcut, shortcutLabel } from "@/components/places/Shortcuts";
 import { scrollBehavior } from "@/lib/motion";
-import { currentLegIndex, liveTripSteps } from "@/lib/live-trip-steps";
-import { HoldToEndButton, NavBottomCard } from "@/components/commute/TripControls";
-
-const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
-const LiveNavMap = lazy(() => import("@/components/commute/LiveNavMap"));
+import { liveTripSteps } from "@/lib/live-trip-steps";
+import { HoldToEndButton } from "@/components/commute/TripControls";
 
 import { plannerRpc } from "@/lib/transit-plan";
 import { planTrip } from "@/lib/trip-plan-client";
@@ -3518,12 +3515,6 @@ function Index() {
     stationCoords,
   ]);
 
-  type TransitMapSegment = {
-    id: string;
-    mode: "walk" | "drive" | "bus" | "rail";
-    points: Array<{ lat: number; lon: number }>;
-  };
-
   const transitSteps = useMemo(
     () => (best ? liveTripSteps(best.legs, arrivingHome) : []),
     [best, arrivingHome],
@@ -4722,178 +4713,45 @@ function Index() {
             />
           )}
 
-        {mapPoints.length >= 2 && (selectedMode === "drive" || Boolean(best)) && (
-          <section
-            className="map-shell mt-3 overflow-hidden rounded-xl"
-            aria-labelledby="trip-map-title"
-          >
-            <div className="flex items-center justify-between px-4 py-3">
-              <div>
-                <h2 id="trip-map-title" className="text-sm font-bold text-foreground">
-                  Your route
-                </h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {tripOriginLabel} to {tripArrivalLabel}
-                </p>
-              </div>
-              <span className="text-xs font-semibold text-muted-foreground">
-                {selectedMode === "drive"
-                  ? "Direct drive"
-                  : `${transitMapSegments.length} trip legs`}
-              </span>
-            </div>
-            <NavShell
-              fullscreen={headingUpNav}
-              overlay={
-                <NavBottomCard
-                  mode={lockedMode === "drive" ? "drive" : "transit"}
-                  delayMinutes={lockedMode === "drive" ? (navBasis?.delayMinutes ?? null) : null}
-                  steps={
-                    lockedMode === "drive"
-                      ? (navBasis?.maneuvers ?? []).map((m) => m.instruction).filter(Boolean)
-                      : transitSteps
-                  }
-                  nextStep={
-                    lockedMode === "drive" || !best
-                      ? null
-                      : (transitSteps[currentLegIndex(best.legs, nowSeconds)] ?? null)
-                  }
-                  onEnd={endTrip}
-                />
-              }
-            >
-              <ClientOnly
-                fallback={
-                  <div
-                    className="h-full w-full animate-pulse bg-muted"
-                    aria-label="Loading trip map"
-                  />
-                }
-              >
-                {rescue && drivingCommitted && (
-                  <div
-                    role="alert"
-                    className="fixed inset-x-3 top-24 z-[1200] rounded-lg border border-warning/60 bg-background/95 p-3 shadow-lg backdrop-blur-md"
-                  >
-                    <p className="text-sm font-semibold text-foreground">{rescue.headline}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{rescue.spoken}</p>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="mt-1 h-7 px-2"
-                      onClick={() => setRescue(null)}
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
-                )}
-                <Suspense
-                  fallback={
-                    <div
-                      className="h-full w-full animate-pulse bg-muted"
-                      aria-label="Loading trip map"
-                    />
-                  }
-                >
-                  {headingUpNav ? (
-                    <LiveNavMap
-                      speedMps={riderSpeed}
-                      recenterBottom={176}
-                      lines={
-                        lockedMode === "drive"
-                          ? [
-                              {
-                                id: "drive",
-                                mode: "drive",
-                                points: navPath.length > 1 ? navPath : (driveMapPath ?? []),
-                              },
-                            ]
-                          : (transitMapSegments as Array<{
-                              id: string;
-                              mode: "walk" | "drive" | "bus" | "rail";
-                              points: Array<{ lat: number; lon: number }>;
-                            }>)
-                      }
-                      destination={
-                        driveTo.lat !== null && driveTo.lon !== null
-                          ? { lat: driveTo.lat, lon: driveTo.lon }
-                          : null
-                      }
-                      livePoint={riderPoint}
-                      bearing={navBearing}
-                      maneuver={
-                        nextTurn
-                          ? {
-                              glyph: turnGlyph(nextTurn.maneuver.maneuver),
-                              distanceText: formatDistance(nextTurn.distanceM),
-                              road: nextTurn.maneuver.road ?? nextTurn.maneuver.instruction,
-                            }
-                          : null
-                      }
-                      eta={
-                        liveEta
-                          ? {
-                              arrive: clockFromSeconds(liveEta.arriveSeconds),
-                              range: liveEta.range,
-                              minutes: liveEta.remainingMin,
-                              distance: liveEta.meters ? formatDistance(liveEta.meters) : null,
-                            }
-                          : null
-                      }
-                      muted={navMuted}
-                      onToggleMute={() => setNavMuted((value) => !value)}
-                      onChangeVoice={() => openSettingsAt("voice")}
-                      rerouting={rerouting}
-                      onRouteStateChange={handleRouteStateChange}
-                      traffic={
-                        lockedMode === "drive" ? ((liveDrive ?? drive)?.trafficSections ?? []) : []
-                      }
-                      turn={
-                        nextTurn
-                          ? {
-                              lat: nextTurn.maneuver.lat,
-                              lon: nextTurn.maneuver.lon,
-                              distanceM: nextTurn.distanceM,
-                            }
-                          : null
-                      }
-                      landmarks={corridorLandmarks}
-                    />
-                  ) : (
-                    <CommuteRouteMap
-                      points={mapPoints}
-                      livePoint={riderPoint}
-                      liveHeading={riderHeading}
-                      busPoint={
-                        selectedMode === "transit" && confirmedBusArrival?.vehicle
-                          ? {
-                              lat: confirmedBusArrival.vehicle.lat,
-                              lon: confirmedBusArrival.vehicle.lon,
-                              label: confirmedBusArrival.routeShortName || "Bus",
-                            }
-                          : null
-                      }
-                      followLive={Boolean(commitment)}
-                      {...(selectedMode !== "drive" && focusLegPoints
-                        ? { focusLeg: { points: focusLegPoints, token: focusedLeg?.token ?? 0 } }
-                        : {})}
-                      {...(selectedMode !== "drive" && transitMapSegments.length > 0
-                        ? { segments: transitMapSegments }
-                        : {})}
-                      {...(driveMapPath && driveMapPath.length > 1 ? { path: driveMapPath } : {})}
-                      {...(driveTrafficSections && driveTrafficSections.length > 0
-                        ? { trafficSections: driveTrafficSections }
-                        : {})}
-                      {...(selectedMode === "drive" && drive?.incidents?.length
-                        ? { incidents: drive.incidents }
-                        : {})}
-                    />
-                  )}
-                </Suspense>
-              </ClientOnly>
-            </NavShell>
-          </section>
-        )}
+        <MapSection
+          best={best}
+          commitment={commitment}
+          confirmedBusArrival={confirmedBusArrival}
+          corridorLandmarks={corridorLandmarks}
+          drive={drive}
+          driveMapPath={driveMapPath}
+          driveTo={driveTo}
+          driveTrafficSections={driveTrafficSections}
+          drivingCommitted={drivingCommitted}
+          endTrip={endTrip}
+          focusedLeg={focusedLeg}
+          focusLegPoints={focusLegPoints}
+          handleRouteStateChange={handleRouteStateChange}
+          headingUpNav={headingUpNav}
+          liveDrive={liveDrive}
+          liveEta={liveEta}
+          lockedMode={lockedMode}
+          mapPoints={mapPoints}
+          navBasis={navBasis}
+          navBearing={navBearing}
+          navMuted={navMuted}
+          navPath={navPath}
+          nextTurn={nextTurn}
+          nowSeconds={nowSeconds}
+          openSettingsAt={openSettingsAt}
+          rerouting={rerouting}
+          rescue={rescue}
+          riderHeading={riderHeading}
+          riderPoint={riderPoint}
+          riderSpeed={riderSpeed}
+          selectedMode={selectedMode}
+          setNavMuted={setNavMuted}
+          setRescue={setRescue}
+          transitMapSegments={transitMapSegments}
+          transitSteps={transitSteps}
+          tripArrivalLabel={tripArrivalLabel}
+          tripOriginLabel={tripOriginLabel}
+        />
 
         {/* H-1 conditions live on Browse; on a trip, "Nalu is watching" covers the route. */}
 
