@@ -86,6 +86,12 @@ export type Option = {
    * MIN_SAVING_PER_EXTRA_TRANSFER_MIN each. Shown as an alternative, never the pick.
    */
   extraTransfers?: true;
+  /**
+   * Kept past the 8-option cap so its row (Skyline or Bus) has a trip; trips
+   * arriving between it and the rest of the list were cut. Arrive By paging
+   * must not read it as the end of a page (see arrive-by-search.ts).
+   */
+  rowSlot?: true;
 };
 
 /** Departure time alone is not unique: distinct routes can leave together. */
@@ -125,14 +131,14 @@ export function mergeTransitOptionsWith(
   // listed after the simpler trips so they are never the pick.
   const preferred = new Set(preferFewerTransfers(saneOptions));
   for (const option of saneOptions) {
-    const { extraTransfers: _previous, ...plain } = option;
+    const { extraTransfers: _previous, rowSlot: _slot, ...plain } = option;
     unique.set(
       optionIdentity(option),
       preferred.has(option) ? plain : { ...plain, extraTransfers: true },
     );
   }
   for (const option of impracticalOptions) {
-    const { extraTransfers: _previous, ...plain } = option;
+    const { extraTransfers: _previous, rowSlot: _slot, ...plain } = option;
     const key = optionIdentity(option);
     if (!unique.has(key)) unique.set(key, { ...plain, extraTransfers: true });
   }
@@ -148,12 +154,15 @@ export function mergeTransitOptionsWith(
   // Each row (Skyline, Bus) keeps its best trip in planner order, on top of
   // the 8. Without this a long list of plain bus trips pushed every
   // drive + Skyline trip out and the Skyline row said "no trip" when there was
-  // one. Nothing already kept is dropped, so no other row's pick changes.
+  // one. Nothing already kept is dropped.
+  const slots = new Set<Option>();
   for (const rides of [usesRail, (option: Option) => !usesRail(option)]) {
     const best = ranked.find(rides);
-    if (best && ![...keep].some(rides)) keep.add(best);
+    if (best && ![...keep].some(rides)) slots.add(best);
   }
-  return ranked.filter((option) => keep.has(option));
+  return ranked
+    .filter((option) => keep.has(option) || slots.has(option))
+    .map((option) => (slots.has(option) ? { ...option, rowSlot: true as const } : option));
 }
 
 /** Rides Skyline: the Skyline row's kind of trip (see trip-choices.ts). */

@@ -1,4 +1,9 @@
-export type DepartingOption = { depart_seconds: number; arrive_seconds: number };
+export type DepartingOption = {
+  depart_seconds: number;
+  arrive_seconds: number;
+  /** Kept past the option cap for its row: the page's trips before it may be cut. */
+  rowSlot?: true;
+};
 
 /** Page the existing GTFS planner near a target instead of taking its first eight trains of the day. */
 export async function collectArriveByOptions<T extends DepartingOption>(input: {
@@ -17,11 +22,14 @@ export async function collectArriveByOptions<T extends DepartingOption>(input: {
     pages += 1;
     for (const option of page)
       found.set(`${option.depart_seconds}:${option.arrive_seconds}`, option);
-    if (page.some((option) => option.arrive_seconds > input.targetSeconds)) {
+    // A row's extra trip sits past the cap, after trips that were cut: only
+    // the page's own run of trips says where it ends.
+    const run = page.filter((option) => !option.rowSlot);
+    if (run.some((option) => option.arrive_seconds > input.targetSeconds)) {
       complete = true;
       break;
     }
-    const latest = page.reduce((value, option) => Math.max(value, option.depart_seconds), cursor);
+    const latest = run.reduce((value, option) => Math.max(value, option.depart_seconds), cursor);
     // A page with no viable transfer can still be followed by a later one.
     cursor = page.length > 0 ? Math.max(cursor + 1, latest + 1) : cursor + 15 * 60;
   }
