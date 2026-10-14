@@ -122,3 +122,12 @@ describe("activeNotes", () => {
     expect(SEASONS.flatMap((s) => s.notes)).toEqual([]);
   });
 });
+
+describe("season motifs", () => {
+  it("are inert inline SVG (rendered with dangerouslySetInnerHTML)", () => {
+    for (const s of SEASONS) {
+      expect(s.motif.trim().startsWith("<svg") || s.motif === "").toBe(true);
+      expect(s.motif).not.toMatch(/<script|\son\w+\s*=|href\s*=|javascript:|<foreignObject|<image|<use/i);
+    }
+  });
+});
