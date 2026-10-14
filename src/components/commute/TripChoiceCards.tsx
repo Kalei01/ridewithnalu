@@ -51,6 +51,8 @@ export function TripChoiceCards({
   /** What the rider said works for this trip, with a way to change it. */
   access?: { label: string; onChange: () => void } | null;
 }) {
+  // Once Nalu has a pick, it lifts a little and the other ready rows soften.
+  const hasPick = !commitment && choices.some((c) => c.pick && c.status === "ready");
   return (
     <div role="radiogroup" aria-label="Ways to make this trip" className="mt-4 grid gap-2">
       {access && !commitment && (
@@ -74,6 +76,8 @@ export function TripChoiceCards({
         // motion). Keyed on status, so a later ETA update changes in place.
         const valueIn = choice.status === "loading" ? undefined : "nalu-value-in";
         const dimmed = commitment && !choice.locked;
+        const lifted = hasPick && choice.pick && !unavailable;
+        const softened = hasPick && !choice.pick && !unavailable;
         return (
           <button
             key={choice.key}
@@ -83,7 +87,9 @@ export function TripChoiceCards({
             disabled={commitment || unavailable}
             onClick={() => onSelect(choice.key)}
             // Selected = ice-blue (same as the other selected controls); green is only Nalu’s pick.
-            className={`w-full min-w-0 rounded-xl p-3 text-left ring-1 transition-colors ${
+            className={`w-full min-w-0 rounded-xl p-3 text-left ring-1 transition-[background-color,box-shadow,opacity] duration-300 ${
+              lifted ? "choice-lifted " : ""
+            }${softened ? "opacity-85 " : ""}${
               selected
                 ? "bg-[#8ad0ff]/10 ring-2 ring-[#8ad0ff]"
                 : "bg-background/40 ring-border"
