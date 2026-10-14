@@ -11,6 +11,8 @@
 3. **Plain how-to in the names riders see and hear.** Which station or stop, which direction/platform (the destination shown on the train or bus), where to change, where to get off, how to pay (HOLO card / tap to pay). Use rider-facing names, not database names — e.g. the GTFS stop "KAHAUIKI KALIHI TRANSIT CENTER STATION" is **"Kalihi Transit Center"** on Skyline (confirmed by Josh). Other stations: use the official station list or Josh's notes; never guess a name.
 4. **Door to door, first and last stretch included.** Plan and price the bit between home/hotel/airport and the station, and from the station to the real destination — walk, bus or rideshare — and show the trip total (e.g. "rail + Uber ≈ $27 vs Uber all the way ≈ $80").
 
+**Josh, Oct 14:** never estimate a rider's walking or parking time, or add it to totals. Pace differs, wheelchairs for example; it was tried and failed. Show drive and transit legs as the evidence gives them. Leave-by alerts: not yet decided; riders must never have to dig into settings to turn on a feature. No auto-opening a saved commute (tourists and errands).
+
 **Out of scope (Josh, Oct 11):** gas-cost calculators and household features — people work those out themselves. No turn-by-turn navigation and no own map/search competing with Google/Apple.
 
 **Design-around trips (Oʻahu):** airport → Waikīkī; getting to a game/event at the stadium; Kapolei → downtown (the daily commute Nalu was built for).
