@@ -1,0 +1,88 @@
+.welcome-scene {
+  display: block;
+  width: 100%;
+  max-width: 22rem;
+  height: auto;
+  aspect-ratio: 300 / 150;
+  color: var(--color-foreground, currentColor);
+}
+.welcome-scene__island {
+  fill: color-mix(in oklch, currentColor 5%, transparent);
+  stroke: color-mix(in oklch, currentColor 30%, transparent);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+.welcome-scene__route,
+.welcome-scene__rail {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.welcome-scene__route {
+  stroke: var(--primary);
+}
+.welcome-scene__rail {
+  stroke: var(--recommended);
+}
+.welcome-scene__stop {
+  fill: var(--color-foreground, currentColor);
+}
+.welcome-scene__label {
+  fill: var(--color-muted-foreground, currentColor);
+  font-size: 8px;
+  font-weight: 600;
+}
+.welcome-scene__car,
+.welcome-scene__train {
+  offset-rotate: auto;
+  offset-distance: 100%;
+}
+.welcome-scene__car {
+  fill: var(--primary);
+  offset-path: path("M108 119 C140 112 165 116 200 127");
+}
+.welcome-scene__train {
+  fill: var(--recommended);
+  offset-path: path("M108 123 C140 117 165 121 200 131");
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .welcome-scene__route,
+  .welcome-scene__rail {
+    animation: welcome-scene-draw 2.6s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+  }
+  .welcome-scene__car,
+  .welcome-scene__train {
+    animation: welcome-scene-move 2.6s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+  }
+  .welcome-scene__stop--end {
+    animation: welcome-scene-fade 0.4s ease-out 2.7s both;
+  }
+}
+
+@keyframes welcome-scene-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes welcome-scene-move {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+@keyframes welcome-scene-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

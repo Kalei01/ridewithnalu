@@ -5,6 +5,7 @@ import { Tagline } from "@/components/brand/Tagline";
 import { AccountSection } from "@/components/account/AccountSection";
 import { LegalFooter } from "@/components/LegalFooter";
 import { GUIDES, TRIP_GUIDES } from "@/components/guides/guides";
+import { WelcomeScene } from "@/components/welcome/WelcomeScene";
 import { introductionHidden, markWelcomeSeen } from "@/lib/welcome-seen";
 
 /** The app icon itself, so the welcome page matches the home-screen icon. */
@@ -131,37 +132,42 @@ export function WelcomeLanding({
             </p>
           </div>
 
-          <div
-            className="liquid-titanium-slab rounded-[24px] p-5 sm:p-6"
-            aria-label="Example of a Nalu answer"
-          >
-            {/* Real answer Nalu gave for ʻEwa Beach to downtown on Monday, Oct 5, 2026 at 7:19 AM. */}
-            <p className="text-sm text-muted-foreground">
-              Example · ʻEwa Beach to downtown, a weekday at 7:19 AM
-            </p>
-            <p className="mt-2 text-sm font-semibold text-recommended">Nalu says</p>
-            <p className="mt-1 text-3xl font-black tracking-tight">Drive · 44 min faster</p>
-            <ul className="mt-5 grid gap-2">
-              {WELCOME_EXAMPLE.map(([title, how, minutes, arrive, pick]) => (
-                <li
-                  key={title}
-                  className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 rounded-2xl border p-3 ${
-                    pick ? "border-recommended/60 bg-recommended/10" : "border-white/10 bg-black/20"
-                  }`}
-                >
-                  <span className="font-bold">{title}</span>
-                  <span className="text-right font-bold tabular-nums">{minutes}</span>
-                  <span className="text-sm text-muted-foreground">{how}</span>
-                  <span className="text-right text-sm tabular-nums text-muted-foreground">
-                    Arrive {arrive}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Drive times are live traffic (parking not included). Without a car, the bus still gets
-              you there.
-            </p>
+          <div className="grid gap-5">
+            <WelcomeScene />
+            <div
+              className="liquid-titanium-slab rounded-[24px] p-5 sm:p-6"
+              aria-label="Example of a Nalu answer"
+            >
+              {/* Real answer Nalu gave for ʻEwa Beach to downtown on Monday, Oct 5, 2026 at 7:19 AM. */}
+              <p className="text-sm text-muted-foreground">
+                Example · ʻEwa Beach to downtown, a weekday at 7:19 AM
+              </p>
+              <p className="mt-2 text-sm font-semibold text-recommended">Nalu says</p>
+              <p className="mt-1 text-3xl font-black tracking-tight">Drive · 44 min faster</p>
+              <ul className="mt-5 grid gap-2">
+                {WELCOME_EXAMPLE.map(([title, how, minutes, arrive, pick]) => (
+                  <li
+                    key={title}
+                    className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 rounded-2xl border p-3 ${
+                      pick
+                        ? "border-recommended/60 bg-recommended/10"
+                        : "border-white/10 bg-black/20"
+                    }`}
+                  >
+                    <span className="font-bold">{title}</span>
+                    <span className="text-right font-bold tabular-nums">{minutes}</span>
+                    <span className="text-sm text-muted-foreground">{how}</span>
+                    <span className="text-right text-sm tabular-nums text-muted-foreground">
+                      Arrive {arrive}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Drive times are live traffic (parking not included). Without a car, the bus still
+                gets you there.
+              </p>
+            </div>
           </div>
         </section>
 
