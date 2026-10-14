@@ -2930,6 +2930,7 @@ function Index() {
       late: arriveByActive && option !== null && !group.makesIt && lockedChoice !== key,
       status: option ? "ready" : optionsLoading ? "loading" : "empty",
       failed: !option && (key === "skyline" ? skylineUnchecked : busUnchecked),
+      asleep: key === "skyline" && !option && railClosedForEvening,
       emptyText:
         key === "skyline"
           ? skylineEmptyText({

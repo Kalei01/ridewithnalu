@@ -19,6 +19,8 @@ export type TripChoice = {
   status: "ready" | "loading" | "empty";
   /** The search for this row failed or ran out of time (not "there is no trip"). */
   failed?: boolean;
+  /** Skyline has stopped for the night: the row shows a sleeping train. */
+  asleep?: boolean;
   /** Shown instead of minutes when there's no trip: "No bus trip right now", "Can't check right now". */
   emptyText?: string;
   /** A short factual caveat, e.g. the lot that often fills. */
@@ -108,10 +110,19 @@ export function TripChoiceCards({
             {/* Title and minutes, then badge and time, then the steps across
                 the full width so a narrow phone doesn't squeeze them. */}
             <span className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1">
-              <Icon
-                aria-hidden="true"
-                className={`size-5 shrink-0 self-center ${selected ? "text-[#8ad0ff]" : "text-muted-foreground"}`}
-              />
+              {choice.asleep && choice.status === "empty" ? (
+                <span aria-hidden="true" className="relative size-5 shrink-0 self-center">
+                  <Icon className="size-5 text-muted-foreground opacity-60" />
+                  <span className="sleepy-z absolute -right-2 -top-2 text-[10px] font-bold text-muted-foreground">
+                    z
+                  </span>
+                </span>
+              ) : (
+                <Icon
+                  aria-hidden="true"
+                  className={`size-5 shrink-0 self-center ${selected ? "text-[#8ad0ff]" : "text-muted-foreground"}`}
+                />
+              )}
               <span className="min-w-0 truncate text-base font-bold text-foreground">
                 {choice.title}
               </span>
