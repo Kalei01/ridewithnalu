@@ -196,7 +196,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
     <main className="nh min-h-dvh overflow-x-clip text-foreground">
       <div className="nh-hero">
         <Waves />
-        <div className="mx-auto flex w-full max-w-[440px] flex-col px-5 pb-6 pt-[max(1.5rem,env(safe-area-inset-top))]">
+        <div className="mx-auto flex w-full max-w-[440px] flex-col pb-6 nh-pad">
           <header className="flex min-h-11 items-start justify-between gap-4">
             <div>
               <p className="mb-1 text-xs font-semibold text-recommended">
@@ -322,7 +322,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[440px] flex-col px-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto flex w-full max-w-[440px] flex-col pb-[max(2rem,env(safe-area-inset-bottom))] nh-pad-x">
         {browseUserPoint && (
           <section
             className="nh-island-card relative h-[44dvh] min-h-[320px] max-h-[470px]"

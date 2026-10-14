@@ -499,3 +499,25 @@
 .nh-stop:active {
   transform: scale(0.97);
 }
+
+/*
+ * Safe areas (iPhone notch / Dynamic Island, landscape sides). The page draws
+ * under the status bar (viewport-fit=cover, black-translucent), so every top
+ * bar pads itself by the inset and never sits under the clock or the island.
+ */
+.nh-pad-x {
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+}
+.nh-pad {
+  padding-top: max(1.25rem, env(safe-area-inset-top));
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+}
+@media (min-width: 640px) {
+  .nh-pad,
+  .nh-pad-x {
+    padding-left: max(2rem, env(safe-area-inset-left));
+    padding-right: max(2rem, env(safe-area-inset-right));
+  }
+}

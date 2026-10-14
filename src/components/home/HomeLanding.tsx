@@ -212,7 +212,7 @@ export function HomeLanding({
     <main className="nh min-h-[100dvh] overflow-x-clip text-foreground">
       <div className="nh-hero">
         <Waves />
-        <div className="mx-auto w-full max-w-3xl px-5 pb-6 pt-5 sm:px-8">
+        <div className="nh-pad mx-auto w-full max-w-3xl pb-6">
           <div className="flex items-center justify-between">
             <Link
               to="/"
@@ -277,7 +277,7 @@ export function HomeLanding({
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-3xl px-5 sm:px-8">
+      <div className="nh-pad-x mx-auto w-full max-w-3xl">
         <IslandSection />
 
         <div className="border-t border-white/10">
