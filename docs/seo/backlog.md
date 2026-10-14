@@ -4,6 +4,27 @@ The `nalu-seo` agent's to-do list (moved here from the search routine's prompt o
 
 Status words: TODO, IN PROGRESS, DONE (date, commit), DECISION (needs the owner), SKIP.
 
+## RUN ORDER (Oct 14, 2026; from docs/seo/strategy.md). The Mon/Thu routine works top-down, 1-2 items per run
+Statuses stay on the numbered items below; this list only sets the order.
+1. Item 8, narrowed: rewrite the title and snippet of /guides/skyline-rail-guide (88 impressions, position 9, 0 clicks: skyline hours, schedule, fare), then /guides/skyline-park-and-ride (157 impressions, 4 clicks, position 7) and /guides/late-night-commuting (19, position 6). One change per page, then wait 4 weeks and compare CTR.
+2. Queued Oct 8: answer-first format plus a visible "Last updated" date, one guide per run, starting with skyline-park-and-ride, skyline-rail-guide, kapolei-to-downtown. Add the station-name update (English first, Hawaiian second) in the same edit.
+3. Item 9: /guides/skyline-fares-and-hours (official sources only; verify the transfer window and hours first).
+4. Item 7: Organization, WebApplication and Article dateModified structured data. No new FAQ or HowTo (Google no longer shows them).
+5. Item 5: rush-hour section with TomTom figures, once the numbers are re-read at the source.
+6. Item 3, then 10: only if autocomplete or Search Console still shows demand.
+7. Item 11: homepage speed, after Phase 3.
+Not in the routine's hands: trust pages (separate session), listings file (docs/seo/listings.md, Josh submits), outreach, item 6.
+Each run: check the 10 target queries in strategy.md section 4 with `bun scripts/gsc-report.mts`, record positions in the log.
+
+## Josh asks (short; details in docs/seo/strategy.md section 12)
+- Send 3 to 5 outreach messages in your name (reporter, UH West Oʻahu, a neighbourhood board); drafts will be provided.
+- Submit the one-time listings from docs/seo/listings.md with your real accounts.
+- Optional: answer 2 or 3 real r/Honolulu questions yourself, saying you built Nalu.
+- Monthly: the 5-minute AI check in docs/seo/ai-visibility.md.
+- Check Search Console for the new AI performance report on ridenalu.com.
+- Decide item 6 (first-party drive-time sampling).
+- Google Business Profile: not eligible (online-only); don't create one with a made-up address.
+
 ## Audit findings (Oct 5, 2026) — what people search
 - Route + modifier: "kapolei to honolulu drive time / train / commute", "bus from kapolei to honolulu", "traffic from ewa beach to honolulu", "pearl city to downtown honolulu train/bus".
 - Rush-hour timing: "rush hour times in honolulu", "when does rush hour start/end in honolulu", "honolulu peak traffic times".
@@ -27,7 +48,7 @@ Status words: TODO, IN PROGRESS, DONE (date, commit), DECISION (needs the owner)
 8. TODO Titles and descriptions: rewrite only pages where Search Console shows impressions with low CTR. Location keyword first, ≤ 60 chars incl. " | Nalu", descriptions 140–160 chars. Leave /oahu-commute's title alone (rule 5 above).
 9. TODO New page: /guides/skyline-fares-and-hours (hours, frequency, fares, first/last trains), official sources only (DTS/HART/TheBus), month/year labelled. Check the transfer window (believed 2.5 h, not 2) and which stations are open now. Publish nothing unverified.
 10. TODO New page, only if Search Console or autocomplete shows demand: /guides/kailua-kaneohe-to-honolulu (bus routes; Pali vs Likelike vs H-3; no rail). Sourced.
-11. TODO Speed, after Phase 2 lands (it rewrites src/routes/index.tsx): lazy-load the homepage map/trip widget so it doesn't block LCP; guides fully server-rendered; image width/height/alt; cache headers (immutable hashed assets, short TTL /roadwork). Measure before/after (LCP, CLS, TBT). Run the mobile-design and nalu-performance reviewers.
+11. WAITS for Phase 3's split of src/routes/index.tsx (Oct 14; was Phase 2). Speed: lazy-load the homepage map/trip widget so it doesn't block LCP; guides fully server-rendered; image width/height/alt; cache headers (immutable hashed assets, short TTL /roadwork). Measure before/after (LCP, CLS, TBT). Run the mobile-design and nalu-performance reviewers.
 SKIP from that prompt: an "airport to Waikīkī" page (duplicates /guides/honolulu-airport-without-driving; improve that page instead if data shows demand); a "Nalu vs Moovit vs Transit" title (comparison phrasing isn't searched); Waikīkī car-free, HOLO card, Ko Olina and Hawaiʻi Kai pages for now (no evidence yet; never batch pages); publishing [VERIFY] facts.
 
 ## Later

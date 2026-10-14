@@ -2,6 +2,7 @@
 Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Current focus
+- Oct 14: strategy written, docs/seo/strategy.md; run order is the RUN ORDER section of backlog.md. Evidence: 374 impressions, 4 clicks, pos 10.3; skyline-park-and-ride is the winner (157 impr, pos 7). Research only, no code changed.
 - Backlog: `docs/seo/backlog.md`; log: `docs/seo/search-review-log.md`.
 - Evidence so far (Oct 8): 18 impressions, 0 clicks, 18/19 pages indexed (/disclaimer unknown). Too thin to act on.
 - Rush-hour section waits on reading TomTom's Honolulu figures from the source.
