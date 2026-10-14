@@ -6,7 +6,7 @@ const out = "docs/experience/commute-redesign";
 const TRIPS = [
   ["kapolei-downtown", [21.335, -158.079], "21.3086,-157.8618", "Downtown Honolulu"],
   ["ewa-merchant", [21.3156, -158.0073], "21.3098,-157.8660", "Merchant St"],
-  ["airport-waikiki", [21.3187, -157.9225], "21.2793,-157.8294", "Waikiki"],
+  ["airport-waikiki", [21.3245, -157.9251], "21.2767,-157.8275", "Waikiki Beach"],
 ];
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium", proxy: { server: process.env.HTTPS_PROXY }, args: ["--ignore-certificate-errors-spki-list=PS48cX347wDVcRynzq+DFqswl2PLNE1sG6uQvxMCOS0="] });
 for (const [key, [lat, lon], to, name] of TRIPS) {
