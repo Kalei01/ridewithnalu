@@ -166,7 +166,7 @@
 /* Rain (M9): soft drops on the backdrop, only while the forecast puts showers near the
    trip (data-rain is set by the trip screen). Behind the cards, never over the answer. */
 @media (prefers-reduced-motion: no-preference) {
-  html[data-rain="true"]::after {
+  html[data-rain="true"] main.bg-page-gradient::after {
     content: "";
     position: fixed;
     left: 0;
@@ -196,15 +196,20 @@
 
 /* Night (M10): a few quiet stars in the top wash after dark, and a sleeping train's "z"
    on the Skyline row once service has stopped for the night. */
-html[data-tod="night"]::before {
+html[data-tod="night"] main.bg-page-gradient::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 16rem;
+  z-index: -1;
+  pointer-events: none;
   background:
-    radial-gradient(1px 1px at 12% 18%, rgba(255, 255, 255, 0.55), transparent),
-    radial-gradient(1px 1px at 27% 52%, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(1.5px 1.5px at 44% 24%, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 61% 62%, rgba(255, 255, 255, 0.35), transparent),
-    radial-gradient(1px 1px at 76% 14%, rgba(255, 255, 255, 0.55), transparent),
-    radial-gradient(1.5px 1.5px at 90% 44%, rgba(255, 255, 255, 0.4), transparent),
-    linear-gradient(180deg, var(--tod-tint), transparent);
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1.5px 1.5px at 27% 52%, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(2px 2px at 44% 24%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 61% 62%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 76% 14%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(2px 2px at 90% 44%, rgba(255, 255, 255, 0.65), transparent);
 }
 @media (prefers-reduced-motion: no-preference) {
   .sleepy-z {
@@ -280,4 +285,11 @@ html[data-ptr="true"] {
   50% {
     opacity: 0.55;
   }
+}
+
+/* The pull indicator floats over the screen; the page's "keep content above the
+   decoration" rule (relative + z-index on every child of main) must not win. */
+main.bg-page-gradient > .ptr-indicator {
+  position: fixed;
+  z-index: 50;
 }
