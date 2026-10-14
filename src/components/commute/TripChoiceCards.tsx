@@ -1,4 +1,5 @@
 import { Bus, Car, TrainFront } from "lucide-react";
+import { trafficBar } from "@/lib/traffic-bar";
 import { usePickLanded } from "@/hooks/use-pick-landed";
 
 export type TripChoiceKey = "drive" | "skyline" | "bus";
@@ -22,6 +23,8 @@ export type TripChoice = {
   note?: string | null;
   pick: boolean;
   locked: boolean;
+  /** Drive row, leaving now: minutes over the typical time right now (live reading). */
+  trafficDelayMinutes?: number | null;
 };
 
 const ICONS = { drive: Car, skyline: TrainFront, bus: Bus } as const;
@@ -144,6 +147,9 @@ export function TripChoiceCards({
                   {choice.status === "empty" ? choice.emptyText : choice.steps}
                 </span>
               </span>
+              {choice.key === "drive" && choice.status === "ready" && (
+                <TrafficBarLine delayMinutes={choice.trafficDelayMinutes} />
+              )}
               {choice.note && choice.status === "ready" && (
                 <span className="col-span-2 col-start-2 mt-1 block break-words text-sm text-foreground/85">
                   {choice.note}
@@ -154,5 +160,30 @@ export function TripChoiceCards({
         );
       })}
     </div>
+  );
+}
+
+/** A thin bar under the Drive row: green, amber or red by the live delay over typical. */
+function TrafficBarLine({ delayMinutes }: { delayMinutes: number | null | undefined }) {
+  const bar = trafficBar(delayMinutes);
+  if (!bar) return null;
+  return (
+    <span className="col-span-3 mt-1 flex items-center gap-2" role="img" aria-label={bar.label}>
+      <span className="h-1 flex-1 overflow-hidden rounded-full bg-foreground/10">
+        <span
+          className={`traffic-bar-fill block h-full w-full rounded-full ${
+            bar.tone === "heavy"
+              ? "bg-destructive"
+              : bar.tone === "moderate"
+                ? "bg-warning"
+                : "bg-recommended"
+          }`}
+          style={{ transform: `scaleX(${bar.fill / 100})` }}
+        />
+      </span>
+      <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+        {bar.label}
+      </span>
+    </span>
   );
 }

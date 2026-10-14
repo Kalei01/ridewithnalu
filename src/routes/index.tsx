@@ -2972,6 +2972,8 @@ function Index() {
     note: null,
     pick: naluPick === "drive",
     locked: lockedChoice === "drive",
+    // A live reading only for leaving now; a future departure has no live delay.
+    trafficDelayMinutes: arriveByActive ? null : driveTripEstimate.trafficDelayMinutes,
   };
   // Rows follow what the rider has available. Each row that is shown has been
   // checked, even when no sensible trip exists (e.g. Mānoa: Skyline would

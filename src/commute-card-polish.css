@@ -139,3 +139,14 @@
     transform: translateY(-2px);
   }
 }
+
+/* Traffic bar on the Drive row: scales in from the left (transform only). */
+.traffic-bar-fill {
+  transform-origin: left center;
+  transition: transform 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .traffic-bar-fill {
+    transition: none;
+  }
+}
