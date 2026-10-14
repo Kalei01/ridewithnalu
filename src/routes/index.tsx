@@ -1,10 +1,10 @@
+import { VerdictFollowUpSection } from "@/components/commute/sections/VerdictFollowUpSection";
 import { TripCommitmentSection } from "@/components/commute/sections/TripCommitmentSection";
 import { MapSection, type TransitMapSegment } from "@/components/commute/sections/MapSection";
 import { ModeDetailsSection } from "@/components/commute/sections/ModeDetailsSection";
 import { ArriveBySection } from "@/components/commute/sections/ArriveBySection";
 import { BrowseScreen } from "@/components/commute/BrowseScreen";
 import { activeRegion, regionTimeZone } from "@/lib/region";
-import { hdotRoadName } from "@/lib/hdot-road-names";
 import { useGate } from "@/hooks/use-gate";
 import { SettingsHint } from "@/components/SettingsHint";
 import { RideCard } from "@/components/commute/RideCard";
@@ -100,7 +100,6 @@ import {
   type DecisionState,
 } from "@/lib/decision/commute-decision";
 import { createNaluVerdict } from "@/lib/intelligence/verdict-engine";
-import { NaluPersonalityStrip } from "@/components/commute/NaluPersonalityStrip";
 import { createCanonicalTrip } from "@/lib/intelligence/trip-model";
 import { driveEstimate, transitEstimate } from "@/lib/decision/trip-estimate";
 import { parseLockedItinerary } from "@/lib/rail/locked-itinerary";
@@ -129,25 +128,16 @@ import {
   readHabits,
   recordTripOpen,
 } from "@/lib/trip-habits";
-import { RemindMeButton, alertKeyFor } from "@/components/LeaveAlertCard";
 import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
-import { ShareButton } from "@/components/ShareButton";
 import { TellNaluLink } from "@/components/TellNalu";
-import {
-  parseSharedDestination,
-  parseSharedTiming,
-  sharedTripPreview,
-  shareText,
-  shareUrl,
-} from "@/lib/share-trip";
+import { parseSharedDestination, parseSharedTiming, sharedTripPreview } from "@/lib/share-trip";
 import { airLine, type WeatherLine } from "@/components/commute/H1ConditionsCard";
 import {
   clockFromSeconds,
   distanceM,
   formatDistance,
   honoluluIsoDow,
-  honoluluParts,
   honoluluSeconds,
   stationLabel,
   titleCase,
@@ -4459,86 +4449,29 @@ function Index() {
           </>
         </VerdictDomain>
 
-        {configured &&
-          !commitment &&
-          !optionsLoading &&
-          !driveLoading &&
-          (verdict === "drive" || verdict === "transit" || verdict === "same") && (
-            <div className="mt-3 flex justify-center">
-              <ShareButton
-                label="Share this answer"
-                text={shareText({
-                  verdict,
-                  transitLabel,
-                  destination: tripArrivalLabel,
-                  minutesFaster: activeDecision.differenceMinutes ?? null,
-                  leaveSeconds:
-                    verdict === "drive"
-                      ? driveTripEstimate.leaveTime
-                      : transitTripEstimate.leaveTime,
-                  arriveSeconds:
-                    verdict === "drive"
-                      ? driveTripEstimate.arrivalTime
-                      : transitTripEstimate.arrivalTime,
-                })}
-                url={shareUrl(shareableDestination)}
-              />
-            </div>
-          )}
-
-        {/* Nalu's one-line take sits right under the answer it explains. */}
-        <NaluPersonalityStrip
-          loading={optionsLoading || driveLoading}
+        <VerdictFollowUpSection
+          activeDecision={activeDecision}
+          activeSavedPlace={activeSavedPlace}
+          arriveByTarget={arriveByTarget}
+          arrivingHome={arrivingHome}
+          commitment={commitment}
           configured={configured}
-          period={honoluluParts(now).hour >= 15 ? "evening" : "morning"}
-          decision={verdict}
-          trafficLevel={naluHeroTrafficLevel}
-          driveMinutes={driveDoorToDoorMinutes}
-          transitMinutes={transitTripEstimate.expectedDurationMinutes}
-          timeDelta={activeDecision.differenceMinutes ?? null}
-          incidents={drive?.incidents ?? []}
-          // HDOT route segments only say which roads the trip crosses; they are
-          // not closures. Scheduled closures carry a text schedule, so they are
-          // passed without an "active" flag and described as scheduled.
-          activeRoadwork={(drive?.hdotScheduledClosures ?? []).map((closure) => ({
-            route: hdotRoadName(closure.route).name,
-            description: closure.location,
-          }))}
-          weather={weather?.moments ?? []}
-          transferMinutes={transitTripEstimate.transferMinutes}
-          waitMinutes={transitTripEstimate.waitMinutes}
-          walkMinutes={transitTripEstimate.walkingMinutes}
+          drive={drive}
+          driveDoorToDoorMinutes={driveDoorToDoorMinutes}
+          driveLoading={driveLoading}
+          driveTripEstimate={driveTripEstimate}
+          naluHeroTrafficLevel={naluHeroTrafficLevel}
+          now={now}
+          optionsLoading={optionsLoading}
+          savedPlaces={savedPlaces}
+          shareableDestination={shareableDestination}
+          transitLabel={transitLabel}
+          transitTripEstimate={transitTripEstimate}
+          tripArrivalLabel={tripArrivalLabel}
+          tripDirection={tripDirection}
+          verdict={verdict}
+          weather={weather}
         />
-
-        {/* Leave alerts run on Oʻahu time and Oʻahu places only. */}
-        {!commitment &&
-          activeRegion().hasTransit &&
-          tripDirection.from.lat !== null &&
-          tripDirection.from.lon !== null &&
-          tripDirection.to.lat !== null &&
-          tripDirection.to.lon !== null && (
-            <RemindMeButton
-              trip={{
-                placeKey: alertKeyFor(
-                  savedPlaces,
-                  { lat: tripDirection.to.lat, lon: tripDirection.to.lon },
-                  arrivingHome,
-                  { lat: tripDirection.from.lat, lon: tripDirection.from.lon },
-                ),
-                label: tripArrivalLabel,
-                toHome: arrivingHome,
-                from: { lat: tripDirection.from.lat, lon: tripDirection.from.lon },
-                to: { lat: tripDirection.to.lat, lon: tripDirection.to.lon },
-              }}
-              defaultTime={
-                arriveByTarget !== null
-                  ? clockInputValue(arriveByTarget)
-                  : arrivingHome
-                    ? "17:30"
-                    : clockInputValue(activeSavedPlace?.typicalArrivalSeconds ?? 8 * 3600)
-              }
-            />
-          )}
 
         <TripCommitmentSection
           best={best}
