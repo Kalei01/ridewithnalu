@@ -6,9 +6,9 @@ Status words: TODO, IN PROGRESS, DONE (date, commit), DECISION (needs the owner)
 
 ## RUN ORDER (Oct 14, 2026; from docs/seo/strategy.md). The Mon/Thu routine works top-down, 1-2 items per run
 Statuses stay on the numbered items below; this list only sets the order.
-1. Item 8, narrowed: rewrite the title and snippet of /guides/skyline-rail-guide (88 impressions, position 9, 0 clicks: skyline hours, schedule, fare), then /guides/skyline-park-and-ride (157 impressions, 4 clicks, position 7) and /guides/late-night-commuting (19, position 6). One change per page, then wait 4 weeks and compare CTR.
-2. Queued Oct 8: answer-first format plus a visible "Last updated" date, one guide per run, starting with skyline-park-and-ride, skyline-rail-guide, kapolei-to-downtown. Add the station-name update (English first, Hawaiian second) in the same edit.
-3. Item 9: /guides/skyline-fares-and-hours (official sources only; verify the transfer window and hours first).
+1. DONE Oct 14 (titles/snippets on the three pages; re-measure CTR Nov 11). Item 8, narrowed: rewrite the title and snippet of /guides/skyline-rail-guide (88 impressions, position 9, 0 clicks: skyline hours, schedule, fare), then /guides/skyline-park-and-ride (157 impressions, 4 clicks, position 7) and /guides/late-night-commuting (19, position 6). One change per page, then wait 4 weeks and compare CTR.
+2. PARTLY DONE Oct 14 (station names on rail and parking guides; others still to do). Queued Oct 8: answer-first format plus a visible "Last updated" date, one guide per run, starting with skyline-park-and-ride, skyline-rail-guide, kapolei-to-downtown. Add the station-name update (English first, Hawaiian second) in the same edit.
+3. SKIP Oct 14 (rail guide already covers it; duplicate intent). Item 9: /guides/skyline-fares-and-hours (official sources only; verify the transfer window and hours first).
 4. Item 7: Organization, WebApplication and Article dateModified structured data. No new FAQ or HowTo (Google no longer shows them).
 5. Item 5: rush-hour section with TomTom figures, once the numbers are re-read at the source.
 6. Item 3, then 10: only if autocomplete or Search Console still shows demand.

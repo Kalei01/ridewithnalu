@@ -91,23 +91,23 @@ export const GUIDES: Record<GuideSlug, GuideMeta> = {
   },
   skyline: {
     path: "/guides/skyline-rail-guide",
-    seoTitle: "Skyline Rail Guide: Hours, Stations and Fares | Nalu",
+    seoTitle: "Skyline Hours, Schedule and Fares (2026) | Nalu",
     description:
-      "Skyline rail on Oʻahu: 13 stations from East Kapolei to Kalihi, trains every 10 minutes most of the day, HOLO fares, park-and-ride lots and airport access.",
+      "Skyline runs daily about 4 AM to 10:30 PM, every 10 minutes until 8:30 PM. $3 fare with HOLO, 13 stations from East Kapolei to Kalihi, last trains, parking.",
     name: "Skyline rail guide",
     summary: "Hours, all 13 stations with travel times, fares, HOLO cards, parking and luggage.",
   },
   parking: {
     path: "/guides/skyline-park-and-ride",
-    seoTitle: "Skyline Station Parking: All 4 Park-and-Ride Lots | Nalu",
+    seoTitle: "Skyline Parking: 4 Free Park-and-Ride Lots | Nalu",
     description:
-      "Free Skyline park-and-ride lots at Keoneʻae, Honouliuli, Hālawa and Kahauiki: how many stalls each has, where to enter, the 24-hour limit and the train times.",
+      "Free Skyline parking at four stations: stalls at UH West Oʻahu, Hoʻopili, Aloha Stadium and Kalihi, where to enter, the lot that fills by 8 AM, and train times.",
     name: "Skyline station parking",
     summary: "All four free park-and-ride lots: stalls, entrances and train times from each one.",
   },
   lateNight: {
     path: "/guides/late-night-commuting",
-    seoTitle: "Late-Night and Early-Morning Buses on Oʻahu | Nalu",
+    seoTitle: "Late-Night Buses and Last Skyline Train on Oʻahu | Nalu",
     description:
       "Late-night and early-morning commuting on Oʻahu: which TheBus routes run overnight, Skyline's first and last trains, and practical tips for shift workers.",
     name: "Late-night and early-morning commuting",

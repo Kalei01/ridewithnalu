@@ -17,7 +17,7 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "Does Skyline go to downtown Honolulu or Waikīkī?",
-    a: "Not yet. Skyline ends at Kahauiki (Kalihi Transit Center). To reach downtown, Ala Moana or Waikīkī, transfer to TheBus, for example the A Line or W Line at Āhua (Lagoon Drive) station. The extension to Civic Center in Kakaʻako is scheduled for 2031.",
+    a: "Not yet. Skyline ends at Kalihi Transit Center (Kahauiki). To reach downtown, Ala Moana or Waikīkī, transfer to TheBus, for example the A Line or W Line at Lagoon Drive (Ahua) station. The extension to Civic Center in Kakaʻako is scheduled for 2031.",
   },
   {
     q: "How much does Skyline cost?",
@@ -25,7 +25,7 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "Where can I park for Skyline?",
-    a: "The city runs free park-and-ride lots for transit riders at four stations: Keoneʻae (UH West Oʻahu), Honouliuli (Hoʻopili), Hālawa (Aloha Stadium) and Kahauiki (Kalihi Transit Center), with a 24-hour limit. The Keoneʻae lot has been filling by about 8 AM on weekdays.",
+    a: "The city runs free park-and-ride lots for transit riders at four stations: UH West Oʻahu (Keoneʻae), Hoʻopili (Honouliuli), Aloha Stadium (Hālawa) and Kalihi Transit Center (Kahauiki), with a 24-hour limit. The Keoneʻae lot has been filling by about 8 AM on weekdays.",
   },
   {
     q: "Can I bring a suitcase on Skyline?",
@@ -41,19 +41,19 @@ export const Route = createFileRoute("/guides/skyline-rail-guide")({
 // Minutes are from TheBus GTFS (eastbound trip from Kualakaʻi). Connections are
 // TheBus routes with stops at or right beside each station.
 const STATIONS: Array<[string, string, string, string]> = [
-  ["Kualakaʻi (East Kapolei)", "0", "C, 44, 46, 47, 95, 416", ""],
-  ["Keoneʻae (UH West Oʻahu)", "2", "C, 40, 44, 46, 47, 95, 99", "Park-and-ride"],
-  ["Honouliuli (Hoʻopili)", "4", "", "Park-and-ride"],
-  ["Hoʻaeʻae (West Loch)", "7", "44", ""],
-  ["Pouhala (Waipahu Transit Center)", "10", "E, 40, 42, 43, 99", ""],
-  ["Halaulani (Leeward Community College)", "13", "", ""],
-  ["Waiawa (Pearl Highlands)", "14", "40, 42, 43, 51, 88A", ""],
-  ["Kalauao (Pearlridge)", "18", "32, 40, 42, 51, 53", ""],
-  ["Hālawa (Aloha Stadium)", "22", "1L, 32, 40, 42, 51", "Park-and-ride"],
-  ["Makalapa (Pearl Harbor–Hickam)", "24", "", ""],
-  ["Lelepaua (Daniel K. Inouye International Airport)", "28", "W Line, 40, 42, 51", ""],
-  ["Āhua (Lagoon Drive)", "32", "A Line, U Line, W Line, 40, 42, 51", ""],
-  ["Kahauiki (Kalihi Transit Center)", "34", "1, 2, 52, C, 40, 42, 51 and others", "Park-and-ride"],
+  ["East Kapolei (Kualakaʻi)", "0", "C, 44, 46, 47, 95, 416", ""],
+  ["UH West Oʻahu (Keoneʻae)", "2", "C, 40, 44, 46, 47, 95, 99", "Park-and-ride"],
+  ["Hoʻopili (Honouliuli)", "4", "", "Park-and-ride"],
+  ["West Loch (Hōʻaeʻae)", "7", "44", ""],
+  ["Waipahu Transit Center (Pouhala)", "10", "E, 40, 42, 43, 99", ""],
+  ["Leeward Community College (Halaulani)", "13", "", ""],
+  ["Pearl Highlands (Waiawa)", "14", "40, 42, 43, 51, 88A", ""],
+  ["Pearlridge (Kalauao)", "18", "32, 40, 42, 51, 53", ""],
+  ["Aloha Stadium (Hālawa)", "22", "1L, 32, 40, 42, 51", "Park-and-ride"],
+  ["Joint Base Pearl Harbor–Hickam (Makalapa)", "24", "", ""],
+  ["Daniel K. Inouye International Airport (Lelepaua)", "28", "W Line, 40, 42, 51", ""],
+  ["Lagoon Drive (Ahua)", "32", "A Line, U Line, W Line, 40, 42, 51", ""],
+  ["Kalihi Transit Center (Kahauiki)", "34", "1, 2, 52, C, 40, 42, 51 and others", "Park-and-ride"],
 ];
 
 function SkylineGuidePage() {
@@ -67,7 +67,7 @@ function SkylineGuidePage() {
         <>
           <p>
             Skyline, Honolulu's rail line, runs every day from about 4:00 AM to 10:30 PM between
-            Kualakaʻi (East Kapolei) and Kahauiki (Kalihi Transit Center), with 13 stations including
+            East Kapolei (Kualakaʻi) and Kalihi Transit Center (Kahauiki), with 13 stations including
             the airport. A ride costs $3.00 with a HOLO card, the same as TheBus, and trains come every
             10 minutes for most of the day.
           </p>
@@ -83,8 +83,8 @@ function SkylineGuidePage() {
     >
       <GuideSection id="open-now" title="What is open now">
         <p>
-          All 13 stations from Kualakaʻi (East Kapolei) to Kahauiki (Kalihi Transit Center) are open.
-          The first 9 stations opened in June 2023. Makalapa, Lelepaua (airport), Āhua and Kahauiki
+          All 13 stations from East Kapolei (Kualakaʻi) to Kalihi Transit Center (Kahauiki) are open.
+          The first 9 stations opened in June 2023. Makalapa, the airport (Lelepaua), Ahua and Kahauiki
           opened on October 16, 2025.
         </p>
         <p>
@@ -96,13 +96,17 @@ function SkylineGuidePage() {
 
       <GuideSection id="stations" title="Stations, travel times and connections">
         <p>
-          The minutes below are from TheBus's official timetable for a train leaving Kualakaʻi. A full
+          The minutes below are from TheBus's official timetable for a train leaving East Kapolei. A full
           end-to-end ride takes about 34 to 36 minutes. Westbound trips take about the same time.
         </p>
         <GuideTable
           caption="Skyline stations, west to east (timetable, October 2026)"
-          head={["Station", "Minutes from Kualakaʻi", "TheBus connections", "Parking"]}
-          rows={STATIONS.map(([name, minutes, buses, parking]) => [name, minutes, buses || "None listed", parking || "None"])}
+          head={["Station", "Min. from East Kapolei", "TheBus connections"]}
+          rows={STATIONS.map(([name, minutes, buses, parking]) => [
+            name,
+            minutes,
+            [buses || "No bus connections listed", parking ? `${parking} lot` : ""].filter(Boolean).join(". "),
+          ])}
         />
       </GuideSection>
 
@@ -112,7 +116,7 @@ function SkylineGuidePage() {
             <><B>Every day, same schedule:</B> weekdays, weekends and holidays.</>,
             <><B>First trains:</B> about 4:00 AM from both ends of the line.</>,
             <><B>Frequency:</B> every 10 minutes until about 8:30 PM, then every 15 minutes.</>,
-            <><B>Last full-line trains:</B> about 10:00 PM from both Kualakaʻi and Kahauiki, arriving at the other end about 10:35 PM.</>,
+            <><B>Last full-line trains:</B> about 10:00 PM from both East Kapolei and Kalihi Transit Center, arriving at the other end about 10:35 PM.</>,
             <><B>Later trains run part of the line.</B> For example, the last westbound train from Kahauiki, at about 10:20 PM, goes only as far as Kalauao (Pearlridge). If you are going all the way west late at night, check your exact train.</>,
           ]}
         />
@@ -184,9 +188,9 @@ function SkylineGuidePage() {
         <p>Most trips into town finish on TheBus. Common connections in the current timetable:</p>
         <GuideList
           items={[
-            <><B>Downtown and UH Mānoa:</B> the A Line from Āhua (Lagoon Drive) runs along King Street through downtown to UH Mānoa, every 10 to 15 minutes on weekdays.</>,
-            <><B>Ala Moana and Waikīkī:</B> the W Line from Lelepaua (airport) and Āhua runs to Ala Moana Center and Waikīkī.</>,
-            <><B>Kalihi and downtown:</B> Route 2 and others leave from Kahauiki (Kalihi Transit Center).</>,
+            <><B>Downtown and UH Mānoa:</B> the A Line from Lagoon Drive (Ahua) runs along King Street through downtown to UH Mānoa, every 10 to 15 minutes on weekdays.</>,
+            <><B>Ala Moana and Waikīkī:</B> the W Line from the airport (Lelepaua) and Ahua runs to Ala Moana Center and Waikīkī.</>,
+            <><B>Kalihi and downtown:</B> Route 2 and others leave from Kalihi Transit Center (Kahauiki).</>,
           ]}
         />
         <p>

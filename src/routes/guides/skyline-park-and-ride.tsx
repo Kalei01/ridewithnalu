@@ -19,7 +19,7 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "Which Skyline stations have parking?",
-    a: "Four: Keoneʻae (UH West Oʻahu), Honouliuli (Hoʻopili), Hālawa (Aloha Stadium) and Kahauiki (Kalihi Transit Center).",
+    a: "Four: UH West Oʻahu (Keoneʻae), Hoʻopili (Honouliuli), Aloha Stadium (Hālawa) and Kalihi Transit Center (Kahauiki).",
   },
   {
     q: "How many stalls does each Skyline park-and-ride have?",
@@ -31,7 +31,7 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "Is there parking at the Middle Street (Kahauiki) station?",
-    a: "Yes. Kahauiki (Kalihi Transit Center) has a 95-stall park-and-ride. Enter from Middle Street toward the Kalihi Transit Center.",
+    a: "Yes. Kalihi Transit Center (Kahauiki) has a 95-stall park-and-ride. Enter from Middle Street toward the Kalihi Transit Center.",
   },
 ];
 
@@ -50,8 +50,8 @@ function SkylineParkAndRidePage() {
       intro={
         <>
           <p>
-            Skyline has four free park-and-ride lots: Keoneʻae (UH West Oʻahu) and Honouliuli
-            (Hoʻopili) on the Leeward side, Hālawa (Aloha Stadium), and Kahauiki (Kalihi Transit
+            Skyline has four free park-and-ride lots: UH West Oʻahu (Keoneʻae) and Honouliuli
+            (Hoʻopili) on the Leeward side, Aloha Stadium (Hālawa), and Kahauiki (Kalihi Transit
             Center).
             They are free for anyone riding Skyline or TheBus, with a 24-hour limit.
           </p>
@@ -67,10 +67,10 @@ function SkylineParkAndRidePage() {
           caption="Skyline park-and-ride lots listed by the City and County of Honolulu (October 2026)"
           head={["Station", "Stalls", "TheBus stop?"]}
           rows={[
-            ["Keoneʻae (UH West Oʻahu)", "304", "Yes"],
-            ["Honouliuli (Hoʻopili)", "344", "No"],
-            ["Hālawa (Aloha Stadium)", "590", "Yes"],
-            ["Kahauiki (Kalihi Transit Center)", "95", "Yes"],
+            ["UH West Oʻahu (Keoneʻae)", "304", "Yes"],
+            ["Hoʻopili (Honouliuli)", "344", "No"],
+            ["Aloha Stadium (Hālawa)", "590", "Yes"],
+            ["Kalihi Transit Center (Kahauiki)", "95", "Yes"],
           ]}
         />
         <p>Where to drive in:</p>
@@ -84,7 +84,7 @@ function SkylineParkAndRidePage() {
         />
         <p>
           No other station has a park-and-ride in the city's list, including Waiawa (Pearl
-          Highlands) and Lelepaua (airport). Step-by-step directions to each entrance are on the
+          Highlands) and the airport (Lelepaua). Step-by-step directions to each entrance are on the
           city's{" "}
           <Ext href="https://www.honolulu.gov/dts/skyline/stations-and-parking/">Stations and Parking page</Ext>.
         </p>
@@ -92,8 +92,8 @@ function SkylineParkAndRidePage() {
 
       <GuideSection id="train-times" title="Train times from each lot">
         <GuideTable
-          caption="Minutes on the train to Lelepaua (airport), Āhua (Lagoon Drive) and Kahauiki, from TheBus timetable through Dec 5, 2026"
-          head={["From", "Airport", "Āhua", "Kahauiki"]}
+          caption="Minutes on the train to the airport (Lelepaua), Lagoon Drive (Ahua) and Kahauiki, from TheBus timetable through Dec 5, 2026"
+          head={["From", "Airport", "Ahua", "Kahauiki"]}
           rows={[
             ["Keoneʻae", "26", "30", "32"],
             ["Honouliuli", "24", "28", "30"],
@@ -104,7 +104,7 @@ function SkylineParkAndRidePage() {
         <p>
           Add your wait for the train: Skyline runs every 10 minutes until about 8:30 PM and every 15
           minutes after that. Skyline does not reach downtown yet, so a trip into town finishes on
-          TheBus, for example from Āhua or Kahauiki. The{" "}
+          TheBus, for example from Ahua or Kahauiki. The{" "}
           <Link to="/guides/skyline-rail-guide" className="font-medium text-primary underline underline-offset-4">
             Skyline rail guide
           </Link>{" "}

@@ -46,3 +46,17 @@ Newest entry last. Each run of the twice-weekly search review appends one entry.
 - Item 3 (Pearl City / ʻAiea): some demand, but needs sourced station facts first. Item 4 (Pearl Harbor–Hickam): no autocomplete demand, so lowered.
 
 **Backlog status:** 3 TODO (some demand), 4 TODO (weak demand), 5 TODO (blocked on verifying TomTom figures), 6 DECISION. Oct 8 queue items and trust pages unchanged. docs/seo/ai-visibility.md has no entries yet, so no assistant-answer evidence this run.
+
+## 2026-10-14 (Wed) — strategy session, on-site items built by the SEO session
+
+**Evidence** (Search Console, 28 and 90 days): 374 impressions, 4 clicks, position 10.3. /guides/skyline-park-and-ride 157 impr (4 clicks, pos 7.0); /guides/skyline-rail-guide 88 (pos 9.2, 0 clicks; queries skyline hours, schedule, fare, timetable); late-night 19 (pos 6.3). Strategy and sources: docs/seo/strategy.md.
+
+**Changed** (guides.ts, two guide pages, sitemap lastmod)
+- Rail guide title "Skyline Hours, Schedule and Fares (2026) | Nalu" (47 chars) with an answer-first description (daily about 4 AM to 10:30 PM, every 10 min until 8:30 PM, $3 HOLO). Park-and-ride title "Skyline Parking: 4 Free Park-and-Ride Lots | Nalu", description names the lot that fills by 8 AM. Late-night title now mentions the last Skyline train. Measure CTR again about Nov 11; change nothing sooner.
+- Station names on the rail and park-and-ride guides now read English first, Hawaiian second, per docs/product/direction.md ("Ahua" spelled as in that table). The rail station table dropped its Parking column (folded into connections) so it fits phone width better.
+
+**Not built:** the planned /guides/skyline-fares-and-hours. The rail guide already answers hours, fares and last trains; a second page would compete with it for the same searches. Improved the existing page instead.
+
+**Reviewers:** security-keys no findings; transit-accuracy no critical or high (prose name order fixed); mobile-design flagged the wide station table (narrowed, not re-screenshotted because the local check failed) and a hydration warning seen against a stale dev server.
+
+**Still open:** other guides (Kapolei, ʻEwa, Mililani, airport, UH) and guides.ts line 88 still use the old name order and "Āhua"; src/lib/commute-formatting.test.ts expects the old order. Rail table width needs a phone recheck.
