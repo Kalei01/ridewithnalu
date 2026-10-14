@@ -67,7 +67,7 @@ export function SkylineLineDiagram({ mode }: { mode: "line" | "parking" }) {
       <figcaption className="mt-3 text-base leading-7 text-muted-foreground">
         {parking
           ? "The four free park-and-ride stations along Skyline, with the city's stall counts."
-          : "Skyline's 13 stations, west to east, with minutes from East Kapolei (TheBus timetable)."}
+          : "Skyline's 13 stations, west to east, with minutes from East Kapolei (TheBus timetable). P marks a free park-and-ride lot."}
       </figcaption>
     </figure>
   );
