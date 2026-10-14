@@ -11,4 +11,4 @@ git commit -q -m "$1
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_017Nqt2KL5mKtgSs5B9tSV7X"
-git log --oneline | head -1
+git log -1 --oneline
