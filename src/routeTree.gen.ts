@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DisclaimerRouteImport } from './routes/disclaimer'
+import { Route as HomePreviewRouteImport } from './routes/home-preview'
 import { Route as InstallRouteImport } from './routes/install'
 import { Route as OahuCommuteRouteImport } from './routes/oahu-commute'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -48,6 +49,11 @@ const IndexRoute = IndexRouteImport.update({
 const DisclaimerRoute = DisclaimerRouteImport.update({
   id: '/disclaimer',
   path: '/disclaimer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomePreviewRoute = HomePreviewRouteImport.update({
+  id: '/home-preview',
+  path: '/home-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InstallRoute = InstallRouteImport.update({
@@ -200,6 +206,7 @@ const ApiPublicWeeklyEmailRoute = ApiPublicWeeklyEmailRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/disclaimer': typeof DisclaimerRoute
+  '/home-preview': typeof HomePreviewRoute
   '/install': typeof InstallRoute
   '/oahu-commute': typeof OahuCommuteRoute
   '/privacy': typeof PrivacyRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/disclaimer': typeof DisclaimerRoute
+  '/home-preview': typeof HomePreviewRoute
   '/install': typeof InstallRoute
   '/oahu-commute': typeof OahuCommuteRoute
   '/privacy': typeof PrivacyRoute
@@ -265,6 +273,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/disclaimer': typeof DisclaimerRoute
+  '/home-preview': typeof HomePreviewRoute
   '/install': typeof InstallRoute
   '/oahu-commute': typeof OahuCommuteRoute
   '/privacy': typeof PrivacyRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/disclaimer'
+    | '/home-preview'
     | '/install'
     | '/oahu-commute'
     | '/privacy'
@@ -331,6 +341,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/disclaimer'
+    | '/home-preview'
     | '/install'
     | '/oahu-commute'
     | '/privacy'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/disclaimer'
+    | '/home-preview'
     | '/install'
     | '/oahu-commute'
     | '/privacy'
@@ -396,6 +408,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DisclaimerRoute: typeof DisclaimerRoute
+  HomePreviewRoute: typeof HomePreviewRoute
   InstallRoute: typeof InstallRoute
   OahuCommuteRoute: typeof OahuCommuteRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -440,6 +453,13 @@ declare module '@tanstack/react-router' {
       path: '/disclaimer'
       fullPath: '/disclaimer'
       preLoaderRoute: typeof DisclaimerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home-preview': {
+      id: '/home-preview'
+      path: '/home-preview'
+      fullPath: '/home-preview'
+      preLoaderRoute: typeof HomePreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/install': {
@@ -644,6 +664,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DisclaimerRoute: DisclaimerRoute,
+  HomePreviewRoute: HomePreviewRoute,
   InstallRoute: InstallRoute,
   OahuCommuteRoute: OahuCommuteRoute,
   PrivacyRoute: PrivacyRoute,

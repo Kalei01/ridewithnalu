@@ -146,7 +146,7 @@ function RootComponent() {
   );
 }
 
-const PUBLIC_PAGES = new Set(["/welcome", "/install", "/oahu-commute", "/roadwork", "/privacy", "/terms", "/disclaimer"]);
+const PUBLIC_PAGES = new Set(["/welcome", "/home-preview", "/install", "/oahu-commute", "/roadwork", "/privacy", "/terms", "/disclaimer"]);
 
 /** Pages anyone (and any search engine) can read without the app's sign-in check. */
 export function isPublicContentPath(pathname: string): boolean {
