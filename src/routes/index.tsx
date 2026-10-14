@@ -2854,6 +2854,17 @@ function Index() {
 
   const driveWeatherLines = weatherLines.get(-2) ?? [];
 
+  // Soft rain on the backdrop only while the real forecast puts showers near this trip
+  // (the same NWS lines the legs show). CSS draws it from this attribute; none under
+  // reduced motion.
+  const showersNearTrip =
+    configured && !commitment && [...weatherLines.values()].some((l) => l.some((x) => x.tone === "rain"));
+  useEffect(() => {
+    if (!showersNearTrip) return;
+    document.documentElement.setAttribute("data-rain", "true");
+    return () => document.documentElement.removeAttribute("data-rain");
+  }, [showersNearTrip]);
+
   // Canonical decision state is Drive vs Transit. The UI still uses "rail"
   // as its transit-view key for compatibility with the existing transit panels;
   // this adapter keeps that legacy UI vocabulary out of the decision engine.
