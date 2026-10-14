@@ -85,3 +85,33 @@ Rules: lightweight SVG and CSS or the Web Animations API only, no heavy animatio
 - M2 TODO Welcome scene: an Oʻahu outline, a route line drawing Kapolei → town, and a car and a Skyline train moving side by side (illustrative, not a claim about speed). About 3 s, then rests. Inline SVG.
 - M3 TODO Guide diagrams: the Skyline line with its stations lighting in order (rail guide); park-and-ride lots along the line (park-and-ride guide). Server-rendered SVG, animated on scroll into view.
 - M4 TODO Polish: button press feedback, cards easing in on scroll, a soft pulse on "leave now" moments.
+
+## Batch M2 — more motion (Josh approved all, Oct 13, 2026; after Batch M, same rules)
+Extra rules for "implemented properly":
+- Real data only: rain only with real weather, countdowns only from real times, celebrations from local on-device counts (no new server data).
+- Budget: ≤ 20 KB of added CSS/JS for the whole batch, and no change to LCP/CLS on /, a guide or /roadwork (measure before and after).
+- Reduced motion = static, or opacity only.
+- Never cover or delay the answer. Personality stays light and never hides the pick (CLOUD_CODE_CONTEXT).
+- One item per commit, with tests where there's logic, and the mobile-design and nalu-performance reviewers. Live check at 390×844 in light and dark.
+
+Answer screen:
+- M5 TODO The pick lands: the winning row lifts slightly while the others dim.
+- M6 TODO Live countdown: "Next Skyline in 6 min" ticks smoothly and turns amber when it's time to go.
+- M7 TODO Traffic bar on the Drive row (green → amber → red from live vs typical minutes), tied to the real delay.
+- M8 TODO Route preview: the route line draws on the map as the answer appears.
+
+Moments:
+- M9 TODO Rain: soft drops on the backdrop only when showers are near the trip (existing weather data).
+- M10 TODO Night: a calm night look after dark; a sleeping train when Skyline has stopped for the night.
+- M11 TODO Celebrations: a small shaka after 5 mornings in a row (device-only count); a quick wave when Skyline beats the drive.
+
+Around the app:
+- M12 TODO Install walkthrough: a short animated "Add to Home Screen" for iPhone and for Android on /install.
+- M13 TODO Screen changes: a smooth slide between screens (View Transitions API where supported, instant otherwise).
+- M14 TODO Pull to refresh: a wave curl ("nalu" = wave) while it re-checks; works only on the app screen.
+
+Add-ons (lead):
+- M15 TODO Time-of-day header tint: sunrise, day, sunset or night, following Honolulu time, very subtle.
+- M16 TODO Station names: the Hawaiian name fades in under the English one (direction.md format).
+- M17 TODO "Can't check" states: a calm icon with a gentle fade, never a shake or red flash; a retry button with a press response.
+- M18 TODO Android haptic tick when the pick lands (navigator.vibrate, off when reduced motion is on; iOS has no web haptics, so skip it there).
