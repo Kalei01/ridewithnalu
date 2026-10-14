@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 import { clockFromSeconds } from "@/lib/commute-formatting";
 import type { ReactNode } from "react";
+import { LeaveCountdown } from "@/components/commute/LeaveCountdown";
 import { CheckingSteps } from "@/components/commute/CheckingSteps";
 import type { CheckingStep } from "@/lib/loading-labels";
 
@@ -161,6 +162,7 @@ export function VerdictDomain({
             <p className="mt-1 text-xl font-bold tabular-nums text-recommended">
               {clockFromSeconds(best.leave_by_seconds)}
             </p>
+            {!arriveByActive && <LeaveCountdown leaveBySeconds={best.leave_by_seconds} />}
           </div>
           <div className="metric-glass">
             <p className="text-xs text-muted-foreground">Arrive</p>
