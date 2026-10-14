@@ -12,7 +12,11 @@ Owner's request (Josh, Oct 7 2026): the design agents should notice the time of 
 - **Practical notes follow their data, not the holiday (owner's rule, Oct 7).** Each note has its own window taken from the official source, to the hour (HST): a closure that starts two days before the parade and reopens at 11 PM shows from then until 11 PM — even if that is before the season's start or after its afterglow. The note text states the window in plain words ("King St closed Sat 4 PM – 11 PM") so nobody is confused about whether it still applies. If the source gives only a date, the window is that whole day; if the source gives no clear start or end, the note is left out. A note never shows outside its window, and if the source changes (extended, cancelled), the next run updates or removes it.
 - **Cheap and accessible.** Inline SVG motifs under ~3 KB, no new libraries, no images over the network, no layout shift, AA contrast in light and dark, no animation under `prefers-reduced-motion` (and only subtle, short motion otherwise). Riders can turn it off: Settings → "Seasonal touches" (on by default, remembered on the device).
 
-## Framework (one-time build) — TODO, APPROVED Oct 7 2026 by Josh
+## Framework (one-time build) — DONE 2026-10-14 (APPROVED Oct 7 2026 by Josh)
+
+Built: `src/lib/seasons.ts` (+ `seasons.test.ts`, 12 tests), `src/hooks/use-season.ts`, `src/components/seasonal/` (greeting line + CSS with reduced-motion block), `data-season` / `data-season-phase` set on `<html>` in `src/routes/__root.tsx`, greeting on the welcome page (`HomeLanding`), Settings → About Nalu → "Seasonal touches" switch (`localStorage` key `nalu-seasonal-touches-v1`, on by default). To add a season: one entry in `SEASONS` plus an accent block in `seasonal.css`. Not done: a greeting in the signed-in Browse header (lives in `src/routes/index.tsx`, left alone on purpose; NEEDS OPUS SESSION if wanted).
+
+Original spec:
 
 Build once, then every season is a data-only change:
 - `src/lib/seasons.ts`: a list of seasons `{ id, name, start, end (inclusive HST dates), afterglowDays, accent tokens, motif (inline SVG), greetings[], afterGreetings[], notes[] }` where each note is `{ text, from, until (HST date-times to the hour, from the source), source }` and `activeSeason(now)` → `{ season, phase: "on" | "afterglow" }` plus `activeNotes(now)` (independent of the season phase) using the existing Honolulu date helpers (`src/lib/service-day.ts` / `honoluluDateKey`). Unit tests: boundaries in HST, the afterglow phase (softer accents, after-greeting), notes shown exactly inside their own windows to the hour (including before a season starts and after it ends) and never outside them, year rollover (Dec 31 → Jan 1), a next season's start overriding a previous afterglow, nothing active outside ranges.
@@ -45,4 +49,4 @@ Respectful days (Prince Kūhiō Day, Memorial Day, Kamehameha Day, Veterans Day)
 
 ## Season log (newest first)
 
-_None yet._
+- 2026-10-14 Halloween (Oct 24–31, afterglow to Nov 5) added as the only season. Riders see a small pumpkin and one line on the welcome page: "Happy Halloween from Nalu." (and two other lines), afterglow "Hope the candy haul was a good one." No practical notes (no official source checked). Switch: Settings → About Nalu.

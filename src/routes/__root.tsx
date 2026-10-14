@@ -31,6 +31,7 @@ import { initGoogleAnalytics, trackGooglePageView } from "../lib/google-analytic
 import { onAnalyticsConsentChange } from "../lib/analytics";
 import { HomeLanding } from "../components/home/HomeLanding";
 import { timeOfDay } from "../lib/time-of-day";
+import { useSeason } from "../hooks/use-season";
 import { RETURNING_VISITOR_SCRIPT, hasSeenWelcome, introductionHidden, markIntroductionShown } from "../lib/welcome-seen";
 
 function NotFoundComponent() {
@@ -125,6 +126,19 @@ function RootComponent() {
     const id = window.setInterval(apply, 5 * 60 * 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  // Seasonal touches: data-season on <html> switches the accent variables.
+  const season = useSeason();
+  useEffect(() => {
+    const root = document.documentElement;
+    if (season) {
+      root.setAttribute("data-season", season.season.id);
+      root.setAttribute("data-season-phase", season.phase);
+    } else {
+      root.removeAttribute("data-season");
+      root.removeAttribute("data-season-phase");
+    }
+  }, [season]);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -58,6 +58,9 @@ Original list:
 
 - DONE (Oct 11; off checkbox now has a visible border and fill, box relabelled "Your note") (polish, seen live Oct 7 at 390×844) — "Tell Nalu something" form: the "Include this trip" switch reads as an empty outline when off (give the off state a visible track/thumb), and the title and the text-box label both say "Tell Nalu something" (relabel the box, e.g. "Your note"). src/components/TellNalu.tsx.
 
+## Seasonal touches
+- DONE (2026-10-14) Framework + Halloween (Oct 24–31). TODO: greeting in the Browse header (NEEDS OPUS SESSION, index.tsx); next season to prepare: Veterans Day Nov 11 (respectful, no afterglow) when inside the 4-week window.
+
 ## Reported, not for this agent
 - REPORT B6 Board time vs live bus time (walk arrives 4:46, bus shown 4:45 unlabelled) — transit-accuracy.
 - REPORT B7 "Too close to call · About 26 min apart" (Arrive By 6:30 PM) — verdict engine, transit-accuracy.
@@ -78,6 +81,8 @@ Morning rush; Skyline-stopped-at-night and not-yet-running rows; a live verdict 
 - 2026-10-07 Batches 2-3 shipped (see their entries). Reviewed by transit-accuracy (fixed: step stays on "board" until board time, scheduled label, roadwork schedule/link kept), mobile-design, security-keys.
 - 2026-10-07 Batch 4 partly shipped; four items marked NEEDS OPUS SESSION (reasons above).
 - 2026-10-11 Weekly review: mobile-design live pass (7 public pages, no layout breaks); wording/touch-target items added above.
+
+- 2026-10-14 Seasonal framework built and Halloween added (see docs/experience/seasonal.md). Live check pending until deploy; Settings switch not clicked through in a browser.
 
 ## Batch M — motion (Josh approved Oct 13, 2026; build after the Skyline P1 is fixed, on the split files, one item per commit)
 Rules: lightweight SVG and CSS or the Web Animations API only, no heavy animation libraries. No layout shift, no hit to LCP. Everything respects prefers-reduced-motion (static or opacity-only). Never delays an answer. Run the mobile-design reviewer and nalu-performance (page weight) for each.

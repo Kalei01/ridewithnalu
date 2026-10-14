@@ -28,6 +28,7 @@ import { LiveStrip } from "./LiveStrip";
 import { plannerHref } from "@/lib/home/planner-link";
 import { WhereToSearch } from "./WhereToSearch";
 import { Waves } from "./Waves";
+import { SeasonGreeting } from "@/components/seasonal/SeasonGreeting";
 import "./home.css";
 
 const LiveIsland = lazy(() => import("./LiveIsland"));
@@ -238,6 +239,8 @@ export function HomeLanding({
               Open the app
             </Link>
           </div>
+
+          <SeasonGreeting className="mt-6" />
 
           <h1 className="mt-8 text-[2.6rem] font-black leading-[1.02] tracking-[-0.04em] sm:text-6xl">
             Your Oʻahu commute, <span className="text-[var(--nalu-platinum-2)]">figured out.</span>

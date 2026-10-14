@@ -67,6 +67,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+  onSeasonalTouchesChange,
+  seasonalTouchesEnabled,
+  setSeasonalTouchesEnabled,
+} from "@/lib/seasons";
 import { Textarea } from "@/components/ui/textarea";
 import { TellNaluForm } from "@/components/TellNalu";
 import { addRecent } from "@/lib/places/recents";
@@ -133,6 +138,36 @@ export function AlertPrefsSection({
           />
         </div>
       ))}
+    </section>
+  );
+}
+
+/** Settings switch for the light holiday touches; on by default, remembered on this device. */
+export function SeasonalTouchesSection() {
+  const [enabled, setEnabled] = useState(true);
+  useEffect(() => {
+    const read = () => setEnabled(seasonalTouchesEnabled());
+    read();
+    return onSeasonalTouchesChange(read);
+  }, []);
+  return (
+    <section className="mt-6 space-y-2 border-t border-border pt-5">
+      <div className="flex items-center justify-between gap-4 rounded-lg bg-surface-raised px-4 py-3">
+        <Label htmlFor="seasonal-touches" className="leading-snug">
+          Seasonal touches
+          <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+            A little color and a short greeting around local holidays. Never changes your answer.
+          </span>
+        </Label>
+        <Switch
+          id="seasonal-touches"
+          checked={enabled}
+          onCheckedChange={(checked) => {
+            setEnabled(checked);
+            setSeasonalTouchesEnabled(checked);
+          }}
+        />
+      </div>
     </section>
   );
 }
@@ -1037,6 +1072,7 @@ export function SetupDialog({
                 defaultOpen={false}
               >
                 <AboutSection />
+                <SeasonalTouchesSection />
               </SettingsGroup>
             )}
 
