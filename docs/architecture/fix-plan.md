@@ -8,7 +8,7 @@ Goal: Nalu fast and right, then the one-screen direction (docs/product/direction
 | 0b | Remove proven-unused Lovable leftovers (evidence + second agent must agree) | same session | Started Oct 11 |
 | 1 | Find the Skyline "no trip" cause from a real rush-hour recording; small fix on Sonnet, or fold into Phase 2 | Main session, Mon Oct 12 6:25 AM HST | Scheduled |
 | 2 | One server request per trip (brief below) | One Opus session, Tue Oct 13 | **LIVE Oct 13 ~2:30 PM HST** (e9daeec), switch ON for Leave Now + Arrive By without a car — results below |
-| 3 | Split `src/routes/index.tsx` (~6,000 lines) one area per session, no behaviour change | Several Sonnet sessions, after Phase 2 | Waiting |
+| 3 | Split `src/routes/index.tsx` (~6,000 lines) one area per session, no behaviour change | Several Sonnet sessions, after Phase 2 | IN PROGRESS: JSX screens/sections moved, 5,987 → ~4,490 lines; hooks next (`index-split.md`) |
 | 4 | City packs: Oʻahu specifics out of ~70 files into `cities/oahu/`, no rider change, side-by-side proof | Opus once (design), then Sonnet | Before the Bay Area |
 | 5 | Decisions only: open-source router research (Sonnet report); free weekly backup of rider data (needs one read-only token from Josh) | Later | Waiting |
 
