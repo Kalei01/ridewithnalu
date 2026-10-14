@@ -4,7 +4,6 @@ import {
   alohaGreeting,
   clockFromSeconds,
   titleCase,
-  walkingEstimate,
   formatDistance,
   stationLabel,
   distanceM,
@@ -12,6 +11,8 @@ import {
 } from "@/lib/commute-formatting";
 import { WaveMark } from "@/components/commute/NaluPersonalityStrip";
 import { Button } from "@/components/ui/button";
+import { Waves } from "@/components/home/Waves";
+import "@/components/home/home.css";
 import {
   RefreshCw,
   Settings,
@@ -197,140 +198,139 @@ export function BrowseScreen(props: BrowseScreenProps) {
 
   const profileName = profileFirstName(user);
   return (
-    <main className="browse-radiance min-h-dvh px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-foreground">
-      <div className="mx-auto flex w-full max-w-[440px] flex-col">
-        <header className="flex min-h-11 items-start justify-between gap-4">
-          <div>
-            <p className="mb-1 text-xs font-semibold text-recommended">
-              {alohaGreeting(now, profileName)}
-            </p>
-            <div className="flex items-center gap-1.5">
-              <WaveMark className="h-6 w-auto text-foreground" />
-              <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
+    <main className="nh min-h-dvh overflow-x-clip text-foreground">
+      <div className="nh-hero">
+        <Waves />
+        <div className="mx-auto flex w-full max-w-[440px] flex-col px-5 pb-6 pt-[max(1.5rem,env(safe-area-inset-top))]">
+          <header className="flex min-h-11 items-start justify-between gap-4">
+            <div>
+              <p className="mb-1 text-xs font-semibold text-recommended">
+                {alohaGreeting(now, profileName)}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <WaveMark className="h-6 w-auto text-foreground" />
+                <p className="text-lg font-medium tracking-wide text-foreground">Nalu</p>
+              </div>
             </div>
-          </div>
-          <div className="flex max-w-[65%] flex-wrap items-center justify-end gap-1">
-            <p className="w-full text-right text-xs font-medium text-foreground">{timeText}</p>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Refresh commute conditions"
-              onClick={() => void refresh()}
-              disabled={refreshing}
-              className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-            >
-              <RefreshCw />
-            </Button>
-            <AccountButton
-              onClick={() => {
-                setRestoreSlot(null);
-                setAccountOpen(true);
-              }}
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Open settings"
-              onClick={() => openSettingsList()}
-              className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-            >
-              <Settings className="size-5" />
-            </Button>
-          </div>
-        </header>
-        <Tagline className="mt-2" />
-        {!activeRegion().hasTransit && (
-          <p className="mt-2 w-fit rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
-            Test: {activeRegion().name} · driving and rides only
-          </p>
-        )}
-
-        <CommutePageNav current="browse" onBrowse={() => setPageView("browse")} />
-
-        {/* The Home/Work shortcut cards below already start these trips in one tap. */}
-
-        <DataExpiryNotice />
-        {!online && (
-          <p
-            role="status"
-            className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground"
-          >
-            You’re offline. Available schedules stay visible; live arrivals will refresh when you
-            reconnect.
-          </p>
-        )}
-        {/* Oʻahu commute cards use Oʻahu Home/Work; off in the SF test. */}
-        {activeRegion().hasTransit && (
-          <>
-            <MorningPulse
-              home={browseHome}
-              work={browseWork}
-              trainsEveryMinutes={trainsEveryMinutes}
-            />
-            <EveningPulse
-              home={browseHome}
-              work={browseWork}
-              trainsEveryMinutes={trainsEveryMinutes}
-            />
-            <BeatTheRush home={browseHome} work={browseWork} />
-            <WeeklyDigestCard />
-          </>
-        )}
-
-        <Button
-          onClick={() => setOnboardingOpen(true)}
-          className="browse-where-to mx-auto mt-5 min-h-16 w-full justify-center gap-3 rounded-lg border border-primary bg-primary px-5 text-center text-lg font-bold text-primary-foreground hover:bg-primary/90"
-          aria-label="Where to? Set up a trip"
-        >
-          <Search className="size-6 text-primary-foreground" />
-          <span>WHERE TO?</span>
-          <ChevronRight className="size-5 text-primary-foreground/70" />
-        </Button>
-
-        <div className="mt-3 flex flex-wrap justify-center gap-2" aria-label="Quick destinations">
-          {/* Home and Work have their own cards just below; avoid showing them twice. */}
-          {(["gym"] as const).map((kind) => {
-            const Icon = shortcutIcon(kind);
-            const saved = Boolean(findByKind(savedPlaces, kind));
-            return (
+            <div className="flex max-w-[65%] flex-wrap items-center justify-end gap-1">
+              <p className="w-full text-right text-xs font-medium text-foreground">{timeText}</p>
               <Button
-                key={kind}
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => void quickStartSavedPlace(kind)}
-                className={`h-9 gap-1.5 rounded-full px-3.5 ${saved ? "" : "opacity-70"}`}
-                aria-label={
-                  saved ? `Plan a trip to ${kindLabel(kind)}` : `Set up ${kindLabel(kind)}`
-                }
+                variant="ghost"
+                size="icon"
+                aria-label="Refresh commute conditions"
+                onClick={() => void refresh()}
+                disabled={refreshing}
+                className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
               >
-                <Icon className="size-3.5" /> {kindLabel(kind)}
+                <RefreshCw />
               </Button>
-            );
-          })}
-          <Button
+              <AccountButton
+                onClick={() => {
+                  setRestoreSlot(null);
+                  setAccountOpen(true);
+                }}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Open settings"
+                onClick={() => openSettingsList()}
+                className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+              >
+                <Settings className="size-5" />
+              </Button>
+            </div>
+          </header>
+          <Tagline className="mt-2" />
+          {!activeRegion().hasTransit && (
+            <p className="mt-2 w-fit rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
+              Test: {activeRegion().name} · driving and rides only
+            </p>
+          )}
+
+          <CommutePageNav current="browse" onBrowse={() => setPageView("browse")} />
+
+          {/* The Home/Work shortcut cards below already start these trips in one tap. */}
+
+          <DataExpiryNotice />
+          {!online && (
+            <p
+              role="status"
+              className="mt-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-muted-foreground"
+            >
+              You’re offline. Available schedules stay visible; live arrivals will refresh when you
+              reconnect.
+            </p>
+          )}
+          {/* Oʻahu commute cards use Oʻahu Home/Work; off in the SF test. */}
+          {activeRegion().hasTransit && (
+            <>
+              <MorningPulse
+                home={browseHome}
+                work={browseWork}
+                trainsEveryMinutes={trainsEveryMinutes}
+              />
+              <EveningPulse
+                home={browseHome}
+                work={browseWork}
+                trainsEveryMinutes={trainsEveryMinutes}
+              />
+              <BeatTheRush home={browseHome} work={browseWork} />
+              <WeeklyDigestCard />
+            </>
+          )}
+
+          <button
             type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => openSettingsList()}
-            className="h-9 gap-1.5 rounded-full px-3.5"
+            onClick={() => setOnboardingOpen(true)}
+            className="nh-search-field mt-5 w-full pr-4 text-left"
+            aria-label="Where to? Set up a trip"
           >
-            <Plus className="size-3.5" /> Add Place
-          </Button>
+            <Search aria-hidden="true" className="size-6 shrink-0 text-muted-foreground" />
+            <span className="flex-1 text-xl font-bold text-foreground">Where to?</span>
+            <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+          </button>
+
+          <div className="nh-rail-scroll mt-3" role="group" aria-label="Quick destinations">
+            {/* Home and Work have their own cards just below; avoid showing them twice. */}
+            {(["gym"] as const).map((kind) => {
+              const Icon = shortcutIcon(kind);
+              const saved = Boolean(findByKind(savedPlaces, kind));
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => void quickStartSavedPlace(kind)}
+                  className={`nh-chip ${saved ? "" : "opacity-70"}`}
+                  aria-label={
+                    saved ? `Plan a trip to ${kindLabel(kind)}` : `Set up ${kindLabel(kind)}`
+                  }
+                >
+                  <Icon aria-hidden="true" className="size-4 text-muted-foreground" />{" "}
+                  {kindLabel(kind)}
+                </button>
+              );
+            })}
+            <button type="button" onClick={() => openSettingsList()} className="nh-chip">
+              <Plus aria-hidden="true" className="size-4 text-muted-foreground" /> Add Place
+            </button>
+          </div>
+
+          <ShortcutGrid
+            places={savedPlaces}
+            onStart={(slot) => void quickStartSavedPlace(slot)}
+            onPlacesChange={persistPlaces}
+          />
+
+          <InstallNaluCard />
+          {activeRegion().hasTransit && <LeaveAlertCard places={savedPlaces} variant="offer" />}
         </div>
+      </div>
 
-        <ShortcutGrid
-          places={savedPlaces}
-          onStart={(slot) => void quickStartSavedPlace(slot)}
-          onPlacesChange={persistPlaces}
-        />
-
-        <InstallNaluCard />
-        {activeRegion().hasTransit && <LeaveAlertCard places={savedPlaces} variant="offer" />}
-
+      <div className="mx-auto flex w-full max-w-[440px] flex-col px-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
         {browseUserPoint && (
           <section
-            className="map-shell relative mt-4 h-[44dvh] min-h-[320px] max-h-[470px] overflow-hidden rounded-xl"
+            className="nh-island-card relative h-[44dvh] min-h-[320px] max-h-[470px]"
             aria-label="Nearby transit map"
           >
             <ClientOnly
@@ -375,7 +375,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
               </Suspense>
             </ClientOnly>
 
-            <div className="absolute left-3 top-3 z-[500] flex items-center gap-2 rounded-md border border-border bg-background/90 px-3 py-2 backdrop-blur-md">
+            <div className="absolute left-3 top-3 z-[500] flex items-center gap-2 rounded-full border border-white/12 bg-background/90 px-3 py-2 backdrop-blur-md">
               <span
                 role="img"
                 className="size-3 rounded-full border-2 border-foreground bg-location shadow-[0_0_10px_var(--color-location)]"
@@ -387,40 +387,40 @@ export function BrowseScreen(props: BrowseScreenProps) {
         )}
 
         {browseUserPoint && (
-          <details open className="glass-panel mt-4 rounded-lg">
+          <details open className="nh-card nh-details mt-4">
             <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-              <Bus className="size-5 text-primary" />
-              <span className="font-semibold text-foreground">Nearby stops</span>
+              <Bus aria-hidden="true" className="size-5 text-muted-foreground" />
+              <span className="text-base font-bold text-foreground">Nearby stops</span>
               <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground">
                 {nearbyStopsLoading && !nearbyStops.length
                   ? "Looking…"
                   : `${nearbyStops.length} ${nearbyStops.length === 1 ? "stop" : "stops"}`}
               </span>
-              <ChevronDown className="size-4 text-muted-foreground" />
+              <ChevronDown aria-hidden="true" className="nh-chevron size-4 text-muted-foreground" />
             </summary>
-            <div className="border-t border-border p-4">
-              <div className="flex gap-2 overflow-x-auto pb-3" aria-label="Choose a nearby stop">
+            <div className="border-t border-white/10 p-4">
+              <div className="nh-rail-scroll pb-3" role="group" aria-label="Choose a nearby stop">
                 {nearbyStops.map((stop) => {
                   const Icon = stop.routeType === 1 ? TrainFront : Bus;
                   return (
-                    <Button
+                    <button
                       key={stop.stopId}
-                      variant={selectedNearbyStop?.stopId === stop.stopId ? "default" : "secondary"}
-                      size="sm"
+                      type="button"
+                      aria-pressed={selectedNearbyStop?.stopId === stop.stopId}
                       onClick={() => setSelectedNearbyStopId(stop.stopId)}
-                      className="h-auto max-w-56 shrink-0 justify-start gap-2 px-3 py-2 text-left"
+                      className="nh-stop max-w-56"
                       aria-label={`Show ${nearbyServiceLabel(stop)} at ${titleCase(stop.stopName)}`}
                     >
-                      <Icon className="size-4 shrink-0" />
+                      <Icon aria-hidden="true" className="size-4 shrink-0" />
                       <span className="min-w-0">
                         <span className="block truncate font-semibold">
                           {nearbyChipTitle(stop)}
                         </span>
                         <span className="block text-xs font-medium opacity-80">
-                          {walkingEstimate(browseUserPoint, stop).minutes} min walk
+                          {formatDistance(stop.distanceM)}
                         </span>
                       </span>
-                    </Button>
+                    </button>
                   );
                 })}
               </div>
@@ -443,8 +443,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
                       </div>
                       <LandmarkHint name={selectedNearbyStop.stopName} />
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Walk {walkingEstimate(browseUserPoint, selectedNearbyStop).minutes} min ·{" "}
-                        {formatDistance(selectedNearbyStop.distanceM)}
+                        {formatDistance(selectedNearbyStop.distanceM)} away
                       </p>
                     </div>
                     {selectedNearbyStop.arrivals[0] && (
@@ -459,7 +458,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
                       </p>
                     )}
                   </div>
-                  <div className="mt-3 divide-y divide-border">
+                  <div className="mt-3 divide-y divide-white/10">
                     {selectedNearbyStop.arrivals.length ? (
                       selectedNearbyStop.arrivals.slice(0, 3).map((arrival, index) => (
                         <div
@@ -492,9 +491,9 @@ export function BrowseScreen(props: BrowseScreenProps) {
                   <p className="mt-1 text-xs text-muted-foreground">
                     Scheduled times · TheBus / DTS
                   </p>
-                  <details className="walking-map-details mt-3 border-t border-border pt-3">
+                  <details className="walking-map-details mt-3 border-t border-white/10 pt-3">
                     <summary>Show walk to this stop</summary>
-                    <div className="map-shell mt-2 overflow-hidden rounded-lg">
+                    <div className="nh-island-card mt-2 rounded-2xl">
                       <ClientOnly
                         fallback={
                           <div
@@ -536,7 +535,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
               <button
                 type="button"
                 onClick={() => setStationExpanded(true)}
-                className="glass-panel mt-4 flex w-full min-w-0 items-center gap-2 rounded-2xl px-4 py-3 text-left text-sm"
+                className="nh-card mt-4 flex w-full min-w-0 items-center gap-2 px-4 py-3 text-left text-sm"
                 aria-label="Show Skyline station details"
               >
                 <TrainFront className="size-4 shrink-0 text-primary" />
@@ -546,7 +545,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
                   </span>
                   <span className="block text-muted-foreground">
                     {browseUserPoint
-                      ? `${Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))} min drive`
+                      ? `${formatDistance(distanceM(browseUserPoint, browseStation))} away`
                       : ""}
                     {browseUserPoint && trainsEveryMinutes ? " · " : ""}
                     {trainsEveryMinutes ? `Trains every ${trainsEveryMinutes} min` : ""}
@@ -555,14 +554,11 @@ export function BrowseScreen(props: BrowseScreenProps) {
                 <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
               </button>
             ) : (
-              <section
-                className="glass-panel mt-4 rounded-lg p-4"
-                aria-labelledby="browse-station-title"
-              >
+              <section className="nh-card mt-4 p-4" aria-labelledby="browse-station-title">
                 <div className="flex items-start gap-3">
                   <TrainFront className="mt-5 size-6 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                    <p className="text-sm font-bold uppercase tracking-[0.14em] text-muted-foreground">
                       Skyline station
                     </p>
                     <h2 id="browse-station-title" className="text-xl font-semibold text-foreground">
@@ -619,17 +615,9 @@ export function BrowseScreen(props: BrowseScreenProps) {
                 </div>
                 {browseStation && (
                   <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold">
-                    {browseUserPoint && browseWalkMinutes !== null && browseWalkMinutes <= 18 && (
-                      <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
-                        Walk {browseWalkMinutes} min ·{" "}
-                        {formatDistance(walkingEstimate(browseUserPoint, browseStation).meters)}
-                      </span>
-                    )}
                     {browseUserPoint && (
                       <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
-                        Drive about{" "}
-                        {Math.max(1, Math.ceil(distanceM(browseUserPoint, browseStation) / 670))}{" "}
-                        min
+                        {formatDistance(distanceM(browseUserPoint, browseStation))} away
                       </span>
                     )}
                     {trainsEveryMinutes && (
@@ -715,20 +703,10 @@ export function BrowseScreen(props: BrowseScreenProps) {
                       const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
                       const nowDeparture = secondsAway >= -30 && secondsAway < 60;
                       const soon = secondsAway >= 60 && secondsAway < 20 * 60;
-                      const walk = browseUserPoint
-                        ? walkingEstimate(browseUserPoint, browseStation)
-                        : null;
-                      const walkState = walk
-                        ? walk.minutes + 2 <= minutesAway
-                          ? "ok"
-                          : walk.minutes <= minutesAway
-                            ? "tight"
-                            : "miss"
-                        : null;
                       return (
                         <article
                           key={`${first?.route_id}-${first?.direction_id ?? "x"}`}
-                          className="browse-departure-card nalu-card-surface min-w-0 rounded-lg p-3"
+                          className="browse-departure-card nh-card nh-fade-in min-w-0 p-3"
                         >
                           <h3 className="text-sm font-semibold text-foreground">
                             {towardDowntown ? "Eastbound" : "Westbound"}
@@ -755,18 +733,6 @@ export function BrowseScreen(props: BrowseScreenProps) {
                                   clockFromSeconds(first.departure_seconds)
                                 )}
                               </p>
-                              {walk && walkState && walk.minutes <= 18 && (
-                                <p
-                                  className={`mt-2 text-xs font-medium ${walkState === "ok" ? "text-primary" : "text-warning"}`}
-                                >
-                                  {walk.minutes} min walk
-                                  {walkState === "tight"
-                                    ? " · Tight"
-                                    : walkState === "miss"
-                                      ? " · You'll miss this one."
-                                      : ""}
-                                </p>
-                              )}
                               {second && (
                                 <p className="mt-1.5 text-xs text-muted-foreground">
                                   Miss it? Next train at{" "}
@@ -804,14 +770,14 @@ export function BrowseScreen(props: BrowseScreenProps) {
                 compact
                 className=""
               />
-              <details className="glass-panel rounded-lg">
+              <details className="nh-card nh-details">
                 <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
                   <span className="min-w-0 truncate text-sm font-semibold text-foreground">
                     {browseWeatherSummary}
                   </span>
-                  <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
+                  <ChevronDown className="nh-chevron ml-auto size-4 shrink-0 text-muted-foreground" />
                 </summary>
-                <div className="border-t border-border px-4 py-3">
+                <div className="border-t border-white/10 px-4 py-3">
                   {browseWeatherLine ? (
                     <p className={`text-sm ${TONE_CLASS[browseWeatherLine.tone]}`}>
                       {browseWeatherLine.text}

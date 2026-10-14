@@ -131,9 +131,12 @@ export function H1ConditionsCard({
 
   if (compact) {
     return (
-      <details className={`${className} rounded-lg border border-border bg-surface-raised/70`}>
+      <details className={`${className} nh-card nh-details`}>
         <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
-          <span className="whitespace-nowrap font-semibold text-foreground">H-1 live</span>
+          <span className="flex items-center gap-2 whitespace-nowrap font-semibold text-foreground">
+            <span className="nh-live-dot" aria-hidden="true" />
+            H-1 live
+          </span>
           <span className="ml-auto flex flex-wrap justify-end gap-2">
             {loading ? (
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
@@ -157,7 +160,7 @@ export function H1ConditionsCard({
               })
             )}
           </span>
-          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+          <ChevronDown className="nh-chevron size-4 shrink-0 text-muted-foreground" />
         </summary>
         {!loading && !unavailable && (
           <div className="border-t border-border px-4 pb-4">

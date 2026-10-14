@@ -22,7 +22,7 @@ export function RoadworkTile({ className = "" }: { className?: string }) {
   return (
     <Link
       to="/roadwork"
-      className={`glass-panel flex min-h-14 items-center gap-3 rounded-lg px-4 py-3 ${className}`}
+      className={`nh-card flex min-h-14 items-center gap-3 px-4 py-3 ${className}`}
     >
       <Construction aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
       <span className="min-w-0">

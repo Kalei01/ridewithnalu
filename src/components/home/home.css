@@ -473,3 +473,29 @@
 .nh-chevron {
   transition: transform 200ms ease;
 }
+
+/* A stop or station picker: a small card-chip that lights when chosen. */
+.nh-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 1rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 4%);
+  padding: 0.5rem 0.85rem;
+  min-height: 2.75rem;
+  text-align: left;
+  color: var(--color-foreground);
+  transition:
+    transform 120ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+.nh-stop[aria-pressed="true"] {
+  border-color: rgb(10 132 255 / 70%);
+  background: rgb(10 132 255 / 16%);
+}
+.nh-stop:active {
+  transform: scale(0.97);
+}
