@@ -26,6 +26,7 @@ import { type TripChoice, type TripChoiceKey } from "@/components/commute/TripCh
 import {
   allowTimeNote,
   parkingNote,
+  rowCheckFailed,
   skylineEmptyText,
   busEmptyText,
   transitChoices,
@@ -2948,7 +2949,14 @@ function Index() {
         : null,
       late: arriveByActive && option !== null && !group.makesIt && lockedChoice !== key,
       status: option ? "ready" : optionsLoading ? "loading" : "empty",
-      failed: !option && (key === "skyline" ? skylineUnchecked : busUnchecked),
+      failed: rowCheckFailed({
+        key,
+        hasTrip: Boolean(option),
+        skylineUnchecked,
+        busUnchecked,
+        railClosedForEvening,
+        railNotRunningYet,
+      }),
       asleep: key === "skyline" && !option && railClosedForEvening,
       emptyText:
         key === "skyline"
@@ -3047,9 +3055,13 @@ function Index() {
             ? "TheBus couldn’t be checked"
             : null;
   // "Try again" on a row that couldn't be checked: ask traffic and the timetable again.
-  const retryChecks = () => {
-    void queryClient.invalidateQueries({ queryKey: ["drive"] });
-    void refetchPlan();
+  const retryChecks = async () => {
+    forcedTrafficRefresh.current = true;
+    await Promise.allSettled([
+      queryClient.invalidateQueries({ queryKey: ["drive"] }),
+      refetchPlan(),
+    ]);
+    forcedTrafficRefresh.current = false;
   };
   const pendingSteps = tripCheckingSteps({
     driveRow: Boolean(resources.vehicle),

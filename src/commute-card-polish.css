@@ -171,8 +171,8 @@
     position: fixed;
     left: 0;
     right: 0;
-    top: -1170px;
-    height: calc(100vh + 1170px);
+    top: -130px;
+    height: calc(100vh + 130px);
     z-index: -1;
     pointer-events: none;
     opacity: 0.8;
@@ -180,17 +180,17 @@
       linear-gradient(100deg, transparent 48%, rgba(170, 205, 255, 0.28) 50%, transparent 52%),
       linear-gradient(100deg, transparent 48%, rgba(170, 205, 255, 0.2) 50%, transparent 52%);
     background-size:
-      26px 90px,
+      26px 130px,
       41px 130px;
     background-position:
       0 0,
-      13px 40px;
+      13px 50px;
     animation: rain-fall 4s linear infinite;
   }
 }
 @keyframes rain-fall {
   to {
-    transform: translateY(1170px);
+    transform: translateY(130px);
   }
 }
 

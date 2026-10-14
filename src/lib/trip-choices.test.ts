@@ -3,6 +3,7 @@ import type { Leg, Option } from "./commute-model";
 import {
   allowTimeNote,
   parkingNote,
+  rowCheckFailed,
   skylineEmptyText,
   busEmptyText,
   transitChoices,
@@ -205,5 +206,30 @@ describe("trip choices", () => {
   it("the Bus row admits a failed search instead of saying there is no bus", () => {
     expect(busEmptyText({ failed: true })).toBe("Can’t check TheBus right now");
     expect(busEmptyText({ failed: false })).toBe("No bus trip right now");
+  });
+});
+
+describe("rowCheckFailed", () => {
+  const base = {
+    key: "skyline" as const,
+    hasTrip: false,
+    skylineUnchecked: true,
+    busUnchecked: false,
+    railClosedForEvening: false,
+    railNotRunningYet: false,
+  };
+  it("flags a Skyline row whose search failed", () => {
+    expect(rowCheckFailed(base)).toBe(true);
+  });
+  it("doesn't flag Skyline when it has stopped for the night or not started", () => {
+    expect(rowCheckFailed({ ...base, railClosedForEvening: true })).toBe(false);
+    expect(rowCheckFailed({ ...base, railNotRunningYet: true })).toBe(false);
+  });
+  it("doesn't flag a row that has a trip", () => {
+    expect(rowCheckFailed({ ...base, hasTrip: true })).toBe(false);
+  });
+  it("flags the Bus row on its own failure only", () => {
+    expect(rowCheckFailed({ ...base, key: "bus" })).toBe(false);
+    expect(rowCheckFailed({ ...base, key: "bus", busUnchecked: true })).toBe(true);
   });
 });

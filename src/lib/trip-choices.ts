@@ -139,3 +139,21 @@ export function skylineEmptyText(input: {
 export function busEmptyText(input: { failed: boolean }): string {
   return input.failed ? "Can’t check TheBus right now" : "No bus trip right now";
 }
+
+/**
+ * A row "couldn't be checked" (quiet icon and Try again) only when its search failed
+ * and the row isn't already saying something truer: Skyline stopped for the night or
+ * hasn't started yet, or there is a trip.
+ */
+export function rowCheckFailed(input: {
+  key: "skyline" | "bus";
+  hasTrip: boolean;
+  skylineUnchecked: boolean;
+  busUnchecked: boolean;
+  railClosedForEvening: boolean;
+  railNotRunningYet: boolean;
+}): boolean {
+  if (input.hasTrip) return false;
+  if (input.key === "bus") return input.busUnchecked;
+  return input.skylineUnchecked && !input.railClosedForEvening && !input.railNotRunningYet;
+}

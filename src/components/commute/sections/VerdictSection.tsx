@@ -57,7 +57,7 @@ export type VerdictSectionProps = {
   options: import("@/lib/commute-model").Option[];
   optionsFailed: boolean;
   optionsLoading: boolean;
-  onRetry: () => void;
+  onRetry: () => void | Promise<void>;
   pendingSteps: import("@/lib/loading-labels").CheckingStep[] | null;
   planPlaceholder: boolean;
   reasoning: string | null;

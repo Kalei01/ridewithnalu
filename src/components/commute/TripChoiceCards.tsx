@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Bus, Car, CloudOff, RefreshCw, TrainFront } from "lucide-react";
 import { trafficBar } from "@/lib/traffic-bar";
 import { usePickLanded } from "@/hooks/use-pick-landed";
@@ -60,9 +61,10 @@ export function TripChoiceCards({
   /** What the rider said works for this trip, with a way to change it. */
   access?: { label: string; onChange: () => void } | null;
   /** Re-runs the checks that failed. */
-  onRetry?: () => void;
+  onRetry?: () => void | Promise<void>;
 }) {
   // Once Nalu has a pick, it lifts a little and the other ready rows soften.
+  const [retrying, setRetrying] = useState(false);
   const hasPick = !commitment && choices.some((c) => c.pick && c.status === "ready");
   usePickLanded(hasPick ? (choices.find((c) => c.pick)?.key ?? null) : null);
   return (
@@ -181,10 +183,18 @@ export function TripChoiceCards({
       {onRetry && !commitment && choices.some((c) => c.failed && c.status === "empty") && (
         <button
           type="button"
-          onClick={onRetry}
-          className="nalu-value-in inline-flex min-h-11 items-center gap-2 justify-self-start rounded-full px-3 text-sm font-semibold text-primary transition-transform duration-100 active:scale-[0.97] motion-reduce:active:scale-100"
+          disabled={retrying}
+          onClick={async () => {
+            setRetrying(true);
+            try {
+              await onRetry();
+            } finally {
+              setRetrying(false);
+            }
+          }}
+          className="nalu-value-in inline-flex min-h-11 items-center gap-2 justify-self-start rounded-full px-3 text-sm font-semibold text-primary transition-transform duration-100 active:scale-[0.97] disabled:opacity-60 motion-reduce:active:scale-100"
         >
-          <RefreshCw aria-hidden="true" className="size-4" />
+          <RefreshCw aria-hidden="true" className={`size-4 ${retrying ? "animate-spin" : ""}`} />
           Try again
         </button>
       )}
