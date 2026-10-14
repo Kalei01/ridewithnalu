@@ -16,6 +16,13 @@ Last updated: 2026-10-14 (home redesign preview ready). Keep ≤ 60 lines; see R
 - Switched Oct 14 (8e78842): "/" and /welcome render HomeLanding. Live check OK: fresh visit gets the new page (h1, FAQ, guide links, canonical, JSON-LD server-rendered), Downtown chip → trip question → Drive/Skyline/Bus rows, returning visitor → app, 0 page errors. Speed on "/": LCP 1.25 s (old "/" 1.13–1.62 s today), CLS 0, 565 KB script (+~20 KB).
 - Home redesign: next step — on or after Oct 21, 2026 remove `/welcome-classic` (src/routes/welcome-classic.tsx), `src/components/welcome/` (WelcomeLanding, WelcomeScene, M2 css) and its PUBLIC_PAGES / public-paths.test entries; /home-preview can go too (keep /welcome).
 
+## Browse redesign (Oct 14, Sonnet build session) — LIVE
+- Browse (BrowseScreen.tsx) now uses the home look: shared `Waves` (src/components/home/Waves.tsx), `.nh-*` classes in home.css (new `.nh-stop`), search field, chips, island-style map card, `nh-card` cards, live-dot on "H-1 live". No data or logic changed.
+- Per Josh's Oct 14 rule, removed walk-minute and "Drive about N min" estimates (and Tight/miss hints); straight-line distance shows instead. `browseWalkMinutes` still gates the feeder-bus pills (known exception; transit-accuracy low).
+- Removed the "H-1 is delayed…" sentence from the Skyline card (duplicate of the H-1 card).
+- Live check 390×844 dark/light/reduced motion: Skyline departures + bus stop times show, 0 page errors, no sideways scroll. Shots: `docs/experience/browse-redesign/` (before-/after-); script `scripts/diag/browse-shots.mjs`.
+- Reviewers: transit-accuracy (no high/med), mobile-design (no high; mediums: nearby-stop row has no scroll cue, H-1 header wraps when delayed). nalu-performance and security-keys not run (CSS/markup only; no server or key changes); no speed numbers taken.
+
 ## Don't touch
 - Planner/verdict logic, timeouts, database (main session). Guide pages' focus (SEO agent).
 

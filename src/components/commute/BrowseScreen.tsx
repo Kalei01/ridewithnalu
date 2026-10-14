@@ -191,11 +191,6 @@ export function BrowseScreen(props: BrowseScreenProps) {
     eastboundTrafficFailed ||
     westboundTrafficFailed ||
     (!trafficLoading && (!eastboundTraffic || !westboundTraffic));
-  const h1HasMeaningfulDelay =
-    !trafficUnavailable &&
-    !trafficLoading &&
-    Math.max(eastboundTraffic?.delayMinutes ?? 0, westboundTraffic?.delayMinutes ?? 0) > 10;
-
   const profileName = profileFirstName(user);
   return (
     <main className="nh min-h-dvh overflow-x-clip text-foreground">
@@ -750,12 +745,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
                   HOLO fare {HOLO_FARES.singleRide} · free TheBus–Skyline transfers for{" "}
                   {HOLO_FARES.transferWindowHours} hours
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Scheduled times · TheBus / DTS
-                  {h1HasMeaningfulDelay
-                    ? " · H-1 is delayed, so Skyline may be especially useful"
-                    : ""}
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Scheduled times · TheBus / DTS</p>
               </section>
             )}
 
