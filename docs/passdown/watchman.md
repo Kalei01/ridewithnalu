@@ -1,11 +1,12 @@
 # Passdown — Daily Watchman + Triage (weekdays 6:13 AM HST)
-Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
+Last updated: 2026-10-14 (Skyline cap fix build session).
 
 ## Watching
 - **Skyline "No Skyline trip" on the first rush-hour try, Kapolei → downtown** (OPEN since Oct 7; alerts.md). Phase 2 went live Oct 13 ~2:30 PM (trip search now one server request). Keep running the SILENT FAILURES check and the 60 s retry; log "seen again" lines, don't re-investigate.
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
+- **Skyline cap fix live Oct 13 ~6:55 PM (ae30373).** Confirm Kapolei → downtown at rush hour: Skyline row on the FIRST try, on the default path and once on `?plan=phone`. If it shows, close the Skyline alert in alerts.md. If it says "No Skyline trip", log "seen again" and escalate to MAIN (inbox.md). A Skyline trip slower than the bus is expected: the row shows its best trip, and the bus can still be the pick.
 - Phase 2 is live: confirm Kapolei → downtown at rush hour on the default (server) path — Skyline on the first try, rows-ready time, no "no Skyline trip". Report rows-ready vs the phone path (`?plan=phone`) once. If trips break, rollback is `SERVER_TRIP_PLAN = false` (src/lib/trip-plan-client.ts) — 🟢 revert, then report.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)

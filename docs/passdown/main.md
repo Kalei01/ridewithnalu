@@ -1,6 +1,6 @@
 # Nalu — main passdown (everyone)
 
-Read first, every session. Rules for keeping it current and small: `docs/passdown/README.md`. Each scheduled agent also has its own file in this folder. Last updated: 2026-10-14 (Lovable cleanup).
+Read first, every session. Rules for keeping it current and small: `docs/passdown/README.md`. Each scheduled agent also has its own file in this folder. Last updated: 2026-10-14 (Skyline cap fix).
 
 ## Owner and ground rules
 - Josh, not a developer: plain English, real evidence only, never invent numbers.
@@ -17,7 +17,7 @@ Read first, every session. Rules for keeping it current and small: `docs/passdow
 | Item | Owner / where | State |
 |---|---|---|
 | Drive ETA looks ~10 min long (Josh, Mon Oct 12: Nalu 43 vs Google/Apple 31–33) | Closed (finding only) | NO bug. Live 7:23 AM HST Home→Merchant St: 41 min live / 43 typical, 34.2 km, normal Fort Weaver→H-1 East→Nimitz route, no padding, no heading sent; TomTom's own estimate is just higher than Google's. Josh trimmed scope: no alert, no options, no Tuesday repeats. No code changed. Re-check script: `scripts/diag/drive-eta-check.mjs`. |
-| Skyline row says "No Skyline trip" (Kapolei → downtown, afternoons too) | ROOT CAUSE FOUND Oct 13, NOT fixed (🔴 planner logic) | The 8-option cap in `mergeTransitOptionsWith` (commute-model.tsx:145) drops every drive+Skyline trip when 7+ plain bus options exist; not the split/cleanup commits. Fix = reserve a slot for the best Skyline trip + test; needs an Opus session. Evidence and replay in `docs/maintenance/alerts.md`. Riders still affected. |
+| Skyline row says "No Skyline trip" (Kapolei → downtown, afternoons too) | FIX LIVE Oct 13 ~6:55 PM HST (916b4e2 + ae30373) | The 8-option cap no longer drops every Skyline trip: each row keeps its best trip on top of the 8, and Arrive By paging ignores that extra trip. Replay: only the 3 wrongly empty Kapolei rows changed. Alert stays OPEN until the Watchman's weekday rush-hour first try shows Skyline. Premium M1 etc. no longer wait on this. |
 | Station names in the app (English + Hawaiian smaller/muted underneath) | Session "NALU — Skyline station names in app (Sonnet)"; branch `wip/station-names` | Shipped to `cloudflare` (see git log "Merge station names"); live since e3a3638; Skyline was closed at check time, so the two-line names still need a look on a daytime Skyline trip. Follow-up: guide/SEO pages use the same names (`docs/seo/backlog.md`). |
 | Fix plan (Phases 0–5) | `docs/architecture/fix-plan.md` | Approved Oct 11. Phase 0 DONE Oct 11 (f6f9204: combined search off; 2b0ecfd: Lovable no-ops removed; left for Josh: Lovable fallbacks in `docs/maintenance/autofix-log.md`); Phase 1 DONE Oct 12 (recording, no repro; fold into Phase 2); Phase 2 LIVE Oct 13 (e9daeec, switch ON; result + follow-ups in fix-plan.md). Lovable cleanup DONE Oct 14. Phase 3 started Oct 14: Browse screen + 6 Commute sections moved (pure moves), index.tsx ~4,490 lines; next session moves the hook/state code — see `docs/architecture/index-split.md`. |
 | Trust & authority pages (About, How Nalu decides, footer, listings) | After Phase 2 | Moved by Josh's plan approval; Sonnet build + one Opus check of the About page. Brief in `docs/seo/backlog.md`. |

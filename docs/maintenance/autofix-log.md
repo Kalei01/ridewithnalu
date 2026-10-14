@@ -17,6 +17,15 @@ Entry format:
 
 ---
 
+### 2026-10-13 ~7:00 PM HST — Skyline row kept through the 8-option cap (P1 "No Skyline trip")
+- Class: 🟡 — planner logic, ordered by NALU MAIN (P1 build session); extra validation below
+- Issue: Skyline row said "No Skyline trip that makes sense right now" while drive + Skyline trips existed (alerts.md, Oct 7 alert; root cause from the Oct 13 triage).
+- Root cause: `mergeTransitOptionsWith` (src/lib/commute-model.tsx) kept 7 plain trips + 1 extra-transfer trip; with 7+ plain bus trips every drive + Skyline trip (tagged extra-transfer) fell off.
+- Fix: after the same cap, a row (Skyline / Bus) with no trip left gets its best trip back in the planner's own order (plain by arrival, then tagged by arrival), added on top of the 8 and marked `rowSlot`; nothing kept is dropped. Arrive By paging ignores `rowSlot` trips when deciding where a page ends (else it stopped early: reviewer finding, ae30373). Scoring, tags and filters unchanged; the verdict changes only where a row was wrongly empty (in Arrive By a recovered trip can be the pick when it leaves latest and makes the target). Test `src/lib/skyline-row-slot.test.ts` with real answers (`src/lib/fixtures/skyline-cap-kapolei-1630.json`); replay harness `scripts/diag/skyline-slot.proof.ts`.
+- Validation: new tests fail before, pass after (cap: 4/4; Arrive By paging: picked the 5:10 bus instead of 6:50); 649 tests, typecheck, build. Replay of real database answers (captured 6:40 PM HST) for 20 trips (Phase 2 fixed set + 4–6:30 PM windows): only Kapolei → downtown 4:00, 4:30, 6:30 PM (car) changed, Skyline row empty → Drive to Keoneʻae → Skyline → bus; 17 others identical. transit-accuracy APPROVE (after one High, Arrive By paging, fixed in ae30373); security-keys PASS. Live ae30373, 6:56 PM HST, default and `?plan=phone`: Kapolei → downtown and ʻEwa Beach → Merchant St show a Skyline row; Airport → Waikīkī (No driving) unchanged; no page errors.
+- Confidence: high
+- Rollback: git revert ae30373 916b4e2 (fix forward preferred)
+
 ### 2026-10-14 HST — Phase 0c: Lovable leftovers removed (one cleanup)
 - Class: 🟡 — Josh's Oct 11 instruction; keys confirmed set in Cloudflare
 - Issue: Lovable fallbacks left after the move to Cloudflare (Phase 0b KEPT list).
