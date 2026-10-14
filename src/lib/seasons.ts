@@ -61,7 +61,7 @@ export const SEASONS: Season[] = [
     motif: PUMPKIN_MOTIF,
     greetings: [
       "Happy Halloween from Nalu.",
-      "Halloween week. Give the little ones extra room on the road.",
+      "Halloween time. Give the little ones extra room on the road.",
       "Spooky season on Oʻahu. Nalu is watching the traffic, not the ghosts.",
     ],
     afterGreetings: ["Hope the candy haul was a good one."],

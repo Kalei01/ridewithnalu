@@ -120,3 +120,4 @@ Add-ons (lead):
 - M16 DONE (2026-10-14, bd07731; live check pending) Station names: the Hawaiian name fades in under the English one (direction.md format).
 - M17 DONE (2026-10-14, 6bfb6be; live check pending) "Can't check" states: a calm icon with a gentle fade, never a shake or red flash; a retry button with a press response.
 - M18 DONE (2026-10-14, 4dc9346; live check pending) Android haptic tick when the pick lands (navigator.vibrate, off when reduced motion is on; iOS has no web haptics, so skip it there).
+- TODO (2026-10-14, from seasonal review) Greeting pill: reserve its space or render it server-side so the heading doesn't jump ~52 px during season dates; enlarge Settings 'Seasonal touches' switch tap target / move it somewhere easier to find.
