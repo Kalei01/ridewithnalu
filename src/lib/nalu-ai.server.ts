@@ -16,21 +16,11 @@ export class AiGatewayError extends Error {
 }
 
 function model() {
-  // Portable: a standard OPENAI_API_KEY (e.g. self-hosted on Cloudflare) wins; otherwise the
-  // hosted gateway is used. OPENAI_MODEL optionally overrides the model name.
+  // OPENAI_API_KEY is required; OPENAI_MODEL optionally overrides the model name.
   const openaiKey = process.env["OPENAI_API_KEY"];
-  if (openaiKey) {
-    const openai = createOpenAI({ apiKey: openaiKey, baseURL: process.env["OPENAI_BASE_URL"] ?? "https://api.openai.com/v1" });
-    return openai.responses(process.env["OPENAI_MODEL"] ?? "gpt-5-mini");
-  }
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) throw new AiGatewayError("AI is not configured yet.", 401);
-  const lovable = createOpenAI({
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    apiKey: key,
-    headers: { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-  });
-  return lovable.responses("openai/gpt-6-astra");
+  if (!openaiKey) throw new AiGatewayError("AI is not configured yet.", 401);
+  const openai = createOpenAI({ apiKey: openaiKey, baseURL: process.env["OPENAI_BASE_URL"] ?? "https://api.openai.com/v1" });
+  return openai.responses(process.env["OPENAI_MODEL"] ?? "gpt-5-mini");
 }
 
 const reasoning = {

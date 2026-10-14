@@ -7,8 +7,6 @@ export const PUSH_CATEGORIES = [
 ] as const;
 export type PushCategory = (typeof PUSH_CATEGORIES)[number];
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/firebase_messaging";
-
 function honoluluMinutes(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Pacific/Honolulu",
@@ -77,27 +75,11 @@ export async function sendToSubscription(
     },
   };
 
-  // A self-hosted deploy sends straight to Firebase with its own service
-  // account; otherwise use the hosted connector gateway.
+  // Sends straight to Firebase with Nalu's own service account.
   const { readServiceAccount, sendFcmDirect } = await import("@/lib/fcm-direct.server");
   const serviceAccount = readServiceAccount();
-  let response: Response;
-  if (serviceAccount) {
-    response = await sendFcmDirect(serviceAccount, payload);
-  } else {
-    const lovableKey = process.env["LOVABLE_API_KEY"];
-    const connectionKey = process.env["FIREBASE_MESSAGING_API_KEY"];
-    if (!lovableKey || !connectionKey) throw new Error("Push notifications are not configured.");
-    response = await fetch(`${GATEWAY_URL}/v1/projects/_/messages:send`, { signal: AbortSignal.timeout(8000),
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": connectionKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-  }
+  if (!serviceAccount) throw new Error("Push notifications are not configured.");
+  const response = await sendFcmDirect(serviceAccount, payload);
   if (response.ok) return "sent";
   const body = await response.text();
   console.error(`FCM send failed [${response.status}]: ${body}`);
