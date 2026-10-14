@@ -38,7 +38,7 @@ export function LiveStrip() {
   const items = useMemo(() => (data ? stripItems(data, seconds) : []), [data, seconds]);
   const line = data ? homeLineFor(data, seconds) : null;
   const card =
-    "nh-fade-in flex h-[6.5rem] w-[15.5rem] shrink-0 flex-col justify-center rounded-2xl bg-white/[0.045] px-4";
+    "nh-fade-in flex h-[8.5rem] shrink-0 flex-col justify-center rounded-2xl bg-white/[0.045] px-4";
   return (
     <section aria-labelledby="right-now" className="mt-7">
       <div className="flex items-center justify-between gap-3">
@@ -64,23 +64,26 @@ export function LiveStrip() {
       <ul className="nh-rail-scroll mt-3" aria-live="polite">
         {isLoading &&
           [0, 1].map((row) => (
-            <li key={row} className={`${card} gap-3`} aria-hidden="true">
+            <li key={row} className={`${card} w-[15.5rem] gap-3`} aria-hidden="true">
               <span className="nh-skeleton h-5 w-20" />
               <span className="nh-skeleton h-4 w-full" />
             </li>
           ))}
         {line && (
-          <li key={line} className={`${card} border border-[var(--color-recommended)]/25`}>
+          <li
+            key={line}
+            className={`${card} w-[18.5rem] border border-[var(--color-recommended)]/25`}
+          >
             <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--color-recommended)]">
               Nalu says
             </span>
-            <span className="mt-1 text-base font-semibold leading-6">{line}</span>
+            <span className="mt-1 line-clamp-4 text-[0.95rem] font-semibold leading-6">{line}</span>
           </li>
         )}
         {items.map((item) => {
           const Icon = ICONS[item.id];
           return (
-            <li key={item.id} className={card}>
+            <li key={item.id} className={`${card} w-[15.5rem]`}>
               <span className="flex items-center gap-1.5 text-sm font-bold">
                 <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                 {item.label}

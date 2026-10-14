@@ -16,7 +16,7 @@ type View = [number, number, number, number];
 
 const FULL_VIEW: View = [0, 0, OAHU_VIEW.width, OAHU_VIEW.height];
 /** The south shore, Kapolei to Waikīkī: where the race happens (same shape as the full view). */
-const RACE_VIEW: View = [165, 255, 260, 206];
+const RACE_VIEW: View = [148, 250, 294, 233];
 /** The whole real trip plays in this long. */
 const RACE_MS = 8_000;
 
