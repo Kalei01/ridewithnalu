@@ -38,7 +38,7 @@ export type SkylineMapLabel = {
 export type SkylineMapView = { x: number; y: number; w: number; h: number };
 
 /** Leeward and south shore, framing the whole line without empty sea. */
-export const SKYLINE_LINE_VIEW: SkylineMapView = { x: 20, y: 160, w: 560, h: 310 };
+export const SKYLINE_LINE_VIEW: SkylineMapView = { x: 198, y: 300, w: 196, h: 100 };
 
 export function SkylineMap({
   pins,
@@ -55,7 +55,7 @@ export function SkylineMap({
   /** Small muted name tags, like the two ends of the line. */
   labels?: SkylineMapLabel[];
 }) {
-  const k = (view.w / 205) * 0.7;
+  const k = (view.w / 205) * 0.95;
   const uid = useId().replace(/:/g, "");
   const byId = new Map(SKYLINE_STATIONS.map((s) => [s.id, s]));
   const pinIds = new Set(pins.map((p) => p.id));

@@ -123,3 +123,5 @@ Add-ons (lead):
 - TODO (2026-10-14, from seasonal review) Greeting pill: reserve its space or render it server-side so the heading doesn't jump ~52 px during season dates; enlarge Settings 'Seasonal touches' switch tap target / move it somewhere easier to find.
 
 - 2026-10-15 · Skyline parking guide preview built (Build 1 of 2): /guides/skyline-park-and-ride-preview (noindex). Lot cards with blue glow, static SVG map (SkylineMap, reusable), which-lot rows, compact times table, Try-trip card. Real page untouched. Entry: Josh approves before any switch.
+
+- 2026-10-15 · Skyline parking guide redesign (Josh approved, zoomed map) SWITCHED LIVE at /guides/skyline-park-and-ride; preview route deleted; head unchanged.
