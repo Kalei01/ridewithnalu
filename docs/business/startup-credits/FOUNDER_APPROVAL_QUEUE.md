@@ -8,6 +8,6 @@ Updated 2026-10-15 (run 3). I send nothing; you send each draft yourself.
 4. Tell me Nalu's start month/year. Google needs "founded within 24 months"; Cloudflare 10 years.
 5. Do you have, or in the last 31 days had, a paid Google Workspace on ridenalu.com? Google's Start tier excludes it.
 6. Google: only an automated reply so far. I will not follow up before 2026-10-22. Note: Google's form wants a business email on the same domain as your website (@ridenalu.com) and a billing account ID. Also, credits only work on Google Cloud, which Nalu does not use, so applying is optional.
-7. Heads-up, not credits: Supabase paused project ridewithnalu-42d6da (2026-10-11). Check the app works.
+7. Resolved (MAIN, Oct 14 HST): the paused Supabase project ridewithnalu-42d6da is not the one Nalu uses (live app runs on nsoameosqsnumjivkmyv; health check all OK). Nothing to do.
 8. Optional, free: Anthropic startups newsletter (claude.com/programs/startups); Hawaiʻi SBDC advising (hisbdc.org).
 9. Do not incorporate, pay for a DBA (~$51), or pay Apple ($99) yet.
