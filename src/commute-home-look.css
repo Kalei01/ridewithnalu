@@ -97,8 +97,6 @@ main.nh-commute section[aria-labelledby="trip-access-title"][aria-labelledby] {
   background:
     radial-gradient(80% 60% at 50% 45%, rgb(10 132 255 / 12%), transparent 70%),
     linear-gradient(180deg, var(--nh-sea-2), var(--nh-sea)) !important;
-  box-shadow:
-    0 0 0 1px rgb(10 132 255 / 22%),
-    0 0 30px 0 rgb(10 132 255 / 28%),
-    0 26px 64px -20px rgb(10 132 255 / 38%) !important;
+  /* Same level as the Browse map (.nh-island-card). */
+  box-shadow: 0 30px 60px -30px rgb(10 132 255 / 35%) !important;
 }
