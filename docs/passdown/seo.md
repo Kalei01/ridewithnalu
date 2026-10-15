@@ -8,6 +8,7 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 - Rush-hour section waits on reading TomTom's Honolulu figures from the source.
 
 ## Waiting / follow-ups
+- HOLD (NALU MAIN, Oct 15): a Sonnet build is redesigning ALL guide pages (3 batches over hours/days). Do NOT edit guide page bodies until docs/passdown/inbox.md says the redesign is finished. Titles/meta and research are fine. Answer-first for ʻEwa, Mililani, airport, UH: check after the redesign, since Kapolei's work was folded in.
 - Oct 15 (MAIN, Josh's ask): both Skyline guides redesigned and LIVE (parking 954df78, rail 281036d): map, lot/area cards, What-to-know strip; titles, descriptions, FAQ and section ids unchanged. Note this when reading the Nov 11 CTR/position check.
 - Oct 14: titles/snippets and station names shipped for rail, parking, late-night guides. Next: station names on remaining guides; recheck rail table at 390px; compare CTR Nov 11.
 - Skyline station names changed in the app (English first, Hawaiian second; table in `docs/product/direction.md`). Update guide pages to match once the app change is live — check main.md.
