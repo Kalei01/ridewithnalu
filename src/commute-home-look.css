@@ -92,5 +92,8 @@ main.nh-commute section[aria-labelledby="trip-map-title"] {
   background:
     radial-gradient(80% 60% at 50% 45%, rgb(10 132 255 / 12%), transparent 70%),
     linear-gradient(180deg, var(--nh-sea-2), var(--nh-sea)) !important;
-  box-shadow: 0 30px 60px -30px rgb(10 132 255 / 35%) !important;
+  box-shadow:
+    0 0 0 1px rgb(10 132 255 / 30%),
+    0 0 36px 2px rgb(10 132 255 / 38%),
+    0 28px 70px -18px rgb(10 132 255 / 50%) !important;
 }
