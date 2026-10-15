@@ -1,0 +1,79 @@
+/* Redesigned Skyline parking guide (preview): home-look cards with a soft blue glow. CSS only. */
+.sg {
+  background: transparent;
+}
+.sg-card {
+  position: relative;
+  border-radius: 1.25rem;
+  border: 1px solid rgb(125 196 255 / 14%);
+  background:
+    radial-gradient(90% 70% at 50% 0%, rgb(10 132 255 / 9%), transparent 70%),
+    var(--nh-card);
+  box-shadow:
+    0 18px 40px -26px rgb(10 132 255 / 45%),
+    inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+.sg-map {
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid rgb(125 196 255 / 14%);
+  background:
+    radial-gradient(80% 60% at 50% 45%, rgb(10 132 255 / 12%), transparent 70%),
+    linear-gradient(180deg, var(--nh-sea-2), var(--nh-sea));
+  box-shadow: 0 24px 50px -30px rgb(10 132 255 / 40%);
+}
+.sg-num {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgb(10 132 255 / 35%);
+  border: 1px solid rgb(125 196 255 / 55%);
+}
+.sg-stalls {
+  font-size: 2.5rem;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-foreground);
+}
+.sg-pill {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 0.7rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+  border: 1px solid var(--nh-line);
+}
+.sg-pill--yes {
+  color: #8df0a8;
+  background: rgb(48 209 88 / 12%);
+  border-color: rgb(48 209 88 / 35%);
+}
+.sg-pill--no {
+  color: rgb(235 235 245 / 75%);
+  background: rgb(255 255 255 / 5%);
+}
+.sg-pill--warn {
+  color: oklch(0.85 0.13 75);
+  background: rgb(255 159 10 / 12%);
+  border-color: rgb(255 159 10 / 35%);
+}
+.sg-grid th,
+.sg-grid td {
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sg-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+}

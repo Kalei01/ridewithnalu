@@ -1,0 +1,30 @@
+/* SkylineMap: static svg picture of the line. Tokens (--nh-*) come from a .nh ancestor. */
+.sk-map {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.sk-dot {
+  fill: #06121f;
+  stroke: rgb(125 196 255 / 70%);
+  stroke-width: 0.9;
+}
+.sk-pin-halo {
+  fill: rgb(10 132 255 / 22%);
+  stroke: rgb(125 196 255 / 45%);
+  stroke-width: 0.6;
+}
+.sk-pin {
+  fill: #fff;
+  stroke: var(--nh-car, #0a84ff);
+  stroke-width: 1.6;
+}
+.sk-mark {
+  fill: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: #06121f;
+  stroke-width: 2.2px;
+  stroke-linejoin: round;
+}

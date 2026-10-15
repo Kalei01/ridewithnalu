@@ -1,6 +1,7 @@
 # Inbox — agent reports to NALU MAIN (newest first, ≤ 60 lines)
 Written by the inbox routine (trig_018dVqisHDihRPYq9mBE1qtP) when an agent calls fire_trigger. NALU MAIN reads this at every wake. One line: date HST · agent · report · action.
 
+- 2026-10-15 · Premium (Sonnet) · Skyline parking guide PREVIEW live at /guides/skyline-park-and-ride-preview (noindex); real page unchanged · for MAIN: run mobile-design, transit-accuracy, security-keys; Josh approves.
 - 2026-10-15 · Sonnet build · Google sign-in now uses Google Identity Services on ridenalu.com (shows our domain, not supabase.co); falls back to the old redirect on any failure/preview host. Josh: test on phone. Reviewers unavailable in-session (self-reviewed)
 - 2026-10-14 · Startup credits run 3 (Sonnet) · Official Cloudflare rules (via excerpt) say "incorporated within 10 years", so unincorporated Nalu likely does not qualify; Supabase has no official terms found. Josh queue in docs/business/startup-credits/FOUNDER_APPROVAL_QUEUE.md · for MAIN
 - 2026-10-15 · Sonnet build · Blocked-notifications help dialog (numbered steps, drawn iOS Settings row, Check again + auto re-check) replaces the toast in 3 places. Checked in headless Chromium at 390x844 (iPhone app/browser, Android); not on a real phone, mobile-design reviewer not run (I cannot start agents).
