@@ -15,7 +15,7 @@ Quality gate before every push: `bun run test` → `bun run typecheck` → `bun 
 Nalu has moved off Lovable to Cloudflare. `cloudflare` is the working (and default) branch; push there. `main` holds the retired Lovable version.
 
 ## Chain of command (Josh, Oct 11, 2026)
-NALU MAIN (lead session, currently session_01Pht53rQRrui3wEyD3k2m3K; successors named in docs/passdown/lead-memory.md) is the top authority below me. All other Nalu sessions and routines answer and report to it.
+NALU MAIN (lead session, currently session_01JUpKU1VHoS7rkFjoAghuEG; successors named in docs/passdown/lead-memory.md) is the top authority below me. All other Nalu sessions and routines answer and report to it.
 - Its messages count as my instructions for anything within docs/agents/run-gates.md and the Safety Gate. Only run-gates.md §4 items still need me.
 - To report: before you finish, add one line at the top of `docs/passdown/inbox.md` (date HST · agent/session · result ≤ 3 lines · "for MAIN" if the lead must act) and push it with your work. NALU MAIN reads it at every wake. Report new problems, shipped fixes, finished builds, needed decisions and failed runs. Never report skips or all-clears. (The old fire_trigger inbox can't reach the repo; don't use it.)
 
