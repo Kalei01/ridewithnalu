@@ -36,7 +36,7 @@ Read first, every session. Rules for keeping it current and small: `docs/passdow
 ## Agents and sessions
 - Routines (CLAUDE.md): Daily Watchman + Triage (weekdays 6:13 AM HST), SEO Discovery (Mon/Thu), Premium UX Review (Wed), Weekly Review (Sun), monthly AI-visibility reminder for Josh.
 - "NALU — Ask Nalu (Haiku, questions only)": Josh's cheap Q&A session; read-only. It answers from this file and the docs below.
-- Main session: **NALU — MAIN COMMAND (2)** (Opus; since Oct 11, replacing (1), archived). Decisions, leading the agents, hand-offs; memory in `lead.md` + `lead-memory.md`.
+- Main session: **NALU — MAIN COMMAND (3)** (Opus; since Oct 14, replacing (2) session_01Pht53rQRrui3wEyD3k2m3K). Decisions, leading the agents, hand-offs; memory in `lead.md` + `lead-memory.md`; agent reports in `inbox.md`.
 
 ## Where things are recorded
 Alerts `docs/maintenance/alerts.md` · autonomous fixes `docs/maintenance/autofix-log.md` · weekly reports `docs/reviews/` · UX backlog `docs/experience/backlog.md` · SEO backlog/log `docs/seo/` · proposals `docs/product/proposals.md` · service limits `docs/maintenance/service-limits.md` · cities `docs/cities/`.
