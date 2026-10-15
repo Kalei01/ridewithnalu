@@ -28,14 +28,23 @@ export type StatItem = {
  * "What to know" strip or a minutes grid: a few big figures with labels,
  * two to a row on a phone, three to a row on wider screens.
  */
-export function StatTiles({ items, label }: { items: StatItem[]; label: string }) {
+export function StatTiles({
+  items,
+  label,
+  uniform = false,
+}: {
+  items: StatItem[];
+  label: string;
+  /** Give every label the same height so a grid of tiles lines up. */
+  uniform?: boolean;
+}) {
   return (
     <section aria-label={label}>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {items.map((item, i) => (
           <li
             key={i}
-            className={`sg-card flex flex-col justify-between gap-1 p-4 ${
+            className={`sg-card flex flex-col gap-1 p-4 ${
               items.length % 2 === 1 && i === items.length - 1 ? "col-span-2 sm:col-span-1" : ""
             }`}
           >
@@ -48,7 +57,9 @@ export function StatTiles({ items, label }: { items: StatItem[]; label: string }
                 <span className="text-base font-semibold text-foreground">{item.unit}</span>
               )}
             </span>
-            <span className="text-base leading-6 text-foreground">{item.label}</span>
+            <span className={`text-base leading-6 text-foreground ${uniform ? "min-h-12" : ""}`}>
+              {item.label}
+            </span>
             {item.note && (
               <span className="text-sm leading-5 text-muted-foreground">{item.note}</span>
             )}
@@ -115,12 +126,15 @@ export function GuideMap({
   pins,
   title,
   caption,
+  legend,
   view,
   showAllStations = true,
 }: {
   pins: SkylineMapPin[];
   title: string;
   caption: string;
+  /** Full station names for pins 1, 2, 3 ... in order, shown under the map. */
+  legend?: string[];
   view?: SkylineMapView;
   showAllStations?: boolean;
 }) {
@@ -133,6 +147,18 @@ export function GuideMap({
         {...(view ? { view } : {})}
       />
       <figcaption className="sr-only">{caption}</figcaption>
+      {legend && (
+        <ol className="grid gap-1.5 px-4 pb-4 text-base leading-6 text-foreground">
+          {legend.map((name, i) => (
+            <li key={name} className="flex items-center gap-2.5">
+              <span className="sg-num !h-6 !min-w-6 !text-sm" aria-hidden="true">
+                {i + 1}
+              </span>
+              <span>{name}</span>
+            </li>
+          ))}
+        </ol>
+      )}
     </figure>
   );
 }

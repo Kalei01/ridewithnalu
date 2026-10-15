@@ -41,9 +41,9 @@ export const Route = createFileRoute("/guides/kapolei-to-downtown")({
 });
 
 const PINS: SkylineMapPin[] = [
-  { id: "10047", mark: "East Kapolei", dx: -8, dy: 14, anchor: "start" },
-  { id: "10031", mark: "Lagoon Drive", dx: -4, dy: -9 },
-  { id: "10030", mark: "Kalihi", dx: 6, dy: 14 },
+  { id: "10047", mark: "1", dx: -8, dy: 4, anchor: "end" },
+  { id: "10031", mark: "2", dx: -2, dy: -8 },
+  { id: "10030", mark: "3", dx: 4, dy: 15 },
 ];
 
 function KapoleiGuidePage() {
@@ -55,11 +55,13 @@ function KapoleiGuidePage() {
           label="What to know"
           items={[
             {
+              prefix: "About",
               value: "32",
               unit: "min",
               label: "Skyline, East Kapolei (Kualakaʻi) to Lagoon Drive (Ahua)",
             },
             {
+              prefix: "About",
               value: "55 to 60",
               unit: "min",
               label: "On board to downtown, Skyline plus a bus",
@@ -94,13 +96,6 @@ function KapoleiGuidePage() {
         <OptionCards
           options={[
             {
-              title: "Skyline plus the A Line",
-              big: "55 to 60",
-              unit: "min on board",
-              detail:
-                "About 55 to 60 minutes on board from East Kapolei to King and Bishop streets, plus wait and walk.",
-            },
-            {
               title: "CountryExpress C",
               big: "40 to 45",
               unit: "min",
@@ -133,8 +128,13 @@ function KapoleiGuidePage() {
       <GuideSection id="rail" title="Kapolei to Honolulu by train and bus">
         <GuideMap
           pins={PINS}
-          title="Map of Skyline's line with East Kapolei, Lagoon Drive and Kalihi Transit Center marked."
-          caption="Skyline runs from East Kapolei to Kalihi Transit Center; Lagoon Drive is where the A Line and W Line connect."
+          title="Map of Skyline's line with East Kapolei (Kualakaʻi), Lagoon Drive (Ahua) and Kalihi Transit Center (Kahauiki) marked 1 to 3."
+          caption="Skyline runs from East Kapolei to Kalihi Transit Center; the A Line and W Line both start from Lagoon Drive."
+          legend={[
+            "East Kapolei (Kualakaʻi)",
+            "Lagoon Drive (Ahua)",
+            "Kalihi Transit Center (Kahauiki)",
+          ]}
         />
         <p>Scheduled times from TheBus's official timetable (October 2026):</p>
         <GuideList

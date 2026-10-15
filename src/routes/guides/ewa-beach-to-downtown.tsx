@@ -37,9 +37,9 @@ export const Route = createFileRoute("/guides/ewa-beach-to-downtown")({
 });
 
 const PINS: SkylineMapPin[] = [
-  { id: "10046", mark: "UH West Oʻahu", dx: -8, dy: 14, anchor: "start" },
-  { id: "10044", mark: "West Loch", dx: -3, dy: 13, anchor: "end" },
-  { id: "10043", mark: "Waipahu TC", dx: 0, dy: -8 },
+  { id: "10046", mark: "1", dx: -8, dy: 4, anchor: "end" },
+  { id: "10044", mark: "2", dx: 2, dy: 14 },
+  { id: "10043", mark: "3", dx: 0, dy: -8 },
 ];
 
 function EwaGuidePage() {
@@ -51,10 +51,11 @@ function EwaGuidePage() {
           label="What to know"
           items={[
             {
+              prefix: "About",
               value: "43",
               unit: "min",
-              label: "Route 47 from Fort Weaver Road to UH West Oʻahu (Keoneʻae), then Skyline",
-              note: "Train from there to Lagoon Drive (Ahua): about 30 minutes.",
+              label: "Route 47 to UH West Oʻahu (Keoneʻae)",
+              note: "The bus leg only, from Fort Weaver Road; then Skyline. The train from there to Lagoon Drive (Ahua) is about 30 minutes.",
             },
             {
               value: "$3.00",
@@ -90,8 +91,7 @@ function EwaGuidePage() {
             {
               title: "91 ʻEwa Beach Express",
               big: "1 hr 5 min to 1 hr 20 min",
-              detail:
-                "Weekdays, morning trips about 4:20 to 7:10 AM; afternoon return. Scheduled ride to downtown: about 1 hr 5 min to 1 hr 20 min.",
+              detail: "Weekdays, morning trips about 4:20 to 7:10 AM; afternoon return.",
             },
             {
               title: "91A ʻEwa Gentry Express",
@@ -101,14 +101,12 @@ function EwaGuidePage() {
             {
               title: "CountryExpress E",
               big: "1 hr to 1 hr 20 min",
-              detail:
-                "Every day; about every 30 minutes on weekdays, about hourly on Sundays. Scheduled ride to downtown: about 1 hr to 1 hr 20 min.",
+              detail: "Every day; about every 30 minutes on weekdays, about hourly on Sundays.",
             },
             {
               title: "Route 42",
               big: "1 hr 40 min to 2 hr 10 min",
-              detail:
-                "Every day, into the night. Scheduled ride to downtown: about 1 hr 40 min to 2 hr 10 min.",
+              detail: "Every day, into the night.",
             },
           ]}
         />
@@ -121,8 +119,13 @@ function EwaGuidePage() {
       <GuideSection id="rail" title="ʻEwa Beach to Honolulu by train: bus to Skyline">
         <GuideMap
           pins={PINS}
-          title="Map of Skyline's line with UH West Oʻahu, West Loch and Waipahu Transit Center marked: the three stations a short bus ride from ʻEwa Beach."
+          title="Map of Skyline's line with UH West Oʻahu (Keoneʻae), West Loch (Hōʻaeʻae) and Waipahu Transit Center (Pouhala) marked 1 to 3: the three stations a short bus ride from ʻEwa Beach."
           caption="The three Skyline stations reached by bus from ʻEwa Beach."
+          legend={[
+            "UH West Oʻahu (Keoneʻae)",
+            "West Loch (Hōʻaeʻae)",
+            "Waipahu Transit Center (Pouhala)",
+          ]}
         />
         <p>ʻEwa Beach has no Skyline station, but three are a short bus ride away:</p>
         <GuideList

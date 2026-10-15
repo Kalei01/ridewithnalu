@@ -3,7 +3,8 @@ import { GUIDES } from "@/components/guides/guides";
 import { HNL_AIRPORT } from "@/components/guides/destinations";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { B, Ext, GuideLayout, GuideList, GuideSection } from "@/components/guides/GuideLayout";
-import { GuideMap, StatTiles } from "@/components/guides/GuideBlocks";
+import { DriveVsRailDiagram } from "@/components/guides/DriveVsRailDiagram";
+import { GuideDetails, GuideMap, StatTiles } from "@/components/guides/GuideBlocks";
 
 // Sources (checked October 2026): TheBus GTFS timetable valid Sept 28 to Dec 5, 2026
 // (Skyline minutes, W Line times and frequency, which routes stop at the airport and
@@ -57,22 +58,17 @@ function AirportGuidePage() {
   return (
     <GuideLayout
       destination={HNL_AIRPORT}
+      showDiagram={false}
       strip={
         <StatTiles
           label="What to know"
           items={[
             { value: "$3.00", label: "Skyline or TheBus with a HOLO card" },
             {
-              value: "30 to 35",
+              value: "10",
               unit: "min",
-              label: "TheBus W Line from Waikīkī",
-              note: "In the timetable.",
-            },
-            {
-              value: "4:00",
-              unit: "AM",
-              label: "First trains reach the airport",
-              note: "Every day.",
+              label: "Between trains until about 8:30 PM",
+              note: "Every 15 minutes after that.",
             },
           ]}
         />
@@ -99,15 +95,17 @@ function AirportGuidePage() {
           allow extra time if you are flying from there.
         </p>
         <GuideMap
-          pins={[{ id: "10032", mark: "Airport (Lelepaua)", dx: 0, dy: 14 }]}
-          title="Map of Skyline's line with the airport station (Lelepaua) marked."
-          caption="The airport station (Lelepaua) is on Skyline's line between Lagoon Drive and Pearl Harbor."
+          pins={[{ id: "10032", mark: "1", dx: 0, dy: -8 }]}
+          title="Map of Skyline's line with the airport station (Lelepaua) marked 1."
+          caption="The airport station (Lelepaua) on Skyline's line."
+          legend={["Daniel K. Inouye International Airport (Lelepaua)"]}
         />
         <p className="text-base font-semibold text-foreground">
           Scheduled Skyline ride to the airport (timetable, October 2026)
         </p>
         <StatTiles
           label="Minutes on the train to the airport"
+          uniform
           items={[
             { prefix: "About", value: "28", unit: "min", label: "East Kapolei (Kualakaʻi)" },
             {
@@ -197,6 +195,9 @@ function AirportGuidePage() {
           Nalu compares driving, Skyline and TheBus for your trip to or from the airport and can
           hand you off to a rideshare app when that makes more sense, for example late at night.
         </p>
+        <GuideDetails title="Driving or riding: how the two differ">
+          <DriveVsRailDiagram />
+        </GuideDetails>
       </GuideSection>
     </GuideLayout>
   );

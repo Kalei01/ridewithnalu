@@ -29,6 +29,7 @@ export function GuideLayout({
   destination,
   take,
   strip,
+  showDiagram = true,
 }: {
   breadcrumb: string;
   eyebrow?: string;
@@ -45,6 +46,8 @@ export function GuideLayout({
   take?: string;
   /** "What to know": a few big figures from facts already on the page (StatTiles). */
   strip?: ReactNode;
+  /** The drive-vs-rail picture under the trip panel; turn off on pages that never discuss driving. */
+  showDiagram?: boolean;
 }) {
   return (
     <main className="nh sg min-h-screen bg-background text-foreground">
@@ -73,7 +76,7 @@ export function GuideLayout({
           </ol>
         </nav>
 
-        <header className="mt-8">
+        <header className="mt-8 rounded-2xl px-4 py-5 sm:px-6">
           <p className="text-base font-bold uppercase tracking-[0.14em] text-primary">
             {eyebrow ?? "Nalu guide · Oʻahu"}
           </p>
@@ -97,7 +100,7 @@ export function GuideLayout({
         {destination && (
           <div className="mt-6 grid gap-6">
             <TryTripPanel destination={destination} />
-            <DriveVsRailDiagram />
+            {showDiagram && <DriveVsRailDiagram />}
           </div>
         )}
 
