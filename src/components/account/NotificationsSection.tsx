@@ -11,8 +11,8 @@ import {
   writePushPrefs,
   clockToMinutes,
   type PushPrefs,
-  deniedHowTo,
 } from "@/lib/push-client";
+import { openNotificationHelp } from "@/components/NotificationHelp";
 import { savePushSubscription, sendTestPush } from "@/lib/push.functions";
 
 const BLOCKED_COPY = {
@@ -40,32 +40,47 @@ export function NotificationsSection({ places }: { places: SavedPlace[] }) {
     setCanAsk(!ios || installed);
   }, []);
 
+  /** Save this phone's sign-up and send one test. Returns the message to show. */
+  async function finishSignup(token: string) {
+    const current = readPushPrefs();
+    const categories = Array.from(new Set([...current.categories, "morning_commute" as const]));
+    await save({
+      data: {
+        token,
+        ...(current.token && current.token !== token ? { previousToken: current.token } : {}),
+        categories,
+        quietStartMin: clockToMinutes(current.quietStart),
+        quietEndMin: clockToMinutes(current.quietEnd),
+      },
+    });
+    const next = { ...current, categories, token };
+    writePushPrefs(next);
+    setPrefs(next);
+    const sent = await test({ data: { token } });
+    return sent.status === "sent" ? "Notifications are on. A test is on its way." : "Notifications are on.";
+  }
+
   /** Sign this phone up and send one test, so riders can check it works. */
   async function turnOnHere() {
     if (busy) return;
     setBusy(true);
     try {
       const result = await obtainPushToken(true);
-      if (result.status !== "registered") {
-        toast(result.status === "denied" ? deniedHowTo() : BLOCKED_COPY[result.status], { duration: 12_000 });
+      if (result.status === "denied") {
+        openNotificationHelp({
+          onGranted: async () => {
+            const done = await obtainPushToken(false);
+            if (done.status !== "registered") throw new Error("not registered");
+            return finishSignup(done.token);
+          },
+        });
         return;
       }
-      const current = readPushPrefs();
-      const categories = Array.from(new Set([...current.categories, "morning_commute" as const]));
-      await save({
-        data: {
-          token: result.token,
-          ...(current.token && current.token !== result.token ? { previousToken: current.token } : {}),
-          categories,
-          quietStartMin: clockToMinutes(current.quietStart),
-          quietEndMin: clockToMinutes(current.quietEnd),
-        },
-      });
-      const next = { ...current, categories, token: result.token };
-      writePushPrefs(next);
-      setPrefs(next);
-      const sent = await test({ data: { token: result.token } });
-      toast(sent.status === "sent" ? "Notifications are on. A test is on its way." : "Notifications are on.");
+      if (result.status !== "registered") {
+        toast(BLOCKED_COPY[result.status], { duration: 12_000 });
+        return;
+      }
+      toast(await finishSignup(result.token));
     } catch {
       toast.error("Couldn't turn on notifications. Try again.");
     } finally {

@@ -22,8 +22,8 @@ import {
   obtainPushToken,
   readPushPrefs,
   writePushPrefs,
-  deniedHowTo,
 } from "@/lib/push-client";
+import { openNotificationHelp } from "@/components/NotificationHelp";
 import { savePushSubscription } from "@/lib/push.functions";
 import { findByKind, type SavedPlace } from "@/lib/places/saved-places";
 
@@ -84,8 +84,18 @@ export async function ensurePushSignup(
   saveSub: ReturnType<typeof useServerFn<typeof savePushSubscription>>,
 ): Promise<string | null> {
   const result = await obtainPushToken(true);
+  if (result.status === "denied") {
+    openNotificationHelp({
+      onGranted: async () => {
+        const token = await ensurePushSignup(saveSub);
+        if (!token) throw new Error("not registered");
+        return "Notifications are on. Tap save again to finish your alert.";
+      },
+    });
+    return null;
+  }
   if (result.status !== "registered") {
-    toast(result.status === "denied" ? deniedHowTo() : BLOCKED_COPY[result.status], { duration: 12_000 });
+    toast(BLOCKED_COPY[result.status], { duration: 12_000 });
     return null;
   }
   const prefs = readPushPrefs();

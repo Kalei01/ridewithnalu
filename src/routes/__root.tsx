@@ -8,6 +8,7 @@ import { WeeklyStatsSync } from "@/components/WeeklyStatsSync";
 import { EmailPrompt } from "@/components/EmailPrompt";
 import { startErrorReporting } from "@/lib/sentry-client";
 import { NotificationPrompt } from "@/components/NotificationPrompt";
+import { NotificationHelpHost } from "@/components/NotificationHelp";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -145,6 +146,7 @@ function RootComponent() {
       <AuthProvider>
         <AppRouteGate />
         <NotificationPrompt />
+        <NotificationHelpHost />
         <DevPanel />
         <UpgradeSheet />
         <UsagePing />

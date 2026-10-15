@@ -10,8 +10,8 @@ import {
   obtainPushToken,
   readPushPrefs,
   writePushPrefs,
-  deniedHowTo,
 } from "@/lib/push-client";
+import { openNotificationHelp } from "@/components/NotificationHelp";
 import { savePushSubscription, sendTestPush } from "@/lib/push.functions";
 
 const ASKED_KEY = "nalu-notif-asked-v1";
@@ -134,8 +134,20 @@ export function NotificationPrompt() {
     setBusy(true);
     try {
       const result = await register(true);
+      if (result.status === "denied") {
+        close();
+        openNotificationHelp({
+          onGranted: async () => {
+            const done = await register(false);
+            if (done.status !== "registered") throw new Error("not registered");
+            await test({ data: { token: done.token } }).catch(() => undefined);
+            return "Notifications are on. Set your leave times from the card on the home screen.";
+          },
+        });
+        return;
+      }
       if (result.status !== "registered") {
-        toast(result.status === "denied" ? deniedHowTo() : BLOCKED_COPY[result.status], { duration: 12_000 });
+        toast(BLOCKED_COPY[result.status], { duration: 12_000 });
         close();
         return;
       }
