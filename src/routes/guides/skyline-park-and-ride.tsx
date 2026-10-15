@@ -277,42 +277,51 @@ function SkylineParkAndRidePage() {
           <h2 id="train-times" className="text-2xl font-bold">
             Train times from each lot
           </h2>
-          <figure className="sg-card overflow-hidden">
-            <figcaption className="px-4 pt-3 text-base font-semibold text-foreground">
-              Minutes on the train to the airport (Lelepaua), Lagoon Drive (Ahua) and Kahauiki, from
-              TheBus timetable through Dec 5, 2026
-            </figcaption>
-            <table className="sg-grid mt-2 w-full border-collapse text-left text-base">
-              <thead>
-                <tr className="border-b border-border text-sm text-muted-foreground">
-                  <th scope="col" className="px-4 py-2 font-semibold">
-                    From
-                  </th>
-                  <th scope="col" className="px-2 py-2 font-semibold">
-                    Airport
-                  </th>
-                  <th scope="col" className="px-2 py-2 font-semibold">
-                    Ahua
-                  </th>
-                  <th scope="col" className="px-2 py-2 font-semibold">
-                    Kahauiki
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {TIMES.map((row) => (
-                  <tr key={row[0]} className="border-b border-border/60 last:border-0">
-                    <th scope="row" className="px-4 py-3 font-semibold text-foreground">
-                      {row[0]}
-                    </th>
-                    <td className="px-2 py-3 text-lg font-bold text-foreground">{row[1]}</td>
-                    <td className="px-2 py-3 text-lg font-bold text-foreground">{row[2]}</td>
-                    <td className="px-2 py-3 text-lg font-bold text-foreground">{row[3]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </figure>
+          <p className="text-base font-semibold text-foreground">
+            Minutes on the train to the airport (Lelepaua), Lagoon Drive (Ahua) and Kahauiki, from
+            TheBus timetable through Dec 5, 2026
+          </p>
+          <ol className="grid gap-4">
+            {LOTS.map((lot, i) => {
+              const row = TIMES[i]!;
+              const stops: Array<[string, string, string]> = [
+                ["Daniel K. Inouye airport", "Lelepaua", row[1]],
+                ["Lagoon Drive", "Ahua", row[2]],
+                ["Kalihi Transit Center", "Kahauiki", row[3]],
+              ];
+              return (
+                <li key={lot.id} className="sg-card p-4 sm:p-5">
+                  <h3 className="flex items-center gap-3 text-lg font-bold leading-tight">
+                    <span className="sg-num" aria-hidden="true">
+                      {lot.n}
+                    </span>
+                    <span>
+                      <span className="text-sm font-normal text-muted-foreground">From </span>
+                      <LotName lot={lot} />
+                    </span>
+                  </h3>
+                  <dl className="mt-3 grid gap-2">
+                    {stops
+                      .filter((st) => st[2] !== "—")
+                      .map(([en, haw, min]) => (
+                        <div
+                          key={haw}
+                          className="flex items-baseline justify-between gap-3 border-t border-border/60 pt-2 first:border-0 first:pt-0"
+                        >
+                          <dt className="text-base text-foreground">
+                            {en} <span className="text-sm text-muted-foreground">{haw}</span>
+                          </dt>
+                          <dd className="whitespace-nowrap">
+                            <span className="sg-stalls !text-3xl">{min}</span>{" "}
+                            <span className="text-base font-semibold text-foreground">min</span>
+                          </dd>
+                        </div>
+                      ))}
+                  </dl>
+                </li>
+              );
+            })}
+          </ol>
           <p className="text-base leading-7 text-muted-foreground">
             Add your wait for the train: Skyline runs every 10 minutes until about 8:30 PM and every
             15 minutes after that. Skyline does not reach downtown yet, so a trip into town finishes

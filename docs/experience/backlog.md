@@ -127,3 +127,5 @@ Add-ons (lead):
 - 2026-10-15 · Skyline parking guide redesign (Josh approved, zoomed map) SWITCHED LIVE at /guides/skyline-park-and-ride; preview route deleted; head unchanged.
 
 - Skyline rail guide redesign: LIVE Oct 15 (preview removed). Pearl Harbor water tint on SkylineMap: DONE.
+
+- 2026-10-15 · Skyline parking guide: Train times section redone as lot cards (same numbers), live.
