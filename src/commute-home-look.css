@@ -84,3 +84,13 @@ main.nh-commute [aria-labelledby="plan-mode-title"] {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+/* The trip map: the same soft blue glow as the Browse map (.nh-island-card). */
+main.nh-commute section[aria-labelledby="trip-map-title"] {
+  border: 1px solid rgb(125 196 255 / 14%) !important;
+  border-radius: 1.5rem !important;
+  background:
+    radial-gradient(80% 60% at 50% 45%, rgb(10 132 255 / 12%), transparent 70%),
+    linear-gradient(180deg, var(--nh-sea-2), var(--nh-sea)) !important;
+  box-shadow: 0 30px 60px -30px rgb(10 132 255 / 35%) !important;
+}
