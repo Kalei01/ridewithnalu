@@ -2,7 +2,16 @@ import type { ReactNode } from "react";
 import { markWelcomeSeen } from "@/lib/welcome-seen";
 import { tripHref, type GuideDestination } from "./destinations";
 import { Link } from "@tanstack/react-router";
-import { Bus, CarFront, ChevronDown, MapPin, Scale, TrainFront, Waves, type LucideIcon } from "lucide-react";
+import {
+  Bus,
+  CarFront,
+  ChevronDown,
+  MapPin,
+  Scale,
+  TrainFront,
+  Waves,
+  type LucideIcon,
+} from "lucide-react";
 import { GUIDES, LAST_UPDATED, type GuideSlug } from "./guides";
 import type { GuideFaq } from "./guide-head";
 import { TryTripPanel } from "./TryTripPanel";
@@ -63,7 +72,10 @@ export function GuideLayout({
               <>
                 <li aria-hidden="true">/</li>
                 <li>
-                  <Link to="/guides" className="underline-offset-4 hover:text-foreground hover:underline">
+                  <Link
+                    to="/guides"
+                    className="underline-offset-4 hover:text-foreground hover:underline"
+                  >
                     Guides
                   </Link>
                 </li>
@@ -89,7 +101,10 @@ export function GuideLayout({
 
         {take && (
           <aside aria-labelledby="nalu-take" className="sg-card mt-6 p-5">
-            <h2 id="nalu-take" className="flex items-center gap-2 text-lg font-bold text-foreground">
+            <h2
+              id="nalu-take"
+              className="flex items-center gap-2 text-lg font-bold text-foreground"
+            >
               <Waves className="size-5 text-primary" aria-hidden="true" />
               Nalu&apos;s take
             </h2>
@@ -115,10 +130,7 @@ export function GuideLayout({
             </h2>
             <div className="mt-4 grid gap-3">
               {faqs.map((item) => (
-                <details
-                  key={item.q}
-                  className="sg-card group"
-                >
+                <details key={item.q} className="sg-card group">
                   <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-lg font-semibold [&::-webkit-details-marker]:hidden">
                     <h3 className="text-lg font-semibold">{item.q}</h3>
                     <ChevronDown
@@ -147,8 +159,12 @@ export function GuideLayout({
                       to={guide.path}
                       className="sg-card block p-4 transition-colors hover:bg-accent"
                     >
-                      <span className="block text-lg font-semibold text-foreground">{guide.name}</span>
-                      <span className="mt-1 block text-base leading-7 text-muted-foreground">{guide.summary}</span>
+                      <span className="block text-lg font-semibold text-foreground">
+                        {guide.name}
+                      </span>
+                      <span className="mt-1 block text-base leading-7 text-muted-foreground">
+                        {guide.summary}
+                      </span>
                     </Link>
                   </li>
                 );
@@ -185,8 +201,8 @@ export function OpenNaluCta({ destination }: { destination?: GuideDestination | 
         Get the live answer for your trip
       </h2>
       <p className="mt-2 text-base leading-7 text-muted-foreground">
-        Nalu checks live traffic and TheBus and Skyline timetables for your exact trip, then tells you
-        whether to drive or ride and when to leave. Free, no account needed.
+        Nalu checks live traffic and TheBus and Skyline timetables for your exact trip, then tells
+        you whether to drive or ride and when to leave. Free, no account needed.
       </p>
       {destination ? (
         <a href={tripHref(destination)} onClick={markWelcomeSeen} className={className}>
@@ -206,13 +222,27 @@ function GuideFooter() {
   return (
     <footer className="mt-12 border-t border-border pt-6 text-base text-muted-foreground">
       <nav aria-label="Site" className="flex flex-wrap gap-x-5 gap-y-1">
-        <Link to="/" className={linkClass}>Open Nalu</Link>
-        <Link to="/guides" className={linkClass}>Guides</Link>
-        <Link to="/oahu-commute" className={linkClass}>Oʻahu commute guide</Link>
-        <Link to="/install" className={linkClass}>Install</Link>
-        <Link to="/privacy" className={linkClass}>Privacy</Link>
-        <Link to="/terms" className={linkClass}>Terms</Link>
-        <Link to="/disclaimer" className={linkClass}>Disclaimer</Link>
+        <Link to="/" className={linkClass}>
+          Open Nalu
+        </Link>
+        <Link to="/guides" className={linkClass}>
+          Guides
+        </Link>
+        <Link to="/oahu-commute" className={linkClass}>
+          Oʻahu commute guide
+        </Link>
+        <Link to="/install" className={linkClass}>
+          Install
+        </Link>
+        <Link to="/privacy" className={linkClass}>
+          Privacy
+        </Link>
+        <Link to="/terms" className={linkClass}>
+          Terms
+        </Link>
+        <Link to="/disclaimer" className={linkClass}>
+          Disclaimer
+        </Link>
       </nav>
       <p className="mt-4">
         Times and fares are for general planning. Service can change; check thebus.org for current
@@ -232,7 +262,15 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
 };
 
 /** A guide section with a real h2, set in a card with an icon where one fits. */
-export function GuideSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+export function GuideSection({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+}) {
   const Icon = SECTION_ICONS[id];
   return (
     <section aria-labelledby={id} className="ease-in-view sg-card p-5 sm:p-6">
@@ -244,7 +282,9 @@ export function GuideSection({ id, title, children }: { id: string; title: strin
         )}
         <span>{title}</span>
       </h2>
-      <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 text-base leading-7 text-muted-foreground">{children}</div>
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 text-base leading-7 text-muted-foreground">
+        {children}
+      </div>
     </section>
   );
 }
@@ -261,41 +301,58 @@ export function GuideList({ items }: { items: ReactNode[] }) {
 }
 
 /** Simple responsive table; scrolls inside its own box on narrow phones. */
-export function GuideTable({ caption, head, rows }: { caption: string; head: string[]; rows: ReactNode[][] }) {
+export function GuideTable({
+  caption,
+  head,
+  rows,
+}: {
+  caption: string;
+  head: string[];
+  rows: ReactNode[][];
+}) {
   // The caption sits outside the scrolling box so it never gets clipped when a
   // wide table scrolls sideways on a phone.
   return (
     <figure className="sg-card">
-      <figcaption className="px-4 pt-3 text-base font-semibold text-foreground">{caption}</figcaption>
+      <figcaption className="px-4 pt-3 text-base font-semibold text-foreground">
+        {caption}
+      </figcaption>
       <div className="overflow-x-auto">
-      <table aria-label={caption} className="w-full min-w-[20rem] border-collapse text-left text-base">
-        <thead>
-          <tr className="border-b border-border">
-            {head.map((cell) => (
-              <th key={cell} scope="col" className="px-4 py-3 font-semibold text-foreground">
-                {cell}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, rowIndex) => (
-            <tr key={rowIndex} className="border-b border-border/60 last:border-0">
-              {row.map((cell, cellIndex) =>
-                cellIndex === 0 ? (
-                  <th key={cellIndex} scope="row" className="px-4 py-3 align-top font-medium text-foreground">
-                    {cell}
-                  </th>
-                ) : (
-                  <td key={cellIndex} className="px-4 py-3 align-top">
-                    {cell}
-                  </td>
-                ),
-              )}
+        <table
+          aria-label={caption}
+          className="w-full min-w-[20rem] border-collapse text-left text-base"
+        >
+          <thead>
+            <tr className="border-b border-border">
+              {head.map((cell) => (
+                <th key={cell} scope="col" className="px-4 py-3 font-semibold text-foreground">
+                  {cell}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr key={rowIndex} className="border-b border-border/60 last:border-0">
+                {row.map((cell, cellIndex) =>
+                  cellIndex === 0 ? (
+                    <th
+                      key={cellIndex}
+                      scope="row"
+                      className="px-4 py-3 align-top font-medium text-foreground"
+                    >
+                      {cell}
+                    </th>
+                  ) : (
+                    <td key={cellIndex} className="px-4 py-3 align-top">
+                      {cell}
+                    </td>
+                  ),
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </figure>
   );
