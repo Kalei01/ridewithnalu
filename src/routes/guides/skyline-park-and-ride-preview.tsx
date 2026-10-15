@@ -1,7 +1,11 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Bus, CarFront } from "lucide-react";
+import { Bus, CarFront, ChevronDown } from "lucide-react";
 import { SkylineLineDiagram } from "@/components/guides/SkylineLineDiagram";
-import { SkylineMap, type SkylineMapPin } from "@/components/guides/SkylineMap";
+import {
+  SkylineMap,
+  type SkylineMapLabel,
+  type SkylineMapPin,
+} from "@/components/guides/SkylineMap";
 import { GUIDES } from "@/components/guides/guides";
 import { DOWNTOWN } from "@/components/guides/destinations";
 import { TryTripPanel } from "@/components/guides/TryTripPanel";
@@ -73,7 +77,7 @@ const LOTS: Lot[] = [
     hawaiian: "Keoneʻae",
     stalls: 304,
     bus: true,
-    note: "Reported full by around 8 AM on weekdays (Hawaii News Now, May 2026).",
+    note: "Source: Hawaii News Now, May 2026.",
     entrance: "from Hoʻomohala Avenue, off Kualakaʻi Parkway",
     id: "10046",
   },
@@ -107,15 +111,20 @@ const LOTS: Lot[] = [
 ];
 
 const PINS: SkylineMapPin[] = [
-  { id: "10046", mark: "1", dx: -8, dy: 3.5, anchor: "end" },
-  { id: "10045", mark: "2", dx: 8, dy: -1, anchor: "start" },
+  { id: "10046", mark: "1", dx: -7, dy: 5, anchor: "end" },
+  { id: "10045", mark: "2", dx: 6, dy: -7, anchor: "start" },
   { id: "10055", mark: "3", dy: -8 },
   { id: "10030", mark: "4", dy: -8 },
 ];
 
+const ENDS: SkylineMapLabel[] = [
+  { id: "10047", text: "East Kapolei", dy: 12 },
+  { id: "10030", text: "Kalihi", dy: 12 },
+];
+
 const WHICH: Array<{ n: string; from: string; text: React.ReactNode }> = [
   {
-    n: "1",
+    n: "1·2",
     from: "From Kapolei, Makakilo or ʻEwa",
     text: "Keoneʻae and Honouliuli are 2 minutes apart on the train. Keoneʻae is the lot reported to fill on weekday mornings; Honouliuli has 40 more stalls but no TheBus service.",
   },
@@ -162,13 +171,9 @@ function SkylineParkAndRidePreview() {
       intro={
         <>
           <p>
-            Skyline has four free park-and-ride lots: UH West Oʻahu (Keoneʻae) and Honouliuli
-            (Hoʻopili) on the Leeward side, Aloha Stadium (Hālawa), and Kalihi Transit Center
+            Skyline has four free park-and-ride lots: UH West Oʻahu (Keoneʻae) and Hoʻopili
+            (Honouliuli) on the Leeward side, Aloha Stadium (Hālawa), and Kalihi Transit Center
             (Kahauiki). They are free for anyone riding Skyline or TheBus, with a 24-hour limit.
-          </p>
-          <p className="mt-4">
-            Hawaii News Now reported in May 2026 that the Keoneʻae lot is full by around 8 AM on
-            weekdays.
           </p>
         </>
       }
@@ -185,6 +190,7 @@ function SkylineParkAndRidePreview() {
               pins={PINS}
               title="Map of Skyline's line from East Kapolei to Kalihi, with the four park-and-ride stations numbered 1 to 4 from west to east: UH West Oʻahu, Hoʻopili, Aloha Stadium and Kalihi Transit Center."
               showAllStations
+              labels={ENDS}
             />
             <figcaption className="sr-only">
               The four free park-and-ride stations along Skyline, numbered west to east as in the
@@ -216,7 +222,7 @@ function SkylineParkAndRidePreview() {
                 </div>
                 {lot.note && (
                   <p className="mt-3">
-                    <span className="sg-pill sg-pill--warn">Fills by about 8 AM</span>{" "}
+                    <span className="sg-pill sg-pill--warn">Often full by 8 AM weekdays</span>{" "}
                     <span className="mt-1 block sm:mt-0 sm:inline">{lot.note}</span>
                   </p>
                 )}
@@ -231,7 +237,11 @@ function SkylineParkAndRidePreview() {
           </ol>
           <details className="sg-card group">
             <summary className="flex min-h-12 cursor-pointer list-none items-center px-4 text-base font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-              All 13 stations on the line
+              <span className="flex-1">All 13 stations on the line</span>
+              <ChevronDown
+                className="size-5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
+                aria-hidden="true"
+              />
             </summary>
             <div className="px-3 pb-3">
               <SkylineLineDiagram mode="parking" />

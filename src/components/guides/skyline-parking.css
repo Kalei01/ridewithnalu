@@ -24,7 +24,8 @@
 }
 .sg-num {
   display: inline-flex;
-  width: 1.75rem;
+  min-width: 1.75rem;
+  padding: 0 0.4rem;
   height: 1.75rem;
   flex-shrink: 0;
   align-items: center;

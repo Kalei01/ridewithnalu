@@ -27,23 +27,35 @@ export type SkylineMapPin = {
   anchor?: "start" | "middle" | "end";
 };
 
+export type SkylineMapLabel = {
+  id: string;
+  text: string;
+  dx?: number;
+  dy?: number;
+  anchor?: "start" | "middle" | "end";
+};
+
 export type SkylineMapView = { x: number; y: number; w: number; h: number };
 
 /** Leeward and south shore, framing the whole line without empty sea. */
-export const SKYLINE_LINE_VIEW: SkylineMapView = { x: 195, y: 295, w: 205, h: 100 };
+export const SKYLINE_LINE_VIEW: SkylineMapView = { x: 20, y: 160, w: 560, h: 310 };
 
 export function SkylineMap({
   pins,
   title,
   view = SKYLINE_LINE_VIEW,
   showAllStations = false,
+  labels = [],
 }: {
   pins: SkylineMapPin[];
   /** Accessible name, read by screen readers. */
   title: string;
   view?: SkylineMapView;
   showAllStations?: boolean;
+  /** Small muted name tags, like the two ends of the line. */
+  labels?: SkylineMapLabel[];
 }) {
+  const k = (view.w / 205) * 0.7;
   const uid = useId().replace(/:/g, "");
   const byId = new Map(SKYLINE_STATIONS.map((s) => [s.id, s]));
   const pinIds = new Set(pins.map((p) => p.id));
@@ -68,15 +80,31 @@ export function SkylineMap({
       <path className="nh-rail" d={SKYLINE_PATH} />
       {showAllStations &&
         SKYLINE_STATIONS.filter((s) => !pinIds.has(s.id)).map((s) => (
-          <circle key={s.id} className="sk-dot" cx={s.x} cy={s.y} r={1.9} />
+          <circle key={s.id} className="sk-dot" cx={s.x} cy={s.y} r={1.9 * k} />
         ))}
+      {labels.map((l) => {
+        const s = byId.get(l.id);
+        if (!s) return null;
+        return (
+          <text
+            key={l.id}
+            className="sk-label"
+            style={{ fontSize: 7.5 * k }}
+            x={s.x + (l.dx ?? 0) * k}
+            y={s.y + (l.dy ?? 10) * k}
+            textAnchor={l.anchor ?? "middle"}
+          >
+            {l.text}
+          </text>
+        );
+      })}
       {pins.map((p) => {
         const s = byId.get(p.id);
         if (!s) return null;
         return (
           <g key={p.id}>
-            <circle className="sk-pin-halo" cx={s.x} cy={s.y} r={5.5} />
-            <circle className="sk-pin" cx={s.x} cy={s.y} r={3} />
+            <circle className="sk-pin-halo" cx={s.x} cy={s.y} r={5.5 * k} />
+            <circle className="sk-pin" cx={s.x} cy={s.y} r={3 * k} />
             <text
               className="sk-mark"
               x={s.x + (p.dx ?? 0)}

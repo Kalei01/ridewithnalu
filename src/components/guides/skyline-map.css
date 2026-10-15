@@ -28,3 +28,11 @@
   stroke-width: 2.2px;
   stroke-linejoin: round;
 }
+.sk-label {
+  fill: rgb(235 235 245 / 72%);
+  font-weight: 650;
+  paint-order: stroke;
+  stroke: #06121f;
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
