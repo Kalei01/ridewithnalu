@@ -148,16 +148,19 @@ export function MapSection(props: MapSectionProps) {
           className="ease-in-view map-shell mt-3 overflow-hidden rounded-xl"
           aria-labelledby="trip-map-title"
         >
-          <div className="flex items-center justify-between px-4 py-3">
-            <div>
-              <h2 id="trip-map-title" className="text-sm font-bold text-foreground">
+          <div className="flex items-start justify-between gap-3 px-4 py-3.5">
+            <div className="min-w-0">
+              <h2
+                id="trip-map-title"
+                className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground"
+              >
                 Your route
               </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-1 text-base font-semibold leading-snug text-foreground">
                 {tripOriginLabel} to {tripArrivalLabel}
               </p>
             </div>
-            <span className="text-xs font-semibold text-muted-foreground">
+            <span className="mt-0.5 shrink-0 whitespace-nowrap rounded-full border border-white/12 bg-white/[0.05] px-2.5 py-1 text-xs font-semibold text-foreground">
               {selectedMode === "drive" ? "Direct drive" : `${transitMapSegments.length} trip legs`}
             </span>
           </div>

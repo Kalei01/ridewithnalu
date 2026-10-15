@@ -86,7 +86,8 @@ main.nh-commute [aria-labelledby="plan-mode-title"] {
 }
 
 /* The trip map: the same soft blue glow as the Browse map (.nh-island-card). */
-main.nh-commute section[aria-labelledby="trip-map-title"] {
+main.nh-commute section[aria-labelledby="trip-map-title"],
+main.nh-commute section[aria-labelledby="trip-access-title"] {
   border: 1px solid rgb(125 196 255 / 14%) !important;
   border-radius: 1.5rem !important;
   background:
