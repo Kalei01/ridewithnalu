@@ -200,14 +200,14 @@ const PINS: SkylineMapPin[] = [
 
 const ENDS: SkylineMapLabel[] = [
   { id: "10047", text: "East Kapolei", dy: 12 },
-  { id: "10030", text: "Kalihi", dy: 12 },
+  { id: "10030", text: "Kalihi Transit Center", dx: -6, dy: 12, anchor: "end" },
 ];
 
 function Name({ s }: { s: Station }) {
   return (
     <>
       <span className="font-semibold text-foreground">{s.english}</span>{" "}
-      <span className="text-sm font-normal text-muted-foreground">{s.hawaiian}</span>
+      <span className="text-sm font-normal text-muted-foreground">({s.hawaiian})</span>
     </>
   );
 }
@@ -248,10 +248,8 @@ function SkylineGuidePreview() {
       intro={
         <>
           <p>
-            Skyline, Honolulu's rail line, runs every day from about 4:00 AM to 10:30 PM between
-            East Kapolei (Kualakaʻi) and Kalihi Transit Center (Kahauiki), with 13 stations
-            including the airport. A ride costs $3.00 with a HOLO card, the same as TheBus, and
-            trains come every 10 minutes for most of the day.
+            Skyline, Honolulu's rail line, runs between East Kapolei (Kualakaʻi) and Kalihi Transit
+            Center (Kahauiki), with 13 stations including the airport.
           </p>
           <p className="mt-4">
             This is the detailed version of our{" "}
@@ -323,14 +321,13 @@ function SkylineGuidePreview() {
               labels={ENDS}
             />
             <figcaption className="sr-only">
-              Skyline's 13 stations, west to east, in the four areas listed below. P marks a free
-              park-and-ride lot.
+              Skyline's 13 stations, west to east, in the four areas listed below.
             </figcaption>
           </figure>
           <p className="sr-only">Skyline stations, west to east (timetable, October 2026)</p>
           <ol className="grid gap-4">
             {AREAS.map((area) => {
-              const withBuses = area.stations.filter((s) => s.buses || s.lot);
+              const withBuses = area.stations.filter((s) => s.buses);
               return (
                 <li key={area.n} className="sg-card p-4 sm:p-5">
                   <h3 className="flex items-center gap-3 text-lg font-bold leading-tight">
@@ -370,11 +367,10 @@ function SkylineGuidePreview() {
                         <Chevron />
                       </summary>
                       <ul className="grid gap-2 px-4 pb-3 text-base leading-6 text-muted-foreground">
-                        {area.stations.map((s) => (
+                        {withBuses.map((s) => (
                           <li key={s.id}>
                             <span className="font-semibold text-foreground">{s.english}:</span>{" "}
-                            {s.buses || "No bus connections listed"}
-                            {s.lot ? ". Park-and-ride lot" : ""}
+                            {s.buses}
                           </li>
                         ))}
                       </ul>

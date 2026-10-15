@@ -103,7 +103,7 @@ const LOTS: Lot[] = [
 
 const PINS: SkylineMapPin[] = [
   { id: "10046", mark: "1", dx: -8, dy: 4, anchor: "end" },
-  { id: "10045", mark: "2", dx: 8, dy: -6, anchor: "start" },
+  { id: "10045", mark: "2", dx: -3, dy: -11 },
   { id: "10055", mark: "3", dy: -8 },
   { id: "10030", mark: "4", dy: -8 },
 ];
