@@ -100,3 +100,9 @@ What to paste: the date, subject, and the sentences about eligibility, entity ty
 - Incoming: hello@ridenalu.com forwards (Cloudflare Email Routing) to Josh's personal Gmail. Sign emails "Joshua Reverio".
 - Josh approved the campaign agent sending emails (official program addresses only, verified facts only, logged here). Needs the Gmail connector in a new session.
 - Sending AS hello@ridenalu.com: Gmail "Send mail as" + Resend SMTP (free tier Nalu already uses) — pending Josh.
+
+## Run 2 update (2026-10-15)
+- Google for Startups: inquiry sent by Josh 2026-10-15 06:17 UTC; only an automated acknowledgement ("respond within 5 business days"). Status: Awaiting response. Follow-up date: 2026-10-22 (supersedes 2026-10-29). No follow-up drafted yet.
+- Cloudflare for Startups: Gmail draft created. To startups@cloudflare.com (address quoted from Cloudflare's own startup page via search; page itself not openable). Subject "Question: Startup Program eligibility for a solo, unincorporated founder (Nalu)". Draft id r-5158589797455345184. Status: Draft ready, not sent.
+- Supabase Startup Program: no draft. No official program email verified (only security@supabase.io, for vulnerabilities). Action: send via web form https://supabase.com/partners. Sources conflict on eligibility; AWS's page says institutional VC funding is required and excludes bootstrapped companies.
+- Gmail search (Supabase/Cloudflare/program mail): no replies about any startup program. Only newsletters, Cloudflare Connect promos, a Cloudflare domain purchase/invoice (2026-10-04, shows a payment method likely exists), and Supabase notices that project ridewithnalu-42d6da was paused (2026-10-10 warning, 2026-10-11 paused).

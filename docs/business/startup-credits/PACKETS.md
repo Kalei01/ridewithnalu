@@ -36,19 +36,21 @@ Questions: waiting on Google's reply about unincorporated eligibility. [JOSH] fo
 
 ## Draft inquiries (NOT SENT; for Josh to review and send himself)
 
-### A. Supabase (sent from Josh's own account)
-To: [Supabase startup/partners contact from supabase.com/partners; Josh to find]
+### A. Supabase (NO DRAFT CREATED: no verified official address)
+Run 2: no official startup-program email found (only security@supabase.io, a vulnerability-report address, not for this). Do not guess. Send via web form https://supabase.com/partners (per aggregators; could not open). Use this text in the form's free-text field or in Supabase support after logging in. Add: founding date [JOSH]; ask also about card and benefit; keep to 150 words.
+To: (web form only)
 Subject: Question: Startup Program eligibility for a solo, unincorporated founder
 Body:
 Hi, I'm Joshua Reverio, a solo founder in Oʻahu, Hawaiʻi, building Nalu (https://ridenalu.com), a working commute decision app for Oʻahu that compares driving, TheBus and Skyline rail. We run on the Supabase Free plan (Postgres and auth) and trip planning slows at rush hour; the biggest need is backups and more compute. I'm bootstrapped (no outside funding) and not incorporated. Does the Startup Program accept an unincorporated solo founder, and is a payment card required to activate the benefit? Thank you. Joshua Reverio
 
-### B. Cloudflare
-To: [Josh to use the contact on cloudflare.com/forstartups]
+### B. Cloudflare (GMAIL DRAFT CREATED 2026-10-15, run 2; text below is the older version, the draft is the final one)
+To: startups@cloudflare.com (quoted from Cloudflare's own startup page in search results; could not open the page directly)
+Draft id: r-5158589797455345184 (message 1a13e4797561bd76)
 Subject: Question: Startups program for an unincorporated solo founder
 Body:
 Hi, I'm Joshua Reverio, a solo founder in Oʻahu, Hawaiʻi. Nalu (https://ridenalu.com) is a live commute-decision web app hosted on Cloudflare Workers (Free plan) with Email Routing. I'm bootstrapped and not incorporated. Can a sole proprietor apply to Cloudflare for Startups, and must a payment method be on file to receive credits? Thank you. Joshua Reverio
 
-### C. Google follow-up (only if no reply by 2026-10-29)
+### C. Google follow-up (DO NOT DRAFT YET; inquiry sent 2026-10-15 06:17 UTC, auto-ack promised reply in 5 business days; follow-up date 2026-10-22)
 To: cloudstartupsupport@google.com
 Subject: Follow-up: Start tier eligibility for solo founder (Nalu)
 Body:

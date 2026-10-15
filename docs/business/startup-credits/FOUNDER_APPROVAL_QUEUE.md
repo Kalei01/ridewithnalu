@@ -1,14 +1,13 @@
 # Founder Approval Queue
 
-Updated 2026-10-15. Nothing here has been done. Each item needs Josh.
+Updated 2026-10-15 (run 2). I send nothing; you send each draft yourself.
 
-1. Check Gmail for Google's reply (searches in STARTUP_CREDITS_CAMPAIGN.md, "Gmail check") and paste back non-sensitive excerpts. This decides Google.
-2. Open supabase.com/partners and read the Startup Program rules. Tell me: does it accept a bootstrapped, unincorporated solo founder, and does it need a card? If yes, I finish the form text (PACKETS.md) for you to submit yourself. This is the highest-value item.
-3. Decide: are you willing to put a card on the Cloudflare account for Cloudflare for Startups? If no, I mark it Blocked. If yes, you do it, I never touch billing.
-4. Tell me Nalu's start date (when you began building/launched). Several programs require "founded within 24 months" or "5 years".
-5. Do you use a paid Google Workspace on ridenalu.com (now or in the last 31 days)? Google's Start tier excludes that.
-6. Approve or reject sending inquiry drafts A (Supabase) and B (Cloudflare) in PACKETS.md. You send them yourself; I do not send anything.
-7. Optional, free: subscribe to the Anthropic startups newsletter on claude.com/programs/startups (cohort is full now).
-8. Optional, free: sign up for Hawaiʻi SBDC advising (hisbdc.org) to ask about the cheapest sole-proprietor setup.
-9. Do not incorporate, pay for a DBA (~$51), or pay for Apple ($99) yet. I'll flag if a program makes any of these worth it.
-10. Set a reminder: 2026-10-29, follow up with Google if no reply (draft C).
+1. Review and send these drafts in Gmail: Cloudflare inquiry to startups@cloudflare.com, subject "Question: Startup Program eligibility for a solo, unincorporated founder (Nalu)" (draft id r-5158589797455345184). Check it, add Nalu's start date if you want, then send.
+2. Supabase: no verified official email exists, so no draft. Send via web form https://supabase.com/partners (text in PACKETS.md, draft A). Read its rules first: does it accept a bootstrapped, unincorporated solo founder, and is a card needed? Note: sources conflict, and AWS's page says VC backing is required.
+3. Cloudflare card question (open): are you willing to put a never-charged card on the Cloudflare account? Note: Gmail shows a Cloudflare purchase/invoice on 2026-10-04 (domain ridenalu.com), so a payment method may already be on file. Check in the dashboard.
+4. Tell me Nalu's start month/year (open). Several programs have founding-date limits.
+5. Do you have a paid Google Workspace on ridenalu.com, now or in the last 31 days? (open; Google's Start tier excludes it)
+6. Google for Startups: inquiry sent 2026-10-15 06:17 UTC; only an automated acknowledgement ("respond within 5 business days"). Status Awaiting response. Check back 2026-10-22; I will draft a follow-up then, not before.
+7. Heads-up, not part of credits: Supabase emailed on 2026-10-11 that project ridewithnalu-42d6da has been paused (Free plan inactivity). Check the app is working.
+8. Optional, free: Anthropic startups newsletter (claude.com/programs/startups); Hawaiʻi SBDC advising (hisbdc.org).
+9. Do not incorporate, pay for a DBA (~$51), or pay for Apple ($99) yet.
