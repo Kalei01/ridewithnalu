@@ -172,3 +172,51 @@ export function GuideMap({
     </figure>
   );
 }
+
+/** Label and value rows in one glow card, for "key facts" lists. */
+export function FactList({ items }: { items: Array<{ label: string; value: ReactNode }> }) {
+  return (
+    <dl className="sg-card grid text-base leading-7">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className="grid gap-0.5 border-b border-border/60 px-4 py-3 last:border-0 sm:grid-cols-[9rem_1fr] sm:gap-4"
+        >
+          <dt className="font-semibold text-foreground">{item.label}</dt>
+          <dd className="text-muted-foreground">{item.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** One card per question, the answer from each product on its own line (Nalu first and brighter). */
+export function CompareCards({
+  columns,
+  rows,
+}: {
+  columns: string[];
+  rows: Array<{ label: string; values: string[] }>;
+}) {
+  return (
+    <ul className="grid gap-4">
+      {rows.map((row) => (
+        <li key={row.label} className="sg-card p-4 text-base leading-7 sm:p-5">
+          <h3 className="text-lg font-bold leading-tight text-foreground">{row.label}</h3>
+          <dl className="mt-3 grid gap-2">
+            {row.values.map((value, i) => (
+              <div key={i} className="grid gap-0.5 sm:grid-cols-[11rem_1fr] sm:gap-4">
+                <dt
+                  className={`text-sm font-semibold ${i === 0 ? "text-primary" : "text-muted-foreground"}`}
+                >
+                  {columns[i]}
+                </dt>
+                <dd className={i === 0 ? "text-foreground" : "text-muted-foreground"}>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </li>
+      ))}
+    </ul>
+  );
+}

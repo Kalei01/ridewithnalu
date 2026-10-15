@@ -37,6 +37,7 @@ Last updated: 2026-10-14 (home redesign preview ready). Keep ≤ 60 lines; see R
 - R+ (Oct 14)
 
 ## Last run
+- Oct 15 Guides redesign COMPLETE: batch 2 fixes (80992dd) + batch 3 (nalu-vs-google-maps, about-nalu, hub) live. Shared GuideLayout also restyles FAQ items, related cards and the open-Nalu CTA as glow cards. Reuse: GuideBlocks (StatTiles, OptionCards, CompareCards, FactList, GuideDetails, GuideMap).
 - Oct 15 Guides redesign: batch 1 fixes (b1021d0) + batch 2 (mililani, uh-manoa, late-night, marathon) live. Map pins are now numbered with a visible full-name legend (direction.md full names). Next batch 3: nalu-vs-google-maps, about-nalu, guides hub (waits on MAIN review).
 - Oct 15 Guides redesign batch 1 (Kapolei, ʻEwa, airport) live: shared `GuideBlocks.tsx` (StatTiles, OptionCards, GuideDetails, GuideMap); GuideLayout now glow cards for every guide + `strip` prop. Next batch 2: mililani, uh-manoa, late-night, marathon (waits on MAIN review).
 - Oct 15 (later): Skyline parking guide 'Train times' section redone as one card per lot (same numbers, `dl` rows, big minutes); table removed, caption/note kept. Live.

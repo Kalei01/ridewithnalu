@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { ChevronRight } from "lucide-react";
 import { GUIDES, GUIDES_HUB, GUIDE_ORDER } from "@/components/guides/guides";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { GuideLayout, GuideSection } from "@/components/guides/GuideLayout";
@@ -56,7 +57,7 @@ export const Route = createFileRoute("/guides/")({
   component: GuidesHubPage,
 });
 
-const cardClass = "block rounded-2xl border border-border bg-card/60 p-4 transition-colors hover:bg-accent";
+const cardClass = "sg-card flex items-center gap-3 p-4 transition-colors hover:bg-accent";
 
 function GuidesHubPage() {
   return (
@@ -68,10 +69,11 @@ function GuidesHubPage() {
       related={[]}
       intro={
         <p>
-          These guides answer the questions people ask most about getting around Oʻahu: Skyline rail,
-          TheBus, the airport, UH Mānoa, the drive from Kapolei, ʻEwa Beach and Mililani, late-night trips
-          and Honolulu Marathon traffic. Each one is checked against TheBus's official timetable and other
-          official sources, and Nalu gives you the live answer for your own trip.
+          These guides answer the questions people ask most about getting around Oʻahu: Skyline
+          rail, TheBus, the airport, UH Mānoa, the drive from Kapolei, ʻEwa Beach and Mililani,
+          late-night trips and Honolulu Marathon traffic. Each one is checked against TheBus's
+          official timetable and other official sources, and Nalu gives you the live answer for your
+          own trip.
         </p>
       }
     >
@@ -82,8 +84,15 @@ function GuidesHubPage() {
             return (
               <li key={slug}>
                 <Link to={guide.path} className={cardClass}>
-                  <span className="block text-lg font-semibold text-foreground">{guide.name}</span>
-                  <span className="mt-1 block text-base leading-7 text-muted-foreground">{guide.summary}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-lg font-semibold text-foreground">
+                      {guide.name}
+                    </span>
+                    <span className="mt-1 block text-base leading-7 text-muted-foreground">
+                      {guide.summary}
+                    </span>
+                  </span>
+                  <ChevronRight className="size-5 shrink-0 text-primary" aria-hidden="true" />
                 </Link>
               </li>
             );
@@ -95,18 +104,28 @@ function GuidesHubPage() {
         <ul className="grid gap-3">
           <li>
             <Link to="/oahu-commute" className={cardClass}>
-              <span className="block text-lg font-semibold text-foreground">Oʻahu commute guide</span>
-              <span className="mt-1 block text-base leading-7 text-muted-foreground">
-                Skyline at a glance and how Nalu compares driving with TheBus and Skyline.
+              <span className="min-w-0 flex-1">
+                <span className="block text-lg font-semibold text-foreground">
+                  Oʻahu commute guide
+                </span>
+                <span className="mt-1 block text-base leading-7 text-muted-foreground">
+                  Skyline at a glance and how Nalu compares driving with TheBus and Skyline.
+                </span>
               </span>
+              <ChevronRight className="size-5 shrink-0 text-primary" aria-hidden="true" />
             </Link>
           </li>
           <li>
             <Link to="/install" className={cardClass}>
-              <span className="block text-lg font-semibold text-foreground">Install Nalu on your phone</span>
-              <span className="mt-1 block text-base leading-7 text-muted-foreground">
-                Add Nalu to your Home Screen and turn on leave alerts.
+              <span className="min-w-0 flex-1">
+                <span className="block text-lg font-semibold text-foreground">
+                  Install Nalu on your phone
+                </span>
+                <span className="mt-1 block text-base leading-7 text-muted-foreground">
+                  Add Nalu to your Home Screen and turn on leave alerts.
+                </span>
               </span>
+              <ChevronRight className="size-5 shrink-0 text-primary" aria-hidden="true" />
             </Link>
           </li>
         </ul>

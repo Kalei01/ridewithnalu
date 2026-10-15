@@ -117,7 +117,7 @@ export function GuideLayout({
               {faqs.map((item) => (
                 <details
                   key={item.q}
-                  className="group rounded-2xl border border-border bg-card/60 open:bg-card"
+                  className="sg-card group"
                 >
                   <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-lg font-semibold [&::-webkit-details-marker]:hidden">
                     <h3 className="text-lg font-semibold">{item.q}</h3>
@@ -145,7 +145,7 @@ export function GuideLayout({
                   <li key={slug}>
                     <Link
                       to={guide.path}
-                      className="block rounded-2xl border border-border bg-card/60 p-4 transition-colors hover:bg-accent"
+                      className="sg-card block p-4 transition-colors hover:bg-accent"
                     >
                       <span className="block text-lg font-semibold text-foreground">{guide.name}</span>
                       <span className="mt-1 block text-base leading-7 text-muted-foreground">{guide.summary}</span>
@@ -180,7 +180,7 @@ export function OpenNaluCta({ destination }: { destination?: GuideDestination | 
   const className =
     "liquid-primary-action mt-5 inline-flex min-h-14 items-center justify-center rounded-2xl px-6 text-center text-base font-bold";
   return (
-    <section className="mt-12 rounded-2xl border border-border bg-card/60 p-5 sm:p-6" aria-labelledby="open-nalu">
+    <section className="sg-card mt-12 p-5 sm:p-6" aria-labelledby="open-nalu">
       <h2 id="open-nalu" className="text-xl font-bold">
         Get the live answer for your trip
       </h2>
