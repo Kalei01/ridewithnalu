@@ -72,9 +72,13 @@ export function StatTiles({
 
 export type OptionItem = {
   title: ReactNode;
-  /** Big figure or phrase, like "55 to 60" or "Free". */
-  big: string;
+  /** Big figure or phrase, like "55 to 60" or "Free". Leave out when a route has no single figure. */
+  big?: string;
+  /** A short hedge before the figure, like "About". */
+  prefix?: string;
   unit?: string;
+  /** One muted line under the title, like the area a route serves. */
+  sub?: string;
   /** Optional small tag, like "Weekdays". */
   pill?: string;
   detail: ReactNode;
@@ -90,13 +94,17 @@ export function OptionCards({ options }: { options: OptionItem[] }) {
             <h3 className="text-lg font-bold leading-tight text-foreground">{o.title}</h3>
             {o.pill && <span className="sg-pill">{o.pill}</span>}
           </div>
-          <p className="mt-2 flex items-baseline gap-2">
-            <span className={`sg-stalls ${o.big.length > 9 ? "!text-2xl" : "!text-3xl"}`}>
-              {o.big}
-            </span>
-            {o.unit && <span className="text-base font-semibold text-foreground">{o.unit}</span>}
-          </p>
-          <p className="mt-2">{o.detail}</p>
+          {o.sub && <p className="mt-1 text-sm leading-5 text-muted-foreground">{o.sub}</p>}
+          {o.big && (
+            <p className="mt-2 flex flex-wrap items-baseline gap-x-2">
+              {o.prefix && <span className="text-sm text-muted-foreground">{o.prefix}</span>}
+              <span className={`sg-stalls ${o.big.length > 9 ? "!text-2xl" : "!text-3xl"}`}>
+                {o.big}
+              </span>
+              {o.unit && <span className="text-base font-semibold text-foreground">{o.unit}</span>}
+            </p>
+          )}
+          <div className="mt-2">{o.detail}</div>
         </li>
       ))}
     </ul>

@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { GUIDES } from "@/components/guides/guides";
 import { UH_MANOA } from "@/components/guides/destinations";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
-import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/components/guides/GuideLayout";
+import { B, Ext, GuideLayout, GuideList, GuideSection } from "@/components/guides/GuideLayout";
+import { GuideMap, OptionCards, StatTiles } from "@/components/guides/GuideBlocks";
 
 // Sources (checked October 2026): UH Mānoa Commuter Services pages on TheBus, Skyline
 // and students; UH Mānoa Registrar mandatory student fees (U-PASS Transportation Fee);
@@ -55,6 +56,32 @@ function UhGuidePage() {
   return (
     <GuideLayout
       destination={UH_MANOA}
+      strip={
+        <StatTiles
+          label="What to know"
+          items={[
+            {
+              value: "$55",
+              label: "U-Pass transportation fee each fall and spring semester",
+              note: "Covers TheBus and Skyline.",
+            },
+            {
+              prefix: "About",
+              value: "40 to 53",
+              unit: "min",
+              label: "A Line, Lagoon Drive (Ahua) to Sinclair Circle",
+              note: "Weekday mornings.",
+            },
+            {
+              prefix: "About",
+              value: "18 to 36",
+              unit: "min",
+              label: "U Line, Lagoon Drive to Dole Street",
+              note: "Weekday mornings.",
+            },
+          ]}
+        />
+      }
       take="If you are a UH student, the U-Pass covers both TheBus and Skyline, and campus parking is limited and paid, so riding is often the easy call. Get off at Lagoon Drive (Ahua) and take the A Line to Sinclair Circle, or the weekday U Line. I will tell you when to leave for your class time."
       breadcrumb="UH Mānoa without parking"
       title="Getting to UH Mānoa without parking"
@@ -62,44 +89,121 @@ function UhGuidePage() {
       related={["skyline", "lateNight", "kapolei"]}
       intro={
         <p>
-          Most UH Mānoa students can ride TheBus and Skyline at no extra cost with the U-Pass, which is
-          paid for through a mandatory $55 transportation fee each fall and spring semester. Routes 4, 6
-          and 13 and the A and U Lines serve campus, and the A and U Lines connect to Skyline at Lagoon Drive (Ahua) station.
+          Most UH Mānoa students can ride TheBus and Skyline at no extra cost with the U-Pass, which
+          is paid for through a mandatory $55 transportation fee each fall and spring semester.
+          Routes 4, 6 and 13 and the A and U Lines serve campus, and the A and U Lines connect to
+          Skyline at Lagoon Drive (Ahua) station.
         </p>
       }
     >
       <GuideSection id="upass" title="How the U-Pass works">
         <GuideList
           items={[
-            <><B>Who gets it:</B> full-time UH Mānoa undergraduate and graduate students who are enrolled and have paid the mandatory Student U-PASS Transportation Fee.</>,
-            <><B>Cost:</B> the fee is $55 per fall and spring semester. Students in the School of Law, School of Medicine and Outreach College are not charged it.</>,
-            <><B>Where it works:</B> TheBus and Skyline, during the fall and spring semesters.</>,
-            <><B>How to use it:</B> tap your Mānoa OneCard on the HOLO card reader when you board.</>,
+            <>
+              <B>Who gets it:</B> full-time UH Mānoa undergraduate and graduate students who are
+              enrolled and have paid the mandatory Student U-PASS Transportation Fee.
+            </>,
+            <>
+              <B>Cost:</B> the fee is $55 per fall and spring semester. Students in the School of
+              Law, School of Medicine and Outreach College are not charged it.
+            </>,
+            <>
+              <B>Where it works:</B> TheBus and Skyline, during the fall and spring semesters.
+            </>,
+            <>
+              <B>How to use it:</B> tap your Mānoa OneCard on the HOLO card reader when you board.
+            </>,
           ]}
         />
         <p>
-          Students with a valid UH ID who are not in the fee-based program can buy a U-Pass at the Campus
-          Center Ticket Office, Room 212, 2465 Campus Road, (808) 956-7236. TheBus notes that office takes
-          cash only.
+          Students with a valid UH ID who are not in the fee-based program can buy a U-Pass at the
+          Campus Center Ticket Office, Room 212, 2465 Campus Road, (808) 956-7236. TheBus notes that
+          office takes cash only.
         </p>
       </GuideSection>
 
       <GuideSection id="routes" title="Bus routes that serve campus">
-        <GuideTable
-          caption="TheBus routes serving UH Mānoa (TheBus UH guide and timetable, October 2026)"
-          head={["Route", "Where it comes from", "Notes"]}
-          rows={[
-            ["A Line", "Lagoon Drive (Ahua) Skyline station, through downtown on King Street and along Kapiʻolani Boulevard", "Every day. About every 10 to 15 minutes on weekdays and every 20 minutes on Sundays. Ends at Sinclair Circle."],
-            ["U Line", "Lagoon Drive (Ahua) Skyline station by the H-1 freeway", "Weekdays only, about 5 AM to 5:30 PM, less often than the A Line. Stops on Dole Street."],
-            ["Route 4", "Nuʻuanu, Punahou and McCully", "Also serves downtown."],
-            ["Route 6", "Pauoa and Woodlawn", "Connects with Ala Moana Center."],
-            ["Route 13", "Liliha and Waikīkī", "The direct route from Waikīkī."],
+        <GuideMap
+          pins={[{ id: "10031", mark: "1", dx: 0, dy: -8 }]}
+          title="Map of Skyline's line with Lagoon Drive (Ahua) station marked 1, where the A Line and U Line start."
+          caption="Lagoon Drive (Ahua) station on Skyline's line, where the A Line and U Line start."
+          legend={["Lagoon Drive (Ahua)"]}
+        />
+        <p className="sr-only">
+          TheBus routes serving UH Mānoa (TheBus UH guide and timetable, October 2026)
+        </p>
+        <OptionCards
+          options={[
+            {
+              title: "A Line",
+              pill: "Every day",
+              detail: (
+                <>
+                  <span className="block">
+                    <B>From:</B> Lagoon Drive (Ahua) Skyline station, through downtown on King
+                    Street and along Kapiʻolani Boulevard.
+                  </span>
+                  <span className="block">
+                    About every 10 to 15 minutes on weekdays and every 20 minutes on Sundays. Ends
+                    at Sinclair Circle.
+                  </span>
+                </>
+              ),
+            },
+            {
+              title: "U Line",
+              pill: "Weekdays only",
+              detail: (
+                <>
+                  <span className="block">
+                    <B>From:</B> Lagoon Drive (Ahua) Skyline station by the H-1 freeway.
+                  </span>
+                  <span className="block">
+                    About 5 AM to 5:30 PM, less often than the A Line. Stops on Dole Street.
+                  </span>
+                </>
+              ),
+            },
+            {
+              title: "Route 4",
+              detail: (
+                <>
+                  <span className="block">
+                    <B>From:</B> Nuʻuanu, Punahou and McCully.
+                  </span>
+                  <span className="block">Also serves downtown.</span>
+                </>
+              ),
+            },
+            {
+              title: "Route 6",
+              detail: (
+                <>
+                  <span className="block">
+                    <B>From:</B> Pauoa and Woodlawn.
+                  </span>
+                  <span className="block">Connects with Ala Moana Center.</span>
+                </>
+              ),
+            },
+            {
+              title: "Route 13",
+              detail: (
+                <>
+                  <span className="block">
+                    <B>From:</B> Liliha and Waikīkī.
+                  </span>
+                  <span className="block">The direct route from Waikīkī.</span>
+                </>
+              ),
+            },
           ]}
         />
         <p>
-          In the timetable, the A Line takes about 40 to 53 minutes from Lagoon Drive to Sinclair Circle on
-          weekday mornings, and the U Line about 18 to 36 minutes from Lagoon Drive to Dole Street. Add the
-          Skyline ride to Lagoon Drive: about 32 minutes from East Kapolei or 14 from Pearlridge.
+          In the timetable, the A Line takes about 40 to 53 minutes from Lagoon Drive to Sinclair
+          Circle on weekday mornings, and the U Line about 18 to 36 minutes from Lagoon Drive to
+          Dole Street. Add the Skyline ride to Lagoon Drive: about 32 minutes from East Kapolei or
+          14 from Pearlridge.
         </p>
       </GuideSection>
 
@@ -110,16 +214,16 @@ function UhGuidePage() {
           ))}
         </ol>
         <p>
-          Going home, board the A Line at Sinclair Circle (stop #983) or the U Line at Dole Street and
-          East-West Road (stop #3674), ride to Lagoon Drive (stop #4850), and transfer to Skyline. These stop
-          numbers come from UH Commuter Services.
+          Going home, board the A Line at Sinclair Circle (stop #983) or the U Line at Dole Street
+          and East-West Road (stop #3674), ride to Lagoon Drive (stop #4850), and transfer to
+          Skyline. These stop numbers come from UH Commuter Services.
         </p>
       </GuideSection>
 
       <GuideSection id="parking" title="If you do drive">
         <p>
-          Campus parking is limited and paid, with semester permits and daily options sold through UH
-          Commuter Services. Rates change, so check{" "}
+          Campus parking is limited and paid, with semester permits and daily options sold through
+          UH Commuter Services. Rates change, so check{" "}
           <Ext href="https://manoa.hawaii.edu/commuter/">manoa.hawaii.edu/commuter</Ext> for current
           prices before you count on a space.
         </p>

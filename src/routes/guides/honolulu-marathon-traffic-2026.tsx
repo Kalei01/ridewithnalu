@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { GUIDES } from "@/components/guides/guides";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { B, Ext, GuideLayout, GuideList, GuideSection } from "@/components/guides/GuideLayout";
+import { StatTiles } from "@/components/guides/GuideBlocks";
 
 // Sources (checked October 5, 2026): Honolulu Marathon official site (2026 date,
 // 5:00 AM start at Ala Moana Boulevard and Queen Street, finish at Kapiʻolani Park,
@@ -47,7 +48,12 @@ export const Route = createFileRoute("/guides/honolulu-marathon-traffic-2026")({
           location: {
             "@type": "Place",
             name: "Ala Moana Boulevard at Queen Street",
-            address: { "@type": "PostalAddress", addressLocality: "Honolulu", addressRegion: "HI", addressCountry: "US" },
+            address: {
+              "@type": "PostalAddress",
+              addressLocality: "Honolulu",
+              addressRegion: "HI",
+              addressCountry: "US",
+            },
           },
           url: "https://www.honolulumarathon.org/",
         },
@@ -65,37 +71,70 @@ function MarathonGuidePage() {
       related={["lateNight", "skyline", "airport"]}
       intro={
         <p>
-          The 2026 Honolulu Marathon is on Sunday, December 13, starting at 5:00 AM on Ala Moana Boulevard
-          at Queen Street and finishing at Kapiʻolani Park, with roads along the course closing in the early
-          morning and reopening in stages as runners pass. The official 2026 closure list had not been
-          published as of early October 2026; last year's was posted in November.
+          The 2026 Honolulu Marathon is on Sunday, December 13, starting at 5:00 AM on Ala Moana
+          Boulevard at Queen Street and finishing at Kapiʻolani Park, with roads along the course
+          closing in the early morning and reopening in stages as runners pass. The official 2026
+          closure list had not been published as of early October 2026; last year's was posted in
+          November.
         </p>
       }
     >
       <GuideSection id="basics" title="Race-day basics">
+        <StatTiles
+          label="Race-day basics"
+          items={[
+            { value: "Dec 13", label: "Date", note: "Sunday, December 13, 2026." },
+            {
+              value: "5:00",
+              unit: "AM",
+              label: "Start",
+              note: "Ala Moana Boulevard at Queen Street.",
+            },
+            { value: "Kapiʻolani Park", label: "Finish" },
+          ]}
+        />
         <GuideList
           items={[
-            <><B>Date:</B> Sunday, December 13, 2026.</>,
-            <><B>Start:</B> 5:00 AM, Ala Moana Boulevard at Queen Street.</>,
-            <><B>Course:</B> through downtown and Waikīkī, around Diamond Head, through Kāhala and out to Hawaiʻi Kai, then back past Diamond Head to the finish.</>,
-            <><B>Finish:</B> Kapiʻolani Park.</>,
-            <><B>No time limit:</B> the finish stays open until the last participant arrives, so closures on the course lift section by section rather than all at once.</>,
+            <>
+              <B>Course:</B> through downtown and Waikīkī, around Diamond Head, through Kāhala and
+              out to Hawaiʻi Kai, then back past Diamond Head to the finish.
+            </>,
+            <>
+              <B>No time limit:</B> the finish stays open until the last participant arrives, so
+              closures on the course lift section by section rather than all at once.
+            </>,
           ]}
         />
       </GuideSection>
 
       <GuideSection id="2025" title="What closed in 2025">
         <p>
-          The 2026 plan may differ, but last year's official traffic advisory gives a good idea of what to
-          expect. On Sunday, December 14, 2025:
+          The 2026 plan may differ, but last year's official traffic advisory gives a good idea of
+          what to expect. On Sunday, December 14, 2025:
         </p>
         <GuideList
           items={[
-            <>Traffic control started at <B>12:30 AM</B>, with lanes along the course closed or coned until runners finished each section.</>,
-            <>Ala Moana Boulevard from Atkinson Drive to Ward Avenue was detoured from 12:30 AM and reopened at about 8 AM.</>,
-            <>From <B>3:30 AM</B>, King Street from Nuʻuanu Avenue to Kapiʻolani Boulevard closed (detour at Smith Street), and Kapiʻolani Boulevard closed in both directions from King Street to Piʻikoi Street.</>,
-            <>From 3:30 AM, all H-1 eastbound traffic was routed off at the Waiʻalae Avenue / 22nd Avenue off-ramp. H-1 partly reopened to a contraflow lane at about 8:30 AM.</>,
-            <>Kalanianaʻole Highway had restricted access and contraflow in East Honolulu from 3:30 AM, with detours onto side streets, including Hawaiʻi Kai Drive.</>,
+            <>
+              Traffic control started at <B>12:30 AM</B>, with lanes along the course closed or
+              coned until runners finished each section.
+            </>,
+            <>
+              Ala Moana Boulevard from Atkinson Drive to Ward Avenue was detoured from 12:30 AM and
+              reopened at about 8 AM.
+            </>,
+            <>
+              From <B>3:30 AM</B>, King Street from Nuʻuanu Avenue to Kapiʻolani Boulevard closed
+              (detour at Smith Street), and Kapiʻolani Boulevard closed in both directions from King
+              Street to Piʻikoi Street.
+            </>,
+            <>
+              From 3:30 AM, all H-1 eastbound traffic was routed off at the Waiʻalae Avenue / 22nd
+              Avenue off-ramp. H-1 partly reopened to a contraflow lane at about 8:30 AM.
+            </>,
+            <>
+              Kalanianaʻole Highway had restricted access and contraflow in East Honolulu from 3:30
+              AM, with detours onto side streets, including Hawaiʻi Kai Drive.
+            </>,
             <>Tow-away zones were in effect from midnight to 5 PM on race day.</>,
           ]}
         />
@@ -104,10 +143,24 @@ function MarathonGuidePage() {
       <GuideSection id="plan" title="How to plan around it">
         <GuideList
           items={[
-            <><B>Leeward and Central Oʻahu trips</B> that stay west of downtown are unlikely to be affected. Skyline runs its normal schedule from about 4:00 AM.</>,
-            <><B>Trips into downtown, Kakaʻako, Ala Moana, Waikīkī or East Honolulu</B> on Sunday morning should expect closures and detours. If you can, travel before the closures or after the course reopens near you.</>,
-            <><B>Going to the airport</B> from Waikīkī or East Honolulu early that morning: allow extra time and check the closure map for your route.</>,
-            <><B>TheBus:</B> in 2025 some routes were canceled or detoured. Check <Ext href="https://www.thebus.org/">thebus.org</Ext> or call (808) 848-5555 closer to the date.</>,
+            <>
+              <B>Leeward and Central Oʻahu trips</B> that stay west of downtown are unlikely to be
+              affected. Skyline runs its normal schedule from about 4:00 AM.
+            </>,
+            <>
+              <B>Trips into downtown, Kakaʻako, Ala Moana, Waikīkī or East Honolulu</B> on Sunday
+              morning should expect closures and detours. If you can, travel before the closures or
+              after the course reopens near you.
+            </>,
+            <>
+              <B>Going to the airport</B> from Waikīkī or East Honolulu early that morning: allow
+              extra time and check the closure map for your route.
+            </>,
+            <>
+              <B>TheBus:</B> in 2025 some routes were canceled or detoured. Check{" "}
+              <Ext href="https://www.thebus.org/">thebus.org</Ext> or call (808) 848-5555 closer to
+              the date.
+            </>,
           ]}
         />
         <p>
@@ -119,9 +172,10 @@ function MarathonGuidePage() {
 
       <GuideSection id="nalu" title="Using Nalu on race day">
         <p>
-          Nalu's drive times come from TomTom live traffic, so on the morning itself they reflect what
-          traffic is actually doing on open roads. Live data does not always know every planned closure in
-          advance, so check the official closure map as well, especially for trips that cross the course.
+          Nalu's drive times come from TomTom live traffic, so on the morning itself they reflect
+          what traffic is actually doing on open roads. Live data does not always know every planned
+          closure in advance, so check the official closure map as well, especially for trips that
+          cross the course.
         </p>
       </GuideSection>
     </GuideLayout>

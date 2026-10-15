@@ -37,6 +37,7 @@ Last updated: 2026-10-14 (home redesign preview ready). Keep ≤ 60 lines; see R
 - R+ (Oct 14)
 
 ## Last run
+- Oct 15 Guides redesign: batch 1 fixes (b1021d0) + batch 2 (mililani, uh-manoa, late-night, marathon) live. Map pins are now numbered with a visible full-name legend (direction.md full names). Next batch 3: nalu-vs-google-maps, about-nalu, guides hub (waits on MAIN review).
 - Oct 15 Guides redesign batch 1 (Kapolei, ʻEwa, airport) live: shared `GuideBlocks.tsx` (StatTiles, OptionCards, GuideDetails, GuideMap); GuideLayout now glow cards for every guide + `strip` prop. Next batch 2: mililani, uh-manoa, late-night, marathon (waits on MAIN review).
 - Oct 15 (later): Skyline parking guide 'Train times' section redone as one card per lot (same numbers, `dl` rows, big minutes); table removed, caption/note kept. Live.
 - Oct 15 (later): Josh approved; Skyline RAIL guide redesign is LIVE at /guides/skyline-rail-guide (preview route removed; FAQ block byte-identical, head unchanged). Same pieces as the preview: What to know strip, whole-line map, area cards, folded bus connections.

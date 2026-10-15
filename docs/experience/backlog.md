@@ -131,3 +131,5 @@ Add-ons (lead):
 - 2026-10-15 · Skyline parking guide: Train times section redone as lot cards (same numbers), live.
 
 - 2026-10-15 · Guides redesign batch 1 (kapolei, ewa, airport) live; shared GuideBlocks + glow GuideLayout for all guides.
+
+- 2026-10-15 · Guides batch 1 fixes + batch 2 (mililani, uh-manoa, late-night, marathon) live.
