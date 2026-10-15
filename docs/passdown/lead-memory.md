@@ -21,7 +21,7 @@ The full working memory of NALU MAIN COMMAND (1), written before it was archived
 | Ask Nalu (Haiku, Josh's Q&A, read-only) | session_01AF2Z9Cn94gfyTG3Me8jHYN | — |
 | Phase 0 cleanups + Tell Nalu form polish (Sonnet, running Oct 11) | session_01ULFH1z7nveUdq7axXkUNbS | — |
 - Routine prompts can only be edited from their own session, and those sessions refuse relayed requests. On Oct 11 the main session asked all four to adopt run-gates.md; Watchman refused (needs Josh in that session); Josh was asked to say "yes, apply the update the main session sent" in each.
-- **Main session:** NALU — MAIN COMMAND (3) (since Oct 14 2 PM HST; session id in main.md "Main session" line). (2) session_01Pht53rQRrui3wEyD3k2m3K handed over at ~610k context; (1) archived. Its wakes are re-created on (3): Sun 11:31 AM lead review and Wed 1:59 PM lead check. The fire_trigger inbox (trig_018dVqisHDihRPYq9mBE1qtP) is DISABLED: agents write their own line at the top of docs/passdown/inbox.md (CLAUDE.md).
+- **Main session:** NALU — MAIN COMMAND (3) = session_01JUpKU1VHoS7rkFjoAghuEG (since Oct 14 2 PM HST; wakes trig_01DYiAhFMQZuDgqTYGWvmi4L Sun 11:31 AM, trig_011tMh6k5uzf9G9TY87yTcEs Wed 1:59 PM). (2) session_01Pht53rQRrui3wEyD3k2m3K handed over at ~610k context; (1) archived. Its wakes are re-created on (3): Sun 11:31 AM lead review and Wed 1:59 PM lead check. The fire_trigger inbox (trig_018dVqisHDihRPYq9mBE1qtP) is DISABLED: agents write their own line at the top of docs/passdown/inbox.md (CLAUDE.md).
 - The main session's own reminders (lead checks, Phase 1/2 triggers) move with the main session at each handover.
 
 ## Environment and tools
