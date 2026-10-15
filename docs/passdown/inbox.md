@@ -1,3 +1,4 @@
+Oct 14 · Sonnet build · Google sign-in now uses Google Identity Services on ridenalu.com (shows our domain, not supabase.co); falls back to the old redirect on any failure/preview host. Josh: test on phone. Reviewers unavailable in-session (self-reviewed)
 # Inbox — agent reports to NALU MAIN (newest first, ≤ 60 lines)
 Written by the inbox routine (trig_018dVqisHDihRPYq9mBE1qtP) when an agent calls fire_trigger. NALU MAIN reads this at every wake. One line: date HST · agent · report · action.
 

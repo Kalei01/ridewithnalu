@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogIn, LogOut, Trash2 } from "lucide-react";
 import { deleteMyAccount } from "@/lib/account.functions";
 import {
@@ -11,7 +11,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { appleSignInAvailable, signInWithSocial } from "@/lib/social-sign-in";
+import {
+  appleSignInAvailable,
+  preloadGoogleIdentity,
+  signInWithSocial,
+} from "@/lib/social-sign-in";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +32,9 @@ export function AccountSection({ compact = false }: { compact?: boolean }) {
   const [message, setMessage] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [socialPending, setSocialPending] = useState(false);
+  useEffect(() => {
+    if (!loading && !user) preloadGoogleIdentity();
+  }, [loading, user]);
   const name = user?.user_metadata?.["full_name"] as string | undefined;
   const avatar = user?.user_metadata?.["avatar_url"] as string | undefined;
 

@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { LogIn, X } from "lucide-react";
-import { appleSignInAvailable, signInWithSocial } from "@/lib/social-sign-in";
+import {
+  appleSignInAvailable,
+  preloadGoogleIdentity,
+  signInWithSocial,
+} from "@/lib/social-sign-in";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
@@ -19,7 +23,12 @@ export function SignInBanner() {
     }
   }, []);
 
-  if (loading || user || dismissed) return null;
+  const visible = !(loading || user || dismissed);
+  useEffect(() => {
+    if (visible) preloadGoogleIdentity();
+  }, [visible]);
+
+  if (!visible) return null;
 
   const dismiss = () => {
     setDismissed(true);

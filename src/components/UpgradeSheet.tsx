@@ -3,7 +3,7 @@ import { Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import type { UpgradeRequest } from "@/hooks/use-gate";
-import { signInWithSocial } from "@/lib/social-sign-in";
+import { preloadGoogleIdentity, signInWithSocial } from "@/lib/social-sign-in";
 import { DAILY_TRIP_LIMIT, FEATURE_NAME } from "@/lib/tiers";
 
 const FREE_PERKS = ["Unlimited trip checks", "Your places on every phone", "Arrive-by planning", "A time-to-leave alert"];
@@ -27,6 +27,10 @@ export function UpgradeSheet() {
     window.addEventListener("nalu-upgrade", open);
     return () => window.removeEventListener("nalu-upgrade", open);
   }, []);
+  const wantsSignup = request?.kind === "signup";
+  useEffect(() => {
+    if (wantsSignup) preloadGoogleIdentity();
+  }, [wantsSignup]);
   const close = () => setRequest(null);
 
   async function signUp() {
