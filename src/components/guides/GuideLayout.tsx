@@ -7,6 +7,8 @@ import { GUIDES, LAST_UPDATED, type GuideSlug } from "./guides";
 import type { GuideFaq } from "./guide-head";
 import { TryTripPanel } from "./TryTripPanel";
 import { DriveVsRailDiagram } from "./DriveVsRailDiagram";
+import "@/components/home/home.css";
+import "./skyline-parking.css";
 
 /**
  * Shared shell for the /guides pages: breadcrumbs, heading, a visible
@@ -26,6 +28,7 @@ export function GuideLayout({
   showHubCrumb = true,
   destination,
   take,
+  strip,
 }: {
   breadcrumb: string;
   eyebrow?: string;
@@ -40,9 +43,11 @@ export function GuideLayout({
   destination?: GuideDestination;
   /** "Nalu's take": a few plain sentences in Nalu's voice, built only from facts already on the page. */
   take?: string;
+  /** "What to know": a few big figures from facts already on the page (StatTiles). */
+  strip?: ReactNode;
 }) {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="nh sg min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-8 sm:py-14">
         <nav aria-label="Breadcrumb">
           <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base text-muted-foreground">
@@ -77,8 +82,10 @@ export function GuideLayout({
           <p className="mt-4 text-base text-muted-foreground">Last updated: {LAST_UPDATED}</p>
         </header>
 
+        {strip && <div className="mt-8">{strip}</div>}
+
         {take && (
-          <aside aria-labelledby="nalu-take" className="mt-8 rounded-2xl border border-primary/30 bg-primary/10 p-5">
+          <aside aria-labelledby="nalu-take" className="sg-card mt-6 p-5">
             <h2 id="nalu-take" className="flex items-center gap-2 text-lg font-bold text-foreground">
               <Waves className="size-5 text-primary" aria-hidden="true" />
               Nalu&apos;s take
@@ -225,7 +232,7 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
 export function GuideSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   const Icon = SECTION_ICONS[id];
   return (
-    <section aria-labelledby={id} className="ease-in-view rounded-2xl border border-border bg-card/40 p-5 sm:p-6">
+    <section aria-labelledby={id} className="ease-in-view sg-card p-5 sm:p-6">
       <h2 id={id} className="flex items-start gap-3 text-2xl font-bold">
         {Icon && (
           <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
@@ -255,7 +262,7 @@ export function GuideTable({ caption, head, rows }: { caption: string; head: str
   // The caption sits outside the scrolling box so it never gets clipped when a
   // wide table scrolls sideways on a phone.
   return (
-    <figure className="rounded-2xl border border-border">
+    <figure className="sg-card">
       <figcaption className="px-4 pt-3 text-base font-semibold text-foreground">{caption}</figcaption>
       <div className="overflow-x-auto">
       <table aria-label={caption} className="w-full min-w-[20rem] border-collapse text-left text-base">

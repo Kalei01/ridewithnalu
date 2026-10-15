@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { GUIDES } from "@/components/guides/guides";
 import { DOWNTOWN } from "@/components/guides/destinations";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
-import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/components/guides/GuideLayout";
+import { B, Ext, GuideLayout, GuideList, GuideSection } from "@/components/guides/GuideLayout";
+import { GuideMap, OptionCards, StatTiles } from "@/components/guides/GuideBlocks";
+import type { SkylineMapPin } from "@/components/guides/SkylineMap";
 
 // Sources (checked October 2026): TheBus GTFS timetable valid Sept 28 to Dec 5, 2026
 // (routes serving Fort Weaver Road, scheduled times, frequencies, weekday-only express
@@ -34,10 +36,34 @@ export const Route = createFileRoute("/guides/ewa-beach-to-downtown")({
   component: EwaGuidePage,
 });
 
+const PINS: SkylineMapPin[] = [
+  { id: "10046", mark: "UH West Oʻahu", dx: -8, dy: 14, anchor: "start" },
+  { id: "10044", mark: "West Loch", dx: -3, dy: 13, anchor: "end" },
+  { id: "10043", mark: "Waipahu TC", dx: 0, dy: -8 },
+];
+
 function EwaGuidePage() {
   return (
     <GuideLayout
       destination={DOWNTOWN}
+      strip={
+        <StatTiles
+          label="What to know"
+          items={[
+            {
+              value: "43",
+              unit: "min",
+              label: "Route 47 from Fort Weaver Road to UH West Oʻahu (Keoneʻae), then Skyline",
+              note: "Train from there to Lagoon Drive (Ahua): about 30 minutes.",
+            },
+            {
+              value: "$3.00",
+              label: "One HOLO fare covers the bus and the train",
+              note: "It works as a 2-hour pass.",
+            },
+          ]}
+        />
+      }
       take="There is no station in ʻEwa Beach itself. The 91 and the CountryExpress E are the direct buses, scheduled at roughly 1 hr to 1 hr 20 min on weekday mornings. If you would rather ride the train, Routes 47 and 44 connect ʻEwa with UH West Oʻahu (Keoneʻae). I compare all of it against H-1 for your exact trip."
       breadcrumb="ʻEwa Beach to downtown"
       title="ʻEwa Beach to downtown Honolulu: bus, rail or drive"
@@ -45,9 +71,11 @@ function EwaGuidePage() {
       related={["kapolei", "skyline", "lateNight"]}
       intro={
         <p>
-          From ʻEwa Beach, the direct buses into downtown Honolulu are the CountryExpress E, the weekday
-          91 and 91A express routes, and Route 42, or you can take a bus to Skyline at UH West Oʻahu, West Loch or Waipahu Transit Center. Driving means Fort Weaver Road and then H-1, where morning traffic varies
-          from day to day, so Nalu compares the options live for your trip.
+          From ʻEwa Beach, the direct buses into downtown Honolulu are the CountryExpress E, the
+          weekday 91 and 91A express routes, and Route 42, or you can take a bus to Skyline at UH
+          West Oʻahu, West Loch or Waipahu Transit Center. Driving means Fort Weaver Road and then
+          H-1, where morning traffic varies from day to day, so Nalu compares the options live for
+          your trip.
         </p>
       }
     >
@@ -56,57 +84,92 @@ function EwaGuidePage() {
           Scheduled times below are from TheBus's official timetable for weekday mornings, from Fort
           Weaver Road near Kuhina Street. They do not include waiting, and traffic can change them.
         </p>
-        <GuideTable
-          caption="ʻEwa Beach to downtown by bus (timetable, October 2026)"
-          head={["Route", "When it runs", "Scheduled ride to downtown"]}
-          rows={[
-            ["91 ʻEwa Beach Express", "Weekdays, morning trips about 4:20 to 7:10 AM; afternoon return", "About 1 hr 5 min to 1 hr 20 min"],
-            ["91A ʻEwa Gentry Express", "Weekdays, a few early-morning trips; afternoon return", "Check the timetable"],
-            ["CountryExpress E", "Every day; about every 30 minutes on weekdays, about hourly on Sundays", "About 1 hr to 1 hr 20 min"],
-            ["Route 42", "Every day, into the night", "About 1 hr 40 min to 2 hr 10 min"],
+        <p className="sr-only">ʻEwa Beach to downtown by bus (timetable, October 2026)</p>
+        <OptionCards
+          options={[
+            {
+              title: "91 ʻEwa Beach Express",
+              big: "1 hr 5 min to 1 hr 20 min",
+              detail:
+                "Weekdays, morning trips about 4:20 to 7:10 AM; afternoon return. Scheduled ride to downtown: about 1 hr 5 min to 1 hr 20 min.",
+            },
+            {
+              title: "91A ʻEwa Gentry Express",
+              big: "Check the timetable",
+              detail: "Weekdays, a few early-morning trips; afternoon return.",
+            },
+            {
+              title: "CountryExpress E",
+              big: "1 hr to 1 hr 20 min",
+              detail:
+                "Every day; about every 30 minutes on weekdays, about hourly on Sundays. Scheduled ride to downtown: about 1 hr to 1 hr 20 min.",
+            },
+            {
+              title: "Route 42",
+              big: "1 hr 40 min to 2 hr 10 min",
+              detail:
+                "Every day, into the night. Scheduled ride to downtown: about 1 hr 40 min to 2 hr 10 min.",
+            },
           ]}
         />
         <p>
-          The E continues to Ala Moana and Waikīkī. Route 42 also reaches Waikīkī, and some of its trips
-          stop at the airport.
+          The E continues to Ala Moana and Waikīkī. Route 42 also reaches Waikīkī, and some of its
+          trips stop at the airport.
         </p>
       </GuideSection>
 
       <GuideSection id="rail" title="ʻEwa Beach to Honolulu by train: bus to Skyline">
+        <GuideMap
+          pins={PINS}
+          title="Map of Skyline's line with UH West Oʻahu, West Loch and Waipahu Transit Center marked: the three stations a short bus ride from ʻEwa Beach."
+          caption="The three Skyline stations reached by bus from ʻEwa Beach."
+        />
         <p>ʻEwa Beach has no Skyline station, but three are a short bus ride away:</p>
         <GuideList
           items={[
-            <><B>Route 47 to UH West Oʻahu (Keoneʻae):</B> about 43 minutes from Fort Weaver Road near ʻEwa Beach Park. The train from UH West Oʻahu to Lagoon Drive (Ahua) is about 30 minutes.</>,
-            <><B>Route 44</B> runs between UH West Oʻahu and West Loch (Hōʻaeʻae) stations by way of ʻEwa. The train from West Loch to Lagoon Drive is about 25 minutes.</>,
-            <><B>Route 42 to Waipahu Transit Center (Pouhala):</B> about 35 to 60 minutes from ʻEwa Beach depending on the time of day. The train from Waipahu Transit Center to Lagoon Drive is about 22 minutes.</>,
+            <>
+              <B>Route 47 to UH West Oʻahu (Keoneʻae):</B> about 43 minutes from Fort Weaver Road
+              near ʻEwa Beach Park. The train from UH West Oʻahu to Lagoon Drive (Ahua) is about 30
+              minutes.
+            </>,
+            <>
+              <B>Route 44</B> runs between UH West Oʻahu and West Loch (Hōʻaeʻae) stations by way of
+              ʻEwa. The train from West Loch to Lagoon Drive is about 25 minutes.
+            </>,
+            <>
+              <B>Route 42 to Waipahu Transit Center (Pouhala):</B> about 35 to 60 minutes from ʻEwa
+              Beach depending on the time of day. The train from Waipahu Transit Center to Lagoon
+              Drive is about 22 minutes.
+            </>,
           ]}
         />
         <p>
-          From Lagoon Drive, the A Line runs along King Street through downtown. One $3.00 HOLO fare covers the
-          bus and the train, since it works as a 2-hour pass. Route 41 also links ʻEwa Beach with Kapolei
-          Transit Center in about half an hour.
+          From Lagoon Drive, the A Line runs along King Street through downtown. One $3.00 HOLO fare
+          covers the bus and the train, since it works as a 2-hour pass. Route 41 also links ʻEwa
+          Beach with Kapolei Transit Center in about half an hour.
         </p>
       </GuideSection>
 
       <GuideSection id="drive" title="ʻEwa Beach to Honolulu drive time">
         <p>
-          Most ʻEwa Beach drives start on Fort Weaver Road before joining H-1 eastbound. Both can be slow
-          on weekday mornings, and the time changes with crashes, roadwork and weather. Nalu uses
-          TomTom live traffic for the drive and flags planned HDOT lane closures on your route.
+          Most ʻEwa Beach drives start on Fort Weaver Road before joining H-1 eastbound. Both can be
+          slow on weekday mornings, and the time changes with crashes, roadwork and weather. Nalu
+          uses TomTom live traffic for the drive and flags planned HDOT lane closures on your route.
         </p>
       </GuideSection>
 
       <GuideSection id="choose" title="Drive, bus or train? How to choose your commute">
         <p>
-          If you work near downtown and can catch a weekday-morning 91 or E (scheduled at roughly 1 hr
-          to 1 hr 20 min from Fort Weaver Road, not counting your wait), the bus spares you the drive
-          and parking. If you are going somewhere along the rail line, such as Pearlridge, the airport or
-          Kalihi, a bus to Skyline is often more direct. Nalu compares the drive with every bus and
-          bus-plus-rail combination for your exact trip and tells you which is faster right now.
+          If you work near downtown and can catch a weekday-morning 91 or E (scheduled at roughly 1
+          hr to 1 hr 20 min from Fort Weaver Road, not counting your wait), the bus spares you the
+          drive and parking. If you are going somewhere along the rail line, such as Pearlridge, the
+          airport or Kalihi, a bus to Skyline is often more direct. Nalu compares the drive with
+          every bus and bus-plus-rail combination for your exact trip and tells you which is faster
+          right now.
         </p>
         <p>
-          Timetables change a few times a year; the latest changes took effect on August 23, 2026. Check{" "}
-          <Ext href="https://www.thebus.org/">thebus.org</Ext> for current schedules.
+          Timetables change a few times a year; the latest changes took effect on August 23, 2026.
+          Check <Ext href="https://www.thebus.org/">thebus.org</Ext> for current schedules.
         </p>
       </GuideSection>
     </GuideLayout>

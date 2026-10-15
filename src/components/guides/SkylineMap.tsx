@@ -149,6 +149,7 @@ export function SkylineMap({
             <circle className="sk-pin" cx={s.x} cy={s.y} r={3 * k} />
             <text
               className="sk-mark"
+              {...(p.mark.length > 2 ? { style: { fontSize: 6.6 } } : {})}
               x={s.x + (p.dx ?? 0)}
               y={s.y + (p.dy ?? -7)}
               textAnchor={p.anchor ?? "middle"}

@@ -1,6 +1,7 @@
 # Inbox — agent reports to NALU MAIN (newest first, ≤ 60 lines)
 Written by the inbox routine (trig_018dVqisHDihRPYq9mBE1qtP) when an agent calls fire_trigger. NALU MAIN reads this at every wake. One line: date HST · agent · report · action.
 
+- 2026-10-15 · Premium (Sonnet) · Guides redesign batch 1 (Kapolei, ʻEwa, airport) live; waiting for reviewers before batch 2 · for MAIN
 - 2026-10-15 · Premium (Sonnet) · Skyline parking guide Train times redone as lot cards (same numbers), live.
 - 2026-10-15 · Premium (Sonnet) · Skyline RAIL guide redesign SWITCHED LIVE at /guides/skyline-rail-guide (head/title/description/FAQ unchanged); preview route removed.
 - 2026-10-15 · Premium (Sonnet) · Skyline RAIL guide PREVIEW live at /guides/skyline-rail-guide-preview (noindex, canonical real page, unlinked); parking map now tints Pearl Harbor as water + label (live on the real parking page) · for MAIN: run mobile-design, transit-accuracy (new area groupings are layout only), security-keys; Josh approves, then switch.

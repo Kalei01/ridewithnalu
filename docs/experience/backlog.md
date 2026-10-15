@@ -129,3 +129,5 @@ Add-ons (lead):
 - Skyline rail guide redesign: LIVE Oct 15 (preview removed). Pearl Harbor water tint on SkylineMap: DONE.
 
 - 2026-10-15 · Skyline parking guide: Train times section redone as lot cards (same numbers), live.
+
+- 2026-10-15 · Guides redesign batch 1 (kapolei, ewa, airport) live; shared GuideBlocks + glow GuideLayout for all guides.
