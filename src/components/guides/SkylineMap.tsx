@@ -46,6 +46,7 @@ export function SkylineMap({
   view = SKYLINE_LINE_VIEW,
   showAllStations = false,
   labels = [],
+  showHarbor = true,
 }: {
   pins: SkylineMapPin[];
   /** Accessible name, read by screen readers. */
@@ -54,6 +55,8 @@ export function SkylineMap({
   showAllStations?: boolean;
   /** Small muted name tags, like the two ends of the line. */
   labels?: SkylineMapLabel[];
+  /** Tint Pearl Harbor as water and name it (on by default; the zoomed crops need it). */
+  showHarbor?: boolean;
 }) {
   const k = (view.w / 205) * 0.95;
   const uid = useId().replace(/:/g, "");
@@ -73,9 +76,35 @@ export function SkylineMap({
           <stop offset="0" stopColor="var(--nh-land)" />
           <stop offset="1" stopColor="var(--nh-land-2)" />
         </linearGradient>
+        {/* Pearl Harbor is a notch cut into the coast, so its water is "everything
+            that is not land" inside this box; the mask keeps the tint off the land. */}
+        <mask id={`${uid}-harbor-mask`} maskUnits="userSpaceOnUse" x="238" y="318" width="92" height="76">
+          <rect x="238" y="318" width="92" height="76" fill={`url(#${uid}-harbor-fade)`} />
+          <path d={COAST_PATH} fill="#000" />
+        </mask>
+        <linearGradient id={`${uid}-harbor-fade`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="0.75" stopColor="#fff" />
+          <stop offset="1" stopColor="#000" />
+        </linearGradient>
       </defs>
       <path className="nh-coast-glow" d={COAST_PATH} />
       <path className="nh-land" d={COAST_PATH} style={{ fill: `url(#${uid}-land)` }} />
+      {showHarbor && (
+        <>
+          <rect
+            className="sk-harbor"
+            x="238"
+            y="318"
+            width="92"
+            height="76"
+            mask={`url(#${uid}-harbor-mask)`}
+          />
+          <text className="sk-water" style={{ fontSize: 6.2 * k }} x="283" y="368" textAnchor="middle">
+            Pearl Harbor
+          </text>
+        </>
+      )}
       <path className="nh-rail-glow" d={SKYLINE_PATH} />
       <path className="nh-rail" d={SKYLINE_PATH} />
       {showAllStations &&

@@ -36,3 +36,24 @@
   stroke-width: 2px;
   stroke-linejoin: round;
 }
+.sk-harbor {
+  fill: rgb(10 132 255 / 34%);
+}
+.sk-water {
+  fill: rgb(190 226 255 / 85%);
+  paint-order: stroke;
+  stroke: #06121f;
+  stroke-width: 1.6px;
+  stroke-linejoin: round;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+/* Softer shoreline in these crops so the harbor reads as water, not an outline. */
+.sk-map .nh-land {
+  stroke: rgb(125 196 255 / 38%);
+  stroke-width: 0.8;
+}
+.sk-map .nh-coast-glow {
+  stroke: rgb(125 196 255 / 7%);
+}
