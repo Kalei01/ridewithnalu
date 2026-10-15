@@ -5,7 +5,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { clockToMinutes, obtainPushToken, readPushPrefs, writePushPrefs } from "@/lib/push-client";
+import {
+  clockToMinutes,
+  obtainPushToken,
+  readPushPrefs,
+  writePushPrefs,
+  deniedHowTo,
+} from "@/lib/push-client";
 import { savePushSubscription, sendTestPush } from "@/lib/push.functions";
 
 const ASKED_KEY = "nalu-notif-asked-v1";
@@ -57,8 +63,9 @@ function isInstalled() {
 }
 
 /**
- * Right after someone signs in or signs up, offer notifications once with a
- * single button. Phones only show their "Allow notifications?" question after
+ * The first time someone opens the installed (Home Screen) app, or right after
+ * they sign in or sign up, offer notifications once with a single button. If
+ * they already said yes, nothing is asked and this phone is signed up quietly. Phones only show their "Allow notifications?" question after
  * a tap, so this is as close to automatic as the platform allows. On an
  * iPhone that hasn't added Nalu to the Home Screen it explains that step,
  * since iOS only allows notifications from the Home Screen app.
@@ -72,7 +79,10 @@ export function NotificationPrompt() {
   const test = useServerFn(sendTestPush);
 
   useEffect(() => {
-    if (!user) return;
+    // Ask on the first open of the installed app, or right after sign-in.
+    // Not on a plain browser visit: the public pages shouldn't open with a
+    // permission question, and iPhones can't get alerts there anyway.
+    if (!user && !isInstalled()) return;
     // Already allowed on this phone: sign it up quietly, or, if it's signed up,
     // check its token is still current. Phones renew tokens from time to time,
     // and a stale one would make alerts stop arriving.
@@ -125,7 +135,7 @@ export function NotificationPrompt() {
     try {
       const result = await register(true);
       if (result.status !== "registered") {
-        toast(BLOCKED_COPY[result.status]);
+        toast(result.status === "denied" ? deniedHowTo() : BLOCKED_COPY[result.status], { duration: 12_000 });
         close();
         return;
       }

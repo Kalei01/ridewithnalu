@@ -17,7 +17,13 @@ import {
   writeLeaveAlerts,
   type LocalLeaveAlert,
 } from "@/lib/leave-alerts-client";
-import { clockToMinutes, obtainPushToken, readPushPrefs, writePushPrefs } from "@/lib/push-client";
+import {
+  clockToMinutes,
+  obtainPushToken,
+  readPushPrefs,
+  writePushPrefs,
+  deniedHowTo,
+} from "@/lib/push-client";
 import { savePushSubscription } from "@/lib/push.functions";
 import { findByKind, type SavedPlace } from "@/lib/places/saved-places";
 
@@ -79,7 +85,7 @@ export async function ensurePushSignup(
 ): Promise<string | null> {
   const result = await obtainPushToken(true);
   if (result.status !== "registered") {
-    toast(BLOCKED_COPY[result.status]);
+    toast(result.status === "denied" ? deniedHowTo() : BLOCKED_COPY[result.status], { duration: 12_000 });
     return null;
   }
   const prefs = readPushPrefs();

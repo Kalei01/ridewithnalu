@@ -5,7 +5,14 @@ import { toast } from "sonner";
 import { LeaveAlertCard } from "@/components/LeaveAlertCard";
 import { EmailOptIn } from "@/components/account/EmailOptIn";
 import { Button } from "@/components/ui/button";
-import { obtainPushToken, readPushPrefs, writePushPrefs, clockToMinutes, type PushPrefs } from "@/lib/push-client";
+import {
+  obtainPushToken,
+  readPushPrefs,
+  writePushPrefs,
+  clockToMinutes,
+  type PushPrefs,
+  deniedHowTo,
+} from "@/lib/push-client";
 import { savePushSubscription, sendTestPush } from "@/lib/push.functions";
 
 const BLOCKED_COPY = {
@@ -40,7 +47,7 @@ export function NotificationsSection({ places }: { places: SavedPlace[] }) {
     try {
       const result = await obtainPushToken(true);
       if (result.status !== "registered") {
-        toast(BLOCKED_COPY[result.status]);
+        toast(result.status === "denied" ? deniedHowTo() : BLOCKED_COPY[result.status], { duration: 12_000 });
         return;
       }
       const current = readPushPrefs();

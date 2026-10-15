@@ -94,6 +94,20 @@ export async function deletePushToken() {
   }
 }
 
+/**
+ * What to say once notifications are blocked. Phones never show the "Allow?"
+ * question again after "Don't Allow", so the only way back is the phone's own
+ * Settings; spell out the exact taps rather than a vague "phone settings".
+ */
+export function deniedHowTo(): string {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua) || (ua.includes("Mac") && navigator.maxTouchPoints > 1))
+    return "Notifications are off for Nalu. On your iPhone open Settings → Notifications → Nalu and turn on Allow Notifications, then try again.";
+  if (/Android/.test(ua))
+    return "Notifications are off for Nalu. Long-press the Nalu app icon (or tap the icon left of the web address) → Notifications → Allow, then try again.";
+  return "Notifications are blocked for Nalu. Allow them in your browser's site settings, then try again.";
+}
+
 export function clockToMinutes(value: string): number | null {
   const match = /^(\d{2}):(\d{2})$/.exec(value);
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
