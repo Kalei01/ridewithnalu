@@ -24,6 +24,8 @@ The full working memory of NALU MAIN COMMAND (1), written before it was archived
 - **Main session:** NALU — MAIN COMMAND (4) = session_01RaHbdcHV5NWx2c4yog64Z9 (since Oct 15 HST; wakes on it: trig_01SJgjnkiLDSVA98wSmmkhvh Sun 11:31 AM lead review, trig_01WomGiSHPk4McDZEFr4gAEp Wed 1:59 PM lead check). (3) session_01JUpKU1VHoS7rkFjoAghuEG handed over Oct 15 at Josh's request; (2) session_01Pht53rQRrui3wEyD3k2m3K; (1) archived. The fire_trigger inbox (trig_018dVqisHDihRPYq9mBE1qtP) is DISABLED: agents write their own line at the top of docs/passdown/inbox.md (CLAUDE.md).
 - The main session's own reminders (lead checks, Phase 1/2 triggers) move with the main session at each handover.
 
+- Oct 15 (MAIN 4): Josh-requested guide redesign DONE — all 11 guides + hub live in the glow-card look (Skyline map component, strips, option cards), each batch reviewed by transit-accuracy/mobile-design/security-keys; head/FAQ unchanged. Promo video v1 (Leave-now, Drive only) in scratchpad; v2 needs a daytime re-record (Arrive by can't plan tomorrow). Startup credits: run 3 done, queue waits on Josh.
+
 ## Josh's tools — verdicts (Oct 15, MAIN (4))
 No claude.ai plugins enabled (ListPlugins empty; ~/.claude/plugins empty). Nothing installed or enabled; no paid generations run.
 - Useful now: GitHub (PRs, CI, checks); Gmail (startup-credits drafts and notices — drafts only, Josh sends); built-in code-review / security-review / simplify (extra pass before risky pushes; our reviewers stay primary); run (launch the app to check a change); deep-research (credits eligibility questions only, it fans out subagents — rare).
