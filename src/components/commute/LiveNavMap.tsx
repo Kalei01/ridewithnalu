@@ -413,7 +413,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     <div className="relative isolate h-full w-full">
       <div ref={nodeRef} className="h-full w-full" aria-label="Heading-up navigation map" />
 
-      <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-start justify-between gap-2 max-lg:landscape:bottom-2">
+      <div className="pointer-events-none absolute left-[max(0.5rem,env(safe-area-inset-left))] right-[max(0.5rem,env(safe-area-inset-right))] top-[max(0.5rem,calc(env(safe-area-inset-top)+0.25rem))] z-10 flex items-start justify-between gap-2 max-lg:landscape:bottom-2">
         {rerouting ? (
           <div
             className="nav-hud pointer-events-auto min-w-0 max-w-[62%] rounded-xl px-4 py-3 max-lg:landscape:max-w-[30%]"
