@@ -135,3 +135,5 @@ Add-ons (lead):
 - 2026-10-15 · Guides batch 1 fixes + batch 2 (mililani, uh-manoa, late-night, marathon) live.
 
 - 2026-10-15 · Guides redesign batch 2 fixes + batch 3 (compare, about, hub) live; all 10 guides done.
+
+- 2026-10-15 · Guides final polish (Kapolei takeaways list, About/compare strips trimmed, related chevrons, hub card name) live.

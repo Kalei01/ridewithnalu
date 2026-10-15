@@ -106,7 +106,7 @@ function GuidesHubPage() {
             <Link to="/oahu-commute" className={cardClass}>
               <span className="min-w-0 flex-1">
                 <span className="block text-lg font-semibold text-foreground">
-                  Oʻahu commute guide
+                  Oʻahu commute planning without the guesswork
                 </span>
                 <span className="mt-1 block text-base leading-7 text-muted-foreground">
                   Skyline at a glance and how Nalu compares driving with TheBus and Skyline.

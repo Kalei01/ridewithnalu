@@ -2,7 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { GUIDES } from "@/components/guides/guides";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { GuideLayout, GuideSection } from "@/components/guides/GuideLayout";
-import { FactList, StatTiles } from "@/components/guides/GuideBlocks";
+import { FactList } from "@/components/guides/GuideBlocks";
 import { SITE_URL } from "@/lib/site";
 
 // Sources: Nalu's own product facts in this repo (src/routes/install.tsx, privacy.tsx,
@@ -71,20 +71,6 @@ export const Route = createFileRoute("/guides/about-nalu")({
 function AboutGuidePage() {
   return (
     <GuideLayout
-      strip={
-        <StatTiles
-          label="What to know"
-          items={[
-            { value: "Free", label: "No account needed" },
-            { value: "Oʻahu", label: "The island of Oʻahu, Hawaiʻi" },
-            {
-              value: "Any phone",
-              label: "Works in any browser at ridenalu.com",
-              note: "It is not in the App Store.",
-            },
-          ]}
-        />
-      }
       breadcrumb="About Nalu"
       eyebrow="About · Press"
       title="About Nalu: FAQ and key facts"

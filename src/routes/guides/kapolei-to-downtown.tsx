@@ -3,7 +3,7 @@ import { GUIDES } from "@/components/guides/guides";
 import { DOWNTOWN } from "@/components/guides/destinations";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
 import { B, Ext, GuideLayout, GuideList, GuideSection } from "@/components/guides/GuideLayout";
-import { GuideMap, OptionCards, StatTiles } from "@/components/guides/GuideBlocks";
+import { GuideMap, StatTiles } from "@/components/guides/GuideBlocks";
 import type { SkylineMapPin } from "@/components/guides/SkylineMap";
 
 // Sources (checked October 2026): TheBus GTFS timetable valid Sept 28 to Dec 5, 2026
@@ -93,21 +93,20 @@ function KapoleiGuidePage() {
         <p className="sr-only">
           Kapolei to downtown Honolulu at a glance (timetable, October 2026)
         </p>
-        <OptionCards
-          options={[
-            {
-              title: "CountryExpress C",
-              big: "40 to 45",
-              unit: "min",
-              detail:
-                "From Kualakaʻi Parkway to King and Alakea streets in the morning, about every 30 minutes on weekdays.",
-            },
-            {
-              title: "Park-and-ride",
-              big: "Free",
-              detail:
-                "Free for transit riders with a 24-hour limit. The UH West Oʻahu (Keoneʻae) lot was reported full by about 8 AM on weekdays (May 2026).",
-            },
+        <GuideList
+          items={[
+            <>
+              <B>Skyline plus the A Line:</B> About 55 to 60 minutes on board from East Kapolei to
+              King and Bishop streets, plus wait and walk.
+            </>,
+            <>
+              <B>CountryExpress C:</B> About 40 to 45 minutes from Kualakaʻi Parkway to King and
+              Alakea streets in the morning, about every 30 minutes on weekdays.
+            </>,
+            <>
+              <B>Park-and-ride:</B> Free for transit riders with a 24-hour limit. The UH West Oʻahu
+              (Keoneʻae) lot was reported full by about 8 AM on weekdays (May 2026).
+            </>,
           ]}
         />
       </GuideSection>
@@ -129,7 +128,7 @@ function KapoleiGuidePage() {
         <GuideMap
           pins={PINS}
           title="Map of Skyline's line with East Kapolei (Kualakaʻi), Lagoon Drive (Ahua) and Kalihi Transit Center (Kahauiki) marked 1 to 3."
-          caption="Skyline runs from East Kapolei to Kalihi Transit Center; Lagoon Drive is where the A Line and W Line connect."
+          caption="Skyline runs from East Kapolei to Kalihi Transit Center; the A Line and W Line connect to Skyline at Lagoon Drive."
           legend={[
             "East Kapolei (Kualakaʻi)",
             "Lagoon Drive (Ahua)",

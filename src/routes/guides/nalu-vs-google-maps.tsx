@@ -44,7 +44,6 @@ function CompareGuidePage() {
           label="What to know"
           items={[
             { value: "One answer", label: "Drive or transit, side by side, and when to leave" },
-            { value: "Free", label: "No account needed" },
             { value: "Oʻahu only", label: "The others work in many places" },
           ]}
         />
