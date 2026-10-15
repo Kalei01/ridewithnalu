@@ -95,3 +95,8 @@ What to paste: the date, subject, and the sentences about eligibility, entity ty
 - Missing evidence: no official terms pages read for Supabase, Cloudflare, Google, AWS, PostHog, Sentry, GitHub, OpenAI. Hawaiʻi programs: XLR8UH and Purple Maiʻa found nothing; HTDC page is about funding accelerators, not startups directly.
 - Realism: the honest finding is that most programs want an incorporated company or VC link, and most of the big headline credits are for clouds Nalu does not use. Real, usable value is concentrated in Supabase and Cloudflare.
 - Free route to meet "company" tests: a sole proprietorship is free to operate; a Hawaii trade-name (DBA) is optional and about $51 (official DCCA, snippet); an IRS EIN is free. None is needed yet; do not spend until a program requires it.
+
+## Email setup (Josh, Oct 15)
+- Incoming: hello@ridenalu.com forwards (Cloudflare Email Routing) to Josh's personal Gmail. Sign emails "Joshua Reverio".
+- Josh approved the campaign agent sending emails (official program addresses only, verified facts only, logged here). Needs the Gmail connector in a new session.
+- Sending AS hello@ridenalu.com: Gmail "Send mail as" + Resend SMTP (free tier Nalu already uses) — pending Josh.
