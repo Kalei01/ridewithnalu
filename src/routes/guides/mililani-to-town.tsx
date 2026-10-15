@@ -14,7 +14,7 @@ const META = GUIDES.mililani;
 const FAQS: GuideFaq[] = [
   {
     q: "Is there a Skyline station in Mililani?",
-    a: "No. The nearest stations are Waiawa (Pearl Highlands) and Kalauao (Pearlridge). Route 51 from Mililani Transit Center stops near Waiawa station, about 21 to 24 minutes away in the timetable.",
+    a: "No. The nearest stations are Pearl Highlands (Waiawa) and Pearlridge (Kalauao). Route 51 from Mililani Transit Center stops near Pearl Highlands station, about 21 to 24 minutes away in the timetable.",
   },
   {
     q: "Which bus goes from Mililani to downtown Honolulu?",
@@ -26,7 +26,7 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "Where can I park for Skyline from Mililani?",
-    a: "The city's free park-and-ride lots are at Keoneʻae (UH West Oʻahu), Honouliuli (Hoʻopili), Hālawa (Aloha Stadium) and Kahauiki (Kalihi Transit Center). There is no park-and-ride at Waiawa (Pearl Highlands), so from Mililani a bus or a drop-off to Waiawa is usually simpler.",
+    a: "The city's free park-and-ride lots are at UH West Oʻahu (Keoneʻae), Hoʻopili (Honouliuli), Aloha Stadium (Hālawa) and Kalihi Transit Center (Kahauiki). There is no park-and-ride at Pearl Highlands (Waiawa), so from Mililani a bus or a drop-off to Pearl Highlands is usually simpler.",
   },
 ];
 
@@ -39,7 +39,7 @@ function MililaniGuidePage() {
   return (
     <GuideLayout
       destination={DOWNTOWN}
-      take="Mililani has no station of its own. Route 52 is the more direct all-day bus, scheduled at about 47 to 56 minutes to King and Alakea streets on weekday mornings. There is no park-and-ride at Waiawa, so a bus or a drop-off is usually simpler than driving there. I check it against H-1 when you ask."
+      take="Mililani has no station of its own. Route 52 is the more direct all-day bus, scheduled at about 47 to 56 minutes to King and Alakea streets on weekday mornings. There is no park-and-ride at Pearl Highlands, so a bus or a drop-off is usually simpler than driving there. I check it against H-1 when you ask."
       breadcrumb="Mililani to town"
       title="Mililani and Central Oʻahu to town: bus, rail or drive"
       faqs={FAQS}
@@ -48,7 +48,7 @@ function MililaniGuidePage() {
         <p>
           From Mililani, you can drive H-2 and H-1 into town, ride Route 52 or Route 51 from Mililani
           Transit Center, or catch a weekday express bus such as the 84, 84A or 98. Skyline has no
-          Mililani station, so rail trips start with a bus or a drop-off at Waiawa (Pearl Highlands).
+          Mililani station, so rail trips start with a bus or a drop-off at Pearl Highlands (Waiawa).
         </p>
       }
     >
@@ -62,7 +62,7 @@ function MililaniGuidePage() {
           head={["Route", "When it runs", "Scheduled ride"]}
           rows={[
             ["52 Honolulu–Mililani–Haleʻiwa", "Every day; about every 30 minutes on weekdays, about every 40 minutes on Sundays", "About 47 to 56 minutes from Mililani Transit Center to King and Alakea streets, weekday mornings"],
-            ["51 Honolulu–Wahiawa", "Every day, into the night", "About 1 hr 10 min to 1 hr 20 min to downtown; stops near Waiawa (Pearl Highlands) station on the way"],
+            ["51 Honolulu–Wahiawa", "Every day, into the night", "About 1 hr 10 min to 1 hr 20 min to downtown; stops near Pearl Highlands (Waiawa) station on the way"],
             ["84, 84A, 98, 98A express", "Weekdays only; a few early-morning trips to downtown, afternoon trips back", "About 55 to 65 minutes end to end"],
           ]}
         />
@@ -76,9 +76,9 @@ function MililaniGuidePage() {
       <GuideSection id="rail" title="Using Skyline from Central Oʻahu">
         <GuideList
           items={[
-            <><B>Waiawa (Pearl Highlands):</B> Route 51 from Mililani Transit Center stops near the station, about 21 to 24 minutes away. There is no park-and-ride here.</>,
-            <><B>From Waiawa by train:</B> about 14 minutes to the airport, 18 minutes to Āhua (Lagoon Drive) and 20 minutes to Kahauiki (Kalihi Transit Center).</>,
-            <><B>Into downtown:</B> transfer at Āhua to the A Line along King Street, or at Kahauiki to Route 2 and others.</>,
+            <><B>Pearl Highlands (Waiawa):</B> Route 51 from Mililani Transit Center stops near the station, about 21 to 24 minutes away. There is no park-and-ride here.</>,
+            <><B>From Pearl Highlands by train:</B> about 14 minutes to the airport, 18 minutes to Lagoon Drive (Ahua) and 20 minutes to Kalihi Transit Center (Kahauiki).</>,
+            <><B>Into downtown:</B> transfer at Lagoon Drive to the A Line along King Street, or at Kalihi Transit Center to Route 2 and others.</>,
           ]}
         />
         <p>

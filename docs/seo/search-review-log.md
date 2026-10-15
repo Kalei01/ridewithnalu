@@ -60,3 +60,18 @@ Newest entry last. Each run of the twice-weekly search review appends one entry.
 **Reviewers:** security-keys no findings; transit-accuracy no critical or high (prose name order fixed); mobile-design flagged the wide station table (narrowed, not re-screenshotted because the local check failed) and a hydration warning seen against a stale dev server.
 
 **Still open:** other guides (Kapolei, ʻEwa, Mililani, airport, UH) and guides.ts line 88 still use the old name order and "Āhua"; src/lib/commute-formatting.test.ts expects the old order. Rail table width needs a phone recheck.
+
+## 2026-10-15 (Thu) — station names on the other guides, answer-first Kapolei guide
+
+**Evidence** (Search Console, 28 days to Oct 15): 449 impressions (18 on Oct 8), 5 clicks, position 10.5. Gate: RUN (impressions up well over 25% and 20; many new queries). Pages: /guides/skyline-park-and-ride 200 impr, 5 clicks (2.5% CTR, position 7.0); /guides/skyline-rail-guide 90 (position 9.2, 0 clicks); /guides/honolulu-airport-without-driving 62 (position 22.4, queries are about driving to the terminals); late-night 19 (position 6.3); mililani 17; kapolei 14 (position 16.2); ʻEwa 12; UH 12. Queries are mostly Skyline parking and hours, plus airport pickup/drop-off. Index status: all pages seen in the report are indexed; no change to chase. The titles/snippets changed on Oct 14 are too new to judge; CTR is compared again about Nov 11 and nothing was changed on those pages' titles this run.
+
+**Changed** (backlog 2: station names, answer-first)
+- Station names now read English first, Hawaiian second, per docs/product/direction.md, on the Kapolei, ʻEwa, Mililani, airport, UH Mānoa, late-night and Skyline guides, the station list on /oahu-commute, and the descriptions in guides.ts. Short Hawaiian-only mentions were rewritten to the English name. Source stop names quoted from TheBus ("Lelepaua Airport Station") and street/gate names (Kualakaʻi Parkway, Hālawa Gate) were left alone. The park-and-ride guide still names its four lots by their Hawaiian station names in headings and table rows on purpose: it is the page earning clicks, so only the sentences that already carried English names were touched.
+- Kapolei guide: the first two sentences now give the answer with the timetable figures already on the page (about 32 minutes to Lagoon Drive plus a bus, 55 to 60 minutes on board), and a four-row "Key takeaways" table was added (drive, Skyline plus A Line, CountryExpress C, park-and-ride). No new figures.
+- Sitemap lastmod set to Oct 15 for the pages touched.
+
+**Sources:** TheBus GTFS timetable valid Sept 28 to Dec 5, 2026 and the other sources recorded in each page's own comment; station table in docs/product/direction.md.
+
+**Rejected / not done:** Rush-hour section (TomTom figures still unread at source). Pearl City and Pearl Harbor pages (no new demand evidence). Article/Organization structured data (item 7) left for the next run so each run stays at one or two items. No titles changed on the Oct 14 pages.
+
+**Backlog status:** station names DONE on all guides except the lot names on the park-and-ride page (deliberate). Answer-first: Kapolei DONE; next ʻEwa, then Mililani, airport, UH. Item 7 next. Item 5 still blocked.

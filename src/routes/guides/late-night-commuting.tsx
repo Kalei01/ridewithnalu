@@ -16,7 +16,7 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "What time does Skyline stop running?",
-    a: "The last trains that run the whole line leave Kualakaʻi (East Kapolei) and Kahauiki (Kalihi Transit Center) at about 10:00 PM. A few later trains run only part of the line, and the last ones finish at about 10:35 PM.",
+    a: "The last trains that run the whole line leave East Kapolei (Kualakaʻi) and Kalihi Transit Center (Kahauiki) at about 10:00 PM. A few later trains run only part of the line, and the last ones finish at about 10:35 PM.",
   },
   {
     q: "What time does the first train or bus run in the morning?",
@@ -82,10 +82,8 @@ function LateNightGuidePage() {
 
       <GuideSection id="skyline" title="Skyline's last trains">
         <p>
-          The last trains that run the full line leave Kualakaʻi (East Kapolei) and Kahauiki (Kalihi
-          Transit Center) at about 10:00 PM. Later trains, up to about 10:30 PM, run only part of the
-          line; for example, the last westbound train from Kahauiki goes only as far as Kalauao
-          (Pearlridge). If you are going to the far end of the line after 10 PM, check your exact train.
+          The last trains that run the full line leave East Kapolei (Kualakaʻi) and Kalihi Transit Center (Kahauiki) at about 10:00 PM. Later trains, up to about 10:30 PM, run only part of the
+          line; for example, the last westbound train from Kahauiki goes only as far as Pearlridge (Kalauao). If you are going to the far end of the line after 10 PM, check your exact train.
         </p>
       </GuideSection>
 

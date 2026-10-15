@@ -85,7 +85,7 @@ function SkylineGuidePage() {
       <GuideSection id="open-now" title="What is open now">
         <p>
           All 13 stations from East Kapolei (Kualakaʻi) to Kalihi Transit Center (Kahauiki) are open.
-          The first 9 stations opened in June 2023. Makalapa, the airport (Lelepaua), Ahua and Kahauiki
+          The first 9 stations opened in June 2023. Joint Base Pearl Harbor–Hickam (Makalapa), the airport (Lelepaua), Lagoon Drive (Ahua) and Kalihi Transit Center (Kahauiki)
           opened on October 16, 2025.
         </p>
         <p>
@@ -119,7 +119,7 @@ function SkylineGuidePage() {
             <><B>First trains:</B> about 4:00 AM from both ends of the line.</>,
             <><B>Frequency:</B> every 10 minutes until about 8:30 PM, then every 15 minutes.</>,
             <><B>Last full-line trains:</B> about 10:00 PM from both East Kapolei and Kalihi Transit Center, arriving at the other end about 10:35 PM.</>,
-            <><B>Later trains run part of the line.</B> For example, the last westbound train from Kahauiki, at about 10:20 PM, goes only as far as Kalauao (Pearlridge). If you are going all the way west late at night, check your exact train.</>,
+            <><B>Later trains run part of the line.</B> For example, the last westbound train from Kalihi Transit Center, at about 10:20 PM, goes only as far as Pearlridge (Kalauao). If you are going all the way west late at night, check your exact train.</>,
           ]}
         />
       </GuideSection>
@@ -150,9 +150,7 @@ function SkylineGuidePage() {
 
       <GuideSection id="parking" title="Parking at stations">
         <p>
-          The city lists free park-and-ride lots for transit riders at four stations: Keoneʻae
-          (UH West Oʻahu, 304 stalls), Honouliuli (Hoʻopili, 344 stalls), Hālawa (Aloha Stadium,
-          590 stalls) and Kahauiki (Kalihi Transit Center, 95 stalls). Parking is limited to 24
+          The city lists free park-and-ride lots for transit riders at four stations: UH West Oʻahu (Keoneʻae, 304 stalls), Hoʻopili (Honouliuli, 344 stalls), Aloha Stadium (Hālawa, 590 stalls) and Kalihi Transit Center (Kahauiki, 95 stalls). Parking is limited to 24
           hours.
         </p>
         <p>

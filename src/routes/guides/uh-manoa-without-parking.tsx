@@ -12,7 +12,7 @@ import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/comp
 const META = GUIDES.uh;
 
 const STEPS = [
-  "Ride Skyline to Āhua (Lagoon Drive) station.",
+  "Ride Skyline to Lagoon Drive (Ahua) station.",
   "Walk to TheBus stop #4852 at the station.",
   "Board the A Line to Sinclair Circle (stop #983), or the U Line on weekdays to Dole Street opposite East-West Road (stop #4550).",
   "Tap your Mānoa OneCard (U-Pass) or HOLO card each time you board.",
@@ -29,11 +29,11 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "Which buses go to UH Mānoa?",
-    a: "TheBus lists the A Line and U Line from Āhua (Lagoon Drive) Skyline station, plus Routes 4 (Nuʻuanu–Punahou–McCully), 6 (Pauoa–Woodlawn) and 13 (Liliha–Waikīkī–University). Route 13 comes from Waikīkī; Route 6 and the A Line come from Ala Moana.",
+    a: "TheBus lists the A Line and U Line from Lagoon Drive (Ahua) Skyline station, plus Routes 4 (Nuʻuanu–Punahou–McCully), 6 (Pauoa–Woodlawn) and 13 (Liliha–Waikīkī–University). Route 13 comes from Waikīkī; Route 6 and the A Line come from Ala Moana.",
   },
   {
     q: "How do I get from Skyline to UH Mānoa?",
-    a: "Get off Skyline at Āhua (Lagoon Drive) and take the A Line to Sinclair Circle, or the weekday U Line, which uses the H-1 freeway, to Dole Street by East-West Road.",
+    a: "Get off Skyline at Lagoon Drive (Ahua) and take the A Line to Sinclair Circle, or the weekday U Line, which uses the H-1 freeway, to Dole Street by East-West Road.",
   },
   {
     q: "Is it hard to park at UH Mānoa?",
@@ -55,7 +55,7 @@ function UhGuidePage() {
   return (
     <GuideLayout
       destination={UH_MANOA}
-      take="If you are a UH student, the U-Pass covers both TheBus and Skyline, and campus parking is limited and paid, so riding is often the easy call. Get off at Āhua (Lagoon Drive) and take the A Line to Sinclair Circle, or the weekday U Line. I will tell you when to leave for your class time."
+      take="If you are a UH student, the U-Pass covers both TheBus and Skyline, and campus parking is limited and paid, so riding is often the easy call. Get off at Lagoon Drive (Ahua) and take the A Line to Sinclair Circle, or the weekday U Line. I will tell you when to leave for your class time."
       breadcrumb="UH Mānoa without parking"
       title="Getting to UH Mānoa without parking"
       faqs={FAQS}
@@ -64,8 +64,7 @@ function UhGuidePage() {
         <p>
           Most UH Mānoa students can ride TheBus and Skyline at no extra cost with the U-Pass, which is
           paid for through a mandatory $55 transportation fee each fall and spring semester. Routes 4, 6
-          and 13 and the A and U Lines serve campus, and the A and U Lines connect to Skyline at Āhua
-          (Lagoon Drive) station.
+          and 13 and the A and U Lines serve campus, and the A and U Lines connect to Skyline at Lagoon Drive (Ahua) station.
         </p>
       }
     >
@@ -90,17 +89,17 @@ function UhGuidePage() {
           caption="TheBus routes serving UH Mānoa (TheBus UH guide and timetable, October 2026)"
           head={["Route", "Where it comes from", "Notes"]}
           rows={[
-            ["A Line", "Āhua (Lagoon Drive) Skyline station, through downtown on King Street and along Kapiʻolani Boulevard", "Every day. About every 10 to 15 minutes on weekdays and every 20 minutes on Sundays. Ends at Sinclair Circle."],
-            ["U Line", "Āhua (Lagoon Drive) Skyline station by the H-1 freeway", "Weekdays only, about 5 AM to 5:30 PM, less often than the A Line. Stops on Dole Street."],
+            ["A Line", "Lagoon Drive (Ahua) Skyline station, through downtown on King Street and along Kapiʻolani Boulevard", "Every day. About every 10 to 15 minutes on weekdays and every 20 minutes on Sundays. Ends at Sinclair Circle."],
+            ["U Line", "Lagoon Drive (Ahua) Skyline station by the H-1 freeway", "Weekdays only, about 5 AM to 5:30 PM, less often than the A Line. Stops on Dole Street."],
             ["Route 4", "Nuʻuanu, Punahou and McCully", "Also serves downtown."],
             ["Route 6", "Pauoa and Woodlawn", "Connects with Ala Moana Center."],
             ["Route 13", "Liliha and Waikīkī", "The direct route from Waikīkī."],
           ]}
         />
         <p>
-          In the timetable, the A Line takes about 40 to 53 minutes from Āhua to Sinclair Circle on
-          weekday mornings, and the U Line about 18 to 36 minutes from Āhua to Dole Street. Add the
-          Skyline ride to Āhua: about 32 minutes from East Kapolei or 14 from Pearlridge.
+          In the timetable, the A Line takes about 40 to 53 minutes from Lagoon Drive to Sinclair Circle on
+          weekday mornings, and the U Line about 18 to 36 minutes from Lagoon Drive to Dole Street. Add the
+          Skyline ride to Lagoon Drive: about 32 minutes from East Kapolei or 14 from Pearlridge.
         </p>
       </GuideSection>
 
@@ -112,7 +111,7 @@ function UhGuidePage() {
         </ol>
         <p>
           Going home, board the A Line at Sinclair Circle (stop #983) or the U Line at Dole Street and
-          East-West Road (stop #3674), ride to Āhua (stop #4850), and transfer to Skyline. These stop
+          East-West Road (stop #3674), ride to Lagoon Drive (stop #4850), and transfer to Skyline. These stop
           numbers come from UH Commuter Services.
         </p>
       </GuideSection>

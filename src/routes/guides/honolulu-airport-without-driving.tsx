@@ -14,7 +14,7 @@ const META = GUIDES.airport;
 
 const STEPS = [
   "Get a HOLO card, sold at Skyline stations, or use one you already have.",
-  "Ride Skyline to Lelepaua (Daniel K. Inouye International Airport) station.",
+  "Ride Skyline to the airport station, Daniel K. Inouye International Airport (Lelepaua).",
   "Follow the walkway from the station to the Terminal 2 Parking Garage or the International Parking Garage, then to your terminal. Terminal 1 is a longer walk.",
   "Check in for your flight as usual.",
 ];
@@ -22,7 +22,7 @@ const STEPS = [
 const FAQS: GuideFaq[] = [
   {
     q: "Does Skyline go to Honolulu airport?",
-    a: "Yes. Lelepaua station serves Daniel K. Inouye International Airport (HNL). It sits on the mountain side of Terminal 2, with walkways to the Terminal 2 and International parking garages. Terminal 1 is a longer walk.",
+    a: "Yes. Skyline's airport station, Daniel K. Inouye International Airport (Lelepaua), serves HNL. It sits on the mountain side of Terminal 2, with walkways to the Terminal 2 and International parking garages. Terminal 1 is a longer walk.",
   },
   {
     q: "Can I bring a suitcase on TheBus or Skyline?",
@@ -56,7 +56,7 @@ function AirportGuidePage() {
   return (
     <GuideLayout
       destination={HNL_AIRPORT}
-      take="Good news: Skyline stops at the airport. Lelepaua station is on the mountain side of Terminal 2. From Waikīkī, TheBus W Line is scheduled at about 30 to 35 minutes. For very early flights, note that the first trains reach the airport at about 4:00 AM."
+      take="Good news: Skyline stops at the airport. The airport station (Lelepaua) is on the mountain side of Terminal 2. From Waikīkī, TheBus W Line is scheduled at about 30 to 35 minutes. For very early flights, note that the first trains reach the airport at about 4:00 AM."
       breadcrumb="Airport without driving"
       title="Getting to Honolulu airport (HNL) without driving"
       faqs={FAQS}
@@ -64,15 +64,15 @@ function AirportGuidePage() {
       intro={
         <p>
           You can reach Daniel K. Inouye International Airport (HNL) without a car on Skyline, which
-          stops at Lelepaua station beside Terminal 2, or on TheBus W Line from Waikīkī, Ala Moana and
+          stops at the airport station (Lelepaua) beside Terminal 2, or on TheBus W Line from Waikīkī, Ala Moana and
           downtown. Both cost $3.00 with a HOLO card, and both currently allow one standard suitcase plus
           one smaller carry-on bag.
         </p>
       }
     >
-      <GuideSection id="skyline" title="Skyline to Lelepaua (airport) station">
+      <GuideSection id="skyline" title="Skyline to the airport station (Lelepaua)">
         <p>
-          Lelepaua station is on the mountain (mauka) side of Terminal 2. According to HDOT, walkways
+          The airport station (Lelepaua) is on the mountain (mauka) side of Terminal 2. According to HDOT, walkways
           connect it to the 4th floor of the Terminal 2 Parking Garage and the International Parking
           Garage. Terminal 2 is the short walk; Terminal 1 is farther, so allow extra time if you are
           flying from there.
@@ -81,17 +81,17 @@ function AirportGuidePage() {
           caption="Scheduled Skyline ride to the airport (timetable, October 2026)"
           head={["From", "Minutes on the train"]}
           rows={[
-            ["Kualakaʻi (East Kapolei)", "About 28"],
-            ["Pouhala (Waipahu Transit Center)", "About 18"],
-            ["Waiawa (Pearl Highlands)", "About 14"],
-            ["Kalauao (Pearlridge)", "About 10"],
-            ["Āhua (Lagoon Drive)", "About 3"],
-            ["Kahauiki (Kalihi Transit Center)", "About 6"],
+            ["East Kapolei (Kualakaʻi)", "About 28"],
+            ["Waipahu Transit Center (Pouhala)", "About 18"],
+            ["Pearl Highlands (Waiawa)", "About 14"],
+            ["Pearlridge (Kalauao)", "About 10"],
+            ["Lagoon Drive (Ahua)", "About 3"],
+            ["Kalihi Transit Center (Kahauiki)", "About 6"],
           ]}
         />
         <p>
           Trains run every day from about 4:00 AM, every 10 minutes until about 8:30 PM and every
-          15 minutes after that. The last train that runs all the way to Kualakaʻi (East Kapolei) leaves
+          15 minutes after that. The last train that runs all the way to East Kapolei (Kualakaʻi) leaves
           the airport at about 10:05 PM, so check your exact train if you land late.
         </p>
       </GuideSection>
@@ -107,7 +107,7 @@ function AirportGuidePage() {
       <GuideSection id="bus" title="TheBus to the airport">
         <GuideList
           items={[
-            <><B>W Line (Airport to Waikīkī):</B> limited stops between the airport's Skyline station and Waikīkī by way of Āhua (Lagoon Drive), downtown on Nimitz Highway, Ala Moana Center and Kūhiō Avenue. About 30 to 35 minutes in the timetable. Roughly every 10 to 15 minutes on weekdays and every 15 minutes on weekends during the day, from about 4:15 AM. The last trips leave Waikīkī at about 12:30 AM and the airport at about 1:30 AM.</>,
+            <><B>W Line (Airport to Waikīkī):</B> limited stops between the airport's Skyline station and Waikīkī by way of Lagoon Drive (Ahua), downtown on Nimitz Highway, Ala Moana Center and Kūhiō Avenue. About 30 to 35 minutes in the timetable. Roughly every 10 to 15 minutes on weekdays and every 15 minutes on weekends during the day, from about 4:15 AM. The last trips leave Waikīkī at about 12:30 AM and the airport at about 1:30 AM.</>,
             <><B>Routes 40, 42 and 51:</B> some late-night trips stop at the airport after Skyline closes. Route 40 has the latest, until about 3:45 AM.</>,
           ]}
         />

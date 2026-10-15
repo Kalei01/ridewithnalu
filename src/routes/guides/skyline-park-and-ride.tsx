@@ -52,8 +52,7 @@ function SkylineParkAndRidePage() {
         <>
           <p>
             Skyline has four free park-and-ride lots: UH West Oʻahu (Keoneʻae) and Honouliuli
-            (Hoʻopili) on the Leeward side, Aloha Stadium (Hālawa), and Kahauiki (Kalihi Transit
-            Center).
+            (Hoʻopili) on the Leeward side, Aloha Stadium (Hālawa), and Kalihi Transit Center (Kahauiki).
             They are free for anyone riding Skyline or TheBus, with a 24-hour limit.
           </p>
           <p className="mt-4">
@@ -85,8 +84,7 @@ function SkylineParkAndRidePage() {
           ]}
         />
         <p>
-          No other station has a park-and-ride in the city's list, including Waiawa (Pearl
-          Highlands) and the airport (Lelepaua). Step-by-step directions to each entrance are on the
+          No other station has a park-and-ride in the city's list, including Pearl Highlands (Waiawa) and the airport (Lelepaua). Step-by-step directions to each entrance are on the
           city's{" "}
           <Ext href="https://www.honolulu.gov/dts/skyline/stations-and-parking/">Stations and Parking page</Ext>.
         </p>

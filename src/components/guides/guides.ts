@@ -69,7 +69,7 @@ export const GUIDES: Record<GuideSlug, GuideMeta> = {
     path: "/guides/mililani-to-town",
     seoTitle: "Mililani to Downtown Honolulu: Bus, Rail or Drive | Nalu",
     description:
-      "Mililani and Central Oʻahu to town: Routes 51 and 52, weekday express buses, Skyline from Waiawa (Pearl Highlands), and when driving H-2 makes sense.",
+      "Mililani and Central Oʻahu to town: Routes 51 and 52, weekday express buses, Skyline from Pearl Highlands (Waiawa), and when driving H-2 makes sense.",
     name: "Mililani and Central Oʻahu to town",
     summary: "Routes 51 and 52, weekday express buses and the nearest Skyline stations.",
   },
@@ -77,7 +77,7 @@ export const GUIDES: Record<GuideSlug, GuideMeta> = {
     path: "/guides/honolulu-airport-without-driving",
     seoTitle: "Get to Honolulu Airport by Skyline or TheBus | Nalu",
     description:
-      "How to reach Honolulu airport (HNL) without driving: Skyline's Lelepaua station, the W Line from Waikīkī, late-night Routes 40, 42 and 51, and luggage rules.",
+      "How to reach Honolulu airport (HNL) without driving: Skyline's airport station, the W Line from Waikīkī, late-night Routes 40, 42 and 51, and luggage rules.",
     name: "Honolulu airport (HNL) without driving",
     summary: "Skyline's airport station, the W Line from Waikīkī, and what luggage you can bring.",
   },
@@ -85,7 +85,7 @@ export const GUIDES: Record<GuideSlug, GuideMeta> = {
     path: "/guides/uh-manoa-without-parking",
     seoTitle: "UH Mānoa Without Parking: U-Pass, Bus and Skyline | Nalu",
     description:
-      "Getting to UH Mānoa without parking: how the student U-Pass works on TheBus and Skyline, the A and U Lines from Āhua station, and Routes 4, 6 and 13 to campus.",
+      "Getting to UH Mānoa without parking: how the student U-Pass works on TheBus and Skyline, the A and U Lines from Lagoon Drive, and Routes 4, 6 and 13 to campus.",
     name: "UH Mānoa without parking",
     summary: "The U-Pass, the A and U Lines from Skyline, and the bus routes to campus.",
   },

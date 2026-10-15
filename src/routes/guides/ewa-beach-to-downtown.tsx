@@ -17,7 +17,7 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "Is there a Skyline station in ʻEwa Beach?",
-    a: "No. The closest stations are Keoneʻae (UH West Oʻahu), Hoʻaeʻae (West Loch) and Pouhala (Waipahu Transit Center). Routes 47 and 44 connect ʻEwa with Keoneʻae, Route 44 also serves Hoʻaeʻae, and Route 42 stops at Pouhala.",
+    a: "No. The closest stations are UH West Oʻahu (Keoneʻae), West Loch (Hōʻaeʻae) and Waipahu Transit Center (Pouhala). Routes 47 and 44 connect ʻEwa with UH West Oʻahu, Route 44 also serves West Loch, and Route 42 stops at Waipahu Transit Center.",
   },
   {
     q: "Do the ʻEwa Beach express buses run on weekends?",
@@ -38,7 +38,7 @@ function EwaGuidePage() {
   return (
     <GuideLayout
       destination={DOWNTOWN}
-      take="There is no station in ʻEwa Beach itself. The 91 and the CountryExpress E are the direct buses, scheduled at roughly 1 hr to 1 hr 20 min on weekday mornings. If you would rather ride the train, Routes 47 and 44 connect ʻEwa with Keoneʻae. I compare all of it against H-1 for your exact trip."
+      take="There is no station in ʻEwa Beach itself. The 91 and the CountryExpress E are the direct buses, scheduled at roughly 1 hr to 1 hr 20 min on weekday mornings. If you would rather ride the train, Routes 47 and 44 connect ʻEwa with UH West Oʻahu (Keoneʻae). I compare all of it against H-1 for your exact trip."
       breadcrumb="ʻEwa Beach to downtown"
       title="ʻEwa Beach to downtown Honolulu: bus, rail or drive"
       faqs={FAQS}
@@ -46,8 +46,7 @@ function EwaGuidePage() {
       intro={
         <p>
           From ʻEwa Beach, the direct buses into downtown Honolulu are the CountryExpress E, the weekday
-          91 and 91A express routes, and Route 42, or you can take a bus to Skyline at Keoneʻae,
-          Hoʻaeʻae or Pouhala. Driving means Fort Weaver Road and then H-1, where morning traffic varies
+          91 and 91A express routes, and Route 42, or you can take a bus to Skyline at UH West Oʻahu, West Loch or Waipahu Transit Center. Driving means Fort Weaver Road and then H-1, where morning traffic varies
           from day to day, so Nalu compares the options live for your trip.
         </p>
       }
@@ -77,13 +76,13 @@ function EwaGuidePage() {
         <p>ʻEwa Beach has no Skyline station, but three are a short bus ride away:</p>
         <GuideList
           items={[
-            <><B>Route 47 to Keoneʻae (UH West Oʻahu):</B> about 43 minutes from Fort Weaver Road near ʻEwa Beach Park. The train from Keoneʻae to Āhua (Lagoon Drive) is about 30 minutes.</>,
-            <><B>Route 44</B> runs between Keoneʻae and Hoʻaeʻae (West Loch) stations by way of ʻEwa. The train from Hoʻaeʻae to Āhua is about 25 minutes.</>,
-            <><B>Route 42 to Pouhala (Waipahu Transit Center):</B> about 35 to 60 minutes from ʻEwa Beach depending on the time of day. The train from Pouhala to Āhua is about 22 minutes.</>,
+            <><B>Route 47 to UH West Oʻahu (Keoneʻae):</B> about 43 minutes from Fort Weaver Road near ʻEwa Beach Park. The train from UH West Oʻahu to Lagoon Drive (Ahua) is about 30 minutes.</>,
+            <><B>Route 44</B> runs between UH West Oʻahu and West Loch (Hōʻaeʻae) stations by way of ʻEwa. The train from West Loch to Lagoon Drive is about 25 minutes.</>,
+            <><B>Route 42 to Waipahu Transit Center (Pouhala):</B> about 35 to 60 minutes from ʻEwa Beach depending on the time of day. The train from Waipahu Transit Center to Lagoon Drive is about 22 minutes.</>,
           ]}
         />
         <p>
-          From Āhua, the A Line runs along King Street through downtown. One $3.00 HOLO fare covers the
+          From Lagoon Drive, the A Line runs along King Street through downtown. One $3.00 HOLO fare covers the
           bus and the train, since it works as a 2-hour pass. Route 41 also links ʻEwa Beach with Kapolei
           Transit Center in about half an hour.
         </p>

@@ -16,7 +16,8 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 - App station names live since e3a3638; guides can now be updated (English name first, Hawaiian second; table in docs/product/direction.md).
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
-- (none yet)
+- R+ (Oct 15)
+- R0 (Oct 8)
 
 ## Last run
-- Thu Oct 8: RUN OK, review only, no page changes.
+- Thu Oct 15: RUN OK. 449 impressions, 5 clicks. Station names English-first on all other guides; Kapolei guide answer-first with takeaways table. Next: answer-first on ʻEwa (then Mililani, airport, UH), then item 7 structured data. Re-measure CTR Nov 11.

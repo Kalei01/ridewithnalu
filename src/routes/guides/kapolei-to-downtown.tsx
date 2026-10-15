@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { GUIDES } from "@/components/guides/guides";
 import { DOWNTOWN } from "@/components/guides/destinations";
 import { guideHead, type GuideFaq } from "@/components/guides/guide-head";
-import { B, Ext, GuideLayout, GuideList, GuideSection } from "@/components/guides/GuideLayout";
+import { B, Ext, GuideLayout, GuideList, GuideSection, GuideTable } from "@/components/guides/GuideLayout";
 
 // Sources (checked October 2026): TheBus GTFS timetable valid Sept 28 to Dec 5, 2026
 // (Skyline and bus scheduled times, routes at each station, express trips); City and
@@ -13,15 +13,15 @@ const META = GUIDES.kapolei;
 const FAQS: GuideFaq[] = [
   {
     q: "Does Skyline go from Kapolei to downtown Honolulu?",
-    a: "Not all the way. Skyline runs from Kualakaʻi (East Kapolei) to Kahauiki (Kalihi Transit Center). For downtown, most riders transfer to TheBus, for example the A Line at Āhua (Lagoon Drive) station, which runs along King Street through downtown.",
+    a: "Not all the way. Skyline runs from East Kapolei (Kualakaʻi) to Kalihi Transit Center (Kahauiki). For downtown, most riders transfer to TheBus, for example the A Line at Lagoon Drive (Ahua) station, which runs along King Street through downtown.",
   },
   {
     q: "How long is the Skyline ride from East Kapolei?",
-    a: "In TheBus's timetable, the train from Kualakaʻi (East Kapolei) takes about 32 minutes to Āhua (Lagoon Drive) and 34 minutes to Kahauiki (Kalihi Transit Center). The A Line from Āhua to King and Bishop streets downtown is scheduled at about 21 to 28 minutes in the morning, plus your wait for the bus.",
+    a: "In TheBus's timetable, the train from East Kapolei (Kualakaʻi) takes about 32 minutes to Lagoon Drive (Ahua) and 34 minutes to Kalihi Transit Center (Kahauiki). The A Line from Lagoon Drive to King and Bishop streets downtown is scheduled at about 21 to 28 minutes in the morning, plus your wait for the bus.",
   },
   {
     q: "Where can I park for Skyline in Kapolei?",
-    a: "The city's free park-and-ride lots on the Kapolei side are at Keoneʻae (UH West Oʻahu) and Honouliuli (Hoʻopili) stations. Hawaii News Now reported in May 2026 that the Keoneʻae lot fills by about 8 AM on weekdays.",
+    a: "The city's free park-and-ride lots on the Kapolei side are at UH West Oʻahu (Keoneʻae) and Hoʻopili (Honouliuli) stations. Hawaii News Now reported in May 2026 that the Keoneʻae lot fills by about 8 AM on weekdays.",
   },
   {
     q: "Is there a bus from Kapolei to downtown without changing?",
@@ -49,13 +49,25 @@ function KapoleiGuidePage() {
       related={["skyline", "parking", "ewa"]}
       intro={
         <p>
-          From Kapolei or East Kapolei you can drive H-1 into town, or take Skyline from Kualakaʻi
-          (East Kapolei) or Keoneʻae (UH West Oʻahu) and finish on TheBus, because Skyline does not
-          reach downtown yet. Which is faster depends on H-1 traffic when you leave, so Nalu compares
-          both for your exact trip.
+          Skyline from East Kapolei (Kualakaʻi) takes about 32 minutes to Lagoon Drive (Ahua), and a
+          bus then finishes the trip downtown, about 55 to 60 minutes on board in all, plus your wait
+          and walks. Driving H-1 can beat that on a clear morning and lose on a slow one, so Nalu
+          checks both for your exact trip.
         </p>
       }
     >
+      <GuideSection id="takeaways" title="Key takeaways">
+        <GuideTable
+          caption="Kapolei to downtown Honolulu at a glance (timetable, October 2026)"
+          head={["Option", "What to expect"]}
+          rows={[
+            ["Skyline plus the A Line", "About 55 to 60 minutes on board from East Kapolei to King and Bishop streets, plus wait and walk."],
+            ["CountryExpress C", "About 40 to 45 minutes from Kualakaʻi Parkway to King and Alakea streets in the morning, about every 30 minutes on weekdays."],
+            ["Park-and-ride", "Free for transit riders with a 24-hour limit. The UH West Oʻahu (Keoneʻae) lot was reported full by about 8 AM on weekdays (May 2026)."],
+          ]}
+        />
+      </GuideSection>
+
       <GuideSection id="drive" title="Kapolei to Honolulu drive time on H-1">
         <p>
           Driving is usually the simplest option outside rush hour. On weekday mornings, eastbound H-1
@@ -73,10 +85,10 @@ function KapoleiGuidePage() {
         <p>Scheduled times from TheBus's official timetable (October 2026):</p>
         <GuideList
           items={[
-            <><B>Train:</B> Kualakaʻi (East Kapolei) to Āhua (Lagoon Drive) about 32 minutes; to Kahauiki (Kalihi Transit Center) about 34 minutes. From Keoneʻae, take off about 2 minutes.</>,
-            <><B>A Line from Āhua:</B> to King and Bishop streets downtown about 21 to 28 minutes in the morning, about every 10 to 15 minutes on weekdays.</>,
-            <><B>W Line from Āhua:</B> to Nimitz Highway at Bishop Street about 14 minutes, then on to Ala Moana and Waikīkī.</>,
-            <><B>Route 2 from Kahauiki:</B> to Bishop Street downtown about 21 to 29 minutes in the morning.</>,
+            <><B>Train:</B> East Kapolei (Kualakaʻi) to Lagoon Drive (Ahua) about 32 minutes; to Kalihi Transit Center (Kahauiki) about 34 minutes. From UH West Oʻahu (Keoneʻae), take off about 2 minutes.</>,
+            <><B>A Line from Lagoon Drive:</B> to King and Bishop streets downtown about 21 to 28 minutes in the morning, about every 10 to 15 minutes on weekdays.</>,
+            <><B>W Line from Lagoon Drive:</B> to Nimitz Highway at Bishop Street about 14 minutes, then on to Ala Moana and Waikīkī.</>,
+            <><B>Route 2 from Kalihi Transit Center:</B> to Bishop Street downtown about 21 to 29 minutes in the morning.</>,
           ]}
         />
         <p>
@@ -92,9 +104,9 @@ function KapoleiGuidePage() {
       <GuideSection id="station" title="Getting to the station">
         <GuideList
           items={[
-            <><B>Park-and-ride:</B> free for transit riders at Keoneʻae (UH West Oʻahu) and Honouliuli (Hoʻopili), with a 24-hour limit. The Keoneʻae lot has been full by about 8 AM on weekdays.</>,
-            <><B>By bus to Kualakaʻi:</B> Routes 44, 46, 47, 95, 416 and the CountryExpress C stop at or beside the station.</>,
-            <><B>By bus to Keoneʻae:</B> Routes 40, 44, 46, 47, 95, 99, 416, 461 and the C stop at or beside the station.</>,
+            <><B>Park-and-ride:</B> free for transit riders at UH West Oʻahu (Keoneʻae) and Hoʻopili (Honouliuli), with a 24-hour limit. The Keoneʻae lot has been full by about 8 AM on weekdays.</>,
+            <><B>By bus to East Kapolei:</B> Routes 44, 46, 47, 95, 416 and the CountryExpress C stop at or beside the station.</>,
+            <><B>By bus to UH West Oʻahu:</B> Routes 40, 44, 46, 47, 95, 99, 416, 461 and the C stop at or beside the station.</>,
             <><B>Drop-off:</B> being dropped off avoids the parking question entirely.</>,
           ]}
         />

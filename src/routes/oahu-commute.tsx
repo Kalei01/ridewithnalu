@@ -7,19 +7,19 @@ import { GUIDES, TRIP_GUIDES } from "@/components/guides/guides";
 // Facts below come from TheBus's GTFS timetable (checked October 2026) and the
 // HOLO fare table in src/lib/fares.ts. Update them when the timetable changes.
 const SKYLINE_STATIONS = [
-  "Kualakaʻi (East Kapolei)",
-  "Keoneʻae (UH West Oʻahu)",
-  "Honouliuli (Hoʻopili)",
-  "Hoʻaeʻae (West Loch)",
-  "Pouhala (Waipahu Transit Center)",
-  "Halaulani (Leeward Community College)",
-  "Waiawa (Pearl Highlands)",
-  "Kalauao (Pearlridge)",
-  "Halawa (Aloha Stadium)",
-  "Makalapa (Pearl Harbor–Hickam)",
-  "Lelepaua (Daniel K. Inouye International Airport)",
-  "Ahua (Lagoon Drive)",
-  "Kahauiki (Kalihi Transit Center)",
+  "East Kapolei (Kualakaʻi)",
+  "UH West Oʻahu (Keoneʻae)",
+  "Hoʻopili (Honouliuli)",
+  "West Loch (Hōʻaeʻae)",
+  "Waipahu Transit Center (Pouhala)",
+  "Leeward Community College (Halaulani)",
+  "Pearl Highlands (Waiawa)",
+  "Pearlridge (Kalauao)",
+  "Aloha Stadium (Hālawa)",
+  "Joint Base Pearl Harbor–Hickam (Makalapa)",
+  "Daniel K. Inouye International Airport (Lelepaua)",
+  "Lagoon Drive (Ahua)",
+  "Kalihi Transit Center (Kahauiki)",
 ];
 
 const FAQS: Array<{ q: string; a: string }> = [
@@ -29,7 +29,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "Where does Skyline go?",
-    a: `Skyline currently runs between Kualakaʻi (East Kapolei) and Kahauiki (Kalihi Transit Center), with ${SKYLINE_STATIONS.length} stations including Pearlridge, Aloha Stadium and the airport. To reach downtown Honolulu, riders transfer to TheBus.`,
+    a: `Skyline currently runs between East Kapolei (Kualakaʻi) and Kalihi Transit Center (Kahauiki), with ${SKYLINE_STATIONS.length} stations including Pearlridge, Aloha Stadium and the airport. To reach downtown Honolulu, riders transfer to TheBus.`,
   },
   {
     q: "How much does Skyline cost?",
