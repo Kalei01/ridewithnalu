@@ -63,7 +63,11 @@ main.nh-commute .verdict-lift[aria-labelledby="verdict-title"] {
   background:
     radial-gradient(80% 60% at 50% 0%, rgb(10 132 255 / 10%), transparent 70%),
     rgb(255 255 255 / 4%) !important;
-  box-shadow: 0 30px 60px -30px rgb(10 132 255 / 35%) !important;
+  /* Important card: the brighter glow tier (map and question cards are a touch softer). */
+  box-shadow:
+    0 0 0 1px rgb(10 132 255 / 30%),
+    0 0 36px 2px rgb(10 132 255 / 38%),
+    0 28px 70px -18px rgb(10 132 255 / 50%) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -94,7 +98,7 @@ main.nh-commute section[aria-labelledby="trip-access-title"][aria-labelledby] {
     radial-gradient(80% 60% at 50% 45%, rgb(10 132 255 / 12%), transparent 70%),
     linear-gradient(180deg, var(--nh-sea-2), var(--nh-sea)) !important;
   box-shadow:
-    0 0 0 1px rgb(10 132 255 / 30%),
-    0 0 36px 2px rgb(10 132 255 / 38%),
-    0 28px 70px -18px rgb(10 132 255 / 50%) !important;
+    0 0 0 1px rgb(10 132 255 / 22%),
+    0 0 30px 0 rgb(10 132 255 / 28%),
+    0 26px 64px -20px rgb(10 132 255 / 38%) !important;
 }
