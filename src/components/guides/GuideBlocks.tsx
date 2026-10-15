@@ -148,12 +148,14 @@ export function GuideMap({
 }) {
   return (
     <figure className="sg-map">
-      <SkylineMap
-        pins={pins}
-        title={title}
-        showAllStations={showAllStations}
-        {...(view ? { view } : {})}
-      />
+      <div className={legend ? "sk-fade" : undefined}>
+        <SkylineMap
+          pins={pins}
+          title={title}
+          showAllStations={showAllStations}
+          {...(view ? { view } : {})}
+        />
+      </div>
       <figcaption className="sr-only">{caption}</figcaption>
       {legend && (
         <ol className="grid gap-1.5 px-4 pb-4 text-base leading-6 text-foreground">

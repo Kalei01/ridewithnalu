@@ -53,11 +53,6 @@ function LateNightGuidePage() {
               unit: "PM",
               label: "Last trains that run the full line",
             },
-            {
-              value: "Hourly",
-              label: "Routes 2 and 40 through the night",
-              note: "About once an hour after midnight.",
-            },
           ]}
         />
       }

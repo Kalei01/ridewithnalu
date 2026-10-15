@@ -100,7 +100,7 @@ function KapoleiGuidePage() {
               big: "40 to 45",
               unit: "min",
               detail:
-                "About 40 to 45 minutes from Kualakaʻi Parkway to King and Alakea streets in the morning, about every 30 minutes on weekdays.",
+                "From Kualakaʻi Parkway to King and Alakea streets in the morning, about every 30 minutes on weekdays.",
             },
             {
               title: "Park-and-ride",
@@ -129,7 +129,7 @@ function KapoleiGuidePage() {
         <GuideMap
           pins={PINS}
           title="Map of Skyline's line with East Kapolei (Kualakaʻi), Lagoon Drive (Ahua) and Kalihi Transit Center (Kahauiki) marked 1 to 3."
-          caption="Skyline runs from East Kapolei to Kalihi Transit Center; the A Line and W Line both start from Lagoon Drive."
+          caption="Skyline runs from East Kapolei to Kalihi Transit Center; Lagoon Drive is where the A Line and W Line connect."
           legend={[
             "East Kapolei (Kualakaʻi)",
             "Lagoon Drive (Ahua)",

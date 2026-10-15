@@ -56,6 +56,7 @@ function UhGuidePage() {
   return (
     <GuideLayout
       destination={UH_MANOA}
+      showDiagram={false}
       strip={
         <StatTiles
           label="What to know"
@@ -90,9 +91,9 @@ function UhGuidePage() {
       intro={
         <p>
           Most UH Mānoa students can ride TheBus and Skyline at no extra cost with the U-Pass, which
-          is paid for through a mandatory $55 transportation fee each fall and spring semester.
-          Routes 4, 6 and 13 and the A and U Lines serve campus, and the A and U Lines connect to
-          Skyline at Lagoon Drive (Ahua) station.
+          is paid for through a mandatory transportation fee each fall and spring semester. Routes
+          4, 6 and 13 and the A and U Lines serve campus, and the A and U Lines connect to Skyline
+          at Lagoon Drive (Ahua) station.
         </p>
       }
     >
@@ -125,8 +126,8 @@ function UhGuidePage() {
       <GuideSection id="routes" title="Bus routes that serve campus">
         <GuideMap
           pins={[{ id: "10031", mark: "1", dx: 0, dy: -8 }]}
-          title="Map of Skyline's line with Lagoon Drive (Ahua) station marked 1, where the A Line and U Line start."
-          caption="Lagoon Drive (Ahua) station on Skyline's line, where the A Line and U Line start."
+          title="Map of Skyline's line with Lagoon Drive (Ahua) station marked 1, where the A Line and U Line connect to Skyline."
+          caption="Lagoon Drive (Ahua) station on Skyline's line, where the A Line and U Line connect to Skyline."
           legend={["Lagoon Drive (Ahua)"]}
         />
         <p className="sr-only">

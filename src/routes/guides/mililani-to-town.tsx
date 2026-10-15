@@ -40,29 +40,24 @@ function MililaniGuidePage() {
   return (
     <GuideLayout
       destination={DOWNTOWN}
+      showDiagram={false}
       strip={
         <StatTiles
           label="What to know"
           items={[
             {
               prefix: "About",
+              value: "47 to 56",
+              unit: "min",
+              label: "Route 52, Mililani Transit Center to King and Alakea streets",
+              note: "Weekday mornings. About every 30 minutes on weekdays.",
+            },
+            {
+              prefix: "About",
               value: "21 to 24",
               unit: "min",
-              label:
-                "Route 51 from Mililani Transit Center to near Pearl Highlands (Waiawa) station",
-              note: "There is no park-and-ride here.",
-            },
-            {
-              prefix: "About",
-              value: "14",
-              unit: "min",
-              label: "Train from Pearl Highlands to the airport (Lelepaua)",
-            },
-            {
-              prefix: "About",
-              value: "18",
-              unit: "min",
-              label: "Train from Pearl Highlands to Lagoon Drive (Ahua)",
+              label: "Route 51 to near Pearl Highlands (Waiawa) station, then Skyline",
+              note: "No park-and-ride at Pearl Highlands.",
             },
           ]}
         />
@@ -132,7 +127,7 @@ function MililaniGuidePage() {
           items={[
             <>
               <B>Pearl Highlands (Waiawa):</B> Route 51 from Mililani Transit Center stops near the
-              station, about 21 to 24 minutes away. There is no park-and-ride here.
+              station.
             </>,
             <>
               <B>From Pearl Highlands by train:</B> about 14 minutes to the airport, 18 minutes to

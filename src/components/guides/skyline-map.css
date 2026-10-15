@@ -57,3 +57,8 @@
 .sk-map .nh-coast-glow {
   stroke: rgb(125 196 255 / 7%);
 }
+/* Ends the drawing softly above the legend so no coastline is cut by a hard edge. */
+.sk-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent);
+  mask-image: linear-gradient(to bottom, #000 78%, transparent);
+}
