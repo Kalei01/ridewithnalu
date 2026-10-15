@@ -125,3 +125,5 @@ Add-ons (lead):
 - 2026-10-15 · Skyline parking guide preview built (Build 1 of 2): /guides/skyline-park-and-ride-preview (noindex). Lot cards with blue glow, static SVG map (SkylineMap, reusable), which-lot rows, compact times table, Try-trip card. Real page untouched. Entry: Josh approves before any switch.
 
 - 2026-10-15 · Skyline parking guide redesign (Josh approved, zoomed map) SWITCHED LIVE at /guides/skyline-park-and-ride; preview route deleted; head unchanged.
+
+- Skyline rail guide redesign: PREVIEW built Oct 15 at /guides/skyline-rail-guide-preview (see premium.md); waits for Josh and reviewers, then switch the real page. Pearl Harbor water tint on SkylineMap: DONE.

@@ -31,6 +31,7 @@ import { Route as GuidesMililaniToTownRouteImport } from './routes/guides/milila
 import { Route as GuidesNaluVsGoogleMapsRouteImport } from './routes/guides/nalu-vs-google-maps'
 import { Route as GuidesSkylineParkAndRideRouteImport } from './routes/guides/skyline-park-and-ride'
 import { Route as GuidesSkylineRailGuideRouteImport } from './routes/guides/skyline-rail-guide'
+import { Route as GuidesSkylineRailGuidePreviewRouteImport } from './routes/guides/skyline-rail-guide-preview'
 import { Route as GuidesUhManoaWithoutParkingRouteImport } from './routes/guides/uh-manoa-without-parking'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 import { Route as ApiPublicHomeLiveRouteImport } from './routes/api/public/home-live'
@@ -157,6 +158,12 @@ const GuidesSkylineRailGuideRoute = GuidesSkylineRailGuideRouteImport.update({
   path: '/guides/skyline-rail-guide',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuidesSkylineRailGuidePreviewRoute =
+  GuidesSkylineRailGuidePreviewRouteImport.update({
+    id: '/guides/skyline-rail-guide-preview',
+    path: '/guides/skyline-rail-guide-preview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const GuidesUhManoaWithoutParkingRoute =
   GuidesUhManoaWithoutParkingRouteImport.update({
     id: '/guides/uh-manoa-without-parking',
@@ -231,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/guides/nalu-vs-google-maps': typeof GuidesNaluVsGoogleMapsRoute
   '/guides/skyline-park-and-ride': typeof GuidesSkylineParkAndRideRoute
   '/guides/skyline-rail-guide': typeof GuidesSkylineRailGuideRoute
+  '/guides/skyline-rail-guide-preview': typeof GuidesSkylineRailGuidePreviewRoute
   '/guides/uh-manoa-without-parking': typeof GuidesUhManoaWithoutParkingRoute
   '/guides/': typeof GuidesIndexRoute
   '/api/public/health': typeof ApiPublicHealthRoute
@@ -265,6 +273,7 @@ export interface FileRoutesByTo {
   '/guides/nalu-vs-google-maps': typeof GuidesNaluVsGoogleMapsRoute
   '/guides/skyline-park-and-ride': typeof GuidesSkylineParkAndRideRoute
   '/guides/skyline-rail-guide': typeof GuidesSkylineRailGuideRoute
+  '/guides/skyline-rail-guide-preview': typeof GuidesSkylineRailGuidePreviewRoute
   '/guides/uh-manoa-without-parking': typeof GuidesUhManoaWithoutParkingRoute
   '/guides': typeof GuidesIndexRoute
   '/api/public/health': typeof ApiPublicHealthRoute
@@ -300,6 +309,7 @@ export interface FileRoutesById {
   '/guides/nalu-vs-google-maps': typeof GuidesNaluVsGoogleMapsRoute
   '/guides/skyline-park-and-ride': typeof GuidesSkylineParkAndRideRoute
   '/guides/skyline-rail-guide': typeof GuidesSkylineRailGuideRoute
+  '/guides/skyline-rail-guide-preview': typeof GuidesSkylineRailGuidePreviewRoute
   '/guides/uh-manoa-without-parking': typeof GuidesUhManoaWithoutParkingRoute
   '/guides/': typeof GuidesIndexRoute
   '/api/public/health': typeof ApiPublicHealthRoute
@@ -336,6 +346,7 @@ export interface FileRouteTypes {
     | '/guides/nalu-vs-google-maps'
     | '/guides/skyline-park-and-ride'
     | '/guides/skyline-rail-guide'
+    | '/guides/skyline-rail-guide-preview'
     | '/guides/uh-manoa-without-parking'
     | '/guides/'
     | '/api/public/health'
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/guides/nalu-vs-google-maps'
     | '/guides/skyline-park-and-ride'
     | '/guides/skyline-rail-guide'
+    | '/guides/skyline-rail-guide-preview'
     | '/guides/uh-manoa-without-parking'
     | '/guides'
     | '/api/public/health'
@@ -404,6 +416,7 @@ export interface FileRouteTypes {
     | '/guides/nalu-vs-google-maps'
     | '/guides/skyline-park-and-ride'
     | '/guides/skyline-rail-guide'
+    | '/guides/skyline-rail-guide-preview'
     | '/guides/uh-manoa-without-parking'
     | '/guides/'
     | '/api/public/health'
@@ -439,6 +452,7 @@ export interface RootRouteChildren {
   GuidesNaluVsGoogleMapsRoute: typeof GuidesNaluVsGoogleMapsRoute
   GuidesSkylineParkAndRideRoute: typeof GuidesSkylineParkAndRideRoute
   GuidesSkylineRailGuideRoute: typeof GuidesSkylineRailGuideRoute
+  GuidesSkylineRailGuidePreviewRoute: typeof GuidesSkylineRailGuidePreviewRoute
   GuidesUhManoaWithoutParkingRoute: typeof GuidesUhManoaWithoutParkingRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
   ApiPublicHealthRoute: typeof ApiPublicHealthRoute
@@ -608,6 +622,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuidesSkylineRailGuideRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/guides/skyline-rail-guide-preview': {
+      id: '/guides/skyline-rail-guide-preview'
+      path: '/guides/skyline-rail-guide-preview'
+      fullPath: '/guides/skyline-rail-guide-preview'
+      preLoaderRoute: typeof GuidesSkylineRailGuidePreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/guides/uh-manoa-without-parking': {
       id: '/guides/uh-manoa-without-parking'
       path: '/guides/uh-manoa-without-parking'
@@ -705,6 +726,7 @@ const rootRouteChildren: RootRouteChildren = {
   GuidesNaluVsGoogleMapsRoute: GuidesNaluVsGoogleMapsRoute,
   GuidesSkylineParkAndRideRoute: GuidesSkylineParkAndRideRoute,
   GuidesSkylineRailGuideRoute: GuidesSkylineRailGuideRoute,
+  GuidesSkylineRailGuidePreviewRoute: GuidesSkylineRailGuidePreviewRoute,
   GuidesUhManoaWithoutParkingRoute: GuidesUhManoaWithoutParkingRoute,
   GuidesIndexRoute: GuidesIndexRoute,
   ApiPublicHealthRoute: ApiPublicHealthRoute,

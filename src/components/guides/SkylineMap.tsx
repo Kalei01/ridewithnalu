@@ -78,7 +78,14 @@ export function SkylineMap({
         </linearGradient>
         {/* Pearl Harbor is a notch cut into the coast, so its water is "everything
             that is not land" inside this box; the mask keeps the tint off the land. */}
-        <mask id={`${uid}-harbor-mask`} maskUnits="userSpaceOnUse" x="238" y="318" width="92" height="76">
+        <mask
+          id={`${uid}-harbor-mask`}
+          maskUnits="userSpaceOnUse"
+          x="238"
+          y="318"
+          width="92"
+          height="76"
+        >
           <rect x="238" y="318" width="92" height="76" fill={`url(#${uid}-harbor-fade)`} />
           <path d={COAST_PATH} fill="#000" />
         </mask>
@@ -100,7 +107,13 @@ export function SkylineMap({
             height="76"
             mask={`url(#${uid}-harbor-mask)`}
           />
-          <text className="sk-water" style={{ fontSize: 6.2 * k }} x="283" y="368" textAnchor="middle">
+          <text
+            className="sk-water"
+            style={{ fontSize: 6.2 * k }}
+            x="283"
+            y="368"
+            textAnchor="middle"
+          >
             Pearl Harbor
           </text>
         </>
