@@ -44,22 +44,37 @@ export type RouteProgress = {
 const MANEUVER_ON_PATH_M = 60;
 /** The driver must be this close to the route before progress is trusted. */
 const PROGRESS_TRUST_M = 60;
+function matchOnPathOnce(m: Maneuver, path: RouteProgress["path"]): RouteMatch | null {
+  const placed = matchRoutePoint(m, path as Array<{ lat: number; lon: number }>);
+  return placed && placed.distanceM <= MANEUVER_ON_PATH_M ? placed : null;
+}
+
 /** Slack along the segment so a turn right under the car isn't called passed early. */
 const PROGRESS_SLACK_M = 15;
 
-const placementCache = new WeakMap<object, Map<string, RouteMatch | null>>();
+const placementCache = new WeakMap<object, { path: object; map: Map<string, RouteMatch | null> }>();
 
-function placeOnPath(m: Maneuver, path: RouteProgress["path"]): RouteMatch | null {
-  let byKey = placementCache.get(path);
-  if (!byKey) {
-    byKey = new Map();
-    placementCache.set(path, byKey);
+/**
+ * Place every maneuver on the route in order. Each one is searched only from
+ * just behind the previous one, so a route that crosses itself (stacked ramps,
+ * an overpass) can't snap a later turn onto the earlier pass and look "passed".
+ */
+export function placeManeuvers(
+  maneuvers: Maneuver[],
+  path: RouteProgress["path"],
+): Map<string, RouteMatch | null> {
+  const cached = placementCache.get(maneuvers);
+  if (cached && cached.path === path) return cached.map;
+  const map = new Map<string, RouteMatch | null>();
+  let previous: number | null = null;
+  for (const m of maneuvers) {
+    const placed = matchRoutePoint(m, path as Array<{ lat: number; lon: number }>, previous);
+    const ok = placed && placed.distanceM <= MANEUVER_ON_PATH_M ? placed : null;
+    map.set(maneuverKey(m), ok);
+    if (ok) previous = ok.segmentIndex;
   }
-  const key = maneuverKey(m);
-  if (byKey.has(key)) return byKey.get(key) ?? null;
-  const placed = matchRoutePoint(m, path as Array<{ lat: number; lon: number }>);
-  byKey.set(key, placed && placed.distanceM <= MANEUVER_ON_PATH_M ? placed : null);
-  return byKey.get(key) ?? null;
+  placementCache.set(maneuvers, { path, map });
+  return map;
 }
 
 /**
@@ -67,10 +82,16 @@ function placeOnPath(m: Maneuver, path: RouteProgress["path"]): RouteMatch | nul
  * turn taken (or missed) at freeway speed, where two GPS fixes can straddle
  * the 30 m radius and the turn would otherwise stay "next" forever.
  */
-export function maneuverBehindDriver(m: Maneuver, progress: RouteProgress): boolean {
+export function maneuverBehindDriver(
+  m: Maneuver,
+  progress: RouteProgress,
+  placements?: Map<string, RouteMatch | null>,
+): boolean {
   const { match, path } = progress;
   if (!match || match.distanceM > PROGRESS_TRUST_M || path.length < 2) return false;
-  const placed = placeOnPath(m, path);
+  const placed = placements
+    ? (placements.get(maneuverKey(m)) ?? null)
+    : matchOnPathOnce(m, path);
   if (!placed) return false;
   if (match.segmentIndex > placed.segmentIndex) {
     // Different segments: behind once the driver has moved clear of the turn's segment end.
@@ -93,6 +114,7 @@ export function nextManeuver(
   passed: Set<string>,
   progress?: RouteProgress,
 ): { maneuver: Maneuver; distanceM: number } | null {
+  const placements = progress ? placeManeuvers(maneuvers, progress.path) : undefined;
   for (const m of maneuvers) {
     if (passed.has(maneuverKey(m))) continue;
     const distanceM = metersBetween(position, m);
@@ -100,7 +122,7 @@ export function nextManeuver(
       passed.add(maneuverKey(m));
       continue;
     }
-    if (progress && !m.maneuver.startsWith("ARRIVE") && maneuverBehindDriver(m, progress)) {
+    if (progress && !m.maneuver.startsWith("ARRIVE") && maneuverBehindDriver(m, progress, placements)) {
       passed.add(maneuverKey(m));
       continue;
     }
@@ -217,19 +239,37 @@ export const REROUTE_GRACE_MS = 15_000;
 /** Above this a fix can sit a block away from the car, so it can't prove "off route". */
 export const REROUTE_MAX_ACCURACY_M = 40;
 
+/** Poor GPS can't block a reroute forever: a clear, sustained departure gets through. */
+export const REROUTE_POOR_GPS_STREAK = 3;
+export const REROUTE_POOR_GPS_MAX_WAIT_MS = 30_000;
+
 /**
  * Whether an off-route reading should be ignored for now: the trip just
- * started, or the GPS fix is too uncertain to trust.
+ * started, or the GPS fix is too uncertain to trust. Poor accuracy is waived
+ * when the drift is far beyond the uncertainty (> max(150 m, 2x accuracy)) on
+ * 3 fixes in a row, or when the rider has been off-route for 30 s.
  */
 export function shouldSuppressReroute(input: {
   tripStartedAt: number | null;
   now: number;
   accuracyM: number | null;
+  crossTrackM?: number | null;
+  offRouteStreak?: number;
+  offRouteSince?: number | null;
 }): boolean {
   if (input.tripStartedAt !== null && input.now - input.tripStartedAt < REROUTE_GRACE_MS)
     return true;
   const accuracy = input.accuracyM;
-  return accuracy !== null && Number.isFinite(accuracy) && accuracy > REROUTE_MAX_ACCURACY_M;
+  if (accuracy === null || !Number.isFinite(accuracy) || accuracy <= REROUTE_MAX_ACCURACY_M)
+    return false;
+  const clearDrift =
+    (input.crossTrackM ?? 0) > Math.max(150, 2 * accuracy) &&
+    (input.offRouteStreak ?? 0) >= REROUTE_POOR_GPS_STREAK;
+  const waitedLong =
+    input.offRouteSince !== null &&
+    input.offRouteSince !== undefined &&
+    input.now - input.offRouteSince >= REROUTE_POOR_GPS_MAX_WAIT_MS;
+  return !(clearDrift || waitedLong);
 }
 
 /** A reroute's own heading is only good for the request it triggered. */

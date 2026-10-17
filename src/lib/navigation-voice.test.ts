@@ -13,6 +13,7 @@ import {
   bearingForRouteRequest,
   shouldSuppressReroute,
   REROUTE_GRACE_MS,
+  placeManeuvers,
   routeDeviation,
   smoothBearing,
   trimRoutePath,
@@ -334,8 +335,81 @@ describe("reroute and progress fixes (Oct 16 commute)", () => {
     expect(
       shouldSuppressReroute({ tripStartedAt: t0, now: t0 + REROUTE_GRACE_MS, accuracyM: 8 }),
     ).toBe(false);
-    expect(shouldSuppressReroute({ tripStartedAt: t0, now: t0 + 60_000, accuracyM: 90 })).toBe(true);
-    expect(shouldSuppressReroute({ tripStartedAt: t0, now: t0 + 60_000, accuracyM: null })).toBe(false);
+    expect(shouldSuppressReroute({ tripStartedAt: t0, now: t0 + 60_000, accuracyM: 90 })).toBe(
+      true,
+    );
+    expect(shouldSuppressReroute({ tripStartedAt: t0, now: t0 + 60_000, accuracyM: null })).toBe(
+      false,
+    );
     expect(shouldSuppressReroute({ tripStartedAt: null, now: 5, accuracyM: 10 })).toBe(false);
+  });
+
+  it("poor GPS: >max(150 m, 2x accuracy) on 3 fixes, or 30 s off route, allows the reroute", () => {
+    const t0 = 1_000_000;
+    const base = { tripStartedAt: t0, now: t0 + 60_000, accuracyM: 70 };
+    expect(shouldSuppressReroute({ ...base, crossTrackM: 400, offRouteStreak: 3 })).toBe(false);
+    expect(shouldSuppressReroute({ ...base, crossTrackM: 400, offRouteStreak: 2 })).toBe(true);
+    expect(shouldSuppressReroute({ ...base, crossTrackM: 100, offRouteStreak: 5 })).toBe(true);
+    expect(
+      shouldSuppressReroute({
+        ...base,
+        crossTrackM: 100,
+        offRouteStreak: 1,
+        offRouteSince: t0 + 25_000,
+      }),
+    ).toBe(false);
+    expect(
+      shouldSuppressReroute({
+        ...base,
+        crossTrackM: 100,
+        offRouteStreak: 1,
+        offRouteSince: t0 + 45_000,
+      }),
+    ).toBe(true);
+    // The 15 s trip-start grace is never waived.
+    expect(
+      shouldSuppressReroute({
+        tripStartedAt: t0,
+        now: t0 + 5_000,
+        accuracyM: 70,
+        crossTrackM: 900,
+        offRouteStreak: 9,
+      }),
+    ).toBe(true);
+  });
+
+  it("stacked ramps: a route that crosses itself doesn't make a later turn look passed", () => {
+    // East along y=21.3 (P0..P10), loop north, come back WEST then south across the same spot.
+    const P = (lat: number, lon: number) => ({ lat, lon });
+    const path = [
+      ...Array.from({ length: 11 }, (_, i) => P(21.3, -157.9 + i * 0.001)),
+      P(21.301, -157.889),
+      P(21.301, -157.895),
+      P(21.2995, -157.895),
+      P(21.2995, -157.88),
+    ];
+    const loopTop: Maneuver = {
+      lat: 21.301,
+      lon: -157.893,
+      maneuver: "KEEP_LEFT",
+      instruction: "Keep left",
+      road: null,
+    };
+    const crossing: Maneuver = {
+      lat: 21.3,
+      lon: -157.895,
+      maneuver: "TURN_RIGHT",
+      instruction: "Turn right",
+      road: null,
+    };
+    const maneuvers = [loopTop, crossing];
+    const rider = P(21.3, -157.892); // still on the first pass, before the loop
+    const match = matchRoutePoint(rider, path);
+    const placed = placeManeuvers(maneuvers, path);
+    expect(
+      placed.get(`${crossing.lat.toFixed(4)},${crossing.lon.toFixed(4)}:TURN_RIGHT`)?.segmentIndex,
+    ).toBeGreaterThan(10);
+    expect(maneuverBehindDriver(crossing, { path, match }, placed)).toBe(false);
+    expect(nextManeuver(rider, maneuvers, new Set(), { path, match })?.maneuver).toBe(loopTop);
   });
 });

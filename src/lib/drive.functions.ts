@@ -4,7 +4,13 @@ import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
 import { incidentAffectsTrip, incidentCategoryLabel, localRoadName } from "./traffic-incidents";
-import { localizeInstruction, localizeRoadLabel, routeBearingAfter } from "./local-directions";
+import {
+  LABEL_LOOKAHEAD_M,
+  LABEL_MIN_AHEAD_M,
+  localizeInstruction,
+  localizeRoadLabel,
+  routeBearingAfter,
+} from "./local-directions";
 import { lookupHdotLaneClosureRoutes, type HdotLaneClosureRoute, type HdotScheduledClosure, lookupHdotScheduledClosures } from "./hdot-lane-closures.functions";
 
 // Per-visitor limits on paid lookups (see rate-limit.server.ts).
@@ -614,19 +620,20 @@ export function buildManeuvers(instructions: OrbisInstruction[], path: Array<{ l
       (maneuver.startsWith("ARRIVE")
         ? "Arrive at your destination"
         : `${TURN_WORDS[maneuver] ?? "Continue"}${street ? ` onto ${street}` : ""}`);
-    // Local wording: H-1 not I-H1, no East/West that contradicts the heading
-    // after this turn, landmark hints for known exits.
-    const bearing = routeBearingAfter(path, point);
+    // Local wording: H-1 not I-H1 and plain Nimitz in the spoken text (direction
+    // words are never removed there). The HUD road label drops a direction only
+    // when it contradicts the heading well along the new road (past any loop ramp).
+    const labelBearing = routeBearingAfter(path, point, LABEL_LOOKAHEAD_M, LABEL_MIN_AHEAD_M);
     const roadName = localizeRoadLabel(
       localRoadName(street) ?? localRoadName(shield ?? null) ?? null,
-      bearing,
+      labelBearing,
     );
     return [
       {
         lat: point.lat,
         lon: point.lon,
         maneuver,
-        instruction: localizeInstruction(message.replace(/<[^>]*>/g, ""), bearing, roadName),
+        instruction: localizeInstruction(message.replace(/<[^>]*>/g, "")),
         // Street names first; route numbers only through the local-name map.
         road: roadName,
       },

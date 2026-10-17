@@ -86,7 +86,7 @@ export type MapSectionProps = {
   navMuted: boolean;
   navPath: { lat: number; lon: number }[];
   nextTurn: { maneuver: import("@/lib/navigation-voice").Maneuver; distanceM: number } | null;
-  incidentNotice?: { text: string; reportedAhead: boolean } | null;
+  incidentNotice?: { text: string; label: string } | null;
   nowSeconds: number;
   openSettingsAt: (page: import("@/components/settings/SetupDialog").SettingsPageId) => void;
   rerouting: boolean;
@@ -252,7 +252,7 @@ export function MapSection(props: MapSectionProps) {
                         ? {
                             glyph: turnGlyph(nextTurn.maneuver.maneuver),
                             distanceText: formatDistance(nextTurn.distanceM),
-                            road: hudRoadLabel(nextTurn.maneuver),
+                            ...hudRoadLabel(nextTurn.maneuver),
                           }
                         : null
                     }

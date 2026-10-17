@@ -35,9 +35,15 @@ export type LiveNavMapProps = {
   /** GPS speed; selects freeway vs local off-route thresholds. */
   speedMps?: number | null;
   bearing: number | null;
-  maneuver: { glyph: TurnGlyph; distanceText: string; road: string } | null;
+  maneuver: {
+    glyph: TurnGlyph;
+    distanceText: string;
+    road: string;
+    /** Where the exit/street leads, on its own line so it is never cut off. */
+    toward?: string | null;
+  } | null;
   /** Reported accident/closure ahead: what and where, in plain words. */
-  incidentNotice?: { text: string; reportedAhead: boolean } | null;
+  incidentNotice?: { text: string; label: string } | null;
   eta: { arrive: string; range: string | null; minutes: number; distance: string | null } | null;
   muted: boolean;
   onToggleMute: () => void;
@@ -460,6 +466,11 @@ export default function LiveNavMap(props: LiveNavMapProps) {
                 <p className="mt-1 truncate text-sm font-semibold text-foreground/85">
                   {maneuver.road}
                 </p>
+                {maneuver.toward && (
+                  <p className="mt-0.5 line-clamp-2 text-xs font-semibold leading-snug text-foreground/70">
+                    toward {maneuver.toward}
+                  </p>
+                )}
               </div>
             </div>
           ) : (
@@ -467,15 +478,15 @@ export default function LiveNavMap(props: LiveNavMapProps) {
           )}
           {incidentNotice && !rerouting && (
             <div
-              className="nav-hud pointer-events-auto min-w-0 rounded-xl border border-amber-500/40 px-3 py-2"
+              className="nav-hud nav-hud-incident pointer-events-auto min-w-0 rounded-xl border px-3 py-2"
               role="status"
               aria-live="polite"
               data-testid="nav-incident-notice"
             >
               <p className="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-                {incidentNotice.reportedAhead ? "Reported ahead" : "Reported on your route"}
+                {incidentNotice.label}
               </p>
-              <p className="mt-0.5 text-sm font-semibold leading-snug text-foreground">
+              <p className="mt-0.5 line-clamp-3 text-sm font-semibold leading-snug text-foreground">
                 {incidentNotice.text}
               </p>
             </div>

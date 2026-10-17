@@ -6,6 +6,7 @@ import {
   incidentHudText,
   incidentSpeech,
   incidentWhere,
+  detailedAlertCovers,
   isAlertIncident,
   isOppositeDirection,
   newIncidentAlertMemory,
@@ -32,7 +33,7 @@ describe("accident alert wording", () => {
     expect(incidentSpeech(accident)).toBe(
       "Reported accident on H-1 East near Aiea, adding about 8 minutes.",
     );
-    expect(incidentHudText(accident)).toBe("Accident on H-1 East near Aiea · about +8 min");
+    expect(incidentHudText(accident)).toBe("+8 min · Accident on H-1 East near Aiea");
     const noDelay = { ...accident, delayMinutes: null };
     expect(incidentSpeech(noDelay)).toBe("Reported accident on H-1 East near Aiea.");
     expect(incidentHudText(noDelay)).toBe("Accident on H-1 East near Aiea");
@@ -56,7 +57,12 @@ describe("accident alert wording", () => {
     expect(incidentAlertKey(accident)).toBe("id:abc123");
     expect(incidentAlertKey({ ...accident, id: null })).toContain("H-1 East");
   });
-  it("skips the other carriageway", () => {
+  it("skips the other carriageway by the incident line's own direction, even for plain 'H-1'", () => {
+    const eastLine = [at(20)[0]!, at(22)[0]!];
+    const westLine = [at(22)[0]!, at(20)[0]!];
+    expect(isOppositeDirection({ ...accident, road: "H-1", points: westLine }, path)).toBe(true);
+    expect(isOppositeDirection({ ...accident, road: "H-1", points: eastLine }, path)).toBe(false);
+    // A stated direction only decides when the geometry is too short to tell.
     expect(isOppositeDirection({ ...accident, road: "H-1 West" }, path)).toBe(true);
     expect(isOppositeDirection(accident, path)).toBe(false);
     expect(isOppositeDirection({ ...accident, road: "Nimitz Hwy" }, path)).toBe(false);
@@ -68,7 +74,7 @@ describe("planIncidentAlerts", () => {
     const memory = newIncidentAlertMemory();
     const first = planIncidentAlerts({ incidents: [accident], path }, memory);
     expect(first.speak).toHaveLength(1);
-    expect(first.hud?.reportedAhead).toBe(false);
+    expect(first.hud?.offRoute).toBe(false);
     const again = planIncidentAlerts({ incidents: [{ ...accident }], path }, memory);
     expect(again.speak).toHaveLength(0);
     expect(again.hud?.text).toContain("Accident on H-1 East near Aiea");
@@ -82,8 +88,9 @@ describe("planIncidentAlerts", () => {
       memory,
     );
     expect(avoided.speak).toHaveLength(0);
-    expect(avoided.hud?.reportedAhead).toBe(true);
-    expect(avoided.hud?.text).toContain("reported ahead, not on your route");
+    expect(avoided.hud?.offRoute).toBe(true);
+    expect(avoided.hud?.label).toBe("Nearby — not on your route");
+    expect(avoided.hud?.text).not.toMatch(/reported ahead/i);
   });
 
   it("stays silent about an off-route accident the driver never had on the route", () => {
@@ -101,7 +108,7 @@ describe("planIncidentAlerts", () => {
       newIncidentAlertMemory(),
     );
     expect(plan.speak).toHaveLength(1);
-    expect(plan.hud?.reportedAhead).toBe(false);
+    expect(plan.hud?.offRoute).toBe(false);
   });
 
   it("ignores the opposite direction and non-accident incidents", () => {
@@ -117,6 +124,50 @@ describe("planIncidentAlerts", () => {
     );
     expect(plan.speak).toHaveLength(0);
     expect(plan.hud).toBeNull();
+  });
+});
+
+describe("ahead / nearby / behind along the route", () => {
+  const rider = (i: number) => ({ lat: 21.34, lon: -157.95 + i * 0.001 });
+  it("labels an incident ahead of the rider and drops one already passed", () => {
+    const ahead = planIncidentAlerts(
+      { incidents: [accident], path, rider: rider(10) },
+      newIncidentAlertMemory(),
+    );
+    expect(ahead.hud?.label).toBe("Reported ahead");
+    const passedMemory = newIncidentAlertMemory();
+    const behind = planIncidentAlerts(
+      { incidents: [accident], path, rider: rider(30) },
+      passedMemory,
+    );
+    expect(behind.speak).toHaveLength(0);
+    expect(behind.hud).toBeNull();
+  });
+  it("says 'Avoided' for an avoided incident ahead, 'Nearby' when position is unknown", () => {
+    const memory = newIncidentAlertMemory();
+    planIncidentAlerts({ incidents: [accident], path, rider: rider(5) }, memory);
+    const avoided = planIncidentAlerts(
+      { incidents: [], nearby: [{ ...accident, onRoute: false }], path, rider: rider(10) },
+      memory,
+    );
+    expect(avoided.hud?.label).toBe("Avoided — not on your route");
+    const unknown = planIncidentAlerts({ incidents: [accident], path }, newIncidentAlertMemory());
+    expect(unknown.hud?.label).toBe("Reported nearby");
+  });
+});
+
+describe("generic alert vs detailed alert use the same list", () => {
+  it("stays quiet only when the detailed alert covers every fresh incident", () => {
+    expect(detailedAlertCovers([accident], { incidents: [accident], path })).toBe(true);
+    // Not covered (e.g. other carriageway): the generic line must still speak.
+    const west = { ...accident, road: "H-1", points: [at(22)[0]!, at(20)[0]!] };
+    expect(detailedAlertCovers([west], { incidents: [west], path })).toBe(false);
+    // Not an accident/closure: generic speaks.
+    const jam = { ...accident, id: "j", category: "6" };
+    expect(detailedAlertCovers([jam], { incidents: [jam], path })).toBe(false);
+    // Fresh in the old list but missing from the navigation list: generic speaks.
+    expect(detailedAlertCovers([accident], { incidents: [], path })).toBe(false);
+    expect(detailedAlertCovers([], { incidents: [accident], path })).toBe(false);
   });
 });
 

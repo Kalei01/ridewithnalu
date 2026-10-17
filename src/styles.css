@@ -749,3 +749,12 @@ html[data-nalu-returning] .nalu-first-visit-only {
     transform: translateX(12px);
   }
 }
+
+/* Accident / closure notice on the nav HUD: visibly amber; scoped so other HUD cards keep the titanium look. */
+.nav-hud.nav-hud-incident {
+  border-color: rgba(245, 158, 11, 0.75) !important;
+  background-image: linear-gradient(0deg, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0.16)) !important;
+  box-shadow:
+    inset 3px 0 0 rgb(245, 158, 11),
+    0 16px 40px rgba(0, 0, 0, 0.45) !important;
+}

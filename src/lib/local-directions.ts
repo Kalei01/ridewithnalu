@@ -34,12 +34,17 @@ const CARDINAL_BEARING: Record<string, number> = {
 /** A stated direction further than this from the real heading is wrong, so it is dropped. */
 export const DIRECTION_CONTRADICTION_DEG = 60;
 const LOOKAHEAD_M = 400;
+/** Heading used to judge a road label: well along the new road, past any loop ramp. */
+export const LABEL_LOOKAHEAD_M = 2000;
+export const LABEL_MIN_AHEAD_M = 800;
 
 /** Route heading just after `point`, looking ~400 m ahead so a curving ramp reads steadily. */
 export function routeBearingAfter(
   path: ReadonlyArray<LatLon>,
   point: LatLon,
   lookAheadM = LOOKAHEAD_M,
+  /** Return null unless at least this much route lies ahead (too little is a ramp's curve, not a heading). */
+  minAheadM = 0,
 ): number | null {
   if (path.length < 2) return null;
   const match = matchRoutePoint(point, path as LatLon[]);
@@ -54,7 +59,7 @@ export function routeBearingAfter(
     from = next;
     if (travelled >= lookAheadM) break;
   }
-  if (metersBetween(match.point, to) < 20) return null;
+  if (metersBetween(match.point, to) < 20 || travelled < minAheadM) return null;
   return bearingBetween(match.point, to);
 }
 
@@ -94,52 +99,57 @@ export function dropContradictingDirection(text: string, routeBearing: number | 
 }
 
 /**
- * Landmark wording for exits and streets riders know by where they lead.
- * Sources (no entries beyond these):
+ * Landmark hints for the nav HUD label only (never spoken, never changing the
+ * instruction): TomTom already speaks its own "toward ..." and we can't verify
+ * which direction of travel each hint holds for. A hint is skipped when its
+ * road already appears in the label or instruction. Sources (no other entries):
  *  - Salt Lake Blvd: Skyline park-and-ride guide ("from Salt Lake Boulevard",
- *    Aloha Stadium / Hālawa area) and src/lib/landmarks.ts (Hālawa -> Aloha Stadium).
- *  - H-1 exit 18A: named by Josh/NALU MAIN after the Oct 16 commute. Not yet
- *    confirmed against a recorded TomTom response.
+ *    Aloha Stadium / Hālawa area) and src/lib/landmarks.ts.
  *  - H-1 exit 18B: TomTom response shape in src/lib/drive/corridor.test.ts
  *    (exitNumber "18B", street "Nimitz Hwy").
+ *  Exit 18A was dropped: unverified.
  */
-export const LANDMARK_HINTS: Array<{ test: RegExp; toward: string }> = [
-  { test: /\bexit\s+18\s?A\b/i, toward: "Nimitz Highway and Waikīkī" },
-  { test: /\bexit\s+18\s?B\b/i, toward: "Nimitz Highway" },
-  { test: /\bSalt Lake (?:Blvd|Boulevard)\b/i, toward: "Aloha Stadium and Salt Lake" },
+export const LANDMARK_HINTS: Array<{ test: RegExp; toward: string; skipIfMentions: RegExp }> = [
+  { test: /\bexit\s+18\s?B\b/i, toward: "Nimitz Highway", skipIfMentions: /Nimitz/i },
+  {
+    test: /\bSalt Lake (?:Blvd|Boulevard)\b/i,
+    toward: "Aloha Stadium and Salt Lake",
+    skipIfMentions: /Aloha Stadium/i,
+  },
 ];
 
 export function landmarkTowardFor(...texts: Array<string | null | undefined>): string | null {
   const joined = texts.filter(Boolean).join(" ");
-  for (const hint of LANDMARK_HINTS) if (hint.test.test(joined)) return hint.toward;
+  for (const hint of LANDMARK_HINTS) {
+    if (!hint.test.test(joined)) continue;
+    if (hint.skipIfMentions.test(joined)) return null;
+    return hint.toward;
+  }
   return null;
 }
 
-/** Spoken/shown instruction in local wording. `routeBearing` is the heading after the maneuver. */
-export function localizeInstruction(
-  instruction: string,
-  routeBearing: number | null,
-  road: string | null = null,
-): string {
-  let out = dropContradictingDirection(tidyNimitz(tidyFreewayName(instruction)), routeBearing);
-  const toward = landmarkTowardFor(out, road);
-  if (toward && !/\btoward\b/i.test(out) && !/\bAloha Stadium\b/i.test(out)) {
-    const trimmed = out.replace(/[.\s]+$/, "");
-    out = `${trimmed} toward ${toward}`;
-  }
-  return out;
+/**
+ * Spoken/shown instruction in local wording. Direction words (East/West) are
+ * never removed here: at a loop ramp "onto H-1 West" is what the driver needs.
+ */
+export function localizeInstruction(instruction: string): string {
+  return tidyNimitz(tidyFreewayName(instruction));
 }
 
-/** Road label for the nav HUD, in the same wording as the voice. */
-export function localizeRoadLabel(road: string | null, routeBearing: number | null): string | null {
+/**
+ * Road label for the nav HUD. A stated direction is dropped only when it
+ * contradicts the heading measured well along the new road (`labelBearing`).
+ */
+export function localizeRoadLabel(road: string | null, labelBearing: number | null): string | null {
   if (!road) return road;
-  return dropContradictingDirection(tidyNimitz(tidyFreewayName(road)), routeBearing);
+  return dropContradictingDirection(tidyNimitz(tidyFreewayName(road)), labelBearing);
 }
 
-/** HUD second line: the road, plus "toward ..." when Nalu knows where it leads. */
-export function hudRoadLabel(maneuver: { road: string | null; instruction: string }): string {
-  const base = maneuver.road ?? maneuver.instruction;
-  const toward = landmarkTowardFor(maneuver.instruction, maneuver.road);
-  if (!toward || /\btoward\b/i.test(base)) return base;
-  return `${base} · toward ${toward}`;
+/** HUD lines: the road, and on its own line where it leads when Nalu knows. */
+export function hudRoadLabel(maneuver: { road: string | null; instruction: string }): {
+  road: string;
+  toward: string | null;
+} {
+  const road = maneuver.road ?? maneuver.instruction;
+  return { road, toward: landmarkTowardFor(maneuver.instruction, maneuver.road) };
 }

@@ -118,7 +118,7 @@ import {
   shouldSuppressReroute,
   type RouteMatch,
 } from "@/lib/navigation-voice";
-import { isAlertIncident, newIncidentAlertMemory, planIncidentAlerts } from "@/lib/incident-alerts";
+import { detailedAlertCovers, newIncidentAlertMemory, planIncidentAlerts } from "@/lib/incident-alerts";
 import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Waves } from "@/components/home/Waves";
@@ -1848,6 +1848,8 @@ function Index() {
   const liveSeqRef = useRef(0);
   const navBearingRef = useRef<number | null>(null);
   const tripStartedAtRef = useRef<number | null>(null);
+  const offRouteStreakRef = useRef(0);
+  const offRouteSinceRef = useRef<number | null>(null);
   const riderAccuracyRef = useRef<number | null>(null);
   const liveAbortRef = useRef<AbortController | null>(null);
   const lastRouteAppliedAtRef = useRef(0);
@@ -2085,6 +2087,8 @@ function Index() {
     (state: { offRoute: boolean; crossTrackM: number; headingDivergence: number | null }) => {
       if (!drivingCommitted || !riderPoint) return;
       if (!state.offRoute) {
+        offRouteStreakRef.current = 0;
+        offRouteSinceRef.current = null;
         if (rerouteTimerRef.current !== null) {
           window.clearTimeout(rerouteTimerRef.current);
           rerouteTimerRef.current = null;
@@ -2093,12 +2097,17 @@ function Index() {
         return;
       }
       if (rerouting) return;
+      offRouteStreakRef.current += 1;
+      offRouteSinceRef.current ??= Date.now();
       // First seconds of a trip and poor GPS fixes can't prove we left the route.
       if (
         shouldSuppressReroute({
           tripStartedAt: tripStartedAtRef.current,
           now: Date.now(),
           accuracyM: riderAccuracyRef.current,
+          crossTrackM: state.crossTrackM,
+          offRouteStreak: offRouteStreakRef.current,
+          offRouteSince: offRouteSinceRef.current,
         })
       )
         return;
@@ -2209,10 +2218,9 @@ function Index() {
   // Accident / closure alerts while driving: what and where, once per incident,
   // plus a HUD notice. Plus feature, like the other live traffic updates.
   const incidentMemory = useRef(newIncidentAlertMemory());
-  const [incidentNotice, setIncidentNotice] = useState<{
-    text: string;
-    reportedAhead: boolean;
-  } | null>(null);
+  const [incidentNotice, setIncidentNotice] = useState<{ text: string; label: string } | null>(
+    null,
+  );
   const incidentAlertsAllowed = gate.allows("traffic_rescue_tips");
   useEffect(() => {
     if (!drivingCommitted) {
@@ -2229,10 +2237,11 @@ function Index() {
         incidents: navBasis.incidents ?? [],
         nearby: navBasis.nearbyIncidents ?? [],
         path: navBasis.path ?? [],
+        rider: riderPoint,
       },
       incidentMemory.current,
     );
-    setIncidentNotice(plan.hud ? { text: plan.hud.text, reportedAhead: plan.hud.reportedAhead } : null);
+    setIncidentNotice(plan.hud ? { text: plan.hud.text, label: plan.hud.label } : null);
     for (const alert of plan.speak) {
       debugLog("incident_alert", { key: alert.key, category: alert.incident.category });
       if (alertPrefs.sound && !navMuted) {
@@ -2242,7 +2251,7 @@ function Index() {
       if (alertPrefs.haptics) navigator.vibrate?.([180, 100, 180]);
       postCommuteNotification("Traffic alert ahead", alert.text, `nalu-incident-${alert.key}`);
     }
-  }, [drivingCommitted, navBasis, incidentAlertsAllowed, alertPrefs.sound, alertPrefs.haptics, navMuted]);
+  }, [drivingCommitted, navBasis, riderPoint, incidentAlertsAllowed, alertPrefs.sound, alertPrefs.haptics, navMuted]);
 
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
   const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
@@ -2277,7 +2286,16 @@ function Index() {
     // incident alert above; don't also say the generic "reported incident".
     if (change.kind === "incident") {
       const fresh = drive.incidents.filter((incident) => !priorKeys.has(trafficKey(incident)));
-      if (fresh.length > 0 && fresh.every(isAlertIncident)) return;
+      // Same list the detailed alert uses (navBasis + nearby), so the rider never gets neither.
+      if (
+        navBasis &&
+        detailedAlertCovers(fresh, {
+          incidents: navBasis.incidents ?? [],
+          nearby: navBasis.nearbyIncidents ?? [],
+          path: navBasis.path ?? [],
+        })
+      )
+        return;
     }
     const corridor =
       drive.corridorLabel?.replace(/^Via\s+/i, "") || drive.incidents[0]?.road || "your route";
@@ -2299,7 +2317,7 @@ function Index() {
         : "A new incident was reported on your route.",
       `nalu-drive-${change.kind}-${drive.fetchedAt}`,
     );
-  }, [drivingCommitted, drive, alertPrefs.haptics, alertPrefs.sound]);
+  }, [drivingCommitted, drive, navBasis, alertPrefs.haptics, alertPrefs.sound]);
 
   // ---- "Arrive by" planning -------------------------------------------------
   // Work backwards from the target time to the latest honest departure for each
