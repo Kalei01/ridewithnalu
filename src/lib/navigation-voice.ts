@@ -483,6 +483,10 @@ const PHONETIC: Array<[RegExp, string]> = [
   // Strip technical codes TomTom sometimes appends: "(7110)", "[HI-93A]", "#12".
   [/\s*[([][^)\]]*\d[^)\]]*[)\]]/g, ""],
   [/\s*#\d+\w*/g, ""],
+  // Locals say H-1, never "I-H1" / "the I-H1"; and plain "Nimitz", never "North Nimitz".
+  [/\b(?:the\s+)?I-?H-?(\d{1,3})\b/gi, "H-$1"],
+  [/\b(?:North|South|East|West|N|S|E|W)\.?\s+(?=Nimitz\b)/gi, ""],
+  [/Waik[iī]k[iī]/gi, "Waikiki"],
   [/\bH-?201\b/gi, "Moanalua Freeway"],
   [/\bH-?1\b/gi, "H 1"],
   [/\bH-?2\b/gi, "H 2"],

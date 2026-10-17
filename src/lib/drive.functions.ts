@@ -4,6 +4,7 @@ import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
 import { incidentAffectsTrip, localRoadName } from "./traffic-incidents";
+import { localizeInstruction, localizeRoadLabel, routeBearingAfter } from "./local-directions";
 import { lookupHdotLaneClosureRoutes, type HdotLaneClosureRoute, type HdotScheduledClosure, lookupHdotScheduledClosures } from "./hdot-lane-closures.functions";
 
 // Per-visitor limits on paid lookups (see rate-limit.server.ts).
@@ -541,14 +542,21 @@ export function buildManeuvers(instructions: OrbisInstruction[], path: Array<{ l
       (maneuver.startsWith("ARRIVE")
         ? "Arrive at your destination"
         : `${TURN_WORDS[maneuver] ?? "Continue"}${street ? ` onto ${street}` : ""}`);
+    // Local wording: H-1 not I-H1, no East/West that contradicts the heading
+    // after this turn, landmark hints for known exits.
+    const bearing = routeBearingAfter(path, point);
+    const roadName = localizeRoadLabel(
+      localRoadName(street) ?? localRoadName(shield ?? null) ?? null,
+      bearing,
+    );
     return [
       {
         lat: point.lat,
         lon: point.lon,
         maneuver,
-        instruction: message.replace(/<[^>]*>/g, ""),
+        instruction: localizeInstruction(message.replace(/<[^>]*>/g, ""), bearing, roadName),
         // Street names first; route numbers only through the local-name map.
-        road: localRoadName(street) ?? localRoadName(shield ?? null) ?? null,
+        road: roadName,
       },
     ];
   });

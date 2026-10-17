@@ -6,6 +6,7 @@ import { ClientOnly } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Suspense } from "react";
 import { turnGlyph } from "@/lib/navigation-voice";
+import { hudRoadLabel } from "@/lib/local-directions";
 import { formatDistance, clockFromSeconds } from "@/lib/commute-formatting";
 
 const CommuteRouteMap = lazy(() => import("@/components/commute/CommuteRouteMap"));
@@ -248,7 +249,7 @@ export function MapSection(props: MapSectionProps) {
                         ? {
                             glyph: turnGlyph(nextTurn.maneuver.maneuver),
                             distanceText: formatDistance(nextTurn.distanceM),
-                            road: nextTurn.maneuver.road ?? nextTurn.maneuver.instruction,
+                            road: hudRoadLabel(nextTurn.maneuver),
                           }
                         : null
                     }
