@@ -2,6 +2,13 @@
 
 Every Watchman alert and what Alert Triage did about it. Newest first. Repeats within 7 days are not re-investigated.
 
+## 2026-10-16 — Navigation on H-1 east accident morning: wrong direction word, unknown street, stale left turn (Josh's wife's commute; Sonnet build, 3 local commits, not pushed)
+
+- **What she heard/saw:** "Moanalua Fwy West" while driving east; "Salt Lake Blvd" (unfamiliar); a left turn kept being pushed after she was already on Nimitz; only "delay increased on <corridor>" / "reported incident" when the accident hit. Her log had 12 `off_route` events in the first 2 minutes.
+- **Root causes (verified in code):** (1) The reroute's heading (`rerouteRequest.bearing`) was never cleared, so every 2-min/800 m refetch reused it; maneuvers were "passed" only within 30 m, so a turn skipped at ~45 mph stayed "next"; reroutes could fire in the first seconds on snapping GPS and on poor fixes. (2) Spoken text is TomTom's `instructionMessage` verbatim (direction word comes from the feed, not the route), "I-H1" came through unchanged, and "North Nimitz" was tidied for the HUD but not for speech. (3) Traffic speech only said the corridor name; incidents off the current route were dropped unless delay magnitude >= 3.
+- **Fixes (commits a750e0a, 29bba6e, and the incident-alerts commit):** fresh-heading helper + progress-based passing + reroute grace (15 s) and accuracy (> 40 m) guard; `src/lib/local-directions.ts` wording layer (H-1, Nimitz, drop a direction that contradicts the route heading, small landmark table); `src/lib/incident-alerts.ts` + `nearbyIncidents` on the drive result (what/where, once per incident, HUD notice, kept after a reroute). Plus-gated like other live traffic updates (`traffic_rescue_tips`). No verdict, planner or database change.
+- **Not verified:** TomTom `id` field on incidentDetails and exit 18A's landmark wording (no key/recording in this session) — see the report to NALU MAIN.
+
 ## 2026-10-08 — Planner speed 2: one database search for every boarding station (Opus session, Josh approved "speed first")
 
 - **What:** a trip with a car ran 4–5 `plan_outbound` searches (home station first, then park-and-ride + drop-off stations). New database function `plan_outbound_multi` (migration `0065`, additive; nothing else changed) searches all stations in one call: the per-station part runs exactly as `plan_outbound`, the destination-side bus search (the expensive part) runs once. The app calls it once when there are 2+ stations and falls back to the old per-station searches if it's missing or fails (missing → re-checks after 10 min; failure → 2 min), so the app ships before the database change with no rider-visible difference.

@@ -118,6 +118,7 @@ import {
   shouldSuppressReroute,
   type RouteMatch,
 } from "@/lib/navigation-voice";
+import { isAlertIncident, newIncidentAlertMemory, planIncidentAlerts } from "@/lib/incident-alerts";
 import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Waves } from "@/components/home/Waves";
@@ -2205,6 +2206,44 @@ function Index() {
     if (phrase && !navMuted) speakCommuteAlert(phrase, "maneuver");
   }, [nextTurn, drivingCommitted, navMuted, riderSpeed, riderAccuracy, rerouting]);
 
+  // Accident / closure alerts while driving: what and where, once per incident,
+  // plus a HUD notice. Plus feature, like the other live traffic updates.
+  const incidentMemory = useRef(newIncidentAlertMemory());
+  const [incidentNotice, setIncidentNotice] = useState<{
+    text: string;
+    reportedAhead: boolean;
+  } | null>(null);
+  const incidentAlertsAllowed = gate.allows("traffic_rescue_tips");
+  useEffect(() => {
+    if (!drivingCommitted) {
+      incidentMemory.current = newIncidentAlertMemory();
+      setIncidentNotice(null);
+      return;
+    }
+    if (!navBasis || navBasis.trafficBasis !== "live" || !incidentAlertsAllowed) {
+      setIncidentNotice(null);
+      return;
+    }
+    const plan = planIncidentAlerts(
+      {
+        incidents: navBasis.incidents ?? [],
+        nearby: navBasis.nearbyIncidents ?? [],
+        path: navBasis.path ?? [],
+      },
+      incidentMemory.current,
+    );
+    setIncidentNotice(plan.hud ? { text: plan.hud.text, reportedAhead: plan.hud.reportedAhead } : null);
+    for (const alert of plan.speak) {
+      debugLog("incident_alert", { key: alert.key, category: alert.incident.category });
+      if (alertPrefs.sound && !navMuted) {
+        playChime();
+        speakCommuteAlert(alert.text, "traffic");
+      }
+      if (alertPrefs.haptics) navigator.vibrate?.([180, 100, 180]);
+      postCommuteNotification("Traffic alert ahead", alert.text, `nalu-incident-${alert.key}`);
+    }
+  }, [drivingCommitted, navBasis, incidentAlertsAllowed, alertPrefs.sound, alertPrefs.haptics, navMuted]);
+
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
   const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
   useEffect(() => {
@@ -2213,12 +2252,12 @@ function Index() {
       trafficAlertBaseline.current = null;
       return;
     }
+    const trafficKey = (incident: (typeof drive.incidents)[number]) =>
+      `${incident.description.trim().toLowerCase()}|${incident.road?.trim().toLowerCase() ?? ""}`;
+    const priorKeys = new Set(previousTraffic.current?.incidentKeys ?? []);
     const current: TrafficAlertSnapshot = {
       delayMinutes: drive.delayMinutes,
-      incidentKeys: drive.incidents.map(
-        (incident) =>
-          `${incident.description.trim().toLowerCase()}|${incident.road?.trim().toLowerCase() ?? ""}`,
-      ),
+      incidentKeys: drive.incidents.map(trafficKey),
     };
     const change = detectTrafficAlert(
       previousTraffic.current,
@@ -2234,6 +2273,12 @@ function Index() {
 
     // Live traffic updates while driving are part of Plus.
     if (!gate.allows("traffic_rescue_tips")) return;
+    // A new accident or closure is announced with what and where by the
+    // incident alert above; don't also say the generic "reported incident".
+    if (change.kind === "incident") {
+      const fresh = drive.incidents.filter((incident) => !priorKeys.has(trafficKey(incident)));
+      if (fresh.length > 0 && fresh.every(isAlertIncident)) return;
+    }
     const corridor =
       drive.corridorLabel?.replace(/^Via\s+/i, "") || drive.incidents[0]?.road || "your route";
     const message =
@@ -4513,6 +4558,7 @@ function Index() {
           navMuted={navMuted}
           navPath={navPath}
           nextTurn={nextTurn}
+          incidentNotice={incidentNotice}
           nowSeconds={nowSeconds}
           openSettingsAt={openSettingsAt}
           rerouting={rerouting}

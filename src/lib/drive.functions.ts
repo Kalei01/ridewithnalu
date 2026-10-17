@@ -3,7 +3,7 @@ import { rateLimit } from "./rate-limit.server";
 import { z } from "zod";
 import { incidentTouchesRoute, type GeoPoint } from "./drive/incident-correlation";
 import { bypassedCorridors, extractCorridor, type GuidanceInstruction } from "./drive/corridor";
-import { incidentAffectsTrip, localRoadName } from "./traffic-incidents";
+import { incidentAffectsTrip, incidentCategoryLabel, localRoadName } from "./traffic-incidents";
 import { localizeInstruction, localizeRoadLabel, routeBearingAfter } from "./local-directions";
 import { lookupHdotLaneClosureRoutes, type HdotLaneClosureRoute, type HdotScheduledClosure, lookupHdotScheduledClosures } from "./hdot-lane-closures.functions";
 
@@ -39,6 +39,10 @@ export type DriveIncident = {
   endTime?: string | null;
   /** TomTom incident geometry, used to place the reported incident on the route map. */
   points?: Array<{ lat: number; lon: number }>;
+  /** TomTom's incident id, so an alert is spoken once per incident. */
+  id?: string | null;
+  /** Nearby list only: geometry sits on the driven route (within ~90 m). */
+  onRoute?: boolean;
 };
 
 export type DriveTime = {
@@ -60,6 +64,12 @@ export type DriveTime = {
   /** Congested stretches of the route, for colouring the drawn corridor. */
   trafficSections: DriveTrafficSection[];
   incidents: DriveIncident[];
+  /**
+   * Categorised incidents with a named place near (within ~1.5 km) but not
+   * counted as delaying this route, e.g. an accident a reroute now avoids.
+   * Reported facts only; they never change the drive time or any verdict.
+   */
+  nearbyIncidents?: DriveIncident[];
   /** Official HDOT lane-closure route segments intersecting this TomTom route. */
   hdotLaneClosures?: HdotLaneClosureRoute[];
   /** Official HDOT weekly scheduled closures relevant to this route. */
@@ -230,8 +240,16 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     const path = thinPath(fullPath);
     const trafficSections = readOrbisTrafficSections(route?.sections?.traffic ?? [], fullPath);
     // Current incidents are not evidence about a later departure.
-    const { onRoute: incidents, offRoute } = data.departureTime
-      ? { onRoute: [] as DriveIncident[], offRoute: [] as Array<string | null> }
+    const {
+      onRoute: incidents,
+      offRoute,
+      nearby: nearbyIncidents,
+    } = data.departureTime
+      ? {
+          onRoute: [] as DriveIncident[],
+          offRoute: [] as Array<string | null>,
+          nearby: [] as DriveIncident[],
+        }
       : await fetchIncidents(key, data, path);
 
     const corridor = extractCorridor(
@@ -262,6 +280,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       path,
       trafficSections,
       incidents,
+      nearbyIncidents,
       hdotLaneClosures,
       hdotScheduledClosures,
       corridorLabel: corridor?.label ?? null,
@@ -342,7 +361,11 @@ async function fetchIncidents(
   key: string,
   points: { fromLat: number; fromLon: number; toLat: number; toLon: number },
   routePath: GeoPoint[],
-): Promise<{ onRoute: DriveIncident[]; offRoute: Array<string | null> }> {
+): Promise<{
+  onRoute: DriveIncident[];
+  offRoute: Array<string | null>;
+  nearby: DriveIncident[];
+}> {
   const pad = 0.03;
   const minLat = Math.min(points.fromLat, points.toLat) - pad;
   const maxLat = Math.max(points.fromLat, points.toLat) + pad;
@@ -350,7 +373,7 @@ async function fetchIncidents(
   const maxLon = Math.max(points.fromLon, points.toLon) + pad;
 
   const fields =
-    "{incidents{geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,delay,roadNumbers,from,to,endTime,events{description}}}}";
+    "{incidents{geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,delay,roadNumbers,from,to,endTime,events{description}}}}";
   const url =
     `https://api.tomtom.com/traffic/services/5/incidentDetails` +
     `?key=${key}&bbox=${minLon},${minLat},${maxLon},${maxLat}` +
@@ -360,12 +383,13 @@ async function fetchIncidents(
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!response.ok) {
       console.error(`TomTom incidents failed [${response.status}]: ${await response.text()}`);
-      return { onRoute: [], offRoute: [] };
+      return { onRoute: [], offRoute: [], nearby: [] };
     }
     const payload = (await response.json()) as {
       incidents?: Array<{
         geometry?: { type?: string; coordinates?: unknown };
         properties?: {
+          id?: string;
           magnitudeOfDelay?: number;
           delay?: number;
           roadNumbers?: string[];
@@ -379,10 +403,13 @@ async function fetchIncidents(
     };
     const out: DriveIncident[] = [];
     const offRoute: Array<string | null> = [];
+    const nearby: DriveIncident[] = [];
     for (const incident of payload.incidents ?? []) {
       const magnitude = incident.properties?.magnitudeOfDelay ?? 0;
       const road = incident.properties?.roadNumbers?.[0] ?? null;
       const incidentPoints = readIncidentPoints(incident.geometry?.coordinates);
+      const nearbyCandidate = nearbyIncidentFrom(incident.properties, incidentPoints, routePath);
+      if (nearbyCandidate && nearby.length < 5) nearby.push(nearbyCandidate);
       if (!incidentTouchesRoute(incidentPoints, routePath)) {
         // Heavy congestion nearby that this route avoids: worth saying out loud,
         // but only when it is clearly off the driven corridor, not a parallel
@@ -398,6 +425,7 @@ async function fetchIncidents(
       if (magnitude < 2) continue;
       const delay = incident.properties?.delay;
       const candidate: DriveIncident = {
+        id: typeof incident.properties?.id === "string" ? incident.properties.id : null,
         description,
         road: localRoadName(road),
         delayMinutes: typeof delay === "number" ? Math.round(delay / 60) : null,
@@ -416,11 +444,55 @@ async function fetchIncidents(
       if (!incidentAffectsTrip(candidate)) continue;
       if (out.length < 3) out.push(candidate);
     }
-    return { onRoute: out, offRoute };
+    return { onRoute: out, offRoute, nearby };
   } catch (error) {
     console.error("TomTom incidents error", error);
-    return { onRoute: [], offRoute: [] };
+    return { onRoute: [], offRoute: [], nearby: [] };
   }
+}
+
+/** Within this distance of the route an incident is still "ahead of you". */
+const NEARBY_INCIDENT_M = 1500;
+
+/**
+ * An incident that has a category and a place but may not delay this route:
+ * kept so Nalu can still say what and where (an accident a reroute avoided).
+ * Nothing is inferred; delay is only what TomTom reports.
+ */
+export function nearbyIncidentFrom(
+  properties:
+    | {
+        id?: string;
+        delay?: number;
+        roadNumbers?: string[];
+        from?: string;
+        to?: string;
+        endTime?: string;
+        iconCategory?: number;
+        events?: Array<{ description?: string }>;
+      }
+    | undefined,
+  points: GeoPoint[],
+  routePath: GeoPoint[],
+): DriveIncident | null {
+  if (!properties || points.length === 0) return null;
+  const category = properties.iconCategory === undefined ? null : String(properties.iconCategory);
+  const road = localRoadName(properties.roadNumbers?.[0] ?? null);
+  const from = properties.from ?? null;
+  const candidate: DriveIncident = {
+    id: typeof properties.id === "string" ? properties.id : null,
+    description: properties.events?.[0]?.description ?? "",
+    road,
+    delayMinutes: typeof properties.delay === "number" ? Math.round(properties.delay / 60) : null,
+    category,
+    from,
+    to: properties.to ?? null,
+    endTime: properties.endTime ?? null,
+    points,
+  };
+  if (!incidentCategoryLabel(candidate) || !(road || from)) return null;
+  if (!incidentTouchesRoute(points, routePath, NEARBY_INCIDENT_M)) return null;
+  return { ...candidate, onRoute: incidentTouchesRoute(points, routePath) };
 }
 
 function readIncidentPoints(coordinates: unknown): GeoPoint[] {

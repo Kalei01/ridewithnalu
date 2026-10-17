@@ -1,6 +1,7 @@
 # Inbox — agent reports to NALU MAIN (newest first, ≤ 60 lines)
 Written by the inbox routine (trig_018dVqisHDihRPYq9mBE1qtP) when an agent calls fire_trigger. NALU MAIN reads this at every wake. One line: date HST · agent · report · action.
 
+- 2026-10-17 · Sonnet build · Nav fixes (reroute/progress, local wording, accident alerts) done as 3 local commits on cloudflare, not pushed; gate green · for MAIN: run reviewers (transit-accuracy, mobile-design, security-keys), verify TomTom incident `id` + exit 18A wording, then push
 - 2026-10-15 · Premium (Sonnet) · Guides final polish live; GuideLayout formatted (separate commit); lint clean.
 - 2026-10-15 · Premium (Sonnet) · Guides redesign batch 3 + batch 2 fixes live (all guides done); reviewers for batch 3 · for MAIN
 - 2026-10-15 · Premium (Sonnet) · Guides batch 1 fixes + batch 2 live; waiting for reviewers before batch 3 · for MAIN

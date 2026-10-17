@@ -36,6 +36,8 @@ export type LiveNavMapProps = {
   speedMps?: number | null;
   bearing: number | null;
   maneuver: { glyph: TurnGlyph; distanceText: string; road: string } | null;
+  /** Reported accident/closure ahead: what and where, in plain words. */
+  incidentNotice?: { text: string; reportedAhead: boolean } | null;
   eta: { arrive: string; range: string | null; minutes: number; distance: string | null } | null;
   muted: boolean;
   onToggleMute: () => void;
@@ -72,7 +74,12 @@ const GLYPHS: Record<TurnGlyph, typeof ArrowUp> = {
 function navPadding(map: mapboxgl.Map) {
   const { clientHeight: h, clientWidth: w } = map.getContainer();
   if (w > h && h < 600)
-    return { top: Math.round(h * 0.35), bottom: Math.round(h * 0.05), left: Math.round(w * 0.3), right: 0 };
+    return {
+      top: Math.round(h * 0.35),
+      bottom: Math.round(h * 0.05),
+      left: Math.round(w * 0.3),
+      right: 0,
+    };
   return { top: Math.round(h * 0.5), bottom: Math.round(h * 0.06), left: 0, right: 0 };
 }
 
@@ -91,7 +98,9 @@ function useNavStyle() {
     const t = window.setInterval(tick, 60_000);
     return () => window.clearInterval(t);
   }, []);
-  return day ? "mapbox://styles/mapbox/navigation-day-v1" : "mapbox://styles/mapbox/navigation-night-v1";
+  return day
+    ? "mapbox://styles/mapbox/navigation-day-v1"
+    : "mapbox://styles/mapbox/navigation-night-v1";
 }
 
 export default function LiveNavMap(props: LiveNavMapProps) {
@@ -102,6 +111,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     speedMps,
     bearing,
     maneuver,
+    incidentNotice,
     eta,
     muted,
     onToggleMute,
@@ -220,7 +230,9 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, mapStyle]);
 
-  const trafficKey = traffic.map((t) => `${t.severity}:${t.points.length}:${t.points[0]?.lat}`).join("|");
+  const trafficKey = traffic
+    .map((t) => `${t.severity}:${t.points.length}:${t.points[0]?.lat}`)
+    .join("|");
   const lineKey = renderedLines
     .map((l) => `${l.id}:${l.points.length}:${l.points[0]?.lat}:${l.points[0]?.lon}`)
     .join("|");
@@ -255,7 +267,12 @@ export default function LiveNavMap(props: LiveNavMapProps) {
     // Keep the journey above every road, label and 3D layer: platinum-white casing,
     // subtle titanium shadow, then an icy sapphire core.
     const raiseRouteLayers = () => {
-      for (const id of ["nalu-route-halo", "nalu-route-casing", "nalu-route-line", "nalu-traffic-line"])
+      for (const id of [
+        "nalu-route-halo",
+        "nalu-route-casing",
+        "nalu-route-line",
+        "nalu-traffic-line",
+      ])
         if (map.getLayer(id)) map.moveLayer(id);
     };
     const source = map.getSource("nalu-route") as mapboxgl.GeoJSONSource | undefined;
@@ -414,37 +431,73 @@ export default function LiveNavMap(props: LiveNavMapProps) {
       <div ref={nodeRef} className="h-full w-full" aria-label="Heading-up navigation map" />
 
       <div className="pointer-events-none absolute left-[max(0.5rem,env(safe-area-inset-left))] right-[max(0.5rem,env(safe-area-inset-right))] top-[max(0.5rem,calc(env(safe-area-inset-top)+0.25rem))] z-10 flex items-start justify-between gap-2 max-lg:landscape:bottom-2">
-        {rerouting ? (
-          <div
-            className="nav-hud pointer-events-auto min-w-0 max-w-[62%] rounded-xl px-4 py-3 max-lg:landscape:max-w-[30%]"
-            role="status"
-            aria-live="assertive"
-          >
-            <p className="text-base font-black text-foreground">Rerouting…</p>
-            <p className="mt-1 text-xs font-semibold text-muted-foreground">Proceeding to route…</p>
-          </div>
-        ) : maneuver && Glyph ? (
-          <div
-            className="nav-hud pointer-events-auto flex min-w-0 max-w-[62%] items-center gap-3 rounded-xl px-3 py-2.5 max-lg:landscape:max-w-[30%] max-lg:landscape:flex-col max-lg:landscape:items-start"
-            aria-live="polite"
-          >
-            <Glyph className="size-9 shrink-0 text-primary" strokeWidth={2.6} aria-hidden="true" />
-            <div className="min-w-0">
-              <p className="text-2xl font-black leading-none tabular-nums text-foreground">{maneuver.distanceText}</p>
-              <p className="mt-1 truncate text-sm font-semibold text-foreground/85">{maneuver.road}</p>
+        <div className="flex min-w-0 max-w-[62%] flex-col gap-2 max-lg:landscape:max-w-[30%]">
+          {rerouting ? (
+            <div
+              className="nav-hud pointer-events-auto min-w-0 rounded-xl px-4 py-3"
+              role="status"
+              aria-live="assertive"
+            >
+              <p className="text-base font-black text-foreground">Rerouting…</p>
+              <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                Proceeding to route…
+              </p>
             </div>
-          </div>
-        ) : (
-          <span />
-        )}
+          ) : maneuver && Glyph ? (
+            <div
+              className="nav-hud pointer-events-auto flex min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 max-lg:landscape:flex-col max-lg:landscape:items-start"
+              aria-live="polite"
+            >
+              <Glyph
+                className="size-9 shrink-0 text-primary"
+                strokeWidth={2.6}
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <p className="text-2xl font-black leading-none tabular-nums text-foreground">
+                  {maneuver.distanceText}
+                </p>
+                <p className="mt-1 truncate text-sm font-semibold text-foreground/85">
+                  {maneuver.road}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <span />
+          )}
+          {incidentNotice && !rerouting && (
+            <div
+              className="nav-hud pointer-events-auto min-w-0 rounded-xl border border-amber-500/40 px-3 py-2"
+              role="status"
+              aria-live="polite"
+              data-testid="nav-incident-notice"
+            >
+              <p className="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                {incidentNotice.reportedAhead ? "Reported ahead" : "Reported on your route"}
+              </p>
+              <p className="mt-0.5 text-sm font-semibold leading-snug text-foreground">
+                {incidentNotice.text}
+              </p>
+            </div>
+          )}
+        </div>
         <div className="flex shrink-0 flex-col items-end gap-2 max-lg:landscape:flex-row max-lg:landscape:items-start">
           {eta && (
-            <div className="nav-hud pointer-events-auto rounded-xl px-3 py-2 text-right" aria-live="polite">
-              <p className="text-lg font-black leading-none tabular-nums text-foreground">{eta.arrive}</p>
+            <div
+              className="nav-hud pointer-events-auto rounded-xl px-3 py-2 text-right"
+              aria-live="polite"
+            >
+              <p className="text-lg font-black leading-none tabular-nums text-foreground">
+                {eta.arrive}
+              </p>
               <p className="mt-1 text-xs font-bold tabular-nums text-muted-foreground">
                 {eta.minutes} min{eta.distance ? ` · ${eta.distance}` : ""}
               </p>
-              {eta.range && <p className="text-xs font-semibold tabular-nums text-muted-foreground">{eta.range}</p>}
+              {eta.range && (
+                <p className="text-xs font-semibold tabular-nums text-muted-foreground">
+                  {eta.range}
+                </p>
+              )}
             </div>
           )}
           <Button
@@ -459,7 +512,12 @@ export default function LiveNavMap(props: LiveNavMapProps) {
             {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
           </Button>
           {onChangeVoice && (
-            <SettingsHint id="nav-voice" label="Change voice" onOpen={onChangeVoice} className="pointer-events-auto" />
+            <SettingsHint
+              id="nav-voice"
+              label="Change voice"
+              onOpen={onChangeVoice}
+              className="pointer-events-auto"
+            />
           )}
         </div>
       </div>

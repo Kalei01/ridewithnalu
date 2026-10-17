@@ -86,6 +86,7 @@ export type MapSectionProps = {
   navMuted: boolean;
   navPath: { lat: number; lon: number }[];
   nextTurn: { maneuver: import("@/lib/navigation-voice").Maneuver; distanceM: number } | null;
+  incidentNotice?: { text: string; reportedAhead: boolean } | null;
   nowSeconds: number;
   openSettingsAt: (page: import("@/components/settings/SetupDialog").SettingsPageId) => void;
   rerouting: boolean;
@@ -127,6 +128,7 @@ export function MapSection(props: MapSectionProps) {
     navMuted,
     navPath,
     nextTurn,
+    incidentNotice,
     nowSeconds,
     openSettingsAt,
     rerouting,
@@ -244,6 +246,7 @@ export function MapSection(props: MapSectionProps) {
                     }
                     livePoint={riderPoint}
                     bearing={navBearing}
+                    incidentNotice={incidentNotice ?? null}
                     maneuver={
                       nextTurn
                         ? {
