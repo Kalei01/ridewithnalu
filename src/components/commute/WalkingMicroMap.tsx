@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { removeMapSafely } from "@/lib/leaflet-safe";
+import { isMapAlive, removeMapSafely } from "@/lib/leaflet-safe";
 import L from "leaflet";
 
 type WalkingMicroMapProps = {
@@ -59,8 +59,11 @@ export default function WalkingMicroMap({ from, to }: WalkingMicroMapProps) {
       .bindTooltip(toTooltip)
       .addTo(map);
     map.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: 16, animate: false });
-    window.requestAnimationFrame(() => map.invalidateSize({ animate: false }));
+    const frame = window.requestAnimationFrame(() => {
+      if (isMapAlive(map)) map.invalidateSize({ animate: false });
+    });
     return () => {
+      window.cancelAnimationFrame(frame);
       removeMapSafely(map);
     };
   }, [from.lat, from.lon, from.label, to.lat, to.lon, to.label]);

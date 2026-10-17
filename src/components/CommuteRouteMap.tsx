@@ -1,6 +1,6 @@
 import { flyMotion } from "@/lib/motion";
 import "./map-2.css";
-import { removeMapSafely } from "@/lib/leaflet-safe";
+import { isMapAlive, removeMapSafely } from "@/lib/leaflet-safe";
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { LocateFixed, Map, Maximize, Satellite } from "lucide-react";
@@ -200,7 +200,7 @@ export default function CommuteRouteMap({
     const fitInitialCorridor = () => {
       const currentMap = mapRef.current;
       const corridor = corridorPointsRef.current;
-      if (!currentMap || corridor.length < 2) return false;
+      if (!isMapAlive(currentMap) || corridor.length < 2) return false;
       currentMap.invalidateSize({ animate: false });
       const size = currentMap.getSize();
       if (size.x < 20 || size.y < 20) return false;
@@ -430,7 +430,7 @@ export default function CommuteRouteMap({
       const fit = () => {
         // The map may have been removed while this waited a frame or a timer
         // (the screen changed under it); touching it then crashes Leaflet.
-        if (mapRef.current !== map) return true;
+        if (mapRef.current !== map || !isMapAlive(map)) return true;
         map.invalidateSize({ animate: false });
         const size = map.getSize();
         if (size.x < 20 || size.y < 20) return false;
@@ -468,7 +468,7 @@ export default function CommuteRouteMap({
         // animate once.
         pendingFitRef.current = window.setTimeout(() => {
           pendingFitRef.current = null;
-          if (mapRef.current !== map) return;
+          if (mapRef.current !== map || !isMapAlive(map)) return;
           map.stop();
           if (!fit()) requestAnimationFrame(() => fit());
         }, 250);

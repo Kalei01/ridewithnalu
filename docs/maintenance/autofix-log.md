@@ -5,6 +5,15 @@ Every fix an agent makes without Josh's approval, under the Autonomous Fix Safet
 Entry format:
 
 ```
+### 2026-10-16 17:00 HST — Sentry: aborted view transition + late Leaflet frame
+- Class: 🟢
+- Issue: Sentry on "/" (phones): 4x InvalidStateError "Transition was aborted ... Prepaint layout check failed"; 2x TypeError "_leaflet_pos" (Oct 14).
+- Root cause: A) router `defaultViewTransition` calls document.startViewTransition and awaits only updateCallbackDone, so Safari's rejected ready/finished promises were unhandled (src/router.tsx). B) WalkingMicroMap queued an animation frame calling invalidateSize that was never cancelled; if the map was removed first it hit panes that no longer exist (WalkingMicroMap.tsx:62). The Oct 14 errors likely predate or straddle removeMapSafely (06:10 UTC Oct 14), which covered only removal.
+- Fix: src/lib/view-transition-safe.ts (skip animation when tab hidden / reduced motion, swallow ready/finished rejections, navigation unchanged); sentry-client drops only that exact error; leaflet-safe `isMapAlive` guard used in WalkingMicroMap (frame cancelled on cleanup) and CommuteRouteMap delayed fits.
+- Validation: tests 764 pass, typecheck, build; new unit tests; live smoke check recorded in inbox.
+- Confidence: medium-high (B cannot be reproduced; watch Sentry after deploy)
+- Rollback: revert the commit.
+
 ### <YYYY-MM-DD HH:MM HST> — <short title>
 - Class: 🟢 / 🟡
 - Issue: what was detected (and by which agent/check)

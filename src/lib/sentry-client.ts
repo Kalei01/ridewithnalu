@@ -1,3 +1,4 @@
+import { isBenignViewTransitionAbort } from "./view-transition-safe";
 /**
  * App-side crash reports to Sentry. Off unless VITE_SENTRY_DSN is set.
  * Errors only (no performance tracing, no session replay), no personal data,
@@ -31,6 +32,9 @@ export async function startErrorReporting() {
     environment: window.location.hostname === "ridenalu.com" ? "production" : "preview",
     tracesSampleRate: 0,
     beforeSend(event) {
+      // Safari aborting a page-change animation: the page still changes, nothing to fix.
+      const first = event.exception?.values?.[0];
+      if (isBenignViewTransitionAbort(first?.type, first?.value)) return null;
       reportToProblems(event);
       if (event.request) {
         if (event.request.url) event.request.url = event.request.url.split("?")[0] ?? event.request.url;

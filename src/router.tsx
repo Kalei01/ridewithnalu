@@ -1,4 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
+import { installSafeViewTransitions } from "@/lib/view-transition-safe";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
@@ -21,6 +22,7 @@ if (typeof window !== "undefined") {
 }
 
 export const getRouter = () => {
+  installSafeViewTransitions();
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {

@@ -12,3 +12,14 @@ export function removeMapSafely(map: LeafletMap) {
   map.off();
   map.remove();
 }
+
+/**
+ * True while the map is still usable: set up, not removed, and attached to the
+ * page. Delayed work (animation frames, timers) must check this before touching
+ * a map, since a removed map has no panes left ("_leaflet_pos" crash).
+ */
+export function isMapAlive(map: LeafletMap | null | undefined): map is LeafletMap {
+  if (!map) return false;
+  const m = map as unknown as { _loaded?: boolean; getContainer?: () => HTMLElement };
+  return m._loaded === true && !!m.getContainer?.()?.isConnected;
+}

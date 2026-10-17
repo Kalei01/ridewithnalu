@@ -16,3 +16,15 @@ describe("removeMapSafely", () => {
     expect(calls).toEqual(["stop", "off", "remove:false"]);
   });
 });
+
+describe("isMapAlive", () => {
+  it("is false for a missing, unloaded, removed or detached map", async () => {
+    const { isMapAlive } = await import("./leaflet-safe");
+    const mk = (loaded: boolean, connected: boolean) =>
+      ({ _loaded: loaded, getContainer: () => ({ isConnected: connected }) }) as never;
+    expect(isMapAlive(null)).toBe(false);
+    expect(isMapAlive(mk(false, true))).toBe(false);
+    expect(isMapAlive(mk(true, false))).toBe(false);
+    expect(isMapAlive(mk(true, true))).toBe(true);
+  });
+});
