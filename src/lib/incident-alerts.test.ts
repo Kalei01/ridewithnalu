@@ -5,6 +5,7 @@ import {
   incidentAlertKey,
   incidentHudText,
   incidentSpeech,
+  incidentAlong,
   incidentWhere,
   detailedAlertCovers,
   isAlertIncident,
@@ -62,8 +63,8 @@ describe("accident alert wording", () => {
     const westLine = [at(22)[0]!, at(20)[0]!];
     expect(isOppositeDirection({ ...accident, road: "H-1", points: westLine }, path)).toBe(true);
     expect(isOppositeDirection({ ...accident, road: "H-1", points: eastLine }, path)).toBe(false);
-    // A stated direction only decides when the geometry is too short to tell.
-    expect(isOppositeDirection({ ...accident, road: "H-1 West" }, path)).toBe(true);
+    // Unclear (a single point, even with "West" in the name): fail open, alert anyway.
+    expect(isOppositeDirection({ ...accident, road: "H-1 West" }, path)).toBe(false);
     expect(isOppositeDirection(accident, path)).toBe(false);
     expect(isOppositeDirection({ ...accident, road: "Nimitz Hwy" }, path)).toBe(false);
   });
@@ -115,7 +116,7 @@ describe("planIncidentAlerts", () => {
     const plan = planIncidentAlerts(
       {
         incidents: [
-          { ...accident, road: "H-1 West" },
+          { ...accident, road: "H-1", points: [at(22)[0]!, at(20)[0]!] },
           { ...accident, id: "x", category: "6" },
         ],
         path,
@@ -124,6 +125,26 @@ describe("planIncidentAlerts", () => {
     );
     expect(plan.speak).toHaveLength(0);
     expect(plan.hud).toBeNull();
+  });
+});
+
+describe("order along the route, not straight-line bearing", () => {
+  // A hairpin: east along lat 21.34, then back west along lat 21.3405.
+  const east = Array.from({ length: 11 }, (_, i) => ({ lat: 21.34, lon: -157.95 + i * 0.001 }));
+  const west = Array.from({ length: 11 }, (_, i) => ({ lat: 21.3405, lon: -157.94 - i * 0.001 }));
+  const hairpin = [...east, ...west];
+  it("a same-side incident across a U-bend is not hidden", () => {
+    const across = { ...accident, points: [east[9]!, west[1]!] };
+    expect(isOppositeDirection(across, hairpin)).toBe(false);
+  });
+  it("a line running against the route order is opposite", () => {
+    expect(isOppositeDirection({ ...accident, points: [west[3]!, west[1]!] }, hairpin)).toBe(true);
+    expect(isOppositeDirection({ ...accident, points: [west[1]!, west[3]!] }, hairpin)).toBe(false);
+  });
+  it("a rider still inside a long incident keeps the alert (last point ahead)", () => {
+    const long = { ...accident, points: [at(10)[0]!, at(25)[0]!] };
+    expect(incidentAlong(long, path, { lat: 21.34, lon: -157.95 + 15 * 0.001 })).toBe("ahead");
+    expect(incidentAlong(long, path, { lat: 21.34, lon: -157.95 + 30 * 0.001 })).toBe("behind");
   });
 });
 
@@ -159,9 +180,9 @@ describe("ahead / nearby / behind along the route", () => {
 describe("generic alert vs detailed alert use the same list", () => {
   it("stays quiet only when the detailed alert covers every fresh incident", () => {
     expect(detailedAlertCovers([accident], { incidents: [accident], path })).toBe(true);
-    // Not covered (e.g. other carriageway): the generic line must still speak.
+    // Other carriageway: deliberately not announced, so neither alert fires.
     const west = { ...accident, road: "H-1", points: [at(22)[0]!, at(20)[0]!] };
-    expect(detailedAlertCovers([west], { incidents: [west], path })).toBe(false);
+    expect(detailedAlertCovers([west], { incidents: [west], path })).toBe(true);
     // Not an accident/closure: generic speaks.
     const jam = { ...accident, id: "j", category: "6" };
     expect(detailedAlertCovers([jam], { incidents: [jam], path })).toBe(false);

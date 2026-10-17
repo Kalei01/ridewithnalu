@@ -83,39 +83,55 @@ export function incidentLineBearing(points: ReadonlyArray<LatLon> | undefined): 
   return bearingBetween(first, last);
 }
 
+/** Position along the route as segment index plus fraction, or null when the point isn't near it. */
+function routePosition(point: LatLon, path: ReadonlyArray<LatLon>, maxOffM = 150): number | null {
+  const match = matchRoutePoint(point, path as LatLon[]);
+  if (!match || match.distanceM > maxOffM) return null;
+  const a = path[match.segmentIndex]!;
+  const b = path[match.segmentIndex + 1]!;
+  const length = metersBetween(a, b);
+  return match.segmentIndex + (length > 0 ? metersBetween(a, match.point) / length : 0);
+}
+
 /**
- * True when the incident is on the other carriageway: its own line runs more
- * than 90 degrees against the route there. Falls back to a stated East/West/
- * North/South in the road name only when the geometry is too short to tell.
+ * True when the incident is on the other carriageway: its line (TomTom
+ * geometry runs in the traffic direction) is ordered against the route, i.e.
+ * its end comes before its start along our route. Ordering along the route,
+ * not straight-line bearing, so loops and U-bends don't confuse it. Anything
+ * unclear counts as the same side, so the rider is still alerted.
  */
 export function isOppositeDirection(incident: DriveIncident, path: ReadonlyArray<LatLon>): boolean {
   const points = incident.points;
-  const point = points?.[0];
-  if (!point) return false;
-  const middle = points![Math.floor(points!.length / 2)]!;
-  const routeBearing = routeBearingAfter(path, middle, 300) ?? routeBearingAfter(path, point, 300);
-  if (routeBearing === null) return false;
-  const lineBearing = incidentLineBearing(points);
-  if (lineBearing !== null) return angleDifference(lineBearing, routeBearing) > OPPOSITE_DEG;
-  const word = /\b(East|West|North|South)\b/i.exec(incident.road ?? "")?.[1]?.toLowerCase();
-  return word ? angleDifference(DIRECTION_BEARING[word]!, routeBearing) > OPPOSITE_DEG : false;
+  if (!points || points.length < 2 || path.length < 2) return false;
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  if (metersBetween(first, last) < 30) return false;
+  const start = routePosition(first, path);
+  const end = routePosition(last, path);
+  if (start === null || end === null) return false;
+  return end < start - 0.02;
 }
 
-/** Along the route from the rider: the incident is still ahead, already behind, or can't be told. */
+/**
+ * Along the route from the rider: the incident is still ahead, already behind
+ * (both ends passed), or can't be told. The farther-along end decides, so a
+ * rider still inside a long incident keeps the alert.
+ */
 export function incidentAlong(
   incident: DriveIncident,
   path: ReadonlyArray<LatLon>,
   rider: LatLon | null | undefined,
 ): "ahead" | "behind" | "unknown" {
-  const point = incident.points?.[0];
-  if (!rider || !point || path.length < 2) return "unknown";
+  const points = incident.points;
+  if (!rider || !points?.length || path.length < 2) return "unknown";
   const me = matchRoutePoint(rider, path as LatLon[]);
-  const there = matchRoutePoint(point, path as LatLon[]);
-  if (!me || !there || me.distanceM > 80) return "unknown";
-  if (there.segmentIndex !== me.segmentIndex)
-    return there.segmentIndex > me.segmentIndex ? "ahead" : "behind";
-  const start = path[me.segmentIndex]!;
-  return metersBetween(start, there.point) >= metersBetween(start, me.point) ? "ahead" : "behind";
+  if (!me || me.distanceM > 80) return "unknown";
+  const mine = routePosition(rider, path, 80);
+  const ends = [points[0]!, points[points.length - 1]!]
+    .map((p) => routePosition(p, path))
+    .filter((v): v is number => v !== null);
+  if (mine === null || ends.length === 0) return "unknown";
+  return Math.max(...ends) >= mine ? "ahead" : "behind";
 }
 
 export type IncidentAlertMemory = {
@@ -168,7 +184,13 @@ export function detailedAlertCovers(
 ): boolean {
   if (fresh.length === 0) return false;
   const { onRoute } = alertEligible(input);
-  return fresh.every((incident) => onRoute.has(incidentAlertKey(incident)));
+  // An accident on the other carriageway is deliberately not announced by the
+  // detailed alert, so it is "covered": the rider isn't told about the wrong side.
+  return fresh.every(
+    (incident) =>
+      onRoute.has(incidentAlertKey(incident)) ||
+      (isAlertIncident(incident) && isOppositeDirection(incident, input.path)),
+  );
 }
 
 /**

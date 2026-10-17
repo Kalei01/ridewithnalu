@@ -11,6 +11,7 @@ import {
   localizeRoadLabel,
   routeBearingAfter,
 } from "./local-directions";
+import { distanceAlongPath } from "./navigation-voice";
 import { lookupHdotLaneClosureRoutes, type HdotLaneClosureRoute, type HdotScheduledClosure, lookupHdotScheduledClosures } from "./hdot-lane-closures.functions";
 
 // Per-visitor limits on paid lookups (see rate-limit.server.ts).
@@ -598,7 +599,7 @@ function normalizeManeuver(value: string) {
  * change can't silently empty the list (which leaves the voice with nothing to say).
  */
 export function buildManeuvers(instructions: OrbisInstruction[], path: Array<{ lat: number; lon: number }>) {
-  const steps = instructions.flatMap((raw) => {
+  const rawSteps = instructions.flatMap((raw) => {
     const any = raw as unknown as Record<string, unknown>;
     const maneuverRaw = typeof raw.maneuver === "string" ? raw.maneuver : typeof any["maneuverType"] === "string" ? (any["maneuverType"] as string) : null;
     if (!maneuverRaw) return [];
@@ -620,14 +621,6 @@ export function buildManeuvers(instructions: OrbisInstruction[], path: Array<{ l
       (maneuver.startsWith("ARRIVE")
         ? "Arrive at your destination"
         : `${TURN_WORDS[maneuver] ?? "Continue"}${street ? ` onto ${street}` : ""}`);
-    // Local wording: H-1 not I-H1 and plain Nimitz in the spoken text (direction
-    // words are never removed there). The HUD road label drops a direction only
-    // when it contradicts the heading well along the new road (past any loop ramp).
-    const labelBearing = routeBearingAfter(path, point, LABEL_LOOKAHEAD_M, LABEL_MIN_AHEAD_M);
-    const roadName = localizeRoadLabel(
-      localRoadName(street) ?? localRoadName(shield ?? null) ?? null,
-      labelBearing,
-    );
     return [
       {
         lat: point.lat,
@@ -635,9 +628,23 @@ export function buildManeuvers(instructions: OrbisInstruction[], path: Array<{ l
         maneuver,
         instruction: localizeInstruction(message.replace(/<[^>]*>/g, "")),
         // Street names first; route numbers only through the local-name map.
-        road: roadName,
+        road: localRoadName(street) ?? localRoadName(shield ?? null) ?? null,
       },
     ];
+  });
+  // The HUD road label drops a direction word only when it contradicts the
+  // heading measured along that same road: up to 2 km, but never past the next
+  // maneuver. With less than 800 m of the road left, the provider's label stays.
+  const steps = rawSteps.map((step, index) => {
+    const next = rawSteps[index + 1];
+    const along = next ? distanceAlongPath(path, next) - distanceAlongPath(path, step) : Infinity;
+    const labelBearing = routeBearingAfter(
+      path,
+      step,
+      Math.min(LABEL_LOOKAHEAD_M, along),
+      LABEL_MIN_AHEAD_M,
+    );
+    return { ...step, road: localizeRoadLabel(step.road, labelBearing) };
   });
   if (instructions.length > 0 && steps.length === 0) {
     const first = instructions[0] as unknown as Record<string, unknown>;

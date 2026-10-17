@@ -126,6 +126,31 @@ describe("buildManeuvers: spoken text keeps directions; HUD label checks the rea
     expect(steps[0]?.road).toBe("Moanalua Fwy");
   });
 
+  it("keeps the provider's label when the next maneuver comes before 800 m of that road", () => {
+    const eastOnly = Array.from({ length: 60 }, (_, i) => ({
+      lat: 21.34,
+      lon: -157.95 + i * 0.001,
+    }));
+    const steps = buildManeuvers(
+      [
+        {
+          maneuver: "MOTORWAY_EXIT_RIGHT",
+          instructionMessage: "Take the ramp to Moanalua Fwy West",
+          maneuverPoint: { latitude: 21.34, longitude: -157.93 },
+          nextRoadInformation: { streetName: { text: "Moanalua Fwy West" } },
+        },
+        {
+          maneuver: "TURN_RIGHT",
+          instructionMessage: "Turn right",
+          maneuverPoint: { latitude: 21.34, longitude: -157.927 },
+          nextRoadInformation: { streetName: { text: "Side St" } },
+        },
+      ] as never,
+      eastOnly,
+    );
+    expect(steps[0]?.road).toBe("Moanalua Fwy West");
+  });
+
   it("keeps the provider's label when too little route remains to judge", () => {
     const short = Array.from({ length: 10 }, (_, i) => ({ lat: 21.34, lon: -157.95 + i * 0.001 }));
     const steps = buildManeuvers(
