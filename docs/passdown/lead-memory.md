@@ -26,6 +26,8 @@ The full working memory of NALU MAIN COMMAND (1), written before it was archived
 
 - Oct 15 (MAIN 4): Josh-requested guide redesign DONE — all 11 guides + hub live in the glow-card look (Skyline map component, strips, option cards), each batch reviewed by transit-accuracy/mobile-design/security-keys; head/FAQ unchanged. Promo video v1 (Leave-now, Drive only) in scratchpad; v2 needs a daytime re-record (Arrive by can't plan tomorrow). Startup credits: run 3 done, queue waits on Josh.
 
+- Oct 16–17 (MAIN 4): wife's Oct 16 commute (H-1 E accident) → nav fixes LIVE 75717bb (reroute stale bearing, maneuver passing, start grace/poor-GPS escape; local wording I-H1→H-1, HUD direction label, Salt Lake/18B landmark labels; accident alerts what+where once per id, opposite-carriageway filter fails open). All reviewers OK. UNVERIFIED: TomTom incidents `id` field with a live incident (if incidents vanish, check fields first); check her Monday drive log in debug_logs.
+
 ## Josh's tools — verdicts (Oct 15, MAIN (4))
 No claude.ai plugins enabled (ListPlugins empty; ~/.claude/plugins empty). Nothing installed or enabled; no paid generations run.
 - Useful now: GitHub (PRs, CI, checks); Gmail (startup-credits drafts and notices — drafts only, Josh sends); built-in code-review / security-review / simplify (extra pass before risky pushes; our reviewers stay primary); run (launch the app to check a change); deep-research (credits eligibility questions only, it fans out subagents — rare).
