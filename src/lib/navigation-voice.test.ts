@@ -9,6 +9,10 @@ import {
   isUsableNavigationFix,
   matchRoutePoint,
   nextManeuver,
+  maneuverBehindDriver,
+  bearingForRouteRequest,
+  shouldSuppressReroute,
+  REROUTE_GRACE_MS,
   routeDeviation,
   smoothBearing,
   trimRoutePath,
@@ -268,5 +272,70 @@ describe("spoken distance matches the real distance", () => {
     expect(guide.next({ maneuver: arrive, distanceM: 85 }, 2_000, { speedMps: 9 })).toBe(
       "You have arrived at your destination.",
     );
+  });
+});
+
+describe("reroute and progress fixes (Oct 16 commute)", () => {
+  // A straight eastbound road, ~110 m per step.
+  const path = Array.from({ length: 11 }, (_, i) => ({ lat: 21.3, lon: -157.9 + i * 0.001 }));
+  const turnAt = (i: number): Maneuver => ({
+    lat: 21.3,
+    lon: -157.9 + i * 0.001,
+    maneuver: "TURN_LEFT",
+    instruction: "Turn left",
+    road: null,
+  });
+
+  it("passes a turn the driver skipped at speed, by along-route progress", () => {
+    const m = turnAt(3);
+    const rider = { lat: 21.3, lon: -157.9 + 0.006 }; // ~300 m past the turn
+    const match = matchRoutePoint(rider, path);
+    expect(maneuverBehindDriver(m, { path, match })).toBe(true);
+    const passed = new Set<string>();
+    const arrive: Maneuver = { ...turnAt(10), maneuver: "ARRIVE", instruction: "Arrive" };
+    const next = nextManeuver(rider, [m, arrive], passed, { path, match });
+    expect(next?.maneuver.maneuver).toBe("ARRIVE");
+  });
+  it("without progress info the old 30 m radius rule still applies", () => {
+    const m = turnAt(3);
+    const rider = { lat: 21.3, lon: -157.9 + 0.006 };
+    expect(nextManeuver(rider, [m], new Set())?.maneuver).toBe(m);
+  });
+  it("keeps a turn ahead as next", () => {
+    const m = turnAt(6);
+    const rider = { lat: 21.3, lon: -157.9 + 0.002 };
+    const match = matchRoutePoint(rider, path);
+    expect(maneuverBehindDriver(m, { path, match })).toBe(false);
+  });
+  it("does not trust progress when the driver is far from the route", () => {
+    const m = turnAt(3);
+    const rider = { lat: 21.31, lon: -157.9 + 0.006 }; // ~1.1 km off
+    const match = matchRoutePoint(rider, path);
+    expect(maneuverBehindDriver(m, { path, match })).toBe(false);
+  });
+  it("never passes ARRIVE by progress", () => {
+    const arrive: Maneuver = { ...turnAt(5), maneuver: "ARRIVE", instruction: "Arrive" };
+    const rider = { lat: 21.3, lon: -157.9 + 0.009 };
+    const match = matchRoutePoint(rider, path);
+    expect(nextManeuver(rider, [arrive], new Set(), { path, match })?.maneuver).toBe(arrive);
+  });
+
+  it("uses a reroute heading only while it is fresh", () => {
+    const request = { bearing: 90, nonce: 1_000_000 };
+    expect(bearingForRouteRequest(request, 270, 1_005_000)).toBe(90);
+    expect(bearingForRouteRequest(request, 270, 1_000_000 + 60_000)).toBe(270);
+    expect(bearingForRouteRequest(null, 180, 5)).toBe(180);
+    expect(bearingForRouteRequest({ bearing: null, nonce: 1 }, null, 2)).toBeNull();
+  });
+
+  it("suppresses reroutes in the first 15 s and on poor GPS", () => {
+    const t0 = 1_000_000;
+    expect(shouldSuppressReroute({ tripStartedAt: t0, now: t0 + 5_000, accuracyM: 8 })).toBe(true);
+    expect(
+      shouldSuppressReroute({ tripStartedAt: t0, now: t0 + REROUTE_GRACE_MS, accuracyM: 8 }),
+    ).toBe(false);
+    expect(shouldSuppressReroute({ tripStartedAt: t0, now: t0 + 60_000, accuracyM: 90 })).toBe(true);
+    expect(shouldSuppressReroute({ tripStartedAt: t0, now: t0 + 60_000, accuracyM: null })).toBe(false);
+    expect(shouldSuppressReroute({ tripStartedAt: null, now: 5, accuracyM: 10 })).toBe(false);
   });
 });

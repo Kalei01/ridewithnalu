@@ -34,19 +34,73 @@ export function maneuverKey(m: Maneuver) {
   return `${m.lat.toFixed(4)},${m.lon.toFixed(4)}:${m.maneuver}`;
 }
 
+/** Where the driver is along the route, for passing maneuvers by progress. */
+export type RouteProgress = {
+  path: ReadonlyArray<{ lat: number; lon: number }>;
+  match: RouteMatch | null;
+};
+
+/** A maneuver farther than this from the drawn route can't be placed on it. */
+const MANEUVER_ON_PATH_M = 60;
+/** The driver must be this close to the route before progress is trusted. */
+const PROGRESS_TRUST_M = 60;
+/** Slack along the segment so a turn right under the car isn't called passed early. */
+const PROGRESS_SLACK_M = 15;
+
+const placementCache = new WeakMap<object, Map<string, RouteMatch | null>>();
+
+function placeOnPath(m: Maneuver, path: RouteProgress["path"]): RouteMatch | null {
+  let byKey = placementCache.get(path);
+  if (!byKey) {
+    byKey = new Map();
+    placementCache.set(path, byKey);
+  }
+  const key = maneuverKey(m);
+  if (byKey.has(key)) return byKey.get(key) ?? null;
+  const placed = matchRoutePoint(m, path as Array<{ lat: number; lon: number }>);
+  byKey.set(key, placed && placed.distanceM <= MANEUVER_ON_PATH_M ? placed : null);
+  return byKey.get(key) ?? null;
+}
+
+/**
+ * True when the driver is already beyond `m` along the route. This catches a
+ * turn taken (or missed) at freeway speed, where two GPS fixes can straddle
+ * the 30 m radius and the turn would otherwise stay "next" forever.
+ */
+export function maneuverBehindDriver(m: Maneuver, progress: RouteProgress): boolean {
+  const { match, path } = progress;
+  if (!match || match.distanceM > PROGRESS_TRUST_M || path.length < 2) return false;
+  const placed = placeOnPath(m, path);
+  if (!placed) return false;
+  if (match.segmentIndex > placed.segmentIndex) {
+    // Different segments: behind once the driver has moved clear of the turn's segment end.
+    return true;
+  }
+  if (match.segmentIndex < placed.segmentIndex) return false;
+  const start = path[match.segmentIndex]!;
+  return metersBetween(start, match.point) > metersBetween(start, placed.point) + PROGRESS_SLACK_M;
+}
+
 /**
  * The next maneuver not yet passed. A maneuver counts as passed once the
- * driver came within PASSED_M of it; `passed` persists across refreshes.
+ * driver came within PASSED_M of it, or (when route progress is supplied)
+ * once the driver is further along the route than the maneuver. `passed`
+ * persists across refreshes.
  */
 export function nextManeuver(
   position: { lat: number; lon: number },
   maneuvers: Maneuver[],
   passed: Set<string>,
+  progress?: RouteProgress,
 ): { maneuver: Maneuver; distanceM: number } | null {
   for (const m of maneuvers) {
     if (passed.has(maneuverKey(m))) continue;
     const distanceM = metersBetween(position, m);
     if (distanceM <= PASSED_M && m.maneuver !== "ARRIVE") {
+      passed.add(maneuverKey(m));
+      continue;
+    }
+    if (progress && !m.maneuver.startsWith("ARRIVE") && maneuverBehindDriver(m, progress)) {
       passed.add(maneuverKey(m));
       continue;
     }
@@ -156,6 +210,44 @@ export function routeDeviation(
     ? crossTrackM > 250 || (crossTrackM > 80 && divergentFixes >= 3)
     : crossTrackM > 45 || divergentFixes >= 2;
   return { crossTrackM, headingDivergence, divergentFixes, offRoute };
+}
+
+/** No reroute in the first moments of a trip: GPS is still snapping to the road. */
+export const REROUTE_GRACE_MS = 15_000;
+/** Above this a fix can sit a block away from the car, so it can't prove "off route". */
+export const REROUTE_MAX_ACCURACY_M = 40;
+
+/**
+ * Whether an off-route reading should be ignored for now: the trip just
+ * started, or the GPS fix is too uncertain to trust.
+ */
+export function shouldSuppressReroute(input: {
+  tripStartedAt: number | null;
+  now: number;
+  accuracyM: number | null;
+}): boolean {
+  if (input.tripStartedAt !== null && input.now - input.tripStartedAt < REROUTE_GRACE_MS)
+    return true;
+  const accuracy = input.accuracyM;
+  return accuracy !== null && Number.isFinite(accuracy) && accuracy > REROUTE_MAX_ACCURACY_M;
+}
+
+/** A reroute's own heading is only good for the request it triggered. */
+export const REROUTE_BEARING_FRESH_MS = 20_000;
+
+/**
+ * Heading to send with a route request. A reroute request's bearing is used
+ * only while fresh; later refetches (2-minute or 800 m refreshes) send the
+ * driver's current heading so the new route never starts facing the old way.
+ */
+export function bearingForRouteRequest(
+  request: { bearing: number | null; nonce: number } | null,
+  currentBearing: number | null,
+  now: number,
+): number | null {
+  if (request && request.bearing !== null && now - request.nonce < REROUTE_BEARING_FRESH_MS)
+    return request.bearing;
+  return currentBearing;
 }
 
 /** Keep the snapped vehicle point and only the route still ahead. */

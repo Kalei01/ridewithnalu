@@ -113,6 +113,10 @@ import {
   nextManeuver,
   smoothBearing,
   routeBearingAt,
+  matchRoutePoint,
+  bearingForRouteRequest,
+  shouldSuppressReroute,
+  type RouteMatch,
 } from "@/lib/navigation-voice";
 import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
@@ -1841,6 +1845,9 @@ function Index() {
   // the newest response ever reaches the screen, so a slow older TomTom reply
   // can't overwrite a fresher ETA.
   const liveSeqRef = useRef(0);
+  const navBearingRef = useRef<number | null>(null);
+  const tripStartedAtRef = useRef<number | null>(null);
+  const riderAccuracyRef = useRef<number | null>(null);
   const liveAbortRef = useRef<AbortController | null>(null);
   const lastRouteAppliedAtRef = useRef(0);
   const { data: liveDriveRaw, isError: liveDriveFailed } = useQuery({
@@ -1862,6 +1869,8 @@ function Index() {
       const origin = liveRouteOrigin;
       if (!origin) throw new Error("No live position yet.");
       const seq = ++liveSeqRef.current;
+      // A reroute's heading is used only while fresh; later refreshes send the current heading.
+      const requestBearing = bearingForRouteRequest(rerouteRequest, navBearingRef.current, Date.now());
       // Cancel any older in-flight TomTom request; only the newest fix matters.
       liveAbortRef.current?.abort();
       const controller = new AbortController();
@@ -1874,9 +1883,7 @@ function Index() {
           toLat: driveTo.lat as number,
           toLon: driveTo.lon as number,
           forceRefresh: true,
-          ...(rerouteRequest?.bearing === null || rerouteRequest?.bearing === undefined
-            ? {}
-            : { bearing: rerouteRequest.bearing }),
+          ...(requestBearing === null ? {} : { bearing: requestBearing }),
         },
       });
       return { ...result, seq };
@@ -2046,6 +2053,15 @@ function Index() {
   const navBasis = drivingCommitted ? (liveDrive ?? drive) : null;
   const navPath = navBasis?.path ?? [];
   const [navBearing, setNavBearing] = useState<number | null>(null);
+  useEffect(() => {
+    navBearingRef.current = navBearing;
+  }, [navBearing]);
+  useEffect(() => {
+    riderAccuracyRef.current = riderAccuracy;
+  }, [riderAccuracy]);
+  useEffect(() => {
+    tripStartedAtRef.current = drivingCommitted ? Date.now() : null;
+  }, [drivingCommitted]);
   const lastNavPoint = useRef<Coords | null>(null);
   useEffect(() => {
     if (!drivingCommitted || !riderPoint) return;
@@ -2076,6 +2092,15 @@ function Index() {
         return;
       }
       if (rerouting) return;
+      // First seconds of a trip and poor GPS fixes can't prove we left the route.
+      if (
+        shouldSuppressReroute({
+          tripStartedAt: tripStartedAtRef.current,
+          now: Date.now(),
+          accuracyM: riderAccuracyRef.current,
+        })
+      )
+        return;
       // 5 s cooldown after a route lands, so overpass GPS jitter can't loop.
       if (Date.now() - lastRouteAppliedAtRef.current < 5_000) return;
       if (Date.now() - lastRerouteAtRef.current < 5_000) return;
@@ -2133,16 +2158,28 @@ function Index() {
     lastNavPoint.current = null;
     setNavBearing(null);
   }, [drivingCommitted]);
-  const nextTurn = useMemo(
-    () =>
-      navBasis && riderPoint
-        ? nextManeuver(riderPoint, navBasis.maneuvers ?? [], passedTurns.current)
-        : null,
-    [navBasis, riderPoint],
-  );
+  const navMatchIndex = useRef<number | null>(null);
+  const nextTurn = useMemo(() => {
+    if (!navBasis || !riderPoint) return null;
+    // Along-route progress, so a turn skipped at speed stops being "next".
+    const match: RouteMatch | null = matchRoutePoint(
+      riderPoint,
+      navBasis.path ?? [],
+      navMatchIndex.current,
+      navBearingRef.current,
+    );
+    navMatchIndex.current = match ? match.segmentIndex : null;
+    return nextManeuver(riderPoint, navBasis.maneuvers ?? [], passedTurns.current, {
+      path: navBasis.path ?? [],
+      match,
+    });
+  }, [navBasis, riderPoint]);
   useEffect(() => {
     // A reroute brings a new maneuver list: reset turn state so no new turn is skipped.
-    if (voiceGuide.current.sync(navBasis?.maneuvers ?? [])) passedTurns.current = new Set();
+    if (voiceGuide.current.sync(navBasis?.maneuvers ?? [])) {
+      passedTurns.current = new Set();
+      navMatchIndex.current = null;
+    }
   }, [navBasis]);
   useEffect(() => {
     if (!drivingCommitted || !nextTurn) return;
