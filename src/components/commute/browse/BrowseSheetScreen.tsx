@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -52,7 +52,7 @@ import {
   titleCase,
 } from "@/lib/commute-formatting";
 import { HOLO_FARES } from "@/lib/fares";
-import { h1PeekLine, nextTrainMinutes } from "@/lib/browse-peek";
+import { h1PeekLine, nextTrainLine } from "@/lib/browse-peek";
 import { plannerHref } from "@/lib/home/planner-link";
 import { findByKind, kindLabel } from "@/lib/places/saved-places";
 import { activeRegion } from "@/lib/region";
@@ -92,8 +92,33 @@ export function BrowseSheetScreen() {
   } = data;
 
   const hasTransit = activeRegion().hasTransit;
-  const roadLine = h1PeekLine(data.eastboundTraffic, data.westboundTraffic);
-  const trainMinutes = nextTrainMinutes(browseDirections, nowSeconds);
+  // The nearest Skyline station has its own card; keep it out of the stop chips.
+  const listedStops = nearbyStops.filter((stop) => stop.stopId !== browseStation?.stopId);
+  const shownStop =
+    listedStops.find((stop) => stop.stopId === selectedNearbyStop?.stopId) ??
+    listedStops[0] ??
+    null;
+  const roadLine = h1PeekLine(
+    data.eastboundTraffic,
+    data.westboundTraffic,
+    data.trafficUnavailable && !data.trafficLoading,
+  );
+  const trainLine = browseStation
+    ? nextTrainLine(browseDirections, nowSeconds, browseStation.stopName, data.browseWalkMinutes)
+    : null;
+
+  // How much of the map's lower part the open sheet covers, so the map can keep
+  // its view centered in what is still visible.
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const [cover, setCover] = useState(0);
+  useEffect(() => {
+    if (sheet === "peek") {
+      setCover(0);
+      return;
+    }
+    const mapHeight = mapRef.current?.clientHeight ?? 0;
+    setCover(Math.max(0, Math.round(mapHeight - window.innerHeight * 0.5)));
+  }, [sheet]);
 
   function pickStop(stopId: string) {
     data.setSelectedNearbyStopId(stopId);
@@ -123,18 +148,22 @@ export function BrowseSheetScreen() {
           <span className="nh-live-dot shrink-0" aria-hidden="true" />
           <span className="truncate">{roadLine ?? "Checking the roads…"}</span>
         </span>
-        {trainMinutes !== null && (
-          <span className="shrink-0 whitespace-nowrap rounded-full bg-primary/15 px-3 py-1 text-sm font-bold tabular-nums text-primary">
-            Skyline {trainMinutes === 0 ? "now" : `${trainMinutes} min`}
-          </span>
-        )}
       </button>
+      {trainLine && (
+        <p
+          className="nb-peek-row flex items-center gap-2 text-sm text-muted-foreground"
+          aria-label={`Scheduled: ${trainLine}`}
+        >
+          <TrainFront aria-hidden="true" className="size-4 shrink-0 text-primary" />
+          <span className="truncate">{trainLine}</span>
+        </p>
+      )}
     </div>
   );
 
   return (
     <main className="nh nb text-foreground">
-      <div className="nb-map">
+      <div ref={mapRef} className="nb-map">
         {browseUserPoint ? (
           <section aria-label="Nearby transit map" className="nh-island-card relative">
             <ClientOnly
@@ -171,6 +200,7 @@ export function BrowseSheetScreen() {
                     })),
                   }))}
                   selectedStopId={selectedNearbyStop?.stopId ?? null}
+                  coverBottom={cover}
                   onSelectStop={pickStop}
                   onSetStart={() =>
                     toast.info("To start from a different place, use Where to? and pick a trip.")
@@ -550,9 +580,9 @@ export function BrowseSheetScreen() {
                   <Bus aria-hidden="true" className="size-5 text-muted-foreground" />
                   <span className="text-base font-bold text-foreground">Nearby stops</span>
                   <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground">
-                    {data.nearbyStopsLoading && !nearbyStops.length
+                    {data.nearbyStopsLoading && !listedStops.length
                       ? "Looking…"
-                      : `${nearbyStops.length} ${nearbyStops.length === 1 ? "stop" : "stops"}`}
+                      : `${listedStops.length} ${listedStops.length === 1 ? "stop" : "stops"}`}
                   </span>
                   <ChevronDown
                     aria-hidden="true"
@@ -565,13 +595,13 @@ export function BrowseSheetScreen() {
                     role="group"
                     aria-label="Choose a nearby stop"
                   >
-                    {nearbyStops.map((stop) => {
+                    {listedStops.map((stop) => {
                       const Icon = stop.routeType === 1 ? TrainFront : Bus;
                       return (
                         <button
                           key={stop.stopId}
                           type="button"
-                          aria-pressed={selectedNearbyStop?.stopId === stop.stopId}
+                          aria-pressed={shownStop?.stopId === stop.stopId}
                           onClick={() => pickStop(stop.stopId)}
                           className="nh-stop max-w-56"
                           aria-label={`Show ${nearbyServiceLabel(stop)} at ${titleCase(stop.stopName)}`}
@@ -592,32 +622,31 @@ export function BrowseSheetScreen() {
                   {data.nearbyStopsLoading && (
                     <p className="text-sm text-muted-foreground">Finding nearby transit…</p>
                   )}
-                  {selectedNearbyStop && (
+                  {shownStop && (
                     <div>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="font-semibold text-foreground">
-                            {selectedNearbyStop.routeType === 1 ? (
+                            {shownStop.routeType === 1 ? (
                               <StationName
-                                name={selectedNearbyStop.stopName}
+                                name={shownStop.stopName}
                                 hawaiianClassName="text-xs font-normal"
                               />
                             ) : (
-                              titleCase(selectedNearbyStop.stopName)
+                              titleCase(shownStop.stopName)
                             )}
                           </div>
-                          <LandmarkHint name={selectedNearbyStop.stopName} />
+                          <LandmarkHint name={shownStop.stopName} />
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {formatDistance(selectedNearbyStop.distanceM)} away
+                            {formatDistance(shownStop.distanceM)} away
                           </p>
                         </div>
-                        {selectedNearbyStop.arrivals[0] && (
+                        {shownStop.arrivals[0] && (
                           <p className="shrink-0 whitespace-nowrap text-lg font-bold tabular-nums text-primary">
                             {Math.max(
                               0,
                               Math.ceil(
-                                (selectedNearbyStop.arrivals[0].departure_seconds - nowSeconds) /
-                                  60,
+                                (shownStop.arrivals[0].departure_seconds - nowSeconds) / 60,
                               ),
                             )}{" "}
                             min
@@ -625,20 +654,20 @@ export function BrowseSheetScreen() {
                         )}
                       </div>
                       <div className="mt-3 divide-y divide-white/10">
-                        {selectedNearbyStop.arrivals.length ? (
-                          selectedNearbyStop.arrivals.slice(0, 3).map((arrival, index) => (
+                        {shownStop.arrivals.length ? (
+                          shownStop.arrivals.slice(0, 3).map((arrival, index) => (
                             <div
                               key={`${arrival.departure_seconds}-${index}`}
                               className="flex items-center gap-2 py-2 text-sm text-foreground"
                             >
                               <span className="shrink-0 rounded-md bg-primary/15 px-2 py-1 font-bold text-primary">
-                                {selectedNearbyStop.routeType === 1
+                                {shownStop.routeType === 1
                                   ? "Skyline"
                                   : arrival.route_short_name || arrival.route_long_name || "Bus"}
                               </span>
                               <span className="min-w-0 flex-1 line-clamp-2 font-medium">
                                 {arrival.headsign
-                                  ? selectedNearbyStop.routeType === 1
+                                  ? shownStop.routeType === 1
                                     ? stationLabel(arrival.headsign)
                                     : titleCase(arrival.headsign)
                                   : "Destination unavailable"}
@@ -659,9 +688,9 @@ export function BrowseSheetScreen() {
                       </p>
                       <a
                         href={plannerHref({
-                          name: titleCase(selectedNearbyStop.stopName),
-                          lat: selectedNearbyStop.lat,
-                          lon: selectedNearbyStop.lon,
+                          name: titleCase(shownStop.stopName),
+                          lat: shownStop.lat,
+                          lon: shownStop.lon,
                         })}
                         className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
                       >
@@ -679,9 +708,9 @@ export function BrowseSheetScreen() {
         {/* FULL: the rest. Quiet cards last, never above content. */}
         {hasTransit && <WeeklyDigestCard />}
 
-        {browseUserPoint && selectedNearbyStop && stopPicked && (
+        {browseUserPoint && shownStop && stopPicked && (
           <section className="nb-card" aria-label="Walk to this stop">
-            <h2 className="nb-card-title">Walk to {titleCase(selectedNearbyStop.stopName)}</h2>
+            <h2 className="nb-card-title">Walk to {titleCase(shownStop.stopName)}</h2>
             <div className="nh-island-card rounded-2xl">
               <ClientOnly
                 fallback={
@@ -696,9 +725,9 @@ export function BrowseSheetScreen() {
                   <WalkingMicroMap
                     from={{ ...browseUserPoint, label: "Your location" }}
                     to={{
-                      lat: selectedNearbyStop.lat,
-                      lon: selectedNearbyStop.lon,
-                      label: titleCase(selectedNearbyStop.stopName),
+                      lat: shownStop.lat,
+                      lon: shownStop.lon,
+                      label: titleCase(shownStop.stopName),
                     }}
                   />
                 </Suspense>
@@ -713,10 +742,6 @@ export function BrowseSheetScreen() {
           <InstallNaluCard />
           {hasTransit && <LeaveAlertCard places={data.savedPlaces} variant="offer" />}
         </div>
-
-        <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-foreground">
-          Map © OpenStreetMap contributors © CARTO
-        </p>
       </BrowseSheet>
     </main>
   );

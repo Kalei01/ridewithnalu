@@ -26,7 +26,6 @@ import {
 } from "@/lib/commute-formatting";
 import { skylineFallbackHeadwayMinutes } from "@/lib/rail/skyline-fallback";
 import { weatherSummaryText } from "@/lib/loading-labels";
-import { isPermissionDeniedError } from "@/lib/location-permission";
 import {
   LEGACY_SAVED_PLACES_KEY,
   SAVED_PLACES_KEY,
@@ -92,6 +91,7 @@ export function useBrowseData() {
     if (!hydrated || browseStation || browseLocationDenied) return;
     if (!navigator.geolocation) {
       setBrowseLocationDenied(true);
+      window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -106,6 +106,7 @@ export function useBrowseData() {
         const nearest = data?.[0];
         if (error || !nearest) {
           setBrowseLocationDenied(true);
+          window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
           return;
         }
         rememberBrowseStation({
@@ -119,10 +120,8 @@ export function useBrowseData() {
       },
       (error) => {
         setBrowseLocationDenied(true);
-        if (isPermissionDeniedError(error)) {
-          // Same remembered answer the Browse screen keeps, so the question is not repeated.
-          window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
-        }
+        // Same remembered answer the Browse screen keeps (index.tsx), on the same paths.
+        window.localStorage.setItem(BROWSE_LOCATION_DENIED_KEY, "1");
       },
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );

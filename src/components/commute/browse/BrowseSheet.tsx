@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import "./browse-sheet.css";
 
@@ -53,6 +53,12 @@ export function BrowseSheet({
     positions: Record<SheetState, number>;
   } | null>(null);
   const suppressClick = useRef(false);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+
+  // Leaving FULL: the cards start from the top again next time.
+  useEffect(() => {
+    if (state !== "full" && bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [state]);
 
   /** How far down (px) the sheet sits in each state. */
   function offsets(): Record<SheetState, number> {
@@ -66,6 +72,8 @@ export function BrowseSheet({
 
   function onPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
     if (event.button !== 0 && event.pointerType === "mouse") return;
+    // A touch drag fires no click, so the flag from the last drag must not outlive it.
+    suppressClick.current = false;
     const positions = offsets();
     drag.current = {
       startY: event.clientY,
@@ -165,7 +173,7 @@ export function BrowseSheet({
         </button>
         {peek}
       </div>
-      <div className="nb-sheet-body" inert={state === "peek"}>
+      <div ref={bodyRef} className="nb-sheet-body" inert={state === "peek"}>
         <div className="nb-sheet-content">{children}</div>
       </div>
     </section>

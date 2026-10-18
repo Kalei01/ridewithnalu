@@ -1,4 +1,4 @@
-import { flyMotion } from "@/lib/motion";
+import { flyMotion, prefersReducedMotion } from "@/lib/motion";
 import { useEffect, useRef, useState } from "react";
 import { removeMapSafely } from "@/lib/leaflet-safe";
 import L from "leaflet";
@@ -22,6 +22,8 @@ type NearbyTransitMapProps = {
   onSetStart: (stop: NearbyMapStop) => void;
   onSetDestination: (stop: NearbyMapStop) => void;
   actionBusy?: boolean;
+  /** Pixels of the map's lower part covered by something laid over it (a bottom sheet). */
+  coverBottom?: number;
 };
 
 type Basemap = "standard" | "satellite";
@@ -66,6 +68,7 @@ export default function NearbyTransitMap({
   onSetStart,
   onSetDestination,
   actionBusy = false,
+  coverBottom = 0,
 }: NearbyTransitMapProps) {
   const [basemap, setBasemap] = useState<Basemap>("standard");
   const [previewStopId, setPreviewStopId] = useState<string | null>(null);
@@ -194,6 +197,17 @@ export default function NearbyTransitMap({
     map.flyTo(center, zoom, { ...flyMotion(0.4) });
   }, [previewStopId, previewLat, previewLon]);
 
+  // A sheet rising over the map's lower part: shift the view up by half the
+  // change so what was centered stays centered in the part still visible.
+  const coverRef = useRef(coverBottom);
+  useEffect(() => {
+    const map = mapRef.current;
+    const delta = coverBottom - coverRef.current;
+    coverRef.current = coverBottom;
+    if (!map || !delta) return;
+    map.panBy([0, delta / 2], { animate: !prefersReducedMotion(), duration: 0.28 });
+  }, [coverBottom]);
+
   // Fit the viewport once per set of stops, never on each GPS tick.
   useEffect(() => {
     const map = mapRef.current;
@@ -205,7 +219,11 @@ export default function NearbyTransitMap({
     ];
     map.invalidateSize({ animate: false });
     if (points.length > 1)
-      map.fitBounds(L.latLngBounds(points), { padding: [56, 56], maxZoom: 13 });
+      map.fitBounds(L.latLngBounds(points), {
+        paddingTopLeft: [56, 56],
+        paddingBottomRight: [56, 56 + coverRef.current],
+        maxZoom: 13,
+      });
     else map.setView([userRef.current.lat, userRef.current.lon], 14);
   }, [stopsSignature]);
 
@@ -225,11 +243,19 @@ export default function NearbyTransitMap({
       ...stops.map((stop) => [stop.lat, stop.lon] as L.LatLngTuple),
     ];
     if (points.length > 1)
-      map.flyToBounds(L.latLngBounds(points), { padding: [56, 56], maxZoom: 13, ...flyMotion(0.4) });
+      map.flyToBounds(L.latLngBounds(points), {
+        paddingTopLeft: [56, 56],
+        paddingBottomRight: [56, 56 + coverRef.current],
+        maxZoom: 13,
+        ...flyMotion(0.4),
+      });
   };
 
   return (
-    <div className="relative z-0 isolate h-full w-full">
+    <div
+      className="relative z-0 isolate h-full w-full"
+      style={{ "--nb-cover": `${coverBottom}px` } as React.CSSProperties}
+    >
       <div
         ref={nodeRef}
         className="h-full w-full"
