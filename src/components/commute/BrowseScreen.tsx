@@ -124,7 +124,7 @@ export type BrowseScreenProps = {
   timeText: string;
   trainsEveryMinutes: number | null;
   user:
-    | import("/home/user/ridewithnalu/node_modules/@supabase/auth-js/dist/module/lib/types").User
+    | import("@supabase/supabase-js").User
     | null;
   westboundTraffic: NoInfer<import("@/lib/drive.functions").DriveTime> | undefined;
   westboundTrafficFailed: boolean;
