@@ -1,6 +1,7 @@
 # Inbox — agent reports to NALU MAIN (newest first, ≤ 60 lines)
 Written by the inbox routine (trig_018dVqisHDihRPYq9mBE1qtP) when an agent calls fire_trigger. NALU MAIN reads this at every wake. One line: date HST · agent · report · action.
 
+- 2026-10-18 9:47 AM HST · Weekly Review · Report docs/reviews/2026-10-18.md; 0 fixes; P1: dependency upgrade pass overdue (19 advisories, seroval critical likely runtime), planner DB time still the speed limit · for MAIN: queue the dependency pass; check the new Home still records visits (weekly users 27 vs 114, landed_intro 24 vs landed_app 5); Oct 21 removal of /welcome-classic + /home-preview due.
 - 2026-10-18 · Sonnet premium · Browse PHASE 2 built on /browse-preview (layers: Stops/Skyline/Places, pin→sheet, Start from here, map padding for sheet); gate green, live-checked · for MAIN: run mobile-design + transit-accuracy on the preview, then Phase 3
 - 2026-10-18 · Sonnet premium · Browse redesign PHASE 1 built as /browse-preview (sheet PEEK/HALF/FULL + merged cards, real Browse untouched); gate green; live check below/in commit · for MAIN: run reviewers (mobile-design, transit-accuracy), then Phase 2
 - 2026-10-17 · Sonnet fix · Sentry: view-transition abort (wrapped startViewTransition + exact-match filter) and _leaflet_pos (uncancelled rAF in WalkingMicroMap + isMapAlive guards) fixed; gate green · watch Sentry 48h before Resolved
