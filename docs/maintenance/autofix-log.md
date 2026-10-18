@@ -5,6 +5,15 @@ Every fix an agent makes without Josh's approval, under the Autonomous Fix Safet
 Entry format:
 
 ```
+### 2026-10-18 HST — Funnel recording check (no bug; regression test added)
+- Class: 🟢
+- Issue: weekly review P1-1: from Oct 15 only `landed_intro` rows in funnel_counts.
+- Root cause: none in the code. Live check with a phone user agent on ridenalu.com: fresh visit records landed_intro, trip_tried, answer_shown, answer_under_5s; returning visit records landed_app. The data match real traffic: app_opens shows 2, 2, 1 real phones per day on Oct 15-17 (12 on launch day Oct 14), and the only device with trips since (debug_logs, Oct 16) is a phone first counted Oct 14 and then owner-flagged (signed in, `nalu-owner-device-v1`), which the funnel excludes by design. Landed_app is also skipped the same day a phone already counted landed_intro (first landing of the day only).
+- Fix: none needed. Added src/lib/funnel.test.ts (once per step per day, first landing only, link tag sent, webdriver / headless / owner phones excluded). Bot exclusion untouched.
+- Validation: tests 781 pass, typecheck, build, eslint on the new file.
+- Confidence: high. My live check sent 2 real-looking funnel rows and 2 app opens (Oct 18, phone UA) before I started blocking them.
+- Rollback: git revert <sha>
+
 ### 2026-10-16 17:00 HST — Sentry: aborted view transition + late Leaflet frame
 - Class: 🟢
 - Issue: Sentry on "/" (phones): 4x InvalidStateError "Transition was aborted ... Prepaint layout check failed"; 2x TypeError "_leaflet_pos" (Oct 14).
