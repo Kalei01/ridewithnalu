@@ -14,6 +14,7 @@
     "format": "prettier --write ."
   },
   "overrides": {
+    "@grpc/grpc-js": "^1.13.6",
     "rolldown": "1.2.1"
   },
   "dependencies": {

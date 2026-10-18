@@ -5,6 +5,15 @@ Every fix an agent makes without Josh's approval, under the Autonomous Fix Safet
 Entry format:
 
 ```
+### 2026-10-18 HST — Dependency pass: audit 19 -> 1 (P1 from weekly review)
+- Class: 🟡 (lockfile-only, same ranges; one override)
+- Issue: `bun audit` 19 advisories (2 critical, 13 high, 3 moderate, 1 low).
+- Root cause: transitive packages pinned to old patch versions in bun.lock (seroval 1.5.6 under @tanstack/router-plugin, shell-quote, brace-expansion, js-yaml, nanoid, source-map-js); @grpc/grpc-js held at 1.9 by firebase's firestore-compat (firestore is not used in src).
+- Fix: `bun audit fix` (in-range patch/minor lockfile updates, no package.json change, TanStack router/start untouched and aligned: router 1.170.41, start 1.168.60; seroval now 1.6.8 everywhere); package.json override `@grpc/grpc-js: ^1.13.6` (resolves 1.14.6). No major jumps.
+- Validation: audit after = 1 moderate (esbuild <=0.24.2 via drizzle-kit, dev-time only); tests 781 pass, typecheck, build; live smoke recorded in inbox.
+- Confidence: high
+- Rollback: git revert <sha> (restores bun.lock and package.json)
+
 ### 2026-10-18 HST — Funnel recording check (no bug; regression test added)
 - Class: 🟢
 - Issue: weekly review P1-1: from Oct 15 only `landed_intro` rows in funnel_counts.
