@@ -179,7 +179,7 @@ export function BrowseSheetScreen() {
   const mapPlaces = (["home", "work"] as const).flatMap((kind) => {
     const p = findByKind(data.savedPlaces, kind);
     return p && p.lat != null && p.lon != null
-      ? [{ id: p.id, kind, label: p.label, lat: p.lat, lon: p.lon }]
+      ? [{ id: p.id, kind, label: p.label, address: p.address, lat: p.lat, lon: p.lon }]
       : [];
   });
   const selectedPlace =
@@ -417,7 +417,7 @@ export function BrowseSheetScreen() {
                   {selectedPlace.kind === "home" ? "Home" : "Work"}
                 </p>
                 <p className="mt-0.5 break-words text-lg font-semibold text-foreground">
-                  {selectedPlace.label}
+                  {selectedPlace.address || selectedPlace.label}
                 </p>
               </div>
               <Button

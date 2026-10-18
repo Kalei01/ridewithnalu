@@ -4,7 +4,7 @@ import { LocateFixed, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { removeMapSafely } from "@/lib/leaflet-safe";
 import { flyMotion, prefersReducedMotion } from "@/lib/motion";
-import { skylineStationParts } from "@/lib/rail/station-names";
+import { SKYLINE_STOP_IDS, skylineStationParts } from "@/lib/rail/station-names";
 
 /**
  * The Browse sheet's map: one dark, non-satellite map with switchable layers.
@@ -166,8 +166,10 @@ export default function BrowseMap({
       selected?.kind === kind && selected.id === id;
 
     if (layers.skyline && stations.length > 1) {
-      const line = [...stations]
-        .sort((a, b) => a.lon - b.lon)
+      // In line order (not by longitude: the western stations are nearly in a column).
+      const line = stations
+        .filter((s) => SKYLINE_STOP_IDS.includes(s.stopId))
+        .sort((a, b) => SKYLINE_STOP_IDS.indexOf(a.stopId) - SKYLINE_STOP_IDS.indexOf(b.stopId))
         .map((s) => [s.lat, s.lon] as L.LatLngTuple);
       L.polyline(line, { pane: "nb-line-pane", color: "#0a84ff", weight: 9, opacity: 0.18 }).addTo(
         group,
@@ -268,22 +270,27 @@ export default function BrowseMap({
   const selLat = selectedPoint?.lat;
   const selLon = selectedPoint?.lon;
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || selLat === undefined || selLon === undefined) return;
-    const visibleHeight = map.getSize().y - coverRef.current;
-    const point = map.latLngToContainerPoint([selLat, selLon]);
-    // Already comfortably in view: leave the camera alone.
-    if (
-      point.y > 72 &&
-      point.y < visibleHeight - 40 &&
-      point.x > 24 &&
-      point.x < map.getSize().x - 24
-    )
-      return;
-    map.panBy([point.x - map.getSize().x / 2, point.y - visibleHeight / 2], {
-      animate: !prefersReducedMotion(),
-      duration: 0.28,
-    });
+    if (selLat === undefined || selLon === undefined) return;
+    // After the sheet-cover shift (below) has finished, so the two pans never cancel each other.
+    const timer = window.setTimeout(() => {
+      const map = mapRef.current;
+      if (!map) return;
+      const visibleHeight = map.getSize().y - coverRef.current;
+      const point = map.latLngToContainerPoint([selLat, selLon]);
+      // Already comfortably in view: leave the camera alone.
+      if (
+        point.y > 72 &&
+        point.y < visibleHeight - 40 &&
+        point.x > 24 &&
+        point.x < map.getSize().x - 24
+      )
+        return;
+      map.panBy([point.x - map.getSize().x / 2, point.y - visibleHeight / 2], {
+        animate: !prefersReducedMotion(),
+        duration: 0.28,
+      });
+    }, 330);
+    return () => window.clearTimeout(timer);
   }, [selLat, selLon]);
 
   const fitPoints = (): L.LatLngExpression[] => [

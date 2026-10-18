@@ -99,6 +99,9 @@ const STATIONS: ReadonlyArray<{
   },
 ];
 
+/** The Skyline stations' GTFS stop ids in line order, west (East Kapolei) to east. */
+export const SKYLINE_STOP_IDS: readonly string[] = STATIONS.map((station) => station.stopId);
+
 const riderName = (station: (typeof STATIONS)[number]) =>
   `${station.english} (${station.hawaiian})`;
 
