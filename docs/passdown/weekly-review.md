@@ -1,22 +1,21 @@
 # Passdown — Weekly Review (Sun 9:47 AM HST) and Repository Steward
-Last updated: 2026-10-14 (Lovable cleanup done). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
+Last updated: 2026-10-18 (weekly review). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Decisions waiting on Josh
 - Supabase Pro ($25/mo: backups + more memory) — deferred for budget; don't push it, mention only if a risk appears.
 
 ## Open P0/P1
-- Skyline "no trip" on first rush-hour try (main session; alerts.md).
-- Trip answers take ~12–30 s (planner speed; parked).
+- Dependency upgrade pass overdue: 19 `bun audit` advisories (2 critical, seroval via @tanstack/router-core likely runtime). Queued as build step (2) in main.md; 🔴 for the lead.
+- Planner database time is still the speed limit (0065 parked, 54/60 identical); Arrive By with a car still on the phone path.
 
 ## Follow-ups for next Sunday
-- Lovable cleanup DONE Oct 14 (autofix-log). Still named Lovable on purpose: build wrapper `@lovable.dev/vite-tanstack-config`, `VITE_LOVABLE_CONNECTOR_*` env names (Firebase web, Mapbox, PostHog — renaming needs Cloudflare build vars changed first), AGENTS.md (Josh's). Stale wording left in `.claude/agents/security-keys.md` (names LOVABLE_* secrets) — tidy next Sunday.
-- BUSINESS SNAPSHOT: `usage_stats()`/`funnel_stats()` returned permission denied for the read-only token and `weekly_by_ref()` doesn't exist (Oct 11) — ask Josh once; re-check next Sunday. Cost check ran fine.
-- Routine prompts verified Oct 11: Watchman, Premium, Weekly, SEO all mention run-gates.md.
+- Tidy `.claude/agents/security-keys.md:16,31` (names LOVABLE_* secrets) after checking the real names in code. Remove `/welcome-classic` + `/home-preview` Oct 21 (Premium owns).
+- BUSINESS SNAPSHOT works now (stats granted). Oct 18: 27 weekly users vs 114 — check that the new Home (live Oct 14) still records visits (landed_intro 24 vs landed_app 5). Re-read next Sunday.
 - Check the run gates (`docs/agents/run-gates.md`, new Oct 11) were followed by each scheduled run this week: skipped when nothing was new, ran when there was work. If a routine ignored its gate (its own prompt overrides it), tell Josh which one; the main session can rebuild that routine with the gate built in.
 
 ## Last cleanup
-- 2026-10-11: nothing to trim (logs under 55 lines and under 90 days; no older reports).
+- 2026-10-18: nothing to trim (all passdowns within limits, logs under 90 days, 2 reports). docs/experience is 22 MB of screenshots — Premium to prune finished review PNGs.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- 2026-10-18 R+ (5 specialists ran; 0 fixes; 2 escalated; report docs/reviews/2026-10-18.md)
 - 2026-10-11 R+ (5 specialists ran; no fixes; 4 escalated; report docs/reviews/2026-10-11.md)
-- Also watch: health `drive times (TomTom)` showed `ok:false` Oct 11 (cached); check it cleared. `bun audit` 19 advisories (build-time mostly): one reviewed upgrade pass after Phase 2.
