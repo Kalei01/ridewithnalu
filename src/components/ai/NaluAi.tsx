@@ -48,10 +48,13 @@ export function MorningPulse({
   home,
   work,
   trainsEveryMinutes,
+  embedded = false,
 }: {
   home: Place | null;
   work: Place | null;
   trainsEveryMinutes: number | null;
+  /** Inside another card (the Browse sheet's "Today"): no outer panel of its own. */
+  embedded?: boolean;
 }) {
   const { data: clocks } = usePulseClocks(home, work);
   const clock = clocks?.home ?? null;
@@ -76,7 +79,10 @@ export function MorningPulse({
   if (!inWindow || !home || !work) return null;
   const naluLine = naluPulseTagline("morning");
   return (
-    <section aria-label="Morning Pulse" className="glass-panel mt-3 rounded-lg p-4">
+    <section
+      aria-label="Morning Pulse"
+      className={embedded ? "nb-today-item" : "glass-panel mt-3 rounded-lg p-4"}
+    >
       <div className="flex items-center gap-2">
         <Sparkles className="size-4 text-primary" />
         <p className="text-xs font-semibold uppercase text-muted-foreground">Morning Pulse</p>
@@ -104,10 +110,13 @@ export function EveningPulse({
   home,
   work,
   trainsEveryMinutes,
+  embedded = false,
 }: {
   home: Place | null;
   work: Place | null;
   trainsEveryMinutes: number | null;
+  /** Inside another card (the Browse sheet's "Today"): no outer panel of its own. */
+  embedded?: boolean;
 }) {
   const { data: clocks } = usePulseClocks(home, work);
   const clock = clocks?.work ?? null;
@@ -138,7 +147,10 @@ export function EveningPulse({
       )
     : null;
   return (
-    <section aria-label="Evening Pulse" className="glass-panel mt-3 rounded-lg p-4">
+    <section
+      aria-label="Evening Pulse"
+      className={embedded ? "nb-today-item" : "glass-panel mt-3 rounded-lg p-4"}
+    >
       <div className="flex items-center gap-2">
         <Sparkles className="size-4 text-primary" />
         <p className="text-xs font-semibold uppercase text-muted-foreground">Evening Pulse</p>
@@ -162,7 +174,15 @@ export function EveningPulse({
   );
 }
 
-export function BeatTheRush({ home, work }: { home: Place | null; work: Place | null }) {
+export function BeatTheRush({
+  home,
+  work,
+  embedded = false,
+}: {
+  home: Place | null;
+  work: Place | null;
+  embedded?: boolean;
+}) {
   const { data: clocks } = usePulseClocks(home, work);
   const homeClock = clocks?.home ?? null;
   const workClock = clocks?.work ?? null;
@@ -187,7 +207,14 @@ export function BeatTheRush({ home, work }: { home: Place | null; work: Place | 
   if (!active || !data?.warn) return null;
   const naluLine = naluCommuteLine("rush");
   return (
-    <section role="status" className="mt-3 rounded-lg border border-warning/50 bg-warning/10 p-3">
+    <section
+      role="status"
+      className={
+        embedded
+          ? "nb-today-item rounded-lg border border-warning/50 bg-warning/10 p-3"
+          : "mt-3 rounded-lg border border-warning/50 bg-warning/10 p-3"
+      }
+    >
       <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
         <TrendingUp className="size-4 text-warning" /> Beat the rush: leave now
       </p>

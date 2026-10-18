@@ -1,0 +1,204 @@
+/*
+ * Browse sheet (preview at /browse-preview). One live map with one bottom
+ * sheet in three states. Only transform moves; reduced motion snaps.
+ */
+.nb {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--nh-sea, #0a1117);
+  --nb-peek: calc(8.5rem + env(safe-area-inset-bottom));
+  --nb-h: calc(100dvh - 4rem - env(safe-area-inset-top));
+  --nb-half: 50dvh;
+}
+
+/* The map keeps one size in every state, so the sheet never resizes it. */
+.nb-map {
+  position: absolute;
+  inset: 0 0 var(--nb-peek) 0;
+  z-index: 0;
+  isolation: isolate;
+}
+.nb-map > section {
+  height: 100%;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+  max-height: none;
+  min-height: 0;
+}
+.nb-map .leaflet-container {
+  background: var(--nh-sea, #0a1117);
+}
+
+/* Brand pill over the map: where the old Browse header sat. */
+.nb-brand {
+  position: absolute;
+  z-index: 2;
+  left: max(0.75rem, env(safe-area-inset-left));
+  top: max(0.75rem, env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.5rem 0 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(10 14 18 / 88%);
+}
+
+.nb-sheet {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--nb-h);
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  max-width: 480px;
+  border-radius: 1.5rem 1.5rem 0 0;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-bottom: 0;
+  background: #0d1217;
+  box-shadow: 0 -18px 50px -20px rgb(0 0 0 / 70%);
+  transform: translate3d(0, calc(var(--nb-h) - var(--nb-peek)), 0);
+  transition: transform 280ms cubic-bezier(0.22, 0.8, 0.3, 1);
+  will-change: transform;
+}
+.nb-sheet[data-state="half"] {
+  transform: translate3d(0, calc(var(--nb-h) - var(--nb-half)), 0);
+}
+.nb-sheet[data-state="full"] {
+  transform: translate3d(0, 0, 0);
+}
+.nb-sheet.is-dragging {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nb-sheet {
+    transition: none;
+  }
+}
+
+.nb-sheet-header {
+  flex: none;
+  height: var(--nb-peek);
+  overflow: hidden;
+  padding: 0 max(1rem, env(safe-area-inset-left)) env(safe-area-inset-bottom)
+    max(1rem, env(safe-area-inset-right));
+}
+.nb-handle {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  cursor: grab;
+}
+/* A 44 px target without taking 44 px of the peek. */
+.nb-handle::after {
+  content: "";
+  position: absolute;
+  inset: -0.5rem 0 -0.5rem 0;
+}
+.nb-handle:active {
+  cursor: grabbing;
+}
+.nb-grip {
+  width: 2.5rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 28%);
+  transition: background-color 120ms ease;
+}
+.nb-handle:active .nb-grip {
+  background: rgb(255 255 255 / 50%);
+}
+.nb-handle-icon {
+  position: absolute;
+  right: 0.25rem;
+  color: rgb(235 235 245 / 55%);
+}
+
+.nb-peek-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.25rem;
+  margin-top: 0.4rem;
+  text-align: left;
+}
+.nb-sheet-header .nh-search-field {
+  min-height: 3.25rem;
+  /* The home page's blue glow would be clipped by the peek's edge. */
+  box-shadow: 0 1px 0 rgb(255 255 255 / 6%) inset;
+}
+.nb-sheet-header .nh-search-input {
+  min-height: 3rem;
+}
+.nb-sheet-header .nh-suggestions {
+  /* Opens upward-safe: the sheet is already half open when the field has focus. */
+  z-index: 30;
+}
+
+.nb-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+.nb-sheet[data-state="peek"] .nb-sheet-body {
+  overflow: hidden;
+}
+.nb-sheet-content {
+  padding: 0.25rem max(1rem, env(safe-area-inset-left)) 1.5rem max(1rem, env(safe-area-inset-right));
+  /* In HALF the lower part of the sheet is below the screen; keep it reachable. */
+  padding-bottom: calc(1.5rem + var(--nb-h) - var(--nb-half) + env(safe-area-inset-bottom));
+}
+.nb-sheet[data-state="full"] .nb-sheet-content {
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+}
+
+/* Cards inside the sheet */
+.nb-card {
+  margin-top: 0.75rem;
+}
+.nb-card-title {
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+.nb-card-inner {
+  overflow: hidden;
+}
+/* Items that arrive as their own cards sit flat inside the shared card. */
+.nb-card-inner .nh-card {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  margin-top: 0;
+}
+.nb-card-inner > * + *,
+.nb-card-inner > .nh-details + .nh-details {
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+.nb-today:not(:has(.nb-today-item)) {
+  display: none;
+}
+.nb-today-item + .nb-today-item {
+  margin-top: 0.75rem;
+}
+.nb-quiet {
+  margin-top: 1rem;
+}

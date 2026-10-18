@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BrowsePreviewRouteImport } from './routes/browse-preview'
 import { Route as DisclaimerRouteImport } from './routes/disclaimer'
 import { Route as HomePreviewRouteImport } from './routes/home-preview'
 import { Route as InstallRouteImport } from './routes/install'
@@ -45,6 +46,11 @@ import { Route as ApiPublicWeeklyEmailRouteImport } from './routes/api/public/we
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrowsePreviewRoute = BrowsePreviewRouteImport.update({
+  id: '/browse-preview',
+  path: '/browse-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DisclaimerRoute = DisclaimerRouteImport.update({
@@ -211,6 +217,7 @@ const ApiPublicWeeklyEmailRoute = ApiPublicWeeklyEmailRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/browse-preview': typeof BrowsePreviewRoute
   '/disclaimer': typeof DisclaimerRoute
   '/home-preview': typeof HomePreviewRoute
   '/install': typeof InstallRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/browse-preview': typeof BrowsePreviewRoute
   '/disclaimer': typeof DisclaimerRoute
   '/home-preview': typeof HomePreviewRoute
   '/install': typeof InstallRoute
@@ -280,6 +288,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/browse-preview': typeof BrowsePreviewRoute
   '/disclaimer': typeof DisclaimerRoute
   '/home-preview': typeof HomePreviewRoute
   '/install': typeof InstallRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/browse-preview'
     | '/disclaimer'
     | '/home-preview'
     | '/install'
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/browse-preview'
     | '/disclaimer'
     | '/home-preview'
     | '/install'
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/browse-preview'
     | '/disclaimer'
     | '/home-preview'
     | '/install'
@@ -419,6 +431,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BrowsePreviewRoute: typeof BrowsePreviewRoute
   DisclaimerRoute: typeof DisclaimerRoute
   HomePreviewRoute: typeof HomePreviewRoute
   InstallRoute: typeof InstallRoute
@@ -459,6 +472,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/browse-preview': {
+      id: '/browse-preview'
+      path: '/browse-preview'
+      fullPath: '/browse-preview'
+      preLoaderRoute: typeof BrowsePreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/disclaimer': {
@@ -683,6 +703,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BrowsePreviewRoute: BrowsePreviewRoute,
   DisclaimerRoute: DisclaimerRoute,
   HomePreviewRoute: HomePreviewRoute,
   InstallRoute: InstallRoute,

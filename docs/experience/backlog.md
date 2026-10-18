@@ -137,3 +137,11 @@ Add-ons (lead):
 - 2026-10-15 · Guides redesign batch 2 fixes + batch 3 (compare, about, hub) live; all 10 guides done.
 
 - 2026-10-15 · Guides final polish (Kapolei takeaways list, About/compare strips trimmed, related chevrons, hub card name) live.
+
+## Browse redesign — one live map + bottom sheet (approved by Josh Oct 18, 2026; 4 phases)
+Design: map on top, one sheet with PEEK (Where to? + Nalu's one line + one live number, from data Browse already has), HALF (destination chips; Today = Morning/Evening Pulse + Beat the Rush; On the road = H-1 + incidents + roadwork + weather; Near you = Skyline station departures + nearby stops), FULL (weekly digest, walk to a picked stop, Ask Nalu, Install + LeaveAlert last). Default PEEK; opens to HALF on a pin tap, train tap or the search field. Hidden route `/browse-preview` (noindex, not linked, not in sitemap) until Josh approves the switch; real Browse untouched until then.
+- Phase 1 — DONE Oct 18 (preview): sheet component (basic snap, drag from the handle only, FULL scroll contained, transform-only, instant under reduced motion), merged cards, own data hook (`src/components/commute/browse/`).
+- Phase 2 — TODO: map layers (Skyline line + stations, trains on the line as scheduled, H-1 traffic colouring, incidents), map padding so pins/fit-bounds are not hidden by the sheet, pin/train tap opens HALF with the stop selected, popup actions (set start / destination) work in the sheet.
+- Phase 3 — TODO (paused with the index.tsx split): move Browse's state out of `index.tsx` into one shared hook so preview and Browse stop duplicating it; bring back header Account/Settings, CommutePageNav, Tagline, pull-to-refresh and the Home/Work shortcut editing; switch "/" Browse to the sheet after Josh approves.
+- Phase 4 — TODO: sheet physics (springs, velocity, rubber-band), map fly-to on selection, polish and reviewers.
+- Approved motion effects (Josh Oct 18), all subtle, reduced-motion safe, none on the verdict/ETA rows: (1) trains glide along the Skyline line between scheduled stops; (2) flowing traffic dashes on H-1 only when delayed; (3) pulsing incident markers (short, not endless); (4) sheet physics + map fly-to; (5) time-of-day tint of the map/sheet (reuse `data-tod`); (6) last-train glow on the final departure; (7) number roll-ups for minutes (Skyline in N min, H-1 delay).
