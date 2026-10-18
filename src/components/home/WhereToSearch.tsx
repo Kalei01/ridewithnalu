@@ -13,8 +13,11 @@ type Suggestion = { id: string; name: string; address: string; lat: number; lon:
  */
 export function WhereToSearch({
   inputRef,
+  onPick,
 }: {
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  /** Handle the chosen place instead of opening the planner (the Browse sheet uses this for "start from here"). */
+  onPick?: (place: Suggestion) => void;
 }) {
   const findPlaces = useServerFn(searchPlaces);
   const [query, setQuery] = useState("");
@@ -50,6 +53,10 @@ export function WhereToSearch({
   }, [query, findPlaces]);
 
   const go = (place: Suggestion) => {
+    if (onPick) {
+      onPick(place);
+      return;
+    }
     markWelcomeSeen();
     window.location.assign(plannerHref(place));
   };

@@ -212,3 +212,112 @@
 .nb-quiet {
   margin-top: 1rem;
 }
+
+/* ---- Map layers (Phase 2) ---- */
+/* Toggle chips along the map's top edge, under the brand pill. Traffic, Incidents and
+   Roadwork chips join this row in Phase 3: .nb-layers scrolls sideways when it fills. */
+.nb-layers {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  top: calc(max(0.75rem, env(safe-area-inset-top)) + 3.5rem);
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0 max(0.75rem, env(safe-area-inset-right)) 0 max(0.75rem, env(safe-area-inset-left));
+  scrollbar-width: none;
+}
+.nb-layers::-webkit-scrollbar {
+  display: none;
+}
+.nb-layer-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  background: rgb(10 14 18 / 88%);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
+}
+.nb-layer-chip:active {
+  transform: scale(0.97);
+}
+.nb-layer-chip[aria-pressed="true"] {
+  background: rgb(10 132 255 / 22%);
+  border-color: rgb(108 184 255 / 55%);
+  color: var(--color-foreground);
+}
+.nb-map-buttons {
+  position: absolute;
+  z-index: 500;
+  right: max(0.75rem, env(safe-area-inset-right));
+  top: calc(max(0.75rem, env(safe-area-inset-top)) + 7rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.nb-marker-place {
+  border-radius: 0.5rem;
+  background: #f5b84a;
+  color: #1b1303;
+}
+.nb-marker-place svg {
+  width: 12px;
+  height: 12px;
+  max-width: 12px;
+  max-height: 12px;
+}
+.nb-map .leaflet-tooltip.nb-label {
+  display: none;
+  padding: 0.1rem 0.4rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: rgb(10 14 18 / 80%);
+  color: var(--color-foreground);
+  box-shadow: none;
+  font-size: 0.7rem;
+  line-height: 1.15;
+  text-align: center;
+  pointer-events: none;
+}
+.nb-map .leaflet-tooltip.nb-label::before {
+  display: none;
+}
+.nb-show-labels .leaflet-tooltip.nb-label {
+  display: block;
+}
+.nb-label-en {
+  display: block;
+  font-weight: 700;
+}
+.nb-label-haw {
+  display: block;
+  font-size: 0.62rem;
+  color: var(--color-muted-foreground);
+}
+
+/* Place card and start banner in the sheet */
+.nb-select-card {
+  margin-top: 0.75rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nb-select-card {
+    animation: nb-card-in 200ms ease-out both;
+  }
+}
+@keyframes nb-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}

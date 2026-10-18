@@ -10,6 +10,7 @@ import {
   Plus,
   RefreshCw,
   TrainFront,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,9 +58,21 @@ import { plannerHref } from "@/lib/home/planner-link";
 import { findByKind, kindLabel } from "@/lib/places/saved-places";
 import { activeRegion } from "@/lib/region";
 import { BrowseSheet, type SheetState } from "./BrowseSheet";
+import type { MapLayers, MapSelection } from "./BrowseMap";
+import { startTripFrom } from "./start-trip";
+import { scrollBehavior } from "@/lib/motion";
 import { useBrowseData } from "./useBrowseData";
 
-const NearbyTransitMap = lazy(() => import("@/components/NearbyTransitMap"));
+const BrowseMap = lazy(() => import("./BrowseMap"));
+
+const LAYERS_KEY = "nalu-browse-layers-v1";
+const DEFAULT_LAYERS: MapLayers = { stops: true, skyline: true, places: true };
+/** The chips along the map's top edge. Phase 3 adds Traffic, Incidents and Roadwork here. */
+const LAYER_CHIPS: { id: keyof MapLayers; label: string }[] = [
+  { id: "stops", label: "Stops" },
+  { id: "skyline", label: "Skyline" },
+  { id: "places", label: "Places" },
+];
 
 const CHIP_KINDS = ["home", "work", "gym"] as const;
 
@@ -120,10 +133,122 @@ export function BrowseSheetScreen() {
     setCover(Math.max(0, Math.round(mapHeight - window.innerHeight * 0.5)));
   }, [sheet]);
 
+  // Which map layers are on (remembered on this device) and what the rider tapped on the map.
+  const [layers, setLayers] = useState<MapLayers>(DEFAULT_LAYERS);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(
+        window.localStorage.getItem(LAYERS_KEY) ?? "null",
+      ) as Partial<MapLayers> | null;
+      if (saved && typeof saved === "object")
+        setLayers({
+          stops: saved.stops !== false,
+          skyline: saved.skyline !== false,
+          places: saved.places !== false,
+        });
+    } catch {
+      /* a private window or bad value: the defaults are fine */
+    }
+  }, []);
+  function toggleLayer(id: keyof MapLayers) {
+    setLayers((current) => {
+      const next = { ...current, [id]: !current[id] };
+      try {
+        window.localStorage.setItem(LAYERS_KEY, JSON.stringify(next));
+      } catch {
+        /* not remembered */
+      }
+      return next;
+    });
+  }
+  const [selection, setSelection] = useState<MapSelection | null>(null);
+  // Start a trip from a stop the rider tapped, instead of from where they stand.
+  const [startFrom, setStartFrom] = useState<{ name: string; lat: number; lon: number } | null>(
+    null,
+  );
+  const nearRef = useRef<HTMLElement | null>(null);
+
+  const mapStations = data.browseStations
+    .filter((s) => s.stop_lat !== null && s.stop_lon !== null)
+    .map((s) => ({
+      stopId: s.stop_id,
+      name: s.stop_name ?? "",
+      lat: Number(s.stop_lat),
+      lon: Number(s.stop_lon),
+    }));
+  const mapPlaces = (["home", "work"] as const).flatMap((kind) => {
+    const p = findByKind(data.savedPlaces, kind);
+    return p && p.lat != null && p.lon != null
+      ? [{ id: p.id, kind, label: p.label, lat: p.lat, lon: p.lon }]
+      : [];
+  });
+  const selectedPlace =
+    selection?.kind === "place" ? (mapPlaces.find((p) => p.id === selection.id) ?? null) : null;
+
   function pickStop(stopId: string) {
     data.setSelectedNearbyStopId(stopId);
     setStopPicked(true);
+    setSelection({ kind: "stop", id: stopId });
     setSheet((current) => (current === "peek" ? "half" : current));
+  }
+
+  /** A pin was tapped: the sheet opens to the matching card. */
+  function selectOnMap(next: MapSelection) {
+    if (next.kind === "place") {
+      setSelection(next);
+      setSheet((current) => (current === "peek" ? "half" : current));
+      return;
+    }
+    const inNearby = nearbyStops.some((stop) => stop.stopId === next.id);
+    if (next.kind === "stop" || inNearby) {
+      pickStop(next.id);
+      return;
+    }
+    // A Skyline station that is not among the nearby stops becomes "Near you".
+    const station = data.browseStations.find((item) => item.stop_id === next.id);
+    if (station && station.stop_id !== browseStation?.stopId) {
+      data.rememberBrowseStation({
+        stopId: station.stop_id,
+        stopName: station.stop_name ?? "",
+        lat: Number(station.stop_lat),
+        lon: Number(station.stop_lon),
+        ...(browseStation?.userLat !== undefined ? { userLat: browseStation.userLat } : {}),
+        ...(browseStation?.userLon !== undefined ? { userLon: browseStation.userLon } : {}),
+      });
+    }
+    setStationExpanded(true);
+    setSelection(next);
+    setSheet((current) => (current === "peek" ? "half" : current));
+  }
+
+  // Bring the matching card into view when something is selected on the map.
+  useEffect(() => {
+    if (!selection) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = selection.kind === "place" ? null : nearRef.current;
+      const body = (target ?? nearRef.current)?.closest(".nb-sheet-body") as HTMLElement | null;
+      if (!body) return;
+      const top = target
+        ? target.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 8
+        : 0;
+      body.scrollTo({ top, behavior: scrollBehavior() });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selection]);
+
+  /** Go to a destination: from here, or from the stop the rider chose to start at. */
+  async function goTo(place: { name: string; lat: number; lon: number }) {
+    if (!startFrom) {
+      window.location.assign(plannerHref(place));
+      return;
+    }
+    if (!gate.tripCheck()) return;
+    const id = toast.loading(`Finding the quickest trip to ${place.name}…`);
+    try {
+      await startTripFrom(startFrom, place);
+    } catch {
+      toast.error("Nalu couldn’t build that trip right now.", { id });
+    }
   }
 
   async function refresh() {
@@ -137,7 +262,7 @@ export function BrowseSheetScreen() {
 
   const peek = (
     <div onFocusCapture={() => setSheet((current) => (current === "peek" ? "half" : current))}>
-      <WhereToSearch />
+      <WhereToSearch {...(startFrom ? { onPick: (place) => void goTo(place) } : {})} />
       <button
         type="button"
         className="nb-peek-row"
@@ -182,7 +307,7 @@ export function BrowseSheetScreen() {
                   />
                 }
               >
-                <NearbyTransitMap
+                <BrowseMap
                   userPoint={browseUserPoint}
                   stops={nearbyStops.map((stop) => ({
                     stopId: stop.stopId,
@@ -190,26 +315,13 @@ export function BrowseSheetScreen() {
                     lat: stop.lat,
                     lon: stop.lon,
                     kind: stop.routeType === 1 ? "rail" : "bus",
-                    arrivals: stop.arrivals.slice(0, 3).map((arrival) => ({
-                      label: stop.routeType === 1 ? "Skyline" : arrival.route_short_name || "Bus",
-                      time: clockFromSeconds(arrival.departure_seconds),
-                      minutesAway: Math.max(
-                        0,
-                        Math.ceil((arrival.departure_seconds - nowSeconds) / 60),
-                      ),
-                    })),
                   }))}
-                  selectedStopId={selectedNearbyStop?.stopId ?? null}
+                  stations={mapStations}
+                  places={mapPlaces}
+                  layers={layers}
+                  selected={selection}
+                  onSelect={selectOnMap}
                   coverBottom={cover}
-                  onSelectStop={pickStop}
-                  onSetStart={() =>
-                    toast.info("To start from a different place, use Where to? and pick a trip.")
-                  }
-                  onSetDestination={(stop) =>
-                    window.location.assign(
-                      plannerHref({ name: stop.stopName, lat: stop.lat, lon: stop.lon }),
-                    )
-                  }
                 />
               </Suspense>
             </ClientOnly>
@@ -226,6 +338,22 @@ export function BrowseSheetScreen() {
           </div>
         )}
       </div>
+
+      {browseUserPoint && (
+        <div className="nb-layers" role="group" aria-label="Map layers">
+          {LAYER_CHIPS.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              className="nb-layer-chip"
+              aria-pressed={layers[chip.id]}
+              onClick={() => toggleLayer(chip.id)}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="nb-brand">
         <WaveMark className="h-5 w-auto text-foreground" />
@@ -262,6 +390,61 @@ export function BrowseSheetScreen() {
           </p>
         )}
 
+        {startFrom && (
+          <div className="nb-select-card nh-card flex items-center gap-3 px-4 py-3" role="status">
+            <TrainFront aria-hidden="true" className="size-5 shrink-0 text-primary" />
+            <p className="min-w-0 flex-1 text-sm text-foreground">
+              Starting from <span className="font-semibold">{startFrom.name}</span>. Pick where to
+              with Where to? or a chip.
+            </p>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-11 shrink-0"
+              aria-label="Start from where I am instead"
+              onClick={() => setStartFrom(null)}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        )}
+
+        {selectedPlace && (
+          <section className="nb-select-card nh-card p-4" aria-label={`${selectedPlace.label}`}>
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                  {selectedPlace.kind === "home" ? "Home" : "Work"}
+                </p>
+                <p className="mt-0.5 break-words text-lg font-semibold text-foreground">
+                  {selectedPlace.label}
+                </p>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-11 shrink-0"
+                aria-label="Close place"
+                onClick={() => setSelection(null)}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+            <Button
+              className="mt-3 h-12 w-full text-base"
+              onClick={() =>
+                void goTo({
+                  name: selectedPlace.label,
+                  lat: selectedPlace.lat,
+                  lon: selectedPlace.lon,
+                })
+              }
+            >
+              Plan trip
+            </Button>
+          </section>
+        )}
+
         {/* Quick destinations */}
         <div className="nh-rail-scroll mt-3" role="group" aria-label="Quick destinations">
           {CHIP_KINDS.map((kind) => {
@@ -274,6 +457,11 @@ export function BrowseSheetScreen() {
               <a
                 key={kind}
                 href={href}
+                onClick={(event) => {
+                  if (!place || !startFrom) return;
+                  event.preventDefault();
+                  void goTo({ name: place.name || place.label, lat: place.lat, lon: place.lon });
+                }}
                 className={`nh-chip ${place ? "" : "opacity-70"}`}
                 aria-label={
                   place ? `Plan a trip to ${kindLabel(kind)}` : `Set up ${kindLabel(kind)}`
@@ -359,7 +547,7 @@ export function BrowseSheetScreen() {
 
         {/* Near you: nearest Skyline station + nearby stops */}
         {hasTransit && (
-          <section className="nb-card" aria-label="Near you">
+          <section ref={nearRef} className="nb-card" aria-label="Near you">
             <h2 className="nb-card-title">Near you</h2>
             {browseStation && data.browseFar && !stationExpanded ? (
               <button
@@ -571,6 +759,21 @@ export function BrowseSheetScreen() {
                   {HOLO_FARES.transferWindowHours} hours
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">Scheduled times · TheBus / DTS</p>
+                {browseStation && (
+                  <button
+                    type="button"
+                    className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
+                    onClick={() =>
+                      setStartFrom({
+                        name: stationLabel(browseStation.stopName).replace(/\s*\(.*\)\s*$/, ""),
+                        lat: browseStation.lat,
+                        lon: browseStation.lon,
+                      })
+                    }
+                  >
+                    Start a trip from here <ChevronRight aria-hidden="true" className="size-4" />
+                  </button>
+                )}
               </div>
             )}
 
@@ -697,6 +900,19 @@ export function BrowseSheetScreen() {
                         Plan a trip to this stop{" "}
                         <ChevronRight aria-hidden="true" className="size-4" />
                       </a>
+                      <button
+                        type="button"
+                        className="ml-4 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
+                        onClick={() =>
+                          setStartFrom({
+                            name: titleCase(shownStop.stopName),
+                            lat: shownStop.lat,
+                            lon: shownStop.lon,
+                          })
+                        }
+                      >
+                        Start from here
+                      </button>
                     </div>
                   )}
                 </div>
