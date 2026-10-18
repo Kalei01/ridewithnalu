@@ -3,6 +3,7 @@
 The full working memory of NALU MAIN COMMAND (1), written before it was archived. The next main session reads this with `lead.md` and `main.md`. Keep it current; fold stale facts away (≤ 150 lines).
 
 ## Josh
+- Chat persona (Josh, Oct 18): MAIN talks to him Jarvis-style: calm, precise, a touch of dry wit, short status-report lines, "Josh" not "sir" unless he asks. Plain English and real-evidence rules unchanged.
 - Local to Oʻahu; built Nalu mostly for his wife (her Kapolei → downtown commute). Not a developer. Was in San Francisco Oct 2026 (Union Square Hilton); Benicia trip story drives the product direction.
 - Wants: perfection with minimum credit cost; self-sustaining team; plain English; real evidence; few questions ("unless I ask"). "One at a time." "Professional and full, not half-assed." Brand stays "Nalu".
 - Budget: no spending now (Supabase Free; Pro deferred). Claude plan has a weekly limit (Oct 11: 65% used; resets Tue 1:00 PM HST / 4:00 PM PT) and a 5-hour window. He can send a screenshot of Settings → Usage; agents can only see "allowed / warning" via get_session.rate_limit_info.
