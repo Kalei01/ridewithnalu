@@ -83,5 +83,5 @@ export function nextTrainLine(
         : clockFromSeconds(pick.departure_seconds);
   const toward = terminusLabel(pick.direction_terminus) || stationLabel(pick.trip_headsign);
   const lead = pick === soonest ? "Next train" : "Next you can make";
-  return `${lead} ${when} · ${stationLabel(stationName)}${toward ? ` to ${toward}` : ""}`;
+  return `${lead} ${when} · ${stationLabel(stationName).replace(/\s*\(.*\)\s*$/, "")}${toward ? ` to ${toward}` : ""}`;
 }
