@@ -53,13 +53,12 @@ import {
   titleCase,
 } from "@/lib/commute-formatting";
 import { HOLO_FARES } from "@/lib/fares";
-import { h1PeekLine, nextTrainLine } from "@/lib/browse-peek";
+import { h1PeekLine, nextTrainLine, waitText } from "@/lib/browse-peek";
 import { plannerHref } from "@/lib/home/planner-link";
 import { findByKind, kindLabel } from "@/lib/places/saved-places";
 import { activeRegion } from "@/lib/region";
 import { BrowseSheet, type SheetState } from "./BrowseSheet";
 import type { MapLayers, MapSelection } from "./BrowseMap";
-import { startTripFrom } from "./start-trip";
 import { scrollBehavior } from "@/lib/motion";
 import { useBrowseData } from "./useBrowseData";
 
@@ -162,11 +161,8 @@ export function BrowseSheetScreen() {
     });
   }
   const [selection, setSelection] = useState<MapSelection | null>(null);
-  // Start a trip from a stop the rider tapped, instead of from where they stand.
-  const [startFrom, setStartFrom] = useState<{ name: string; lat: number; lon: number } | null>(
-    null,
-  );
   const nearRef = useRef<HTMLElement | null>(null);
+  const stopsRef = useRef<HTMLElement | null>(null);
 
   const mapStations = data.browseStations
     .filter((s) => s.stop_lat !== null && s.stop_lon !== null)
@@ -225,7 +221,13 @@ export function BrowseSheetScreen() {
   useEffect(() => {
     if (!selection) return;
     const frame = window.requestAnimationFrame(() => {
-      const target = selection.kind === "place" ? null : nearRef.current;
+      // A bus stop scrolls to its own arrivals; a station to the station card.
+      const target =
+        selection.kind === "place"
+          ? null
+          : selection.kind === "stop" && selection.id !== browseStation?.stopId
+            ? (stopsRef.current ?? nearRef.current)
+            : nearRef.current;
       const body = (target ?? nearRef.current)?.closest(".nb-sheet-body") as HTMLElement | null;
       if (!body) return;
       const top = target
@@ -235,21 +237,6 @@ export function BrowseSheetScreen() {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [selection]);
-
-  /** Go to a destination: from here, or from the stop the rider chose to start at. */
-  async function goTo(place: { name: string; lat: number; lon: number }) {
-    if (!startFrom) {
-      window.location.assign(plannerHref(place));
-      return;
-    }
-    if (!gate.tripCheck()) return;
-    const id = toast.loading(`Finding the quickest trip to ${place.name}…`);
-    try {
-      await startTripFrom(startFrom, place);
-    } catch {
-      toast.error("Nalu couldn’t build that trip right now.", { id });
-    }
-  }
 
   async function refresh() {
     setRefreshing(true);
@@ -262,7 +249,7 @@ export function BrowseSheetScreen() {
 
   const peek = (
     <div onFocusCapture={() => setSheet((current) => (current === "peek" ? "half" : current))}>
-      <WhereToSearch {...(startFrom ? { onPick: (place) => void goTo(place) } : {})} />
+      <WhereToSearch />
       <button
         type="button"
         className="nb-peek-row"
@@ -390,25 +377,6 @@ export function BrowseSheetScreen() {
           </p>
         )}
 
-        {startFrom && (
-          <div className="nb-select-card nh-card flex items-center gap-3 px-4 py-3" role="status">
-            <TrainFront aria-hidden="true" className="size-5 shrink-0 text-primary" />
-            <p className="min-w-0 flex-1 text-sm text-foreground">
-              Starting from <span className="font-semibold">{startFrom.name}</span>. Pick where to
-              with Where to? or a chip.
-            </p>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-11 shrink-0"
-              aria-label="Start from where I am instead"
-              onClick={() => setStartFrom(null)}
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
-        )}
-
         {selectedPlace && (
           <section className="nb-select-card nh-card p-4" aria-label={`${selectedPlace.label}`}>
             <div className="flex items-start gap-3">
@@ -433,11 +401,13 @@ export function BrowseSheetScreen() {
             <Button
               className="mt-3 h-12 w-full text-base"
               onClick={() =>
-                void goTo({
-                  name: selectedPlace.label,
-                  lat: selectedPlace.lat,
-                  lon: selectedPlace.lon,
-                })
+                window.location.assign(
+                  plannerHref({
+                    name: selectedPlace.label,
+                    lat: selectedPlace.lat,
+                    lon: selectedPlace.lon,
+                  }),
+                )
               }
             >
               Plan trip
@@ -457,11 +427,6 @@ export function BrowseSheetScreen() {
               <a
                 key={kind}
                 href={href}
-                onClick={(event) => {
-                  if (!place || !startFrom) return;
-                  event.preventDefault();
-                  void goTo({ name: place.name || place.label, lat: place.lat, lon: place.lon });
-                }}
                 className={`nh-chip ${place ? "" : "opacity-70"}`}
                 aria-label={
                   place ? `Plan a trip to ${kindLabel(kind)}` : `Set up ${kindLabel(kind)}`
@@ -759,26 +724,15 @@ export function BrowseSheetScreen() {
                   {HOLO_FARES.transferWindowHours} hours
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">Scheduled times · TheBus / DTS</p>
-                {browseStation && (
-                  <button
-                    type="button"
-                    className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
-                    onClick={() =>
-                      setStartFrom({
-                        name: stationLabel(browseStation.stopName).replace(/\s*\(.*\)\s*$/, ""),
-                        lat: browseStation.lat,
-                        lon: browseStation.lon,
-                      })
-                    }
-                  >
-                    Start a trip from here <ChevronRight aria-hidden="true" className="size-4" />
-                  </button>
-                )}
               </div>
             )}
 
             {browseUserPoint && (
-              <details open className="nh-card nh-details mt-3">
+              <details
+                ref={stopsRef as React.RefObject<HTMLDetailsElement>}
+                open
+                className="nh-card nh-details mt-3"
+              >
                 <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
                   <Bus aria-hidden="true" className="size-5 text-muted-foreground" />
                   <span className="text-base font-bold text-foreground">Nearby stops</span>
@@ -846,13 +800,14 @@ export function BrowseSheetScreen() {
                         </div>
                         {shownStop.arrivals[0] && (
                           <p className="shrink-0 whitespace-nowrap text-lg font-bold tabular-nums text-primary">
-                            {Math.max(
-                              0,
-                              Math.ceil(
-                                (shownStop.arrivals[0].departure_seconds - nowSeconds) / 60,
+                            {waitText(
+                              Math.max(
+                                0,
+                                Math.ceil(
+                                  (shownStop.arrivals[0].departure_seconds - nowSeconds) / 60,
+                                ),
                               ),
-                            )}{" "}
-                            min
+                            )}
                           </p>
                         )}
                       </div>
@@ -900,19 +855,6 @@ export function BrowseSheetScreen() {
                         Plan a trip to this stop{" "}
                         <ChevronRight aria-hidden="true" className="size-4" />
                       </a>
-                      <button
-                        type="button"
-                        className="ml-4 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
-                        onClick={() =>
-                          setStartFrom({
-                            name: titleCase(shownStop.stopName),
-                            lat: shownStop.lat,
-                            lon: shownStop.lon,
-                          })
-                        }
-                      >
-                        Start from here
-                      </button>
                     </div>
                   )}
                 </div>

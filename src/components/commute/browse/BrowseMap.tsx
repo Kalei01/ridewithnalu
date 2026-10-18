@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { LocateFixed, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { removeMapSafely } from "@/lib/leaflet-safe";
 import { flyMotion, prefersReducedMotion } from "@/lib/motion";
-import { SKYLINE_STOP_IDS, skylineStationParts } from "@/lib/rail/station-names";
+import { skylineStationParts } from "@/lib/rail/station-names";
+import { splitSkylineStations } from "@/lib/rail/skyline-stations";
 
 /**
  * The Browse sheet's map: one dark, non-satellite map with switchable layers.
@@ -52,6 +53,8 @@ function icon(
   label: string,
   selected: boolean,
   tag: string,
+  /** Pixels to shift the pin from its true spot, so crowded pins can be tapped one by one. */
+  shift: [number, number] = [0, 0],
 ) {
   const glyph =
     type === "rail"
@@ -66,7 +69,7 @@ function icon(
     className: `nalu-marker-shell ${tag}`,
     html: `<span class="nalu-marker ${cls}${selected ? " is-selected" : ""}" role="img" aria-label="${label}">${glyph}</span>`,
     iconSize: [40, 40],
-    iconAnchor: [20, 20],
+    iconAnchor: [20 - shift[0], 20 - shift[1]],
   });
 }
 
@@ -107,6 +110,7 @@ export default function BrowseMap({
   /** Pixels of the map's lower part covered by the sheet. */
   coverBottom?: number;
 }) {
+  const [zoomTick, setZoomTick] = useState(0);
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const groupRef = useRef<L.LayerGroup | null>(null);
@@ -138,6 +142,7 @@ export default function BrowseMap({
     // Station names show once the map is zoomed in far enough to read them.
     const labels = () => node.classList.toggle("nb-show-labels", map.getZoom() >= 13);
     map.on("zoomend", labels);
+    map.on("zoomend", () => setZoomTick((tick) => tick + 1));
     labels();
     mapRef.current = map;
     return () => {
@@ -154,6 +159,7 @@ export default function BrowseMap({
     layers.skyline && stations.map((s) => s.stopId).join(","),
     layers.places && places.map((p) => `${p.id}:${p.lat},${p.lon}`).join(","),
     selected ? `${selected.kind}:${selected.id}` : "",
+    zoomTick,
   ].join("|");
 
   // Rebuild markers only when what is shown, or what is selected, changes.
@@ -165,12 +171,14 @@ export default function BrowseMap({
     const isSel = (kind: MapSelection["kind"], id: string) =>
       selected?.kind === kind && selected.id === id;
 
-    if (layers.skyline && stations.length > 1) {
-      // In line order (not by longitude: the western stations are nearly in a column).
-      const line = stations
-        .filter((s) => SKYLINE_STOP_IDS.includes(s.stopId))
-        .sort((a, b) => SKYLINE_STOP_IDS.indexOf(a.stopId) - SKYLINE_STOP_IDS.indexOf(b.stopId))
-        .map((s) => [s.lat, s.lon] as L.LatLngTuple);
+    const { known: lineStations, unknown } = splitSkylineStations(stations);
+    if (unknown.length)
+      console.warn(
+        "Rail stations not in the Skyline name list:",
+        unknown.map((u) => u.stopId),
+      );
+    if (layers.skyline && lineStations.length > 1) {
+      const line = lineStations.map((s) => [s.lat, s.lon] as L.LatLngTuple);
       L.polyline(line, { pane: "nb-line-pane", color: "#0a84ff", weight: 9, opacity: 0.18 }).addTo(
         group,
       );
@@ -179,7 +187,7 @@ export default function BrowseMap({
       );
     }
     if (layers.skyline) {
-      for (const station of stations) {
+      for (const station of lineStations) {
         const marker = L.marker([station.lat, station.lon], {
           pane: "nalu-stop-pane",
           icon: icon(
@@ -191,10 +199,11 @@ export default function BrowseMap({
           title: skylineStationParts(station.name)?.english ?? station.name,
           keyboard: true,
         });
+        // Names sit beside the pin (not on the line) so they stay clear of the chips.
         marker.bindTooltip(stationLabelHtml(station.name), {
           permanent: true,
-          direction: "top",
-          offset: [0, -14],
+          direction: "right",
+          offset: [14, 0],
           className: "nb-label",
         });
         marker.on("click", () => onSelectRef.current({ kind: "station", id: station.stopId }));
@@ -202,10 +211,33 @@ export default function BrowseMap({
       }
     }
     if (layers.stops) {
-      const stationIds = new Set(stations.map((s) => s.stopId));
-      for (const stop of stops) {
-        // A Skyline station already drawn by its own layer is not drawn twice.
-        if (layers.skyline && stop.kind === "rail" && stationIds.has(stop.stopId)) continue;
+      const stationIds = new Set(lineStations.map((s) => s.stopId));
+      const shown = stops.filter(
+        (stop) => !(layers.skyline && stop.kind === "rail" && stationIds.has(stop.stopId)),
+      );
+      // Pins closer than a fingertip fan out around their group's middle.
+      const points = shown.map((stop) => map.latLngToContainerPoint([stop.lat, stop.lon]));
+      const group_of: number[] = shown.map(() => -1);
+      const groups: number[][] = [];
+      shown.forEach((_, i) => {
+        const hit = groups.findIndex((g) => g.some((j) => points[i]!.distanceTo(points[j]!) < 30));
+        if (hit === -1) {
+          group_of[i] = groups.length;
+          groups.push([i]);
+        } else {
+          group_of[i] = hit;
+          groups[hit]!.push(i);
+        }
+      });
+      shown.forEach((stop, i) => {
+        const members = groups[group_of[i]!]!;
+        let shift: [number, number] = [0, 0];
+        if (members.length > 1) {
+          const slot = members.indexOf(i);
+          const angle = (slot / members.length) * Math.PI * 2 - Math.PI / 2;
+          const radius = 14 + members.length * 3;
+          shift = [Math.cos(angle) * radius, Math.sin(angle) * radius];
+        }
         const marker = L.marker([stop.lat, stop.lon], {
           pane: "nalu-stop-pane",
           icon: icon(
@@ -213,13 +245,14 @@ export default function BrowseMap({
             stop.kind === "rail" ? "Rail station" : "Bus stop",
             isSel("stop", stop.stopId),
             "nb-pin",
+            shift,
           ),
           title: stop.stopName,
           keyboard: true,
         });
         marker.on("click", () => onSelectRef.current({ kind: "stop", id: stop.stopId }));
         marker.addTo(group);
-      }
+      });
     }
     if (layers.places) {
       for (const place of places) {

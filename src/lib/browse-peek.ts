@@ -85,3 +85,11 @@ export function nextTrainLine(
   const lead = pick === soonest ? "Next train" : "Next you can make";
   return `${lead} ${when} · ${stationLabel(stationName).replace(/\s*\(.*\)\s*$/, "")}${toward ? ` to ${toward}` : ""}`;
 }
+
+/** Minutes as people say them: "45 min", "2 hr 1 min" (never "121 min"). */
+export function waitText(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
+}

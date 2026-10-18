@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { h1PeekLine, nextTrainLine } from "./browse-peek";
+import { h1PeekLine, nextTrainLine, waitText } from "./browse-peek";
 
 const road = (delayMinutes: number, incidents: unknown[] = [], typicalChecked = true) => ({
   delayMinutes,
@@ -58,5 +58,13 @@ describe("nextTrainLine", () => {
   it("is null when nothing is scheduled or catchable", () => {
     expect(nextTrainLine([], 1000, "x", null)).toBeNull();
     expect(nextTrainLine([[dep(1000 + 120)]], 1000, "x", 10)).toBeNull();
+  });
+});
+
+describe("waitText", () => {
+  it("never shows more than 59 plain minutes", () => {
+    expect(waitText(45)).toBe("45 min");
+    expect(waitText(121)).toBe("2 hr 1 min");
+    expect(waitText(120)).toBe("2 hr");
   });
 });

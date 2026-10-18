@@ -287,7 +287,7 @@
   box-shadow: none;
   font-size: 0.7rem;
   line-height: 1.15;
-  text-align: center;
+  text-align: left;
   pointer-events: none;
 }
 .nb-map .leaflet-tooltip.nb-label::before {
