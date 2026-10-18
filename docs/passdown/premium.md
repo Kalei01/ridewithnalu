@@ -1,5 +1,5 @@
 # Passdown — Premium UX Review (Wed 10:47 AM HST)
-Last updated: 2026-10-18 (Browse sheet phase 1 preview). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
+Last updated: 2026-10-18 (Browse sheet phase 2 preview). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Current focus
 - Backlog: `docs/experience/backlog.md`; seasons: `docs/experience/seasonal.md`; direction: `docs/product/direction.md`.
@@ -10,7 +10,8 @@ Last updated: 2026-10-18 (Browse sheet phase 1 preview). Keep ≤ 60 lines; see 
 - /browse-preview (noindex, not linked, not in sitemap; "/" Browse untouched). Plan, phases and approved motions: `docs/experience/backlog.md`.
 - Code: `src/components/commute/browse/` — `BrowseSheet.tsx`+`browse-sheet.css` (PEEK/HALF/FULL, handle drag + tap + keyboard, transform only, `inert` when peeked), `BrowseSheetScreen.tsx` (composition), `useBrowseData.ts` (copy of Browse's queries from index.tsx, same cache keys; Phase 3 replaces it with the shared hook), `src/lib/browse-peek.ts` (+test: peek line and next-train number). `MorningPulse/EveningPulse/BeatTheRush` got an additive `embedded` prop (Today card). Near-you JSX is a copy of BrowseScreen's; delete the duplication when Browse switches.
 - Not in the preview yet (need index.tsx dialogs): Account/Settings buttons, CommutePageNav, Tagline, Home/Work shortcut cards (chips link to the planner instead; unset ones open "/"), pull-to-refresh, map "set start" (toasts).
-- Phase 2 needs: map padding for the sheet (map keeps one size above PEEK; HALF covers its lower half), layers, pin tap popups hidden behind HALF (the Near-you card shows the stop; "Plan a trip to this stop" link added).
+- PHASE 2 DONE (preview): `BrowseMap.tsx` layers + pin→sheet + Start from here (`start-trip.ts`) + map cover offset. Details: backlog. Phase 3 needs: traffic/incident/roadwork layers into `LAYER_CHIPS`; shared Browse state hook; pending-trip hand-off so signed-in riders open on the trip; Account/Settings; switch "/" after Josh approves.
+- (Phase 1 note) Phase 2 needs: map padding for the sheet (map keeps one size above PEEK; HALF covers its lower half), layers, pin tap popups hidden behind HALF (the Near-you card shows the stop; "Plan a trip to this stop" link added).
 
 ## Home redesign (Opus build session, Oct 14) — LIVE ON "/" (Josh approved Oct 14, 8e78842)
 - Preview: https://ridenalu.com/home-preview (noindex, canonical "/"). "/" is unchanged until Josh or NALU MAIN approves.

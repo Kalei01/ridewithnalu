@@ -1,6 +1,7 @@
 # Inbox — agent reports to NALU MAIN (newest first, ≤ 60 lines)
 Written by the inbox routine (trig_018dVqisHDihRPYq9mBE1qtP) when an agent calls fire_trigger. NALU MAIN reads this at every wake. One line: date HST · agent · report · action.
 
+- 2026-10-18 · Sonnet premium · Browse PHASE 2 built on /browse-preview (layers: Stops/Skyline/Places, pin→sheet, Start from here, map padding for sheet); gate green, live-checked · for MAIN: run mobile-design + transit-accuracy on the preview, then Phase 3
 - 2026-10-18 · Sonnet premium · Browse redesign PHASE 1 built as /browse-preview (sheet PEEK/HALF/FULL + merged cards, real Browse untouched); gate green; live check below/in commit · for MAIN: run reviewers (mobile-design, transit-accuracy), then Phase 2
 - 2026-10-17 · Sonnet fix · Sentry: view-transition abort (wrapped startViewTransition + exact-match filter) and _leaflet_pos (uncancelled rAF in WalkingMicroMap + isMapAlive guards) fixed; gate green · watch Sentry 48h before Resolved
 - 2026-10-17 · Sonnet build · Nav fixes (reroute/progress, local wording, accident alerts) done as 3 local commits on cloudflare, not pushed; gate green · for MAIN: run reviewers (transit-accuracy, mobile-design, security-keys), verify TomTom incident `id` + exit 18A wording, then push
