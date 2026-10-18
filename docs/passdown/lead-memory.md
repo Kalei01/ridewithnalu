@@ -29,6 +29,8 @@ The full working memory of NALU MAIN COMMAND (1), written before it was archived
 
 - Oct 16–17 (MAIN 4): wife's Oct 16 commute (H-1 E accident) → nav fixes LIVE 75717bb (reroute stale bearing, maneuver passing, start grace/poor-GPS escape; local wording I-H1→H-1, HUD direction label, Salt Lake/18B landmark labels; accident alerts what+where once per id, opposite-carriageway filter fails open). All reviewers OK. UNVERIFIED: TomTom incidents `id` field with a live incident (if incidents vanish, check fields first); check her Monday drive log in debug_logs.
 
+- Oct 18 lead review: funnel recording looks broken since the new Home (Oct 14): from Oct 15 only `landed_intro` rows, no landed_app/trip_tried/answer_shown although real trips ran (debug_logs Oct 16) → the "−76% weekly users" may be mostly tracking. Queued with the dependency pass (Sonnet). Browse redesign: phases 1–2 on /browse-preview, phase 3 waits for Josh's go. Weekly budget in warning zone until ~Tue Oct 20 1 PM HST. MAIN (4) context ~505k (succession at ~650k).
+
 ## Josh's tools — verdicts (Oct 15, MAIN (4))
 No claude.ai plugins enabled (ListPlugins empty; ~/.claude/plugins empty). Nothing installed or enabled; no paid generations run.
 - Useful now: GitHub (PRs, CI, checks); Gmail (startup-credits drafts and notices — drafts only, Josh sends); built-in code-review / security-review / simplify (extra pass before risky pushes; our reviewers stay primary); run (launch the app to check a change); deep-research (credits eligibility questions only, it fans out subagents — rare).

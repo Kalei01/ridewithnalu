@@ -1,5 +1,5 @@
 # Passdown — Lead (NALU MAIN): judgment, lessons, how to lead
-Last updated: 2026-10-11. Kept by the main session; refreshed in the lead checks (Sun and Wed). ≤ 60 lines.
+Last updated: 2026-10-18. Kept by the main session; refreshed in the lead checks (Sun and Wed). ≤ 60 lines.
 
 ## Josh's standing intent
 Perfection with the lowest credit cost. Decide and lead; ask him only per run-gates.md §4. Self-sustaining team; Hawaiʻi first; "fast and right" before features.
@@ -29,6 +29,10 @@ Hand over when any holds: this session's context is over ~650k tokens (check get
 **Sunday 11:31 AM HST (after the Weekly Review)** and **Wednesday 1:59 PM HST (after the Premium review)**. Gate: skip if nothing changed since the last check (no new code commits, reports, alerts or finished sessions). Otherwise ≤ 12 tool calls on Sunday, ≤ 8 on Wednesday: read this week's report, every passdown's "Recent runs", alerts; decide: (a) adjust run gates or briefs where data shows waste or misses; (b) add a lesson here when something went wrong or right; (c) queue the next build per the fix plan; (d) tell Josh only §4 items. No builds in this session.
 
 ## Lessons log (newest first, keep ≤ 10; older ones fold into the rules above)
+- 2026-10-18 · Hold navigation/commute pushes until reviewers clear, even when the stop hook nags: on the Oct 16 nav fixes transit-accuracy caught 2 Highs (dropped ramp direction, opposite-carriageway accidents) and then a regression in the fix itself. Re-review every fix commit on commute logic.
+- 2026-10-18 · Anything that writes the rider's setup must never touch saved Home/Work (Browse "Start from here" overwrote Home — caught in review, feature disabled). Brief builders: one-off trip state ≠ saved places.
+- 2026-10-18 · Builders must lint/format only the files they edit (one ran prettier over src/components: 37 files). Put it in every brief.
+- 2026-10-18 · Batch reviewer findings into one fix brief per phase; preview routes (noindex) let big UI work ship safely in phases.
 - 2026-10-14: The commute-page restyle went straight live, and Josh disliked it: full-screen rain, a double top inset, lag, and a missing live traffic bar. For main-screen visual changes, always do a preview link first, then Josh approves, then switch. "Keep every function" must be checked with a before/after diff of what riders see.
 - 2026-10-13: When another session fires the inbox routine, it runs in a fresh session with NO repo, even though the routine is bound to this session. Its prompt now clones the repo itself. Reports land in docs/passdown/inbox.md; read it at every wake. Every brief must give the agent everything it needs.
 - 2026-10-11: Routine sessions have no send_message (only fire_trigger), so agents report to the lead via the inbox trigger trig_018dVqisHDihRPYq9mBE1qtP. That rule is in CLAUDE.md, added by Josh.
