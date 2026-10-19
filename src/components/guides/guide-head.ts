@@ -1,4 +1,5 @@
 import { SITE_URL } from "@/lib/site";
+import { LAST_MODIFIED_ISO } from "./guides";
 
 export type GuideFaq = { q: string; a: string };
 
@@ -36,7 +37,7 @@ export function guideHead(input: HeadInput) {
       url,
       description: input.description,
       inLanguage: "en-US",
-      dateModified: "2026-10-05",
+      dateModified: LAST_MODIFIED_ISO,
       isPartOf: { "@type": "WebSite", name: "Nalu", url: SITE_URL },
       primaryImageOfPage: SOCIAL_CARD,
       breadcrumb: {

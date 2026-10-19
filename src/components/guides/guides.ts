@@ -10,6 +10,9 @@
 
 export const LAST_UPDATED = "October 2026";
 
+/** Machine-readable twin of LAST_UPDATED (schema.org dateModified). Bump with it when a guide's facts or content change. */
+export const LAST_MODIFIED_ISO = "2026-10-15";
+
 export type GuideMeta = {
   path: GuidePath;
   /** The <title>, under 60 characters including " | Nalu". */

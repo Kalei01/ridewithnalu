@@ -75,3 +75,19 @@ Newest entry last. Each run of the twice-weekly search review appends one entry.
 **Rejected / not done:** Rush-hour section (TomTom figures still unread at source). Pearl City and Pearl Harbor pages (no new demand evidence). Article/Organization structured data (item 7) left for the next run so each run stays at one or two items. No titles changed on the Oct 14 pages.
 
 **Backlog status:** station names DONE on all guides except the lot names on the park-and-ride page (deliberate). Answer-first: Kapolei DONE; next ʻEwa, then Mililani, airport, UH. Item 7 next. Item 5 still blocked.
+
+## 2026-10-19 (Mon) — structured-data date, backlog cleanup
+
+**Evidence** (Search Console, 28 days to Oct 19): 668 impressions (449 on Oct 15), 6 clicks, position 11.7. Gate: RUN (impressions up 49% and 219; more new queries). /guides/skyline-park-and-ride 284 impr, 6 clicks (2.1% CTR, position 7.5). Airport guide 63 impr (position 22.6, driving-to-terminal queries); Kapolei 31 (position 14.9, up from 14); ʻEwa 14; /guides hub 16 (position 40.5). New queries are one-offs ("skyline parking" 8 impr at position 10.8, "skyline hours" 3 at 23, "kalihi transit center parking" 3). Nothing sits at position 5 to 20 with enough impressions to justify a title change, and the Oct 14 title/snippet changes plus the Oct 15 guide redesign are still inside the Nov 11 measurement window. Index status: 18 of 19 pages indexed; /disclaimer is still "Discovered - currently not indexed" (linked from every footer; nothing to do).
+
+**Changed** (backlog item 7, narrowed)
+- Every guide's schema.org WebPage said `dateModified: 2026-10-05`, though the guides changed on Oct 15. It now reads from one constant, `LAST_MODIFIED_ISO` (2026-10-15), next to the visible `LAST_UPDATED`. Bump both together when a guide's facts or content change.
+- Not changed: the home page already carries WebSite, Organization and SoftwareApplication data (the app type Google recognises), so no second WebApplication block; FAQPage and BreadcrumbList already exist on guides. No FAQ/HowTo added.
+
+**Backlog check:** answer-first (item 2) is delivered: the Oct 15 redesign gave the Kapolei, ʻEwa, Mililani, airport, UH Mānoa, late-night and comparison guides a "What to know" strip, and the Kapolei intro and takeaways already lead with the answer. Item 2 closed.
+
+**Reviewers:** security-keys only (no UI, no transit facts changed).
+
+**Rejected / not done:** rush-hour section (TomTom figures still unread at source); Pearl City and Pearl Harbor pages (no new demand); no titles or bodies changed.
+
+**Backlog status:** 2 DONE, 7 DONE (narrowed), 5 blocked on TomTom source, 3 and 4 need demand, 6 DECISION. Next real step is the Nov 11 CTR read, factoring in the Oct 15 redesign.
