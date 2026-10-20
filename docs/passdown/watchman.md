@@ -9,6 +9,7 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - Skyline alert is CLOSED (Oct 14). Keep the SILENT FAILURES check + 60 s retry; if "No Skyline trip" returns, reopen in alerts.md and escalate to MAIN (inbox.md). Planner health 5.4–6.4 s: only flag if >6000 AND new info; known issue.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- S (Tue Oct 20: trips skipped — no code change since Oct 19, no open alert, planner 1627 ms, 5 R0 in a row; health + 19/19 pages OK)
 - R0 (Mon Oct 19: all clear, trips yes; planner 5028 ms; Skyline first try on all trips)
 - R0 (Fri Oct 16: all clear, trips yes; planner 5503 ms; Airport Skyline normal, no repeat of Oct 15 note)
 - R0 (Thu Oct 15: all clear, trips yes; planner 1638 ms; one Airport first-try Skyline "no trip" next to a 41-min bus, retry normal — see Watching)
@@ -17,5 +18,4 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Mon Oct 19, 6:15 AM HST (trips: yes — Monday + code changes): health OK, planner 5028 ms, 19/19 pages OK, http→https 301. Kapolei, ʻEwa Beach, Airport: Skyline + Bus + Drive first try (2.1–4.7 s); retries fine; no "no Skyline trip". Airport note from Oct 15 dropped (clean twice).
-- WEEKLY: timetable valid until 2026-12-05 (47 days). Users this week 22 (previous week 44), accounts 3, new accounts 0, all direct, 0 signed in.
+- Tue Oct 20, 6:15 AM HST (trips: no — gate: no code change since last run, no OPEN alert, planner 1627 ms, last browser run was Mon Oct 19): health OK, 19/19 pages OK, http→https 301. Next trips: any code change, an alert, planner >6000 ms, Monday, or 3 weekdays since Oct 19.
