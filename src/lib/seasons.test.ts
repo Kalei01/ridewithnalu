@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SEASONS, activeNotes, activeSeason, seasonGreeting, type Season } from "./seasons";
+import { SEASONS, SEASON_OFF_SCRIPT, activeNotes, activeSeason, seasonGreeting, type Season } from "./seasons";
 
 /** An instant from a Honolulu clock time (Hawaiʻi is UTC-10 all year). */
 const hst = (iso: string) => new Date(`${iso}-10:00`);
@@ -129,5 +129,11 @@ describe("season motifs", () => {
       expect(s.motif.trim().startsWith("<svg") || s.motif === "").toBe(true);
       expect(s.motif).not.toMatch(/<script|\son\w+\s*=|href\s*=|javascript:|<foreignObject|<image|<use/i);
     }
+  });
+});
+
+describe("season-off head script", () => {
+  it("reads the same localStorage key the Settings switch writes", () => {
+    expect(SEASON_OFF_SCRIPT).toContain("nalu-seasonal-touches-v1");
   });
 });

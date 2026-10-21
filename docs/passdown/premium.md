@@ -41,9 +41,10 @@ Last updated: 2026-10-18 (Browse sheet phase 2 preview). Keep ≤ 60 lines; see 
 - Planner/verdict logic, timeouts, database (main session). Guide pages' focus (SEO agent).
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
-- R+ (Oct 14)
+- R+ (Oct 21), R+ (Oct 14)
 
 ## Last run
+- 2026-10-21 ran (gate: Halloween Oct 24 in 3 days + open layout-jump low): greeting pill now server-rendered, no 52 px jump (CLS 0, 18 phone checks), off-switch applied by a head script before paint (273833b); key-sync test added. Reviewers: security-keys no med/high; mobile-design no med/high. Open lows: pill tint pops in after hydration (data-season set in useEffect; set it server-side or in the head script); midnight edge — server HTML cached across Honolulu midnight could differ from the client (suppressHydrationWarning covers text only); Settings switch tap target; Veterans Day (Nov 11) needs an official source. Check live on Oct 24. Browse stays with MAIN's sheet build (not touched).
 - Oct 15 Guides redesign COMPLETE: batch 2 fixes (80992dd) + batch 3 (nalu-vs-google-maps, about-nalu, hub) live. Shared GuideLayout also restyles FAQ items, related cards and the open-Nalu CTA as glow cards. Reuse: GuideBlocks (StatTiles, OptionCards, CompareCards, FactList, GuideDetails, GuideMap).
 - Oct 15 Guides redesign: batch 1 fixes (b1021d0) + batch 2 (mililani, uh-manoa, late-night, marathon) live. Map pins are now numbered with a visible full-name legend (direction.md full names). Next batch 3: nalu-vs-google-maps, about-nalu, guides hub (waits on MAIN review).
 - Oct 15 Guides redesign batch 1 (Kapolei, ʻEwa, airport) live: shared `GuideBlocks.tsx` (StatTiles, OptionCards, GuideDetails, GuideMap); GuideLayout now glow cards for every guide + `strip` prop. Next batch 2: mililani, uh-manoa, late-night, marathon (waits on MAIN review).
