@@ -103,6 +103,8 @@ export type DriveTime = {
   maneuvers: Array<{ lat: number; lon: number; maneuver: string; instruction: string; road: string | null }>;
   fetchedAt: number;
   trafficBasis: "live" | "future-estimate";
+  /** Only on a route priced through via points: which request shape TomTom accepted. */
+  viaShape?: string;
 };
 
 export type DriveTrafficSection = {
@@ -151,11 +153,6 @@ function orbisRouteBody(data: z.infer<typeof schema>) {
     routePlanningLocations: {
       origin: { type: "Point", coordinates: [data.fromLon, data.fromLat] },
       destination: { type: "Point", coordinates: [data.toLon, data.toLat] },
-      ...(data.via?.length
-        ? {
-            waypoints: data.via.map((p) => ({ type: "Point", coordinates: [p.lon, p.lat] })),
-          }
-        : {}),
     },
     traffic: "live",
     routeType: "fast",
@@ -168,7 +165,91 @@ function orbisRouteBody(data: z.infer<typeof schema>) {
   };
 }
 
-function requestOrbisRoute(key: string, routeBody: ReturnType<typeof orbisRouteBody>) {
+type RouteBody = ReturnType<typeof orbisRouteBody>;
+type ViaPoint = { lat: number; lon: number };
+const point = (p: ViaPoint) => ({ type: "Point", coordinates: [p.lon, p.lat] });
+
+/**
+ * Ways to ask TomTom Orbis v3 for a route that passes through given points.
+ * The exact body shape was not documented where we could read it, so they are
+ * tried in order until one is accepted; the accepted name is remembered for
+ * this server and reported on the result (`viaShape`).
+ */
+const VIA_SHAPES: Array<{ name: string; apply: (body: RouteBody, via: ViaPoint[]) => object }> = [
+  {
+    name: "waypoints",
+    apply: (b, via) => ({
+      ...b,
+      routePlanningLocations: { ...b.routePlanningLocations, waypoints: via.map(point) },
+    }),
+  },
+  {
+    name: "locations-array",
+    apply: (b, via) => ({
+      ...b,
+      routePlanningLocations: [
+        b.routePlanningLocations.origin,
+        ...via.map(point),
+        b.routePlanningLocations.destination,
+      ],
+    }),
+  },
+  {
+    name: "waypoints-wrapped",
+    apply: (b, via) => ({
+      ...b,
+      routePlanningLocations: {
+        ...b.routePlanningLocations,
+        waypoints: via.map((p) => ({ point: point(p) })),
+      },
+    }),
+  },
+  {
+    name: "path-linestring",
+    apply: (b, via) => ({
+      ...b,
+      routePlanningLocations: {
+        ...b.routePlanningLocations,
+        path: {
+          type: "LineString",
+          coordinates: [
+            b.routePlanningLocations.origin.coordinates,
+            ...via.map((p) => [p.lon, p.lat]),
+            b.routePlanningLocations.destination.coordinates,
+          ],
+        },
+      },
+    }),
+  },
+  {
+    name: "top-level-waypoints",
+    apply: (b, via) => ({ ...b, waypoints: via.map(point) }),
+  },
+  {
+    name: "pointWaypoints",
+    apply: (b, via) => ({
+      ...b,
+      routePlanningLocations: { ...b.routePlanningLocations, pointWaypoints: via.map(point) },
+    }),
+  },
+  {
+    name: "top-level-path",
+    apply: (b, via) => ({
+      ...b,
+      path: {
+        type: "LineString",
+        coordinates: [
+          b.routePlanningLocations.origin.coordinates,
+          ...via.map((p) => [p.lon, p.lat]),
+          b.routePlanningLocations.destination.coordinates,
+        ],
+      },
+    }),
+  },
+];
+let workingViaShape: string | null = null;
+
+function requestOrbisRoute(key: string, routeBody: object) {
   return fetch(ORBIS_ROUTE_URL, { signal: AbortSignal.timeout(8000),
     method: "POST",
     headers: {
@@ -203,8 +284,37 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     });
 
     const routeUrl = ORBIS_ROUTE_URL;
-    const routeBody = orbisRouteBody(data);
-    const response = await requestOrbisRoute(key, routeBody);
+    let routeBody: object = orbisRouteBody(data);
+    let response: Response;
+    let viaShape: string | undefined;
+    if (data.via?.length) {
+      const shapes = [...VIA_SHAPES].sort(
+        (a, b) => Number(b.name === workingViaShape) - Number(a.name === workingViaShape),
+      );
+      let accepted: Response | null = null;
+      for (const shape of shapes) {
+        const body = shape.apply(routeBody as RouteBody, data.via);
+        const attempt = await requestOrbisRoute(key, body);
+        if (attempt.ok) {
+          accepted = attempt;
+          routeBody = body;
+          viaShape = shape.name;
+          workingViaShape = shape.name;
+          break;
+        }
+        console.error(
+          `[drive] via shape "${shape.name}" rejected: ${attempt.status} ${(await attempt.text()).slice(0, 300)}`,
+        );
+      }
+      if (!accepted) {
+        console.error("[drive] no via shape accepted");
+        return null;
+      }
+      console.info("[drive] via shape accepted", { viaShape });
+      response = accepted;
+    } else {
+      response = await requestOrbisRoute(key, routeBody);
+    }
     if (!response.ok) {
       console.error(`[drive] Orbis routing unavailable: TomTom returned ${response.status}`);
       return null;
@@ -229,8 +339,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     const trafficSeconds = summary.travelDurationInSeconds;
     let typicalSeconds = trafficSeconds;
     let typicalChecked = false;
-    // A via route is priced against the fastest route, not against history.
-    if (!data.departureTime && !data.via?.length) {
+    if (!data.departureTime) {
       try {
         const historicalResponse = await fetch(routeUrl, { signal: AbortSignal.timeout(8000),
           method: "POST",
@@ -316,6 +425,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       maneuvers: buildManeuvers(route?.instructions ?? [], fullPath),
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
+      ...(viaShape ? { viaShape } : {}),
     };
 
     cacheDrive(cacheKey, result);
