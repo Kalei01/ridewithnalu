@@ -22,15 +22,28 @@ function tomtomKey() {
 }
 
 const schema = z.object({
-  fromLat: z.number(),
-  fromLon: z.number(),
-  toLat: z.number(),
-  toLon: z.number(),
+  fromLat: z.number().min(-90).max(90),
+  fromLon: z.number().min(-180).max(180),
+  toLat: z.number().min(-90).max(90),
+  toLon: z.number().min(-180).max(180),
   departureTime: z.string().datetime({ offset: true }).optional(),
   /** Direction of travel for an active reroute, so the route begins forward. */
   bearing: z.number().min(0).max(360).optional(),
   /** Active navigation and manual refreshes bypass the two-minute server cache. */
   forceRefresh: z.boolean().optional(),
+  /**
+   * Points on the road the rider is already on, so the route must pass through
+   * them. Used to price "stay on my current road" with the same live traffic
+   * as the fastest route (see route-commitment.ts). Never shown to riders.
+   */
+  via: z
+    .array(
+      z.object({
+        lat: z.number().min(-90).max(90),
+        lon: z.number().min(-180).max(180),
+      }),
+    )
+    .max(2).optional(),
 });
 
 export type DriveIncident = {
@@ -128,7 +141,8 @@ function driveCacheKey(data: z.infer<typeof schema>) {
     : "now";
   const headingBucket =
     data.bearing === undefined ? "none" : Math.round((data.bearing % 360) / 15) * 15;
-  return `${from}:${to}:${departureBucket}:${headingBucket}`;
+  const via = (data.via ?? []).map((p) => `${round(p.lat)},${round(p.lon)}`).join(";");
+  return `${from}:${to}:${departureBucket}:${headingBucket}${via ? `:via=${via}` : ""}`;
 }
 
 /** The live (or future-estimate) route request, the same for every caller. */
@@ -137,6 +151,11 @@ function orbisRouteBody(data: z.infer<typeof schema>) {
     routePlanningLocations: {
       origin: { type: "Point", coordinates: [data.fromLon, data.fromLat] },
       destination: { type: "Point", coordinates: [data.toLon, data.toLat] },
+      ...(data.via?.length
+        ? {
+            waypoints: data.via.map((p) => ({ type: "Point", coordinates: [p.lon, p.lat] })),
+          }
+        : {}),
     },
     traffic: "live",
     routeType: "fast",
@@ -210,7 +229,8 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     const trafficSeconds = summary.travelDurationInSeconds;
     let typicalSeconds = trafficSeconds;
     let typicalChecked = false;
-    if (!data.departureTime) {
+    // A via route is priced against the fastest route, not against history.
+    if (!data.departureTime && !data.via?.length) {
       try {
         const historicalResponse = await fetch(routeUrl, { signal: AbortSignal.timeout(8000),
           method: "POST",
