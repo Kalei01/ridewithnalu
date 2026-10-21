@@ -1189,7 +1189,7 @@ function Index() {
     };
   }, [planMode, arriveByTarget]);
   // While a drive is navigated the trip search is not re-run every minute
-  // (database load; it fails on weak signal): it moves at most every 5 minutes.
+  // (database load; it fails on weak signal): it moves at most every 60 s (5 min while navigating).
   // The drive time, ETA and verdict inputs come from their own queries.
   const planMinuteRef = useRef<{ value: number; at: number } | null>(null);
   planMinuteRef.current = throttledPlanMinute(
@@ -1197,7 +1197,7 @@ function Index() {
     scheduleAfterSeconds,
     Date.now(),
     drivingCommitted,
-    // Idle trip screen: no re-plan while the tab is hidden, and one at most every 5 minutes.
+    // Idle trip screen: no re-plan while the tab is hidden, and one at most every 60 s (5 min while navigating).
     { hidden: typeof document !== "undefined" && document.visibilityState === "hidden" },
   );
   const planScheduleAfterSeconds = planMinuteRef.current.value;

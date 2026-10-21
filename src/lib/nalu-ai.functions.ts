@@ -355,6 +355,8 @@ export const rushOutlook = createServerFn({ method: "POST" })
       if (!now || !later) return { warn: false as const };
       const building = later.minutes - now.minutes;
       const aboveUsual = now.delayMinutes;
+      // Unknown delay (no usual time) never triggers a rush warning.
+      if (aboveUsual === null) return { warn: false as const };
       const warn = aboveUsual >= 5 && building >= 4;
       return {
         warn,

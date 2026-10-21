@@ -257,9 +257,11 @@ async function trafficIncidentsForRoute(routePoints: Pt[], key: string): Promise
 
 export type RouteSummary = {
   minutes: number;
-  typicalMinutes: number;
-  delayMinutes: number;
+  /** null = no usual time available (Mapbox without duration_typical): delay unknown. */
+  typicalMinutes: number | null;
+  delayMinutes: number | null;
   miles: number;
+  note?: string;
   roads: string[];
   incidents: RouteTrafficIncident[];
   /** Who timed the route. Mapbox answers are estimates and carry no incident feed. */
@@ -283,7 +285,8 @@ async function mapboxRouteOptions(
   });
   if (!route) throw new Error("Drive lookup failed (TomTom and Mapbox unavailable).");
   const minutes = Math.round(route.liveSeconds / 60);
-  const typicalMinutes = route.typicalSeconds === null ? minutes : Math.round(route.typicalSeconds / 60);
+  // Without Mapbox's usual time the delay is unknown, never 0.
+  const typicalMinutes = route.typicalSeconds === null ? null : Math.round(route.typicalSeconds / 60);
   const roads: string[] = [];
   for (const step of route.instructions) {
     const name = step.nextRoadInformation.streetName?.text ?? step.nextRoadInformation.roadShields?.[0]?.roadNumber.text;
@@ -293,7 +296,8 @@ async function mapboxRouteOptions(
     {
       minutes,
       typicalMinutes,
-      delayMinutes: minutes - typicalMinutes,
+      delayMinutes: typicalMinutes === null ? null : minutes - typicalMinutes,
+      note: "Mapbox estimate (TomTom unavailable); incident data not available",
       miles: Math.round((route.meters / 1609) * 10) / 10,
       roads: roads.slice(0, 8),
       incidents: [],
@@ -719,7 +723,7 @@ export async function runAskNalu(
       }),
       driveTime: tool({
         description:
-          "Live TomTom drive between two points. Returns current route ETA, delay, roads, and route-relevant traffic incidents when available. Optionally arriveAt (ISO) to plan for a deadline. Current incident data is intentionally omitted for future arrive-by/depart-at calculations.",
+          "Live drive between two points (TomTom; Mapbox estimate when TomTom is unavailable — then delayMinutes may be null = unknown, never treat null as no delay). Returns current route ETA, delay, roads, and route-relevant traffic incidents when available. Optionally arriveAt (ISO) to plan for a deadline. Current incident data is intentionally omitted for future arrive-by/depart-at calculations.",
         inputSchema: z.object({
           fromLat: z.number(),
           fromLon: z.number(),
