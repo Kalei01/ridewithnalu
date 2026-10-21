@@ -176,55 +176,9 @@ const point = (p: ViaPoint) => ({ type: "Point", coordinates: [p.lon, p.lat] });
  * this server and reported on the result (`viaShape`).
  */
 const VIA_SHAPES: Array<{ name: string; apply: (body: RouteBody, via: ViaPoint[]) => object }> = [
-  {
-    name: "waypoints",
-    apply: (b, via) => ({
-      ...b,
-      routePlanningLocations: { ...b.routePlanningLocations, waypoints: via.map(point) },
-    }),
-  },
-  {
-    name: "locations-array",
-    apply: (b, via) => ({
-      ...b,
-      routePlanningLocations: [
-        b.routePlanningLocations.origin,
-        ...via.map(point),
-        b.routePlanningLocations.destination,
-      ],
-    }),
-  },
-  {
-    name: "waypoints-wrapped",
-    apply: (b, via) => ({
-      ...b,
-      routePlanningLocations: {
-        ...b.routePlanningLocations,
-        waypoints: via.map((p) => ({ point: point(p) })),
-      },
-    }),
-  },
-  {
-    name: "path-linestring",
-    apply: (b, via) => ({
-      ...b,
-      routePlanningLocations: {
-        ...b.routePlanningLocations,
-        path: {
-          type: "LineString",
-          coordinates: [
-            b.routePlanningLocations.origin.coordinates,
-            ...via.map((p) => [p.lon, p.lat]),
-            b.routePlanningLocations.destination.coordinates,
-          ],
-        },
-      },
-    }),
-  },
-  {
-    name: "top-level-waypoints",
-    apply: (b, via) => ({ ...b, waypoints: via.map(point) }),
-  },
+  // TomTom's own refusals (Oct 21): `.routePlanningLocations.waypoints` exists but
+  // rejects GeoJSON points; `.routePlanningLocations` as an array, `.waypoints` and
+  // `.routePlanningLocations.path` are not accepted. These two are what is left.
   {
     name: "pointWaypoints",
     apply: (b, via) => ({
@@ -247,7 +201,6 @@ const VIA_SHAPES: Array<{ name: string; apply: (body: RouteBody, via: ViaPoint[]
     }),
   },
 ];
-class ViaRefusedError extends Error {}
 let workingViaShape: string | null = null;
 
 function requestOrbisRoute(key: string, routeBody: object) {
@@ -296,7 +249,12 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       const refusals: string[] = [];
       for (const shape of shapes) {
         const body = shape.apply(routeBody as RouteBody, data.via);
-        const attempt = await requestOrbisRoute(key, body);
+        let attempt = await requestOrbisRoute(key, body);
+        if (attempt.status === 429) {
+          // TomTom limits requests per second; one short pause and a single retry.
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          attempt = await requestOrbisRoute(key, body);
+        }
         if (attempt.ok) {
           accepted = attempt;
           routeBody = body;
@@ -310,8 +268,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       }
       if (!accepted) {
         console.error("[drive] no via shape accepted");
-        // TomTom's own refusal text (no key in it), so the cause can be read from the response.
-        throw new ViaRefusedError(`via refused by TomTom - ${refusals.join(" | ")}`.slice(0, 1500));
+        return null;
       }
       console.info("[drive] via shape accepted", { viaShape });
       response = accepted;
@@ -433,8 +390,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
 
     cacheDrive(cacheKey, result);
     return result;
-  } catch (error) {
-    if (error instanceof ViaRefusedError) throw error;
+  } catch {
     // An unavailable route is not a zero-minute drive. The caller can keep
     // rendering rail and cached schedules without a failed server action.
     console.error("[drive] routing unavailable: TomTom request failed");
