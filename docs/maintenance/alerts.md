@@ -2,6 +2,16 @@
 
 Every Watchman alert and what Alert Triage did about it. Newest first. Repeats within 7 days are not re-investigated.
 
+## 2026-10-21 — Drive row says "Can't check traffic right now" on every trip (TomTom route lookup returns nothing)
+
+- **Alert (Watchman 6:15 AM HST):** health checks "drive times (TomTom)" and "turn-by-turn directions" both FAILED with "no route returned" (re-checked at 6:17 AM, 3 times over ~80 s: still failing; place search OK, planner OK 5275 ms). Live trips: Kapolei, ʻEwa Beach and Airport all showed Drive "Can't check traffic right now"; ʻEwa Beach Skyline showed "Can't check Skyline right now" (drive-to-station needs the live drive time). Kapolei Skyline (walk + bus + Skyline) and Airport Skyline/Bus rows were fine. Retry after 60 s: same.
+- **Reproduced?** Yes, health endpoint and browser, repeatedly.
+- **Root cause:** not proven. `lookupDriveTime` (src/lib/drive.functions.ts) returns nothing; health.server.ts:69/78 turn that into "no route returned". Timing points at this morning's Drive-server commits (e8fcf68 … 1666183, Oct 21 06:31–06:49 UTC: via points, shape retries, TomTom refusal handling), or TomTom itself (quota/rate limit after the live waypoint probing, or key problem) — can't tell which without server logs.
+- **Class:** 🔴 — TomTom ETA pipeline and external API contract.
+- **Action:** none changed. Escalated to MAIN via docs/passdown/inbox.md and Josh via notification.
+- **Recommended next step:** MAIN checks the TomTom dashboard/quota and the Cloudflare logs for the drive function; if it is the Oct 21 change, revert 1666183/99d830d/f29ac04/4edbfd1/e8fcf68 (server side only) or fix forward; confirm with the health endpoint (drive times (TomTom) must say ok).
+- **Status:** OPEN.
+
 ## 2026-10-19 — Navigation kept pushing the Pearlridge exit while she stayed on H-1 West (Josh's wife, town to ʻEwa 4:17-5:04 PM; Sonnet build, local commits, reviewed by transit-accuracy / mobile-design / security)
 
 - **What she saw/heard:** first turn card EXIT_MOTORWAY_RIGHT onto Kamehameha Hwy (213 m ahead at 16:17, 39 m at 16:22) while crawling at 2 m/s; she stayed on H-1 West. No `off_route` until 16:35:21 (cross-track 48 m): about 13 min of a stale card, then two TURN_RIGHT prompts; normal from 16:44. No reason was ever shown for the exit. Also: 47 `trip_plan_server` re-plans during the drive (about 1/min), 7 `transit_rpc_error`, 3 `trip_plan_fallback`.
