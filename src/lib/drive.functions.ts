@@ -247,6 +247,7 @@ const VIA_SHAPES: Array<{ name: string; apply: (body: RouteBody, via: ViaPoint[]
     }),
   },
 ];
+class ViaRefusedError extends Error {}
 let workingViaShape: string | null = null;
 
 function requestOrbisRoute(key: string, routeBody: object) {
@@ -292,6 +293,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
         (a, b) => Number(b.name === workingViaShape) - Number(a.name === workingViaShape),
       );
       let accepted: Response | null = null;
+      const refusals: string[] = [];
       for (const shape of shapes) {
         const body = shape.apply(routeBody as RouteBody, data.via);
         const attempt = await requestOrbisRoute(key, body);
@@ -302,13 +304,14 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
           workingViaShape = shape.name;
           break;
         }
-        console.error(
-          `[drive] via shape "${shape.name}" rejected: ${attempt.status} ${(await attempt.text()).slice(0, 300)}`,
-        );
+        const detail = `${shape.name}: ${attempt.status} ${(await attempt.text()).replace(/\s+/g, " ").slice(0, 220)}`;
+        refusals.push(detail);
+        console.error(`[drive] via shape rejected - ${detail}`);
       }
       if (!accepted) {
         console.error("[drive] no via shape accepted");
-        return null;
+        // TomTom's own refusal text (no key in it), so the cause can be read from the response.
+        throw new ViaRefusedError(`via refused by TomTom - ${refusals.join(" | ")}`.slice(0, 1500));
       }
       console.info("[drive] via shape accepted", { viaShape });
       response = accepted;
@@ -430,7 +433,8 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
 
     cacheDrive(cacheKey, result);
     return result;
-  } catch {
+  } catch (error) {
+    if (error instanceof ViaRefusedError) throw error;
     // An unavailable route is not a zero-minute drive. The caller can keep
     // rendering rail and cached schedules without a failed server action.
     console.error("[drive] routing unavailable: TomTom request failed");
