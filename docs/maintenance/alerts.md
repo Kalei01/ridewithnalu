@@ -10,6 +10,7 @@ Every Watchman alert and what Alert Triage did about it. Newest first. Repeats w
 - **Class:** 🔴 — TomTom ETA pipeline and external API contract.
 - **Action:** none changed. Escalated to MAIN via docs/passdown/inbox.md and Josh via notification.
 - **Recommended next step:** MAIN checks the TomTom dashboard/quota and the Cloudflare logs for the drive function; if it is the Oct 21 change, revert 1666183/99d830d/f29ac04/4edbfd1/e8fcf68 (server side only) or fix forward; confirm with the health endpoint (drive times (TomTom) must say ok).
+- **Update 6:55 AM HST (MAIN):** health now reports the reason: TomTom routing answers **HTTP 403** (fb71d00 adds the reason to the health detail). Place search (same key) works → routing access or routing quota is refused at TomTom's side, not our request shape (403 comes back in ~100 ms for the plain Kapolei→Downtown request). Owner action: check the TomTom developer dashboard (routing usage/quota, key products). Next for MAIN: cut routing calls (health, historical baseline, nav price checks) once the cause is known.
 - **Status:** OPEN.
 
 ## 2026-10-19 — Navigation kept pushing the Pearlridge exit while she stayed on H-1 West (Josh's wife, town to ʻEwa 4:17-5:04 PM; Sonnet build, local commits, reviewed by transit-accuracy / mobile-design / security)
