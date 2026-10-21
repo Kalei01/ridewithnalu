@@ -669,10 +669,10 @@ describe("background transit re-planning while navigating", () => {
 });
 
 describe("idle trip screen re-planning", () => {
-  it("holds the planner minute for 5 minutes and while the tab is hidden", () => {
+  it("holds the planner minute for 60 seconds and while the tab is hidden", () => {
     const a = throttledPlanMinute(null, 36_000, 0, false, { hidden: false });
-    expect(throttledPlanMinute(a, 36_120, 120_000, false, { hidden: false })).toBe(a);
-    expect(throttledPlanMinute(a, 36_300, 300_000, false, { hidden: false }).value).toBe(36_300);
+    expect(throttledPlanMinute(a, 36_030, 30_000, false, { hidden: false })).toBe(a);
+    expect(throttledPlanMinute(a, 36_120, 120_000, false, { hidden: false }).value).toBe(36_120);
     expect(throttledPlanMinute(a, 37_000, 900_000, false, { hidden: true })).toBe(a);
   });
 });

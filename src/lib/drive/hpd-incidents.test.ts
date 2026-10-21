@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   hpdIncidentsForRoute,
+  hpdPlaceText,
+  hpdQueryUrl,
   hpdNearRoute,
   hpdPoint,
   hpdTimestamp,
@@ -9,13 +11,7 @@ import {
   roadNeedle,
 } from "./hpd-incidents";
 import { resetTomtomGuard } from "./tomtom-guard";
-import {
-  incidentAlertKey,
-  incidentHudText,
-  incidentSpeech,
-  planIncidentAlerts,
-  newIncidentAlertMemory,
-} from "../incident-alerts";
+import { planIncidentAlerts, newIncidentAlertMemory } from "../incident-alerts";
 
 // Fixture written from the documented Socrata shape (Date, Time, Type, Address, Location, Area); not captured live.
 // 2026-10-21 13:45 HST = 23:45 UTC.
@@ -112,16 +108,35 @@ describe("matching to a route", () => {
       source: "hpd",
       onRoute: true,
       delayMinutes: null,
-      description: "Reported by HPD: Collision near H-1 Fwy EB / Moanalua, 1:45 PM",
+      description: "Police report: Collision on H-1 eastbound near Moanalua, 1:45 PM",
     });
   });
-  it("matches by road name in the address when there are no coordinates (listed, never an alert)", () => {
-    const found = hpdIncidentsForRoute(reports, { path: [], roads: ["Kamehameha Hwy"] }, NOW);
-    expect(found.map((f) => f.description)).toEqual([
-      "Reported by HPD: Stalled vehicle near Kamehameha Hwy / Kaiahua St, 1:30 PM",
+  it("without coordinates, shows a report only when the route passes the named place (road and cross street)", () => {
+    const both = hpdIncidentsForRoute(
+      reports,
+      { path: [], roads: ["Kamehameha Hwy", "Kaiahua St"] },
+      NOW,
+    );
+    expect(both.map((f) => f.description)).toEqual([
+      "Police report: Stalled vehicle near Kamehameha Highway at Kaiahua Street, 1:30 PM",
     ]);
-    expect(found[0]?.onRoute).toBe(false);
-    expect(found[0]?.road).toBe("Kamehameha Hwy");
+    expect(both[0]?.onRoute).toBe(false);
+    expect(both[0]?.road).toBe("Kamehameha Hwy");
+    // One road alone could be anywhere along it: not shown.
+    expect(hpdIncidentsForRoute(reports, { path: [], roads: ["Kamehameha Hwy"] }, NOW)).toEqual([]);
+  });
+  it("writes places in local style with the ʻokina", () => {
+    expect(hpdPlaceText("Collision", "H1 FWY WB / KAPIOLANI BLVD")).toBe(
+      "Collision on H-1 westbound near Kapiʻolani Boulevard",
+    );
+    expect(hpdPlaceText("Collision", "KALANIANAOLE HWY")).toBe(
+      "Collision near Kalanianaʻole Highway",
+    );
+  });
+  it("asks for newest first and only recent rows", () => {
+    const url = decodeURIComponent(hpdQueryUrl(NOW)).replace(/\+/g, " ");
+    expect(url).toContain("$order=date DESC");
+    expect(url).toContain("$where=date >= '2026-10-20T00:00:00'");
   });
   it("freeway needles match H1 / H-1 / I-H1 but not H-10", () => {
     const needle = roadNeedle("H-1 East")!;
@@ -152,18 +167,45 @@ describe("feed and alerts", () => {
     await hpdNearRoute({ path: route, roads: [] }, blocked as unknown as typeof fetch, NOW + 1000);
     expect(blocked).toHaveBeenCalledTimes(1); // backs off for 2 minutes
   });
-  it("feeds the in-drive accident alert with honest wording and no delay", () => {
-    const [incident] = hpdIncidentsForRoute(parseHpdRows(rows), { path: route, roads: [] }, NOW);
-    expect(incidentHudText(incident as never)).toBe("Accident near H-1 Fwy EB / Moanalua (HPD)");
-    expect(incidentSpeech(incident as never)).toBe(
-      "Police report accident near H-1 Fwy EB / Moanalua.",
+  it("never claims coverage when the feed is empty or stale", async () => {
+    const stale = [
+      {
+        date: "2026-10-20T00:00:00.000",
+        time: "01:00",
+        type: "TRAFFIC COLLISION",
+        address: "H1 FWY",
+      },
+    ];
+    for (const body of [[], stale]) {
+      resetTomtomGuard();
+      resetHpd();
+      const fetcher = vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }));
+      expect(
+        (await hpdNearRoute({ path: route, roads: [] }, fetcher as unknown as typeof fetch, NOW))
+          .checked,
+      ).toBe(false);
+    }
+  });
+  it("retries with the plain URL when the portal rejects the query", async () => {
+    const fetcher = vi.fn(async (url: string) =>
+      url.includes("order")
+        ? new Response("bad column", { status: 400 })
+        : new Response(JSON.stringify(rows), { status: 200 }),
     );
-    expect(incidentAlertKey(incident as never)).toContain("hpd:");
+    expect(
+      (await hpdNearRoute({ path: route, roads: [] }, fetcher as unknown as typeof fetch, NOW))
+        .checked,
+    ).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it("is display-only: never spoken, never on the HUD, never a push", () => {
+    const [incident] = hpdIncidentsForRoute(parseHpdRows(rows), { path: route, roads: [] }, NOW);
+    expect(incident).toBeDefined();
     const plan = planIncidentAlerts(
-      { incidents: [], nearby: [incident as never], path: route },
+      { incidents: [incident as never], nearby: [incident as never], path: route },
       newIncidentAlertMemory(),
     );
-    expect(plan.speak).toHaveLength(1);
-    expect(plan.hud?.text).toContain("(HPD)");
+    expect(plan.speak).toEqual([]);
+    expect(plan.hud).toBeNull();
   });
 });

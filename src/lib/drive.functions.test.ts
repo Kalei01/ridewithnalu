@@ -261,3 +261,14 @@ describe("TomTom call savings", () => {
   });
 });
 
+
+describe("police report de-duplication and status", () => {
+  it("skips a coordinate-less police report when TomTom already lists a collision on that road", async () => {
+    const { withHpdReports } = await import("./drive.functions");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("no", { status: 500 })));
+    // The feed is unreachable here: nothing to merge, and the existing list is untouched.
+    const known = [{ description: "Accident", road: "H-1 East", delayMinutes: 3, category: "1", points: [] }];
+    const out = await withHpdReports(known as never, [], { path: [], roads: [] });
+    expect(out).toEqual({ nearby: known, checked: false });
+  });
+});

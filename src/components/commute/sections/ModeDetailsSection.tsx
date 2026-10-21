@@ -169,7 +169,7 @@ export function ModeDetailsSection(props: ModeDetailsSectionProps) {
                       rail station.
                     </p>
                   ))}
-                {driveAvailable && driveRange && drive && (
+                {driveAvailable && driveRange && drive && driveBasisLabel && (
                   <p className="mt-3 text-xs text-muted-foreground">{driveBasisLabel}</p>
                 )}
                 {driveAvailable && driveSourceNote(drive) && (
@@ -187,7 +187,11 @@ export function ModeDetailsSection(props: ModeDetailsSectionProps) {
                           </p>
                         ))}
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Honolulu Police Department via Honolulu Open Data. No delay is reported.
+                        Source: Honolulu Police (open data)
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Police reports don&apos;t include delay times. Your drive time already counts live
+                        traffic.
                       </p>
                     </div>
                   )}

@@ -280,7 +280,7 @@ async function requestMapboxRoute(
     return route;
   } catch (error) {
     lastMapboxFailure = `Mapbox ${error instanceof Error ? error.name : "error"}`;
-    console.error("[drive] Mapbox directions failed", error);
+    console.error("[drive] Mapbox directions failed", error instanceof Error ? error.name : "error");
     return null;
   }
 }

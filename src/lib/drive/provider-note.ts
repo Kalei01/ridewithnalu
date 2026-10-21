@@ -1,18 +1,18 @@
 import type { DriveTime } from "../drive.functions";
 
 /**
- * One quiet line telling the rider where the drive time came from when it is
- * not the usual provider, and what is missing as a result. Null for TomTom
- * answers whose incident feed was read.
+ * The one quiet source line when the drive time isn't a normal TomTom answer:
+ * what it is, and what is limited as a result. Police reports are mentioned
+ * only when some are actually showing. Null for a TomTom answer whose incident
+ * feed was read.
  */
 export function driveSourceNote(
-  drive: Pick<DriveTime, "provider" | "incidentsAvailable" | "hpdChecked"> | null | undefined,
+  drive: Pick<DriveTime, "provider" | "incidentsAvailable" | "nearbyIncidents"> | null | undefined,
 ): string | null {
   if (!drive) return null;
-  const police = drive.hpdChecked ? " Police reports (HPD) are still shown." : "";
-  if (drive.provider === "mapbox")
-    return `Live time from Mapbox (estimate). TomTom accident alerts are paused.${police}`;
-  if (drive.incidentsAvailable === false)
-    return `TomTom accident alerts are paused right now.${police}`;
+  const police = (drive.nearbyIncidents ?? []).some((incident) => incident.source === "hpd");
+  const alerts = `Crash alerts are limited right now${police ? "; police reports still show." : "."}`;
+  if (drive.provider === "mapbox") return `Drive time is estimated. ${alerts}`;
+  if (drive.incidentsAvailable === false) return alerts;
   return null;
 }

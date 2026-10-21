@@ -50,11 +50,6 @@ export function incidentWhere(incident: DriveIncident): string | null {
 }
 
 function headline(incident: DriveIncident): string {
-  if (incident.source === "hpd") {
-    const hpdLabel = incidentCategoryLabel(incident) ?? "Incident";
-    const hpdRoad = localRoadName(incident.road);
-    return `${hpdLabel}${hpdRoad ? ` on ${hpdRoad}` : ""}${incident.from ? ` near ${incident.from}` : ""}`;
-  }
   const label = incidentCategoryLabel(incident) ?? "Incident";
   const road = localRoadName(incident.road);
   const where = incidentWhere(incident);
@@ -68,7 +63,7 @@ function delayMinutes(incident: DriveIncident): number {
 /** HUD line, delay first when known: "+8 min · Accident on H-1 East near Aiea". */
 export function incidentHudText(incident: DriveIncident): string {
   const delay = delayMinutes(incident);
-  return `${delay > 0 ? `+${delay} min · ` : ""}${headline(incident)}${incident.source === "hpd" ? " (HPD)" : ""}`;
+  return `${delay > 0 ? `+${delay} min · ` : ""}${headline(incident)}`;
 }
 
 /** Spoken line: "Reported accident on H-1 East near Aiea, adding about 8 minutes." */
@@ -76,8 +71,6 @@ export function incidentSpeech(incident: DriveIncident): string {
   const delay = delayMinutes(incident);
   const spokenDelay =
     delay > 0 ? `, adding about ${delay} ${delay === 1 ? "minute" : "minutes"}` : "";
-  if (incident.source === "hpd")
-    return `Police report ${headline(incident).replace(/^./, (c) => c.toLowerCase())}.`;
   return `Reported ${headline(incident).replace(/^./, (c) => c.toLowerCase())}${spokenDelay}.`;
 }
 
@@ -167,11 +160,14 @@ export function alertEligible(input: {
 }): { onRoute: Map<string, DriveIncident>; offRoute: Map<string, DriveIncident> } {
   const onRoute = new Map<string, DriveIncident>();
   const offRoute = new Map<string, DriveIncident>();
+  // Police open-data reports (source "hpd") are display-only: no speech, no push, no HUD.
   for (const incident of input.incidents) {
+    if (incident.source === "hpd") continue;
     if (isAlertIncident(incident) && !isOppositeDirection(incident, input.path))
       onRoute.set(incidentAlertKey(incident), incident);
   }
   for (const incident of input.nearby ?? []) {
+    if (incident.source === "hpd") continue;
     if (!isAlertIncident(incident) || isOppositeDirection(incident, input.path)) continue;
     const key = incidentAlertKey(incident);
     if (incident.onRoute) onRoute.set(key, incident);

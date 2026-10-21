@@ -209,6 +209,7 @@ import { liveTripSteps } from "@/lib/live-trip-steps";
 
 import { plannerRpc } from "@/lib/transit-plan";
 import { planTrip } from "@/lib/trip-plan-client";
+import { dropDeparted } from "@/lib/rail/departed";
 import { tripCheckingSteps, weatherSummaryText } from "@/lib/loading-labels";
 import { honoluluDaysBetween, shiftOptionDays } from "@/lib/service-day";
 import { withStation } from "@/lib/rail/station-names";
@@ -1252,7 +1253,11 @@ function Index() {
   // never make a valid door-to-door transit search appear unavailable.
   const optionsLoading = planLoading;
   const optionsFailed = planFailed;
-  const options = useMemo(() => planResult?.options ?? [], [planResult]);
+  // A bus that already left is never shown as catchable, whatever age the search is.
+  const options = useMemo(
+    () => dropDeparted(planResult?.options ?? [], nowSeconds),
+    [planResult, nowSeconds],
+  );
   // Which rows' searches failed or ran out of time (the rest came back fine).
   const skylineUnchecked = optionsFailed || Boolean(planResult?.unchecked.skyline);
   const busUnchecked = optionsFailed || Boolean(planResult?.unchecked.bus);
@@ -2410,11 +2415,21 @@ function Index() {
 
   const previousTraffic = useRef<TrafficAlertSnapshot | null>(null);
   const trafficAlertBaseline = useRef<TrafficAlertSnapshot | null>(null);
+  const trafficSourceKey = useRef<string | null>(null);
   useEffect(() => {
     if (!drivingCommitted || !drive || drive.trafficBasis !== "live") {
       previousTraffic.current = null;
       trafficAlertBaseline.current = null;
+      trafficSourceKey.current = null;
       return;
+    }
+    // A different provider (or a delay measured against no usual time) is a different
+    // yardstick: start a fresh comparison instead of announcing the switch as a delay or incident.
+    const sourceKey = `${drive.provider ?? "tomtom"}|${drive.typicalChecked !== false}|${drive.incidentsAvailable !== false}`;
+    if (trafficSourceKey.current !== sourceKey) {
+      trafficSourceKey.current = sourceKey;
+      previousTraffic.current = null;
+      trafficAlertBaseline.current = null;
     }
     const trafficKey = (incident: (typeof drive.incidents)[number]) =>
       `${incident.description.trim().toLowerCase()}|${incident.road?.trim().toLowerCase() ?? ""}`;
@@ -2555,15 +2570,19 @@ function Index() {
   const futureDrive = futureDriveResult?.iterations ? futureDriveResult.sample : null;
   const arriveByDrive = futureDrive ?? drive;
   // Be honest about where a drive time comes from: measured now, or projected
-  // for a later departure from TomTom's historic profile.
+  // for a later departure, and by which provider. Mapbox's source line lives in
+  // the one provider note (driveSourceNote), so this label then names only the basis.
+  const labelProvider = (futureDrive ?? drive)?.provider === "mapbox" ? "Mapbox" : "TomTom";
   const driveBasisLabel =
     futureDrive?.trafficBasis === "future-estimate"
-      ? `Drive time: TomTom future estimate for a ${clockFromSeconds(futureDriveResult?.candidateSeconds ?? nowSeconds)} departure${futureDriveResult?.converged ? "" : " (approximate)"}`
+      ? `Drive time: ${labelProvider} estimate for a ${clockFromSeconds(futureDriveResult?.candidateSeconds ?? nowSeconds)} departure${futureDriveResult?.converged ? "" : " (approximate)"}`
       : arriveByActive && drive
-        ? "Drive time: current TomTom traffic used as a fallback; future conditions may differ"
+        ? `Drive time: current ${labelProvider} traffic used as a fallback; future conditions may differ`
         : drive?.trafficBasis === "live"
-          ? "Drive time: TomTom live traffic"
-          : "Drive time: TomTom";
+          ? drive.provider === "mapbox"
+            ? ""
+            : "Drive time: TomTom live traffic"
+          : `Drive time: ${labelProvider}`;
 
   const drivePlan = useMemo(
     () =>
@@ -4793,7 +4812,7 @@ function Index() {
           <span>
             {activeRegion().hasTransit
               ? "Bus and rail times from TheBus timetable"
-              : "Drive times from TomTom live traffic"}
+              : "Drive times from live traffic (TomTom, or Mapbox when TomTom is unavailable)"}
           </span>
           <Button
             variant="ghost"

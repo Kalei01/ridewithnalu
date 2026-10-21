@@ -49,7 +49,12 @@ export function airLine(category: number): WeatherLine | null {
   return null;
 }
 
-export function trafficStatus(delayMinutes: number, incident?: DriveTime["incidents"][number]) {
+export function trafficStatus(
+  delayMinutes: number,
+  incident?: DriveTime["incidents"][number],
+  /** False when there is no usual time to compare with (Mapbox without a typical time, short checks): never "Clear". */
+  delayKnown = true,
+) {
   const delay = Math.max(0, Math.round(delayMinutes));
   if (incident) {
     const condition = standaloneIncidentCondition(incident);
@@ -58,6 +63,7 @@ export function trafficStatus(delayMinutes: number, incident?: DriveTime["incide
       className: "text-destructive",
     };
   }
+  if (!delayKnown) return { label: "Delay unknown", className: "text-muted-foreground" };
   if (delay === 0) return { label: "Clear", className: "text-primary" };
   if (delay > 20) return { label: `Heavy traffic · +${delay} min`, className: "text-destructive" };
   if (delay >= 10) return { label: `Slower than usual · +${delay} min`, className: "text-chart-4" };
@@ -86,6 +92,9 @@ export function H1ConditionsCard({
     { label: "Eastbound", data: eastbound },
     { label: "Westbound", data: westbound },
   ];
+
+  // Name the source that actually answered; Mapbox times are estimates.
+  const providerLabel = rows.some((row) => row.data?.provider === "mapbox") ? "Mapbox (estimate)" : "TomTom";
 
   const Incident = ({ direction, data }: { direction: string; data: DriveTime }) => {
     const incident = data.incidents[0];
@@ -148,7 +157,7 @@ export function H1ConditionsCard({
               </span>
             ) : (
               rows.map(({ label, data }) => {
-                const status = data ? trafficStatus(data.delayMinutes, data.incidents[0]) : null;
+                const status = data ? trafficStatus(data.delayMinutes, data.incidents[0], data.typicalChecked !== false) : null;
                 return (
                   <span
                     key={label}
@@ -168,7 +177,7 @@ export function H1ConditionsCard({
               data ? <Incident key={label} direction={label} data={data} /> : null,
             )}
             <p className="mt-3 text-xs text-muted-foreground">
-              Traffic: TomTom · General road alert — not a trip-specific ETA.
+              Traffic: {providerLabel} · General road alert — not a trip-specific ETA.
             </p>
           </div>
         )}
@@ -185,7 +194,7 @@ export function H1ConditionsCard({
         <h2 id="h1-conditions-title" className="text-lg font-semibold">
           H-1 conditions
         </h2>
-        <span className="shrink-0 text-xs text-muted-foreground">TomTom</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{providerLabel}</span>
       </div>
       {loading && <p className="mt-4 text-sm text-muted-foreground">Checking live traffic…</p>}
       {unavailable && (
@@ -196,7 +205,7 @@ export function H1ConditionsCard({
       {!loading && !unavailable && (
         <div className="mt-3 divide-y divide-border">
           {rows.map(({ label, data }) => {
-            const status = data ? trafficStatus(data.delayMinutes, data.incidents[0]) : null;
+            const status = data ? trafficStatus(data.delayMinutes, data.incidents[0], data.typicalChecked !== false) : null;
             return (
               <div key={label} className="py-3">
                 <div className="grid min-h-9 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-4">

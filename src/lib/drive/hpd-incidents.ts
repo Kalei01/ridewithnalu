@@ -16,9 +16,27 @@
  * otherwise by road names in the Address text only (no geocoding of any kind).
  */
 import { incidentTouchesRoute, type GeoPoint } from "./incident-correlation";
+import { titleCase } from "../commute-formatting";
 import { sharedIncidents } from "./tomtom-guard";
 
-export const HPD_INCIDENTS_URL = "https://data.honolulu.gov/resource/ykb6-n5th.json?$limit=500";
+const HPD_BASE = "https://data.honolulu.gov/resource/ykb6-n5th.json";
+export const HPD_INCIDENTS_URL = `${HPD_BASE}?$limit=500`;
+
+/**
+ * Newest first, only rows from yesterday (Hawaii time) on, so the 500-row limit
+ * can never hide today's reports behind old ones. `date` is the documented
+ * "Date" column; if the portal rejects the query (a different field name) the
+ * plain URL is used and the code sorts by the timestamps it parses itself.
+ */
+export function hpdQueryUrl(nowMs: number): string {
+  const yesterday = new Date(nowMs + HST_OFFSET_MS - 24 * 3600_000).toISOString().slice(0, 10);
+  const params = new URLSearchParams({
+    $limit: "500",
+    $order: "date DESC",
+    $where: `date >= '${yesterday}T00:00:00'`,
+  });
+  return `${HPD_BASE}?${params.toString()}`;
+}
 export const HPD_ATTRIBUTION = "Honolulu Police Department via Honolulu Open Data";
 /** Reports older than this are not "ahead of you" news any more. */
 export const HPD_MAX_AGE_MS = 90 * 60_000;
@@ -108,6 +126,18 @@ function classify(type: string): Pick<HpdReport, "category" | "label"> | null {
   return null;
 }
 
+/** The newest timestamp among ALL rows (including kinds we don't show): proof the feed is current. */
+export function newestHpdRow(rows: unknown): number | null {
+  if (!Array.isArray(rows)) return null;
+  let newest: number | null = null;
+  for (const raw of rows) {
+    if (!raw || typeof raw !== "object") continue;
+    const at = hpdTimestamp(field(raw as Row, "date"), field(raw as Row, "time"));
+    if (at !== null && (newest === null || at > newest)) newest = at;
+  }
+  return newest;
+}
+
 /** Reads Socrata rows into reports we can place in time and kind. Anything else is dropped. */
 export function parseHpdRows(rows: unknown): HpdReport[] {
   if (!Array.isArray(rows)) return [];
@@ -169,14 +199,56 @@ export function roadNeedle(road: string): RegExp | null {
   return new RegExp(`(?:^|[^A-Z0-9])${escaped}(?![A-Z0-9])`);
 }
 
-function titleCase(address: string): string {
+const OKINA_SPELLINGS: Array<[RegExp, string]> = [
+  [/\bKalanianaole\b/gi, "Kalanianaʻole"],
+  [/\bKapiolani\b/gi, "Kapiʻolani"],
+  [/\bKaahumanu\b/gi, "Kaʻahumanu"],
+  [/\bOahu\b/gi, "Oʻahu"],
+];
+
+const HEADING: Record<string, string> = {
+  EB: "eastbound",
+  WB: "westbound",
+  NB: "northbound",
+  SB: "southbound",
+};
+
+/** One street of an HPD address in local style: "H-1 eastbound", "Kamehameha Highway". */
+function localStreet(part: string): { text: string; freeway: boolean } {
+  const cleaned = normalize(part);
+  const heading = cleaned.match(/\s(EB|WB|NB|SB)$/)?.[1];
+  const base = heading ? cleaned.slice(0, -3).trim() : cleaned;
+  const freeway = base.match(/^(?:I-?)?H-?\s?(\d)(?:\s+FWY)?$/);
+  if (freeway)
+    return { text: `H-${freeway[1]}${heading ? ` ${HEADING[heading]}` : ""}`, freeway: true };
+  const spelled = base
+    .replace(/\bBLVD\b/g, "BOULEVARD")
+    .replace(/\bRD\b/g, "ROAD")
+    .replace(/\bST\b/g, "STREET")
+    .replace(/\bAVE\b/g, "AVENUE")
+    .replace(/\bPKWY\b/g, "PARKWAY")
+    .replace(/\bDR\b/g, "DRIVE");
+  let text = titleCase(spelled);
+  for (const [pattern, replacement] of OKINA_SPELLINGS) text = text.replace(pattern, replacement);
+  return { text: text.replace(/\s+/g, " ").trim(), freeway: false };
+}
+
+/** Splits "KAMEHAMEHA HWY / KAIAHUA ST" into its streets. */
+function addressParts(address: string): string[] {
   return address
-    .toLowerCase()
-    .replace(/\b([a-z])([a-z]*)/g, (_m, a: string, b: string) => a.toUpperCase() + b)
-    .replace(/\b(H)-?(\d)\b/gi, (_m, h: string, n: string) => `${h.toUpperCase()}-${n}`)
-    .replace(/\b(Eb|Wb|Nb|Sb)\b/g, (m) => m.toUpperCase())
-    .replace(/\s+/g, " ")
-    .trim();
+    .split(/\s*(?:\/|&|\bAT\b|@|\bAND\b)\s*/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+/** "Collision on H-1 eastbound near Moanalua Road" / "Collision near Kamehameha Highway at Kaiahua Street". */
+export function hpdPlaceText(label: string, address: string): string {
+  const [first, ...rest] = addressParts(address).map(localStreet);
+  if (!first) return `${label} near ${titleCase(address)}`;
+  const others = rest.map((r) => r.text).join(" and ");
+  return first.freeway
+    ? `${label} on ${first.text}${others ? ` near ${others}` : ""}`
+    : `${label} near ${first.text}${others ? ` at ${others}` : ""}`;
 }
 
 function hstClock(atMs: number): string {
@@ -223,15 +295,26 @@ export function hpdIncidentsForRoute(
     if (report.point) {
       if (!incidentTouchesRoute([report.point], route.path, ON_ROUTE_M)) continue;
     } else {
-      const address = normalize(report.address);
-      const hit = needles.find(({ needle }) => needle.test(address));
-      if (!hit) continue;
-      road = hit.road;
+      // No coordinates: the route must pass the named place, i.e. at least two
+      // of the streets in the address (the road and its cross street) are roads
+      // this route uses. One road alone could be anywhere along it.
+      const parts = addressParts(report.address).map(normalize);
+      const matched = new Set<string>();
+      let firstRoad: string | null = null;
+      for (const part of parts) {
+        const hit = needles.find(({ needle }) => needle.test(part));
+        if (hit) {
+          matched.add(hit.road);
+          firstRoad ??= hit.road;
+        }
+      }
+      if (parts.length < 2 || matched.size < 2) continue;
+      road = firstRoad;
     }
-    const place = titleCase(report.address);
+    const place = localStreet(addressParts(report.address)[0] ?? report.address).text;
     out.push({
       id: report.id,
-      description: `Reported by HPD: ${report.label} near ${place}, ${hstClock(report.atMs)}`,
+      description: `Police report: ${hpdPlaceText(report.label, report.address)}, ${hstClock(report.atMs)}`,
       road,
       delayMinutes: null,
       category: report.category,
@@ -251,53 +334,68 @@ export function hpdIncidentsForRoute(
 
 let failedUntil = 0;
 
-/** Recent HPD reports, shared by every rider for 5 minutes. Empty (never throws) when unreachable. */
+/** The feed must show something this recent before we claim to cover the road. */
+const HPD_CURRENT_WITHIN_MS = 6 * 3600_000;
+
+export type HpdFeed = { reports: HpdReport[]; newestMs: number | null };
+
+async function getRows(fetcher: typeof fetch, url: string): Promise<Response> {
+  return fetcher(url, {
+    signal: AbortSignal.timeout(5000),
+    headers: { Accept: "application/json" },
+  });
+}
+
+/** Recent HPD reports, shared by every rider for 5 minutes. Null (never throws) when unreachable. */
 export async function loadHpdReports(
   fetcher: typeof fetch = fetch,
   now = Date.now(),
-): Promise<HpdReport[] | null> {
+): Promise<HpdFeed | null> {
   if (now < failedUntil) return null;
-  const reports = await sharedIncidents<HpdReport[]>(
+  return sharedIncidents<HpdFeed>(
     "hpd",
     HPD_CACHE_MS,
     async () => {
       try {
-        const response = await fetcher(HPD_INCIDENTS_URL, {
-          signal: AbortSignal.timeout(5000),
-          headers: { Accept: "application/json" },
-        });
+        let response = await getRows(fetcher, hpdQueryUrl(now));
+        // A rejected query (400/404: the field name differs) retries with the plain URL.
+        if (response.status === 400 || response.status === 404)
+          response = await getRows(fetcher, HPD_INCIDENTS_URL);
         if (!response.ok) {
           console.warn(`[hpd] incidents feed returned ${response.status}`);
           failedUntil = now + HPD_FAILURE_BACKOFF_MS;
           return null;
         }
-        return parseHpdRows(await response.json());
+        const rows: unknown = await response.json();
+        return { reports: parseHpdRows(rows), newestMs: newestHpdRow(rows) };
       } catch (error) {
-        console.warn("[hpd] incidents feed failed", error);
+        console.warn("[hpd] incidents feed failed", error instanceof Error ? error.name : "error");
         failedUntil = now + HPD_FAILURE_BACKOFF_MS;
         return null;
       }
     },
     now,
   );
-  return reports;
 }
 
 export function resetHpd(): void {
   failedUntil = 0;
 }
 
-/** HPD reports on this route, never throwing. `checked` is false when the feed couldn't be read. */
+/**
+ * HPD reports on this route, never throwing. `checked` is true only when the feed
+ * answered AND holds something recent: an empty or stale answer never claims coverage.
+ */
 export async function hpdNearRoute(
   route: { path: GeoPoint[]; roads: string[] },
   fetcher: typeof fetch = fetch,
   now = Date.now(),
 ): Promise<{ incidents: HpdDriveIncident[]; checked: boolean }> {
   try {
-    const reports = await loadHpdReports(fetcher, now);
-    return reports
-      ? { incidents: hpdIncidentsForRoute(reports, route, now), checked: true }
-      : { incidents: [], checked: false };
+    const feed = await loadHpdReports(fetcher, now);
+    if (!feed || feed.newestMs === null || now - feed.newestMs > HPD_CURRENT_WITHIN_MS)
+      return { incidents: [], checked: false };
+    return { incidents: hpdIncidentsForRoute(feed.reports, route, now), checked: true };
   } catch {
     return { incidents: [], checked: false };
   }

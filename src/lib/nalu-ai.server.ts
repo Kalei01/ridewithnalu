@@ -1,5 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { countCall, noteTomtomOutcome, quotaSpent, tomtomAvailable, tomtomRoutingAllowed } from "./drive/tomtom-guard";
+import { countCall, isFallbackOutcome, noteTomtomOutcome, quotaSpent, tomtomAvailable, tomtomRoutingAllowed } from "./drive/tomtom-guard";
+import { fetchMapboxRoute } from "./drive/mapbox-directions";
 import { Output, stepCountIs, streamText, tool } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -261,7 +262,46 @@ export type RouteSummary = {
   miles: number;
   roads: string[];
   incidents: RouteTrafficIncident[];
+  /** Who timed the route. Mapbox answers are estimates and carry no incident feed. */
+  provider?: "tomtom" | "mapbox";
+  incidentsAvailable?: boolean;
 };
+
+/** Mapbox driving-traffic as the fallback when TomTom is paused or failing (single route, no arrive-by). */
+async function mapboxRouteOptions(
+  from: Pt,
+  to: Pt,
+  opts: { arriveAt?: string; departAt?: string },
+): Promise<RouteSummary[]> {
+  if (opts.arriveAt) throw new Error("Drive lookup paused (TomTom unavailable; arrive-by needs it).");
+  const route = await fetchMapboxRoute({
+    fromLat: from.lat,
+    fromLon: from.lon,
+    toLat: to.lat,
+    toLon: to.lon,
+    departureTime: opts.departAt,
+  });
+  if (!route) throw new Error("Drive lookup failed (TomTom and Mapbox unavailable).");
+  const minutes = Math.round(route.liveSeconds / 60);
+  const typicalMinutes = route.typicalSeconds === null ? minutes : Math.round(route.typicalSeconds / 60);
+  const roads: string[] = [];
+  for (const step of route.instructions) {
+    const name = step.nextRoadInformation.streetName?.text ?? step.nextRoadInformation.roadShields?.[0]?.roadNumber.text;
+    if (name && !roads.includes(name)) roads.push(name);
+  }
+  return [
+    {
+      minutes,
+      typicalMinutes,
+      delayMinutes: minutes - typicalMinutes,
+      miles: Math.round((route.meters / 1609) * 10) / 10,
+      roads: roads.slice(0, 8),
+      incidents: [],
+      provider: "mapbox",
+      incidentsAvailable: false,
+    },
+  ];
+}
 
 export async function routeOptions(
   from: Pt,
@@ -270,7 +310,7 @@ export async function routeOptions(
 ): Promise<RouteSummary[]> {
   const key = process.env["TOMTOM_API_KEY"];
   if (!key) throw new Error("Drive times are not configured.");
-  if (!tomtomRoutingAllowed()) throw new Error("Drive lookup paused (TomTom allowance or access).");
+  if (!tomtomRoutingAllowed()) return mapboxRouteOptions(from, to, opts);
 
   const url = "https://api.tomtom.com/maps/orbis/routing/routes/calculate?apiVersion=3";
   const routeBody = {
@@ -292,7 +332,9 @@ export async function routeOptions(
   };
 
   countCall("tomtomRouting");
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000),
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(8000),
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -303,8 +345,13 @@ export async function routeOptions(
       "Accept-Language": "en-GB",
     },
     body: JSON.stringify(routeBody),
-  });
+    });
+  } catch (error) {
+    noteTomtomOutcome(error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError") ? "timeout" : "error");
+    return mapboxRouteOptions(from, to, opts);
+  }
   noteTomtomOutcome(res.status);
+  if (!res.ok && isFallbackOutcome(res.status)) return mapboxRouteOptions(from, to, opts);
   if (!res.ok) throw new Error(`Drive lookup failed (TomTom Orbis ${res.status}).`);
 
   const body = (await res.json()) as {
@@ -362,6 +409,8 @@ export async function routeOptions(
       miles: Math.round(((summary?.lengthInMeters ?? 0) / 1609) * 10) / 10,
       roads: roads.slice(0, 8),
       incidents,
+      provider: "tomtom" as const,
+      incidentsAvailable: !(opts.departAt || opts.arriveAt) ? tomtomAvailable("incidents") && !quotaSpent("tomtomIncidents") : true,
     };
   }));
 

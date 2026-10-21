@@ -190,7 +190,7 @@ function driveCacheKey(data: z.infer<typeof schema>) {
   const from = `${round(data.fromLat)},${round(data.fromLon)}`;
   const to = `${round(data.toLat)},${round(data.toLon)}`;
   const departureBucket = data.departureTime
-    ? Math.floor(new Date(data.departureTime).getTime() / (15 * 60_000))
+    ? Math.floor(new Date(data.departureTime).getTime() / (5 * 60_000))
     : "now";
   const headingBucket =
     data.bearing === undefined ? "none" : Math.round((data.bearing % 360) / 15) * 15;
@@ -275,11 +275,13 @@ export async function withHpdReports(
 ): Promise<{ nearby: DriveIncident[]; checked: boolean }> {
   const { incidents, checked } = await hpdNearRoute(route);
   const known = [...tomtomOnRoute, ...nearby].filter((i) => i.category === "1");
-  const fresh = incidents.filter(
-    (report) =>
-      !report.points[0] ||
-      !known.some((k) => (k.points ?? []).some((p) => metersBetween(p, report.points[0]!) < 500)),
-  );
+  // Same collision, two feeds: by position when the report has coordinates, otherwise by road.
+  const fresh = incidents.filter((report) => {
+    const at = report.points[0];
+    if (at) return !known.some((k) => (k.points ?? []).some((p) => metersBetween(p, at) < 500));
+    const road = localRoadName(report.road);
+    return !(road && known.some((k) => localRoadName(k.road ?? null) === road));
+  });
   return { nearby: [...nearby, ...fresh].slice(0, 8), checked };
 }
 

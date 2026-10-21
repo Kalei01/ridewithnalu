@@ -223,7 +223,7 @@ export function ArriveBySection(props: ArriveBySectionProps) {
                 )}
                 {drivePlan && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Parking not included · {driveBasisLabel}
+                    Parking not included{driveBasisLabel ? ` · ${driveBasisLabel}` : ""}
                   </p>
                 )}
               </div>

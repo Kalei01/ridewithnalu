@@ -9,9 +9,9 @@ import { sharedAnswer } from "./shared-cache.server";
 import { simplifyPath } from "./simplify-path";
 import type { HomeLive, HomeShowers, HomeSkyline, HomeTraffic, HomeTrain } from "./home-types";
 
-/** The live strip's whole answer is shared for this long (traffic inside it stays ≤ 2 min old). */
+/** The live strip's whole answer is shared for this long (traffic inside it stays ≤ 5.5 min old: drive answers are shared 5 min to protect the TomTom allowance). */
 export const HOME_LIVE_MAX_AGE_MS = 30_000;
-/** Traffic older than this is read again, so with the shared answer it is never past 2 minutes. */
+/** Traffic older than this is read again, so with the shared answer it is never past about 5.5 minutes. */
 const TRAFFIC_REFRESH_MS = 5 * 60_000;
 
 /** Skyline's two end stations (GTFS stop ids) and the longest scheduled run, plus a margin. */
@@ -61,7 +61,7 @@ export async function freshDrive(ends: {
   return drive;
 }
 
-/** Kapolei ↔ downtown with live traffic: the same lookup (and two-minute cache) as Browse's H-1 check. */
+/** Kapolei ↔ downtown with live traffic: the same lookup (and five-minute cache) as Browse's H-1 check. */
 async function liveTraffic(direction: HomeTraffic["direction"]): Promise<HomeTraffic | null> {
   const [from, to] =
     direction === "eastbound" ? [KAPOLEI_POINT, DOWNTOWN_POINT] : [DOWNTOWN_POINT, KAPOLEI_POINT];
