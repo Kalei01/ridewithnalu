@@ -43,7 +43,7 @@ export type LiveNavMapProps = {
     toward?: string | null;
   } | null;
   /** Reported accident/closure ahead: what and where, in plain words. */
-  incidentNotice?: { text: string; label: string } | null;
+  incidentNotice?: { text: string; label: string; compact?: boolean } | null;
   eta: { arrive: string; range: string | null; minutes: number; distance: string | null } | null;
   muted: boolean;
   onToggleMute: () => void;
@@ -486,7 +486,9 @@ export default function LiveNavMap(props: LiveNavMapProps) {
               <p className="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
                 {incidentNotice.label}
               </p>
-              <p className="mt-0.5 line-clamp-3 text-sm font-semibold leading-snug text-foreground">
+              <p
+                className={`mt-0.5 text-sm font-semibold leading-snug text-foreground ${incidentNotice.compact ? "line-clamp-2" : "line-clamp-3"}`}
+              >
                 {incidentNotice.text}
               </p>
             </div>

@@ -116,8 +116,16 @@ import {
   matchRoutePoint,
   bearingForRouteRequest,
   shouldSuppressReroute,
+  REROUTE_BEARING_FRESH_MS,
   type RouteMatch,
 } from "@/lib/navigation-voice";
+import {
+  CommitmentMemory,
+  ExitDeclineWatcher,
+  ROUTE_NOTICE_MS,
+  resolveLiveRoute,
+  throttledPlanMinute,
+} from "@/lib/route-commitment";
 import { detailedAlertCovers, newIncidentAlertMemory, planIncidentAlerts } from "@/lib/incident-alerts";
 import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
@@ -1171,6 +1179,17 @@ function Index() {
       if (rateTimer !== undefined) window.clearTimeout(rateTimer);
     };
   }, [planMode, arriveByTarget]);
+  // While a drive is navigated the trip search is not re-run every minute
+  // (database load; it fails on weak signal): it moves at most every 5 minutes.
+  // The drive time, ETA and verdict inputs come from their own queries.
+  const planMinuteRef = useRef<{ value: number; at: number } | null>(null);
+  planMinuteRef.current = throttledPlanMinute(
+    planMinuteRef.current,
+    scheduleAfterSeconds,
+    Date.now(),
+    drivingCommitted,
+  );
+  const planScheduleAfterSeconds = planMinuteRef.current.value;
   const planKey = [
     "trip",
     inbound ? "inbound" : "outbound",
@@ -1183,7 +1202,7 @@ function Index() {
     setup.destStopId,
     `access:${vehicleToSkyline}`,
     browseStations.length,
-    scheduleAfterSeconds,
+    planScheduleAfterSeconds,
     planMode,
     planMode === "arrive-by" ? arriveByTarget : null,
   ];
@@ -1214,7 +1233,7 @@ function Index() {
         now,
         nowSeconds,
         planMode,
-        scheduleAfterSeconds,
+        scheduleAfterSeconds: planScheduleAfterSeconds,
         setup,
         tripDirection,
       }),
@@ -1799,6 +1818,8 @@ function Index() {
     point: Coords;
     bearing: number | null;
     nonce: number;
+    /** She drove past an exit and stayed on her road: the route must keep her there. */
+    declined?: { road: string | null; onRoad: string | null; remainingMin: number };
   } | null>(null);
   const [rerouting, setRerouting] = useState(false);
   const diagnosticsActive = (drivingCommitted || Boolean(activeTransitLeg)) && configured;
@@ -1853,6 +1874,12 @@ function Index() {
   const riderAccuracyRef = useRef<number | null>(null);
   const liveAbortRef = useRef<AbortController | null>(null);
   const lastRouteAppliedAtRef = useRef(0);
+  // Route commitment (src/lib/route-commitment.ts): the route on screen only
+  // changes corridor for a main reason, and a declined exit is remembered.
+  const commitMemoryRef = useRef(new CommitmentMemory());
+  const navBasisRef = useRef<DriveTime | null>(null);
+  const commitIdRef = useRef(0);
+  const roadHistoryRef = useRef<Array<DriveTime["path"]>>([]);
   const { data: liveDriveRaw, isError: liveDriveFailed } = useQuery({
     queryKey: [
       "live-drive",
@@ -1878,18 +1905,37 @@ function Index() {
       liveAbortRef.current?.abort();
       const controller = new AbortController();
       liveAbortRef.current = controller;
-      const result = await fetchDriveTime({
-        signal: controller.signal,
-        data: {
-          fromLat: origin.lat,
-          fromLon: origin.lon,
-          toLat: driveTo.lat as number,
-          toLon: driveTo.lon as number,
-          forceRefresh: true,
-          ...(requestBearing === null ? {} : { bearing: requestBearing }),
+      const baseRequest = {
+        fromLat: origin.lat,
+        fromLon: origin.lon,
+        toLat: driveTo.lat as number,
+        toLon: driveTo.lon as number,
+        forceRefresh: true,
+        ...(requestBearing === null ? {} : { bearing: requestBearing }),
+      };
+      const fresh = await fetchDriveTime({ signal: controller.signal, data: baseRequest });
+      const reroute = rerouteRequest !== null && Date.now() - rerouteRequest.nonce < REROUTE_BEARING_FRESH_MS;
+      const resolved = await resolveLiveRoute({
+        fresh,
+        committed: navBasisRef.current,
+        roadHistory: roadHistoryRef.current,
+        rider: origin,
+        bearing: requestBearing,
+        memory: commitMemoryRef.current,
+        now: Date.now(),
+        declined: reroute ? (rerouteRequest.declined ?? null) : null,
+        reroute: reroute && !rerouteRequest.declined,
+        // The same request with waypoints on the rider's road: same live traffic, same start.
+        fetchVia: async (via) => {
+          try {
+            return await fetchDriveTime({ signal: controller.signal, data: { ...baseRequest, via } });
+          } catch {
+            return null;
+          }
         },
       });
-      return { ...result, seq };
+      commitIdRef.current += 1;
+      return { ...resolved.route, seq, commit: { ...resolved.meta, id: commitIdRef.current } };
     },
   });
   const [liveDrive, setLiveDrive] = useState<(typeof liveDriveRaw & object) | null>(null);
@@ -1932,6 +1978,44 @@ function Index() {
   useEffect(() => {
     if (liveDriveFailed) setRerouting(false);
   }, [liveDriveFailed]);
+  // What the commitment logic decided on the last refresh: tell her why a
+  // route changed (text + one spoken line), or log quietly when it stayed put.
+  const [routeNotice, setRouteNotice] = useState<{ text: string; label: string; compact?: boolean } | null>(null);
+  const handledCommitRef = useRef(0);
+  const routeNoticeTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    const commit = liveDriveRaw?.commit;
+    if (!drivingCommitted || !commit || commit.id <= handledCommitRef.current) return;
+    handledCommitRef.current = commit.id;
+    if (commit.outcome === "keep") {
+      if (commit.savesMin !== null) debugLog("route_kept", { savesMin: commit.savesMin, why: commit.why });
+      return;
+    }
+    if (commit.outcome === "propose") {
+      debugLog("route_proposed", {
+        fromVia: commit.fromVia,
+        toVia: commit.toVia,
+        savesMin: commit.savesMin,
+        reason: commit.reason,
+        text: commit.spoken.slice(0, 120),
+      });
+      setRouteNotice({ text: commit.hud, label: "Faster route", compact: true });
+    } else if (commit.outcome === "declined-stay") {
+      debugLog("route_switched", { via: commit.road, plusMin: commit.plusMin, text: commit.spoken.slice(0, 120) });
+      setRouteNotice({ text: commit.hud, label: "Route kept", compact: true });
+    } else {
+      return;
+    }
+    if (!navMutedRef.current) speakCommuteAlert(commit.spoken, "traffic");
+    if (routeNoticeTimerRef.current !== null) window.clearTimeout(routeNoticeTimerRef.current);
+    routeNoticeTimerRef.current = window.setTimeout(() => setRouteNotice(null), ROUTE_NOTICE_MS);
+  }, [liveDriveRaw, drivingCommitted]);
+  useEffect(() => {
+    if (!drivingCommitted) setRouteNotice(null);
+    return () => {
+      if (routeNoticeTimerRef.current !== null) window.clearTimeout(routeNoticeTimerRef.current);
+    };
+  }, [drivingCommitted]);
   // Mid-commute rescue advisor: a delay spike of 8+ minutes over the delay at
   // trip start asks Nalu AI to weigh alternate corridors and a Skyline hub.
   const fetchRescue = useServerFn(rescueAdvice);
@@ -2033,6 +2117,10 @@ function Index() {
 
   // ---- Heading-up navigation & turn-by-turn voice -----------------------------
   const [navMuted, setNavMuted] = useState(false);
+  const navMutedRef = useRef(false);
+  useEffect(() => {
+    navMutedRef.current = navMuted;
+  }, [navMuted]);
   useEffect(() => {
     if (!commitment || navMuted) return;
     return keepNavigationAudioAlive();
@@ -2054,6 +2142,15 @@ function Index() {
     };
   }, [headingUpNav]);
   const navBasis = drivingCommitted ? (liveDrive ?? drive) : null;
+  useEffect(() => {
+    navBasisRef.current = navBasis ?? null;
+    // The roads she has been routed along, newest first: geometry of her own road
+    // for "stay on it" (never guessed from her heading).
+    const path = navBasis?.path;
+    if (path && path.length > 1 && roadHistoryRef.current[0] !== path)
+      roadHistoryRef.current = [path, ...roadHistoryRef.current.filter((p) => p !== path)].slice(0, 4);
+    if (!drivingCommitted) roadHistoryRef.current = [];
+  }, [navBasis, drivingCommitted]);
   const navPath = navBasis?.path ?? [];
   const [navBearing, setNavBearing] = useState<number | null>(null);
   useEffect(() => {
@@ -2159,6 +2256,8 @@ function Index() {
   }, [liveDrive, drive, railLine]);
 
   const passedTurns = useRef(new Set<string>());
+  const declineWatcher = useRef(new ExitDeclineWatcher());
+  const lastMatchRef = useRef<RouteMatch | null>(null);
   const voiceGuide = useRef(new VoiceGuide());
   useEffect(() => {
     if (drivingCommitted) return;
@@ -2166,6 +2265,8 @@ function Index() {
     passedTurns.current = new Set();
     voiceGuide.current = new VoiceGuide();
     lastNavPoint.current = null;
+    commitMemoryRef.current = new CommitmentMemory();
+    declineWatcher.current.reset();
     setNavBearing(null);
   }, [drivingCommitted]);
   const navMatchIndex = useRef<number | null>(null);
@@ -2179,6 +2280,7 @@ function Index() {
       navBearingRef.current,
     );
     navMatchIndex.current = match ? match.segmentIndex : null;
+    lastMatchRef.current = match;
     return nextManeuver(riderPoint, navBasis.maneuvers ?? [], passedTurns.current, {
       path: navBasis.path ?? [],
       match,
@@ -2189,8 +2291,49 @@ function Index() {
     if (voiceGuide.current.sync(navBasis?.maneuvers ?? [])) {
       passedTurns.current = new Set();
       navMatchIndex.current = null;
+      declineWatcher.current.reset();
     }
   }, [navBasis]);
+  // She drove past an exit or ramp and stayed on her road: don't wait for the
+  // off-route check (a ramp runs beside the freeway for a long way). Switch to
+  // a route that continues on her road and don't push that detour again.
+  useEffect(() => {
+    if (!drivingCommitted || !navBasis || !riderPoint || rerouting) return;
+    const declined = declineWatcher.current.observe({
+      maneuvers: navBasis.maneuvers ?? [],
+      path: navBasis.path ?? [],
+      match: lastMatchRef.current,
+      rider: riderPoint,
+      accuracyM: riderAccuracy,
+      speedMps: riderSpeed,
+      heading: riderHeading,
+    });
+    if (!declined) return;
+    const latest = liveOriginRef.current;
+    if (!latest || Date.now() - lastRerouteAtRef.current < 5_000) return;
+    const list = navBasis.maneuvers ?? [];
+    const index = list.findIndex((m) => m.lat === declined.lat && m.lon === declined.lon);
+    const onRoad: string | null = index > 0 ? (list[index - 1]?.road ?? null) : null;
+    const remainingMin = Math.max(
+      1,
+      Math.round(navBasis.trafficMinutes - (Date.now() - navBasis.fetchedAt) / 60_000),
+    );
+    debugLog("route_declined", {
+      maneuver: declined.maneuver,
+      road: declined.road,
+      text: declined.instruction.slice(0, 80),
+    });
+    lastRerouteAtRef.current = Date.now();
+    setRerouting(true);
+    setLiveRouteOrigin(latest);
+    setRerouteRequest({
+      point: latest,
+      bearing: navBearingRef.current,
+      nonce: Date.now(),
+      declined: { road: declined.road, onRoad, remainingMin },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextTurn]);
   useEffect(() => {
     if (!drivingCommitted || !nextTurn) return;
     // Record thresholds even while muted so unmuting never replays old turns.
@@ -2211,6 +2354,8 @@ function Index() {
         road: nextTurn.maneuver.road,
         tier: voiceGuide.current.lastTier,
         speedMps: riderSpeed,
+        // What was said (street/exit wording only), to diagnose a wrong prompt later.
+        text: phrase.slice(0, 100),
       });
     if (phrase && !navMuted) speakCommuteAlert(phrase, "maneuver");
   }, [nextTurn, drivingCommitted, navMuted, riderSpeed, riderAccuracy, rerouting]);
@@ -4576,7 +4721,7 @@ function Index() {
           navMuted={navMuted}
           navPath={navPath}
           nextTurn={nextTurn}
-          incidentNotice={incidentNotice}
+          incidentNotice={incidentNotice ?? routeNotice}
           nowSeconds={nowSeconds}
           openSettingsAt={openSettingsAt}
           rerouting={rerouting}

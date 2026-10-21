@@ -11,7 +11,7 @@ import {
   localizeRoadLabel,
   routeBearingAfter,
 } from "./local-directions";
-import { distanceAlongPath } from "./navigation-voice";
+import { distanceAlongPath, isExitManeuver, metersBetween } from "./navigation-voice";
 import { lookupHdotLaneClosureRoutes, type HdotLaneClosureRoute, type HdotScheduledClosure, lookupHdotScheduledClosures } from "./hdot-lane-closures.functions";
 
 // Per-visitor limits on paid lookups (see rate-limit.server.ts).
@@ -106,6 +106,8 @@ export type DriveTime = {
     maneuver: string;
     instruction: string;
     road: string | null;
+    /** Exits/ramps only: full-resolution route points for ~700 m after the maneuver. */
+    ahead?: Array<{ lat: number; lon: number }>;
   }>;
   fetchedAt: number;
   trafficBasis: "live" | "future-estimate";
@@ -284,7 +286,9 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     const trafficSeconds = summary.travelDurationInSeconds;
     let typicalSeconds = trafficSeconds;
     let typicalChecked = false;
-    if (!data.departureTime) {
+    // A path-priced route has no usual time of its own (TomTom prices the path with live
+    // traffic only), so no second request: the app carries the baseline of the route she is on.
+    if (!data.departureTime && !data.via?.length) {
       try {
         const historicalResponse = await fetch(routeUrl, { signal: AbortSignal.timeout(8000),
           method: "POST",
@@ -640,6 +644,40 @@ function pointAtOffset(path: Array<{ lat: number; lon: number }>, meters: number
   return path[path.length - 1] ?? null;
 }
 
+const RAMP_AHEAD_M = 700;
+const RAMP_AHEAD_SPACING_M = 12;
+
+/** Full-resolution route points for `meters` after the route point nearest `from`. */
+export function routeAhead(
+  path: Array<{ lat: number; lon: number }>,
+  from: { lat: number; lon: number },
+  meters: number,
+): Array<{ lat: number; lon: number }> {
+  let nearest = -1;
+  let best = Infinity;
+  for (let i = 0; i < path.length; i += 1) {
+    const d = metersBetween(path[i]!, from);
+    if (d < best) {
+      best = d;
+      nearest = i;
+    }
+  }
+  if (nearest < 0 || best > 80) return [];
+  const out: Array<{ lat: number; lon: number }> = [];
+  let travelled = 0;
+  let sinceKept = RAMP_AHEAD_SPACING_M;
+  for (let i = nearest + 1; i < path.length && travelled < meters; i += 1) {
+    const step = metersBetween(path[i - 1]!, path[i]!);
+    travelled += step;
+    sinceKept += step;
+    if (sinceKept >= RAMP_AHEAD_SPACING_M) {
+      out.push({ lat: Math.round(path[i]!.lat * 1e5) / 1e5, lon: Math.round(path[i]!.lon * 1e5) / 1e5 });
+      sinceKept = 0;
+    }
+  }
+  return out;
+}
+
 const TURN_WORDS: Record<string, string> = {
   TURN_LEFT: "Turn left",
   TURN_RIGHT: "Turn right",
@@ -697,6 +735,7 @@ export function buildManeuvers(instructions: OrbisInstruction[], path: Array<{ l
         : `${TURN_WORDS[maneuver] ?? "Continue"}${street ? ` onto ${street}` : ""}`);
     return [
       {
+        ...(isExitManeuver(maneuver) ? { ahead: routeAhead(path, point, RAMP_AHEAD_M) } : {}),
         lat: point.lat,
         lon: point.lon,
         maneuver,

@@ -86,7 +86,7 @@ export type MapSectionProps = {
   navMuted: boolean;
   navPath: { lat: number; lon: number }[];
   nextTurn: { maneuver: import("@/lib/navigation-voice").Maneuver; distanceM: number } | null;
-  incidentNotice?: { text: string; label: string } | null;
+  incidentNotice?: { text: string; label: string; compact?: boolean } | null;
   nowSeconds: number;
   openSettingsAt: (page: import("@/components/settings/SetupDialog").SettingsPageId) => void;
   rerouting: boolean;

@@ -6,7 +6,19 @@ export type Maneuver = {
   maneuver: string;
   instruction: string;
   road: string | null;
+  /**
+   * Exits, ramps and forks only: the route's own full-resolution points for the
+   * next ~700 m after the maneuver (the 300-point route line is too coarse to
+   * tell a ramp from the road beside it). Used to notice a declined exit.
+   */
+  ahead?: Array<{ lat: number; lon: number }>;
 };
+
+/** Exits, ramps and forks: where a driver can decline and stay on the road. */
+export function isExitManeuver(code: string): boolean {
+  if (code.startsWith("ARRIVE")) return false;
+  return /EXIT|RAMP|FORK|ENTER_MOTORWAY|ENTER_FREEWAY|TAKE_EXIT/i.test(code);
+}
 
 export const FAR_ANNOUNCE_M = 805; // ~0.5 mile
 export const NEAR_ANNOUNCE_M = 91; // ~300 ft
