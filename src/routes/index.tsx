@@ -457,7 +457,15 @@ function Index() {
   // re-created it, which re-ran the load many times a second during a trip.
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), commitment ? 30_000 : 120_000);
-    return () => window.clearInterval(timer);
+    // A tab hidden for a while catches up the moment it is shown again.
+    const onShow = () => {
+      if (document.visibilityState === "visible") setNow(new Date());
+    };
+    document.addEventListener("visibilitychange", onShow);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onShow);
+    };
   }, [commitment]);
 
   // Local data remains authoritative on the device. On sign-in, merge any
@@ -1188,6 +1196,8 @@ function Index() {
     scheduleAfterSeconds,
     Date.now(),
     drivingCommitted,
+    // Idle trip screen: no re-plan while the tab is hidden, and one at most every 5 minutes.
+    { hidden: typeof document !== "undefined" && document.visibilityState === "hidden" },
   );
   const planScheduleAfterSeconds = planMinuteRef.current.value;
   const planKey = [
@@ -1794,8 +1804,8 @@ function Index() {
     enabled: hydrated && configured && driveFrom.lat !== null && driveTo.lat !== null,
     // A driver underway gets rolling traffic, congestion and incident updates
     // every 2 minutes; otherwise the slower 5-minute cadence is plenty.
-    staleTime: 2 * 60_000,
-    refetchInterval: 2 * 60_000,
+    staleTime: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
+    refetchInterval: drivingCommitted ? 2 * 60_000 : 5 * 60_000,
     refetchIntervalInBackground: false,
     retry: 1,
     queryFn: () =>
@@ -2636,8 +2646,8 @@ function Index() {
   } = useQuery({
     queryKey: ["browse-h1", "eastbound"],
     enabled: hydrated,
-    staleTime: 2 * 60_000,
-    refetchInterval: 2 * 60_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -2659,8 +2669,8 @@ function Index() {
   } = useQuery({
     queryKey: ["browse-h1", "westbound"],
     enabled: hydrated,
-    staleTime: 2 * 60_000,
-    refetchInterval: 2 * 60_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({

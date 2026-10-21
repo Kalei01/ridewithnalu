@@ -1,4 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
+import { countCall, noteTomtomOutcome, quotaSpent, tomtomAvailable, tomtomRoutingAllowed } from "./drive/tomtom-guard";
 import { Output, stepCountIs, streamText, tool } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -201,8 +202,11 @@ async function trafficIncidentsForRoute(routePoints: Pt[], key: string): Promise
     timeValidityFilter: "present",
   });
 
+  if (!tomtomAvailable("incidents") || quotaSpent("tomtomIncidents")) return [];
   try {
+    countCall("tomtomIncidents");
     const response = await fetch("https://api.tomtom.com/traffic/services/5/incidentDetails?" + params.toString(), { signal: AbortSignal.timeout(6000) });
+    noteTomtomOutcome(response.status, "incidents");
     if (!response.ok) {
       console.warn("[traffic] incident lookup failed", response.status);
       return [];
@@ -266,6 +270,7 @@ export async function routeOptions(
 ): Promise<RouteSummary[]> {
   const key = process.env["TOMTOM_API_KEY"];
   if (!key) throw new Error("Drive times are not configured.");
+  if (!tomtomRoutingAllowed()) throw new Error("Drive lookup paused (TomTom allowance or access).");
 
   const url = "https://api.tomtom.com/maps/orbis/routing/routes/calculate?apiVersion=3";
   const routeBody = {
@@ -286,6 +291,7 @@ export async function routeOptions(
     instructionPhonetics: "ipa",
   };
 
+  countCall("tomtomRouting");
   const res = await fetch(url, { signal: AbortSignal.timeout(8000),
     method: "POST",
     headers: {
@@ -298,6 +304,7 @@ export async function routeOptions(
     },
     body: JSON.stringify(routeBody),
   });
+  noteTomtomOutcome(res.status);
   if (!res.ok) throw new Error(`Drive lookup failed (TomTom Orbis ${res.status}).`);
 
   const body = (await res.json()) as {

@@ -1,4 +1,5 @@
 import { TransitItinerary } from "@/components/commute/TransitItinerary";
+import { driveSourceNote } from "@/lib/drive/provider-note";
 import { RailTripBreakdown } from "@/components/commute/RailTripBreakdown";
 import { DriveDetails } from "@/components/commute/DriveDetails";
 import { RouteCorridor } from "@/components/commute/RouteCorridor";
@@ -170,6 +171,9 @@ export function ModeDetailsSection(props: ModeDetailsSectionProps) {
                   ))}
                 {driveAvailable && driveRange && drive && (
                   <p className="mt-3 text-xs text-muted-foreground">{driveBasisLabel}</p>
+                )}
+                {driveAvailable && driveSourceNote(drive) && (
+                  <p className="mt-2 text-xs text-muted-foreground">{driveSourceNote(drive)}</p>
                 )}
                 {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
                   <HdotRoadworkNotice

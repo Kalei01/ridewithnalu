@@ -306,8 +306,8 @@ export function useBrowseData() {
   const eastbound = useQuery({
     queryKey: ["browse-h1", "eastbound"],
     enabled: hydrated,
-    staleTime: 2 * 60_000,
-    refetchInterval: 2 * 60_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -323,8 +323,8 @@ export function useBrowseData() {
   const westbound = useQuery({
     queryKey: ["browse-h1", "westbound"],
     enabled: hydrated,
-    staleTime: 2 * 60_000,
-    refetchInterval: 2 * 60_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({

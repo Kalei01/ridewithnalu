@@ -14,6 +14,24 @@ import {
 import { distanceAlongPath, isExitManeuver, metersBetween } from "./navigation-voice";
 import { lookupHdotLaneClosureRoutes, type HdotLaneClosureRoute, type HdotScheduledClosure, lookupHdotScheduledClosures } from "./hdot-lane-closures.functions";
 
+import {
+  breakerState,
+  countCall,
+  incidentBoxFor,
+  incidentMaxAgeMs,
+  isFallbackOutcome,
+  noteTomtomOutcome,
+  quotaSpent,
+  readTypical,
+  rememberTypical,
+  sharedIncidents,
+  tomtomAvailable,
+  tomtomRoutingAllowed,
+  typicalKey,
+  type TomtomOutcome,
+} from "./drive/tomtom-guard";
+import { fetchMapboxRoute, lastMapboxFailureReason, type MapboxRoute } from "./drive/mapbox-directions";
+
 // Per-visitor limits on paid lookups (see rate-limit.server.ts).
 const driveLimit = rateLimit("drive", 150);
 
@@ -111,6 +129,13 @@ export type DriveTime = {
   }>;
   fetchedAt: number;
   trafficBasis: "live" | "future-estimate";
+  /** Who produced the live time. "mapbox" is the fallback when TomTom is out of quota or down. */
+  provider?: "tomtom" | "mapbox";
+  /**
+   * False when incident data could not be read (TomTom paused, over quota or failed;
+   * Mapbox has no incident feed). Then an empty `incidents` list means "unknown", never "none".
+   */
+  incidentsAvailable?: boolean;
 };
 
 export type DriveTrafficSection = {
@@ -119,7 +144,10 @@ export type DriveTrafficSection = {
   points: Array<{ lat: number; lon: number }>;
 };
 
-const CACHE_MS = 2 * 60_000;
+/** Live TomTom answers are shared for 5 minutes; future-departure estimates for 30 (a profile, not a reading). */
+const CACHE_MS = 5 * 60_000;
+const FUTURE_CACHE_MS = 30 * 60_000;
+const cacheTtl = (basis: DriveTime["trafficBasis"] | undefined) => (basis === "future-estimate" ? FUTURE_CACHE_MS : CACHE_MS);
 const MAX_CACHE_ENTRIES = 100;
 const cache = new Map<string, DriveTime>();
 
@@ -155,7 +183,7 @@ function driveCacheKey(data: z.infer<typeof schema>) {
   const from = `${round(data.fromLat)},${round(data.fromLon)}`;
   const to = `${round(data.toLat)},${round(data.toLon)}`;
   const departureBucket = data.departureTime
-    ? Math.floor(new Date(data.departureTime).getTime() / (5 * 60_000))
+    ? Math.floor(new Date(data.departureTime).getTime() / (15 * 60_000))
     : "now";
   const headingBucket =
     data.bearing === undefined ? "none" : Math.round((data.bearing % 360) / 15) * 15;
@@ -213,6 +241,7 @@ export function lastDriveFailureReason(): string | null {
 const VIA_RETRY_AFTER_MS = 10 * 60_000;
 
 function requestOrbisRoute(key: string, routeBody: object) {
+  countCall("tomtomRouting");
   return fetch(ORBIS_ROUTE_URL, { signal: AbortSignal.timeout(8000),
     method: "POST",
     headers: {
@@ -227,21 +256,51 @@ function requestOrbisRoute(key: string, routeBody: object) {
   });
 }
 
-/** Live driving time with traffic plus any incident on the route, via TomTom. */
-export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<DriveTime | null> {
-  const key = tomtomKey();
-  if (!key) {
-    console.error("[drive] routing unavailable: TOMTOM_API_KEY is not set");
-    return null;
-  }
+const FALLBACK = Symbol("tomtom-fallback");
 
+function outcomeOf(error: unknown): TomtomOutcome {
+  return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError") ? "timeout" : "error";
+}
+
+/**
+ * Live driving time with traffic plus any incident on the route. TomTom is the
+ * main provider; when it answers 403/429/5xx, times out, or is paused by the
+ * circuit breaker, Mapbox Directions (driving-traffic) answers instead and the
+ * result says so (`provider: "mapbox"`, `incidentsAvailable: false`).
+ * Mapbox results are never cached (their terms forbid it).
+ */
+export async function lookupDriveTime(
+  data: z.infer<typeof schema>,
+  options: { lite?: boolean } = {},
+): Promise<DriveTime | null> {
+  const key = tomtomKey();
+  const cacheKey = driveCacheKey(data);
+  const cached = cache.get(cacheKey);
+  if ((!data.forceRefresh || options.lite) && cached && Date.now() - cached.fetchedAt < cacheTtl(cached.trafficBasis)) {
+    console.info("[drive] cache_hit", { trafficBasis: cached.trafficBasis });
+    return cached;
+  }
+  if (!key) console.error("[drive] routing unavailable: TOMTOM_API_KEY is not set");
+  if (key && tomtomRoutingAllowed()) {
+    const answer = await tomtomDriveTime(data, key, cacheKey, options.lite === true);
+    if (answer !== FALLBACK) return answer;
+  } else {
+    lastDriveFailure = key
+      ? (breakerState("routing").reason ?? "TomTom routing allowance used up (this server's count)")
+      : "TOMTOM_API_KEY not set";
+  }
+  // A path-priced "stay on my road" request is TomTom-only: the app fails toward the fresh route.
+  if (data.via?.length) return null;
+  return mapboxDriveTime(data);
+}
+
+async function tomtomDriveTime(
+  data: z.infer<typeof schema>,
+  key: string,
+  cacheKey: string,
+  lite = false,
+): Promise<DriveTime | null | typeof FALLBACK> {
   try {
-    const cacheKey = driveCacheKey(data);
-    const cached = cache.get(cacheKey);
-    if (!data.forceRefresh && cached && Date.now() - cached.fetchedAt < CACHE_MS) {
-      console.info("[drive] cache_hit", { trafficBasis: cached.trafficBasis });
-      return cached;
-    }
     console.info("[drive] cache_miss", {
       trafficBasis: data.departureTime ? "future-estimate" : "live",
     });
@@ -259,6 +318,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
         await new Promise((resolve) => setTimeout(resolve, 800));
         response = await requestOrbisRoute(key, routeBody);
       }
+      noteTomtomOutcome(response.status);
       if (response.status === 400) {
         console.error(`[drive] via path refused: ${(await response.text()).replace(/\s+/g, " ").slice(0, 300)}`);
         viaRefusedUntil = Date.now() + VIA_RETRY_AFTER_MS;
@@ -266,11 +326,12 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       }
     } else {
       response = await requestOrbisRoute(key, routeBody);
+      noteTomtomOutcome(response.status);
     }
     if (!response.ok) {
       console.error(`[drive] Orbis routing unavailable: TomTom returned ${response.status}`);
       lastDriveFailure = `TomTom HTTP ${response.status}`;
-      return null;
+      return isFallbackOutcome(response.status) ? FALLBACK : null;
     }
 
     const payload = (await response.json()) as {
@@ -295,8 +356,15 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     let typicalChecked = false;
     // A path-priced route has no usual time of its own (TomTom prices the path with live
     // traffic only), so no second request: the app carries the baseline of the route she is on.
-    if (!data.departureTime && !data.via?.length) {
-      try {
+    if (!data.departureTime && !data.via?.length && !lite) {
+      // The usual time is a historical profile: remembered for hours per origin/destination/hour.
+      const usualKey = typicalKey(data);
+      const usual = readTypical(usualKey);
+      if (usual !== null) {
+        typicalSeconds = usual;
+        typicalChecked = true;
+      } else if (tomtomRoutingAllowed()) try {
+        countCall("tomtomRouting");
         const historicalResponse = await fetch(routeUrl, { signal: AbortSignal.timeout(8000),
           method: "POST",
           headers: {
@@ -309,12 +377,14 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
           },
           body: JSON.stringify({ ...routeBody, traffic: "historical" }),
         });
+        noteTomtomOutcome(historicalResponse.status);
         if (historicalResponse.ok) {
           const historical = (await historicalResponse.json()) as { routes?: Array<{ summary?: { travelDurationInSeconds?: number } }> };
           const historicalSeconds = historical.routes?.[0]?.summary?.travelDurationInSeconds;
           if (typeof historicalSeconds === "number" && historicalSeconds > 0) {
             typicalSeconds = historicalSeconds;
             typicalChecked = true;
+            rememberTypical(usualKey, historicalSeconds);
           }
         }
       } catch {
@@ -336,11 +406,13 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       onRoute: incidents,
       offRoute,
       nearby: nearbyIncidents,
-    } = data.departureTime
+      available: incidentsAvailable,
+    } = data.departureTime || lite
       ? {
           onRoute: [] as DriveIncident[],
           offRoute: [] as Array<string | null>,
           nearby: [] as DriveIncident[],
+          available: !lite,
         }
       : await fetchIncidents(key, data, path);
 
@@ -381,20 +453,91 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       maneuvers: buildManeuvers(route?.instructions ?? [], fullPath),
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
+      provider: "tomtom",
+      incidentsAvailable,
     };
 
-    cacheDrive(cacheKey, result);
+    if (!lite) cacheDrive(cacheKey, result);
     return result;
   } catch (error) {
+    noteTomtomOutcome(outcomeOf(error));
     // An unavailable route is not a zero-minute drive. The caller can keep
     // rendering rail and cached schedules without a failed server action.
     console.error("[drive] routing unavailable: TomTom request failed", error);
     lastDriveFailure = `exception: ${error instanceof Error ? `${error.name}: ${error.message}` : "unknown"}`.slice(0, 160);
-    return null;
+    return FALLBACK;
   }
 }
 
+/** The Mapbox fallback, shaped like a TomTom answer but labelled honestly. Never cached or stored. */
+async function mapboxDriveTime(data: z.infer<typeof schema>): Promise<DriveTime | null> {
+  const route = await fetchMapboxRoute(data);
+  if (!route) {
+    lastDriveFailure = `${lastDriveFailure ?? "TomTom unavailable"}; ${lastMapboxFailureReason() ?? "Mapbox failed"}`.slice(0, 200);
+    return null;
+  }
+  return driveTimeFromMapbox(data, route);
+}
+
+export async function driveTimeFromMapbox(data: z.infer<typeof schema>, route: MapboxRoute): Promise<DriveTime> {
+  const fullPath = route.path;
+  let hdotLaneClosures: HdotLaneClosureRoute[] = [];
+  let hdotScheduledClosures: HdotScheduledClosure[] = [];
+  try {
+    hdotLaneClosures = await lookupHdotLaneClosureRoutes({ routePath: fullPath });
+    hdotScheduledClosures = await lookupHdotScheduledClosures(hdotLaneClosures);
+  } catch {
+    // Roadwork context is supplemental.
+  }
+  const trafficSections: DriveTrafficSection[] = route.congestion.map((run) => ({
+    severity: run.severity,
+    // Mapbox gives a congestion level, not minutes: no delay figure is invented.
+    delayMinutes: 0,
+    points: thinPath(fullPath.slice(run.start, run.end + 1), 80),
+  }));
+  const corridor = extractCorridor(
+    normalizeOrbisInstructions(route.instructions),
+    route.meters,
+    { fromLon: data.fromLon, toLon: data.toLon },
+  );
+  const trafficMinutes = Math.round(route.liveSeconds / 60);
+  // Only when Mapbox itself returned a typical duration; otherwise there is no "usual" to compare.
+  const typicalChecked = route.typicalSeconds !== null;
+  const typicalMinutes = typicalChecked ? Math.round((route.typicalSeconds as number) / 60) : trafficMinutes;
+  return {
+    trafficMinutes,
+    typicalMinutes,
+    typicalChecked,
+    delayMinutes: trafficMinutes - typicalMinutes,
+    lowMinutes: trafficMinutes,
+    highMinutes: trafficMinutes,
+    meters: route.meters,
+    path: thinPath(fullPath),
+    trafficSections,
+    incidents: [],
+    nearbyIncidents: [],
+    hdotLaneClosures,
+    hdotScheduledClosures,
+    corridorLabel: corridor?.label ?? null,
+    corridorRoads: corridor?.roads ?? [],
+    bypassedRoads: [],
+    maneuvers: buildManeuvers(route.instructions, fullPath),
+    fetchedAt: Date.now(),
+    trafficBasis: data.departureTime ? "future-estimate" : "live",
+    provider: "mapbox",
+    incidentsAvailable: false,
+  };
+}
+
 const trafficCache = new Map<string, { trafficMinutes: number; fetchedAt: number }>();
+
+/** Test hook: forget remembered TomTom answers. */
+export function resetDriveCaches(): void {
+  cache.clear();
+  trafficCache.clear();
+  viaRefusedUntil = 0;
+  lastDriveFailure = null;
+}
 
 /**
  * Only the live road time, for timing a drive to a Skyline station on the
@@ -406,42 +549,45 @@ const trafficCache = new Map<string, { trafficMinutes: number; fetchedAt: number
  */
 export async function lookupTrafficMinutes(
   data: z.infer<typeof schema>,
-): Promise<{ trafficMinutes: number } | null> {
+): Promise<{ trafficMinutes: number; provider?: "tomtom" | "mapbox" } | null> {
   const key = tomtomKey();
-  if (!key) {
-    console.error("[drive] routing unavailable: TOMTOM_API_KEY is not set");
-    return null;
-  }
   const cacheKey = driveCacheKey(data);
+  const ttl = cacheTtl(data.departureTime ? "future-estimate" : "live");
   const full = cache.get(cacheKey);
-  if (full && Date.now() - full.fetchedAt < CACHE_MS) return { trafficMinutes: full.trafficMinutes };
+  if (full && Date.now() - full.fetchedAt < ttl) return { trafficMinutes: full.trafficMinutes, provider: "tomtom" };
   const remembered = trafficCache.get(cacheKey);
-  if (remembered && Date.now() - remembered.fetchedAt < CACHE_MS)
-    return { trafficMinutes: remembered.trafficMinutes };
-  try {
-    const response = await requestOrbisRoute(key, orbisRouteBody(data));
-    if (!response.ok) {
+  if (remembered && Date.now() - remembered.fetchedAt < ttl)
+    return { trafficMinutes: remembered.trafficMinutes, provider: "tomtom" };
+  if (key && tomtomRoutingAllowed()) {
+    try {
+      const response = await requestOrbisRoute(key, orbisRouteBody(data));
+      noteTomtomOutcome(response.status);
+      if (response.ok) {
+        const payload = (await response.json()) as {
+          routes?: Array<{ summary?: { travelDurationInSeconds?: number } }>;
+        };
+        const seconds = payload.routes?.[0]?.summary?.travelDurationInSeconds;
+        if (!seconds) return null;
+        const trafficMinutes = Math.round(seconds / 60);
+        trafficCache.delete(cacheKey);
+        trafficCache.set(cacheKey, { trafficMinutes, fetchedAt: Date.now() });
+        while (trafficCache.size > MAX_CACHE_ENTRIES) {
+          const oldest = trafficCache.keys().next().value;
+          if (typeof oldest !== "string") break;
+          trafficCache.delete(oldest);
+        }
+        return { trafficMinutes, provider: "tomtom" };
+      }
       console.error(`[drive] Orbis routing unavailable: TomTom returned ${response.status}`);
-      return null;
+      if (!isFallbackOutcome(response.status)) return null;
+    } catch (error) {
+      noteTomtomOutcome(outcomeOf(error));
+      console.error("[drive] routing unavailable: TomTom request failed");
     }
-    const payload = (await response.json()) as {
-      routes?: Array<{ summary?: { travelDurationInSeconds?: number } }>;
-    };
-    const seconds = payload.routes?.[0]?.summary?.travelDurationInSeconds;
-    if (!seconds) return null;
-    const trafficMinutes = Math.round(seconds / 60);
-    trafficCache.delete(cacheKey);
-    trafficCache.set(cacheKey, { trafficMinutes, fetchedAt: Date.now() });
-    while (trafficCache.size > MAX_CACHE_ENTRIES) {
-      const oldest = trafficCache.keys().next().value;
-      if (typeof oldest !== "string") break;
-      trafficCache.delete(oldest);
-    }
-    return { trafficMinutes };
-  } catch {
-    console.error("[drive] routing unavailable: TomTom request failed");
-    return null;
   }
+  // TomTom is paused, over quota or failing: Mapbox times the drive (never stored).
+  const route = await fetchMapboxRoute(data);
+  return route ? { trafficMinutes: Math.round(route.liveSeconds / 60), provider: "mapbox" } : null;
 }
 
 export const driveTime = createServerFn({ method: "POST" })
@@ -449,55 +595,93 @@ export const driveTime = createServerFn({ method: "POST" })
   .validator((input) => schema.parse(input))
   .handler(async ({ data }) => lookupDriveTime(data));
 
-/** Active incidents inside a slightly padded box around the two points. */
+type IncidentPayload = {
+  incidents?: Array<{
+    geometry?: { type?: string; coordinates?: unknown };
+    properties?: {
+      id?: string;
+      magnitudeOfDelay?: number;
+      delay?: number;
+      roadNumbers?: string[];
+      from?: string;
+      iconCategory?: number;
+      to?: string;
+      endTime?: string;
+      events?: Array<{ description?: string }>;
+    };
+  }>;
+};
+
+const INCIDENT_FIELDS =
+  "{incidents{geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,delay,roadNumbers,from,to,endTime,events{description}}}}";
+
+/** One TomTom incidentDetails request for a box (counted, breaker-aware). Null when it can't be read. */
+async function loadIncidentBox(
+  key: string,
+  box: { minLat: number; maxLat: number; minLon: number; maxLon: number },
+): Promise<IncidentPayload | null> {
+  const url =
+    `https://api.tomtom.com/traffic/services/5/incidentDetails` +
+    `?key=${key}&bbox=${box.minLon},${box.minLat},${box.maxLon},${box.maxLat}` +
+    `&fields=${encodeURIComponent(INCIDENT_FIELDS)}&language=en-GB&timeValidityFilter=present`;
+  try {
+    countCall("tomtomIncidents");
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    noteTomtomOutcome(response.status, "incidents");
+    if (!response.ok) {
+      console.error(`TomTom incidents failed [${response.status}]`);
+      return null;
+    }
+    return (await response.json()) as IncidentPayload;
+  } catch (error) {
+    noteTomtomOutcome(outcomeOf(error), "incidents");
+    console.error("TomTom incidents error", error);
+    return null;
+  }
+}
+
+/**
+ * Active incidents near the trip. One island-wide TomTom answer is shared by
+ * every rider for 5-10 minutes (see tomtom-guard.ts); this trip's share is cut
+ * from it. `available: false` means the feed could not be read: no incidents
+ * known, which is not the same as none.
+ */
 async function fetchIncidents(
   key: string,
-  points: { fromLat: number; fromLon: number; toLat: number; toLon: number },
+  points: { fromLat: number; fromLon: number; toLat: number; toLon: number; forceRefresh?: boolean | undefined },
   routePath: GeoPoint[],
 ): Promise<{
   onRoute: DriveIncident[];
   offRoute: Array<string | null>;
   nearby: DriveIncident[];
+  available: boolean;
 }> {
+  const unavailable = { onRoute: [], offRoute: [], nearby: [], available: false };
   const pad = 0.03;
-  const minLat = Math.min(points.fromLat, points.toLat) - pad;
-  const maxLat = Math.max(points.fromLat, points.toLat) + pad;
-  const minLon = Math.min(points.fromLon, points.toLon) - pad;
-  const maxLon = Math.max(points.fromLon, points.toLon) + pad;
-
-  const fields =
-    "{incidents{geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,delay,roadNumbers,from,to,endTime,events{description}}}}";
-  const url =
-    `https://api.tomtom.com/traffic/services/5/incidentDetails` +
-    `?key=${key}&bbox=${minLon},${minLat},${maxLon},${maxLat}` +
-    `&fields=${encodeURIComponent(fields)}&language=en-GB&timeValidityFilter=present`;
-
+  const trip = {
+    minLat: Math.min(points.fromLat, points.toLat) - pad,
+    maxLat: Math.max(points.fromLat, points.toLat) + pad,
+    minLon: Math.min(points.fromLon, points.toLon) - pad,
+    maxLon: Math.max(points.fromLon, points.toLon) + pad,
+  };
+  if (!tomtomAvailable("incidents") || quotaSpent("tomtomIncidents")) return unavailable;
+  const { key: boxKey, box } = incidentBoxFor(trip);
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) {
-      console.error(`TomTom incidents failed [${response.status}]: ${await response.text()}`);
-      return { onRoute: [], offRoute: [], nearby: [] };
-    }
-    const payload = (await response.json()) as {
-      incidents?: Array<{
-        geometry?: { type?: string; coordinates?: unknown };
-        properties?: {
-          id?: string;
-          magnitudeOfDelay?: number;
-          delay?: number;
-          roadNumbers?: string[];
-          from?: string;
-          iconCategory?: number;
-          to?: string;
-          endTime?: string;
-          events?: Array<{ description?: string }>;
-        };
-      }>;
-    };
+    const payload = await sharedIncidents(boxKey, incidentMaxAgeMs(Boolean(points.forceRefresh)), () =>
+      loadIncidentBox(key, box),
+    );
+    if (!payload) return unavailable;
     const out: DriveIncident[] = [];
     const offRoute: Array<string | null> = [];
     const nearby: DriveIncident[] = [];
     for (const incident of payload.incidents ?? []) {
+      // The shared answer covers the island: keep what lies in this trip's own box.
+      if (
+        !readIncidentPoints(incident.geometry?.coordinates).some(
+          (p) => p.lat >= trip.minLat && p.lat <= trip.maxLat && p.lon >= trip.minLon && p.lon <= trip.maxLon,
+        )
+      )
+        continue;
       const magnitude = incident.properties?.magnitudeOfDelay ?? 0;
       const road = incident.properties?.roadNumbers?.[0] ?? null;
       const incidentPoints = readIncidentPoints(incident.geometry?.coordinates);
@@ -537,10 +721,10 @@ async function fetchIncidents(
       if (!incidentAffectsTrip(candidate)) continue;
       if (out.length < 3) out.push(candidate);
     }
-    return { onRoute: out, offRoute, nearby };
+    return { onRoute: out, offRoute, nearby, available: true };
   } catch (error) {
     console.error("TomTom incidents error", error);
-    return { onRoute: [], offRoute: [], nearby: [] };
+    return unavailable;
   }
 }
 

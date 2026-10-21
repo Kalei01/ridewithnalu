@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { rateLimit } from "./rate-limit.server";
 import { z } from "zod";
+import { countCall, noteTomtomOutcome, tomtomRoutingAllowed } from "./drive/tomtom-guard";
 
 // Per-visitor limits on paid lookups (see rate-limit.server.ts).
 const walkLimit = rateLimit("walk", 150);
@@ -24,11 +25,13 @@ export const walkTime = createServerFn({ method: "POST" })
   .validator((input) => schema.parse(input))
   .handler(async ({ data }): Promise<{ minutes: number; meters: number } | null> => {
     const key = process.env["TOMTOM_API_KEY"] ?? "";
-    if (!key) return null;
+    if (!key || !tomtomRoutingAllowed()) return null;
     const points = `${data.fromLat},${data.fromLon}:${data.toLat},${data.toLon}`;
     const url = `https://api.tomtom.com/routing/1/calculateRoute/${points}/json?travelMode=pedestrian&routeType=shortest&key=${key}`;
     try {
+      countCall("tomtomRouting");
       const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      noteTomtomOutcome(response.status);
       if (!response.ok) {
         console.warn(`[walk] TomTom pedestrian routing returned ${response.status}`);
         return null;

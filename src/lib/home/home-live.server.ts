@@ -12,7 +12,7 @@ import type { HomeLive, HomeShowers, HomeSkyline, HomeTraffic, HomeTrain } from 
 /** The live strip's whole answer is shared for this long (traffic inside it stays ≤ 2 min old). */
 export const HOME_LIVE_MAX_AGE_MS = 30_000;
 /** Traffic older than this is read again, so with the shared answer it is never past 2 minutes. */
-const TRAFFIC_REFRESH_MS = 90_000;
+const TRAFFIC_REFRESH_MS = 5 * 60_000;
 
 /** Skyline's two end stations (GTFS stop ids) and the longest scheduled run, plus a margin. */
 const EAST_KAPOLEI = "10047";
@@ -48,7 +48,7 @@ function trafficFrom(direction: HomeTraffic["direction"], drive: DriveTime): Hom
   };
 }
 
-/** A live drive time no more than ~90 s old (the lookup's own cache can be 2 min old). */
+/** A live drive time no more than ~5 min old (the lookup shares TomTom answers for 5 min). */
 export async function freshDrive(ends: {
   fromLat: number;
   fromLon: number;

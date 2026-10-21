@@ -797,6 +797,9 @@ function angleDiff(a: number, b: number) {
 
 // ---- Background transit re-planning ------------------------------------------
 
+/** With nobody navigating, the planner minute moves at most this often (database and TomTom load). */
+export const IDLE_TRANSIT_REPLAN_MS = 5 * 60_000;
+
 /**
  * The minute the transit planner searches from. Normally the live minute;
  * while a drive is being navigated it moves at most every 5 minutes, so the
@@ -808,13 +811,11 @@ export function throttledPlanMinute(
   liveSeconds: number,
   nowMs: number,
   navigating: boolean,
+  /** Pass to also slow the idle trip screen: no re-plan while the tab is hidden, and at most every 5 minutes. */
+  idle?: { hidden: boolean },
 ): { value: number; at: number } {
-  if (
-    !navigating ||
-    !previous ||
-    nowMs - previous.at >= NAV_TRANSIT_REPLAN_MS ||
-    liveSeconds < previous.value
-  )
-    return { value: liveSeconds, at: nowMs };
-  return previous;
+  if (!previous || liveSeconds < previous.value) return { value: liveSeconds, at: nowMs };
+  if (idle?.hidden) return previous;
+  const holdMs = navigating ? NAV_TRANSIT_REPLAN_MS : idle ? IDLE_TRANSIT_REPLAN_MS : 0;
+  return nowMs - previous.at >= holdMs ? { value: liveSeconds, at: nowMs } : previous;
 }
