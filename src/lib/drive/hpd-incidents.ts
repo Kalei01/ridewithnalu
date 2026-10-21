@@ -340,10 +340,71 @@ const HPD_CURRENT_WITHIN_MS = 6 * 3600_000;
 export type HpdFeed = { reports: HpdReport[]; newestMs: number | null };
 
 async function getRows(fetcher: typeof fetch, url: string): Promise<Response> {
+  // Socrata throttles anonymous callers hard; an optional app token (a public, non-secret
+  // identifier, never logged) lifts that. Absent, the request is anonymous as before.
+  const appToken = typeof process !== "undefined" ? process.env?.["SOCRATA_APP_TOKEN"] : undefined;
   return fetcher(url, {
     signal: AbortSignal.timeout(5000),
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", ...(appToken ? { "X-App-Token": appToken } : {}) },
   });
+}
+
+export type HpdProbe = {
+  ok: boolean;
+  /** One plain line for the health page. No secrets, no row contents beyond field names and date/time samples. */
+  detail: string;
+};
+
+/**
+ * Health probe for the police feed: runs the same query as production, then the
+ * plain URL if that fails, and reports HTTP status, row counts, how many rows
+ * parse into a timestamp, the newest row's age, and the field names seen.
+ */
+export async function probeHpd(fetcher: typeof fetch = fetch, now = Date.now()): Promise<HpdProbe> {
+  const attempts: string[] = [];
+  let rows: unknown = null;
+  for (const [label, url] of [
+    ["query", hpdQueryUrl(now)],
+    ["plain", HPD_INCIDENTS_URL],
+  ] as const) {
+    try {
+      const response = await getRows(fetcher, url);
+      const server = response.headers?.get?.("server") ?? "";
+      const cf = response.headers?.get?.("cf-mitigated") ? " cf-mitigated" : "";
+      attempts.push(`${label}: HTTP ${response.status}${cf}${server ? ` (${server})` : ""}`);
+      if (!response.ok) {
+        const body = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 80);
+        if (body) attempts.push(`body: ${body}`);
+        continue;
+      }
+      rows = await response.json();
+      break;
+    } catch (error) {
+      attempts.push(`${label}: ${error instanceof Error ? error.name : "error"}`);
+    }
+  }
+  if (!Array.isArray(rows)) return { ok: false, detail: attempts.join("; ").slice(0, 300) };
+  const first = (rows[0] ?? {}) as Row;
+  const fields = Object.keys(first).slice(0, 12).join(",");
+  const stamped = rows.filter(
+    (r) =>
+      r &&
+      typeof r === "object" &&
+      hpdTimestamp(field(r as Row, "date"), field(r as Row, "time")) !== null,
+  ).length;
+  const newest = newestHpdRow(rows);
+  const ageMin = newest === null ? null : Math.round((now - newest) / 60_000);
+  const shown = parseHpdRows(rows).length;
+  const sample =
+    `date=${JSON.stringify(field(first, "date") ?? null)} time=${JSON.stringify(field(first, "time") ?? null)}`.slice(
+      0,
+      80,
+    );
+  const current = ageMin !== null && ageMin * 60_000 <= HPD_CURRENT_WITHIN_MS;
+  const detail = `${attempts.join("; ")}; ${rows.length} rows, ${stamped} with a readable date+time, ${shown} usable kinds, newest ${
+    ageMin === null ? "none readable" : `${ageMin} min old`
+  }${current ? "" : " (feed not counted as current)"}; fields: ${fields || "none"}; first row ${sample}`;
+  return { ok: current, detail: detail.slice(0, 600) };
 }
 
 /** Recent HPD reports, shared by every rider for 5 minutes. Null (never throws) when unreachable. */

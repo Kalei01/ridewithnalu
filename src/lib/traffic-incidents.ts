@@ -7,7 +7,11 @@ import type { DriveIncident } from "./drive.functions";
  */
 const ROAD_BY_NUMBER: Record<
   string,
-  { name: string; directional: boolean; /** Only an H/I-prefixed code means this freeway. */ freewayCode?: boolean }
+  {
+    name: string;
+    directional: boolean;
+    /** Only an H/I-prefixed code means this freeway. */ freewayCode?: boolean;
+  }
 > = {
   "1": { name: "H-1", directional: true, freewayCode: true },
   "2": { name: "H-2", directional: true, freewayCode: true },
@@ -46,19 +50,85 @@ const DIRECTION_WORDS: Record<string, string> = {
 const ROUTE_CODE =
   /^(?:(?:HI|H|I|SR|Rte|Route|Hwy)[-\s]?)?(\d{1,4})(?:[-\s]?(E|W|N|S|East|West|North|South|Eastbound|Westbound|Northbound|Southbound))?$/i;
 
-function tidyRoadText(road: string): string {
-  return road
-    .trim()
-    // Drop bureaucratic prefixes: "Interstate Hwy H201 E", "State Rte 92".
-    .replace(/\b(?:Interstate|State|Federal)\s+(?:Highway|Hwy|Route|Rte|Rd)\b/gi, " ")
-    .replace(/\bInterstate\b/gi, " ")
-    // TomTom writes the freeways as "I-H1"; locals say H-1.
-    .replace(/\bI-?(?=H-?\d)/gi, "")
-    .replace(/\bHighway\b/gi, "Hwy")
-    .replace(/\bFreeway\b/gi, "Fwy")
-    .replace(/^(?:North|South|East|West|N|S|E|W)\s+(?=Nimitz\b)/i, "")
+/** Diacritics and okina/apostrophes removed, lower-cased: "Kalākaua" and "Kalakaua" compare equal. */
+export function plainRoadKey(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[ʻ'’‘`]/g, "")
     .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * "Kalākaua Avenue; Kalakaua Avenue" is one road written twice (Mapbox lists both
+ * spellings). Keep one, preferring the spelling with diacritics. A list of
+ * genuinely different roads ("Pali Hwy; Kailua Rd") is left alone.
+ */
+export function dedupeRoadVariants(text: string): string {
+  if (!text.includes(";")) return text;
+  const parts = text
+    .split(";")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const kept: string[] = [];
+  for (const part of parts) {
+    const key = plainRoadKey(part);
+    const at = kept.findIndex((k) => plainRoadKey(k) === key);
+    if (at === -1) kept.push(part);
+    else if (/[^\x00-\x7f]/.test(part) && !/[^\x00-\x7f]/.test(kept[at]!)) kept[at] = part;
+  }
+  return kept.join("; ");
+}
+
+/** Provider text writes the Hawaiian okina as ’ or ' ("Hawai’i", "Kaniana'ole"): say ʻ. */
+export function normalizeOkina(text: string): string {
+  return text.replace(/(?<=[A-Za-zāēīōū])['’‘`](?=[aeiouāēīōū])/gi, "ʻ");
+}
+
+/**
+ * Official freeway names → the number locals use. Verified: Queen Liliʻuokalani
+ * and Lunalilo are both names of H-1 (west / east of Middle Street, Wikipedia
+ * "Interstate H-1"); the John A. Burns Freeway is H-3 (Wikipedia "Interstate
+ * H-3"). Moanalua Fwy (H-201 / Route 78) is how locals say it, so it stays.
+ */
+const FREEWAY_NAME_ALIASES: Array<[RegExp, string]> = [
+  [/^(?:Queen\s+)?Lili\S?uokalani\s+(?:Fwy|Freeway)\b/i, "H-1"],
+  [/^Lunalilo\s+(?:Fwy|Freeway)\b/i, "H-1"],
+  [/^John\s+A\.?\s+Burns\s+(?:Fwy|Freeway)\b/i, "H-3"],
+];
+
+function aliasFreewayName(road: string): string {
+  const text = plainRoadAscii(road);
+  for (const [pattern, replacement] of FREEWAY_NAME_ALIASES) {
+    if (pattern.test(text)) return text.replace(pattern, replacement);
+  }
+  return road;
+}
+
+function plainRoadAscii(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[ʻ’‘`]/g, "'")
     .trim();
+}
+
+function tidyRoadText(road: string): string {
+  return (
+    aliasFreewayName(normalizeOkina(dedupeRoadVariants(road.trim())))
+      // Drop bureaucratic prefixes: "Interstate Hwy H201 E", "State Rte 92".
+      .replace(/\b(?:Interstate|State|Federal)\s+(?:Highway|Hwy|Route|Rte|Rd)\b/gi, " ")
+      .replace(/\bInterstate\b/gi, " ")
+      // TomTom writes the freeways as "I-H1", Mapbox as "I H1"; locals say H-1.
+      .replace(/\bI[-\s]?(?=H-?\d)/gi, "")
+      .replace(/\bHighway\b/gi, "Hwy")
+      .replace(/\bFreeway\b/gi, "Fwy")
+      .replace(/^(?:North|South|East|West|N|S|E|W)\s+(?=Nimitz\b)/i, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 /**
@@ -144,14 +214,32 @@ export function trafficDelayText(incident: DriveIncident, fallbackDelayMinutes =
 
 export function incidentCategoryLabel(incident: DriveIncident): string | null {
   const labels: Record<string, string> = {
-    "1": "Accident", "2": "Fog", "3": "Hazardous conditions", "4": "Rain", "5": "Ice",
-    "6": "Traffic jam", "7": "Lane closure", "8": "Road closure", "9": "Roadwork",
-    "10": "Wind", "11": "Flooding", "14": "Disabled vehicle",
-    accident: "Accident", fog: "Fog", dangerousConditions: "Hazardous conditions", rain: "Rain",
-    ice: "Ice", jam: "Traffic jam", laneClosed: "Lane closure", roadClosed: "Road closure",
-    roadWorks: "Roadwork", wind: "Wind", flooding: "Flooding", brokenDownVehicle: "Disabled vehicle",
+    "1": "Accident",
+    "2": "Fog",
+    "3": "Hazardous conditions",
+    "4": "Rain",
+    "5": "Ice",
+    "6": "Traffic jam",
+    "7": "Lane closure",
+    "8": "Road closure",
+    "9": "Roadwork",
+    "10": "Wind",
+    "11": "Flooding",
+    "14": "Disabled vehicle",
+    accident: "Accident",
+    fog: "Fog",
+    dangerousConditions: "Hazardous conditions",
+    rain: "Rain",
+    ice: "Ice",
+    jam: "Traffic jam",
+    laneClosed: "Lane closure",
+    roadClosed: "Road closure",
+    roadWorks: "Roadwork",
+    wind: "Wind",
+    flooding: "Flooding",
+    brokenDownVehicle: "Disabled vehicle",
   };
-  return incident.category ? labels[incident.category] ?? null : null;
+  return incident.category ? (labels[incident.category] ?? null) : null;
 }
 
 /** Prefer TomTom's structured category, then fall back to its event description. */
@@ -241,7 +329,8 @@ export function standaloneIncidentImpact(
 ): string {
   const delay = Math.max(0, Math.round(mainlineDelayMinutes ?? incident.delayMinutes ?? 0));
   if (delay > 0) return `Traffic is about +${delay} min slower here right now.`;
-  if (isFreewayMainline(incident.road)) return "Traffic is moving normally on this stretch right now.";
+  if (isFreewayMainline(incident.road))
+    return "Traffic is moving normally on this stretch right now.";
   return "No slowdown is showing on the H-1 mainline yet. Possible backups on the connecting road.";
 }
 

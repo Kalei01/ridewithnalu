@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  probeHpd,
   hpdIncidentsForRoute,
   hpdPlaceText,
   hpdQueryUrl,
@@ -207,5 +208,51 @@ describe("feed and alerts", () => {
     );
     expect(plan.speak).toEqual([]);
     expect(plan.hud).toBeNull();
+  });
+});
+
+describe("probeHpd", () => {
+  const now = Date.UTC(2026, 9, 21, 20, 0); // 10:00 HST
+  const json = (status: number, body: unknown) =>
+    new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
+
+  it("reports status, rows, newest age and field names", async () => {
+    const fetcher = (async () =>
+      json(200, [
+        {
+          date: "2026-10-21T00:00:00.000",
+          time: "09:30",
+          type: "TRAFFIC",
+          address: "H1",
+          area: "x",
+        },
+      ])) as unknown as typeof fetch;
+    const probe = await probeHpd(fetcher, now);
+    expect(probe.ok).toBe(true);
+    expect(probe.detail).toMatch(/HTTP 200/);
+    expect(probe.detail).toMatch(/1 rows, 1 with a readable date\+time/);
+    expect(probe.detail).toMatch(/newest 30 min old/);
+    expect(probe.detail).toMatch(/fields: date,time,type,address,area/);
+  });
+
+  it("explains a rejected feed and tries the plain URL", async () => {
+    const urls: string[] = [];
+    const fetcher = (async (url: string) => {
+      urls.push(url);
+      return json(403, "Forbidden");
+    }) as unknown as typeof fetch;
+    const probe = await probeHpd(fetcher, now);
+    expect(probe.ok).toBe(false);
+    expect(urls).toHaveLength(2);
+    expect(probe.detail).toMatch(/query: HTTP 403.*plain: HTTP 403/);
+  });
+
+  it("flags rows whose date or time cannot be read", async () => {
+    const fetcher = (async () =>
+      json(200, [{ incident_date: "2026-10-21", type: "X" }])) as unknown as typeof fetch;
+    const probe = await probeHpd(fetcher, now);
+    expect(probe.ok).toBe(false);
+    expect(probe.detail).toMatch(/0 with a readable date\+time/);
+    expect(probe.detail).toMatch(/newest none readable/);
   });
 });

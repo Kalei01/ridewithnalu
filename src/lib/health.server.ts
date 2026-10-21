@@ -14,7 +14,10 @@ const DOWNTOWN = { lat: 21.3099, lon: -157.8644 };
 /** Alert well before the bus timetable runs out. */
 const MIN_TIMETABLE_DAYS = 21;
 
-async function timed(name: string, run: () => Promise<{ ok: boolean; detail: string }>): Promise<HealthCheck> {
+async function timed(
+  name: string,
+  run: () => Promise<{ ok: boolean; detail: string }>,
+): Promise<HealthCheck> {
   const start = Date.now();
   try {
     const result = await Promise.race([
@@ -25,7 +28,12 @@ async function timed(name: string, run: () => Promise<{ ok: boolean; detail: str
     ]);
     return { name, ...result, ms: Date.now() - start };
   } catch (error) {
-    return { name, ok: false, detail: error instanceof Error ? error.message.slice(0, 120) : "failed", ms: Date.now() - start };
+    return {
+      name,
+      ok: false,
+      detail: error instanceof Error ? error.message.slice(0, 120) : "failed",
+      ms: Date.now() - start,
+    };
   }
 }
 
@@ -47,13 +55,16 @@ async function probeDrive() {
 function providerNote(drive: DriveTime): string {
   if (drive.provider !== "mapbox") return "TomTom";
   const breaker = breakerState("routing");
-  const why = breaker.open ? ` (TomTom paused ${Math.ceil(breaker.reopensInMs / 60_000)} min: ${breaker.reason})` : "";
+  const why = breaker.open
+    ? ` (TomTom paused ${Math.ceil(breaker.reopensInMs / 60_000)} min: ${breaker.reason})`
+    : "";
   return `FALLBACK Mapbox, TomTom not in use${why}`;
 }
 
 export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCheck[] }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const mapboxToken = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as string | undefined;
+  const mapboxToken = import.meta.env["VITE_LOVABLE_CONNECTOR_MAPBOX_PUBLIC_TOKEN"] as
+    string | undefined;
   const tomtomKey = process.env["TOMTOM_API_KEY"] ?? "";
 
   const checks = await Promise.all([
@@ -83,16 +94,30 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
     timed("drive times (TomTom)", async () => {
       const { drive, reason } = await probeDrive();
       return drive
-        ? { ok: true, detail: `Kapolei → Downtown ${drive.trafficMinutes} min via ${providerNote(drive)}` }
+        ? {
+            ok: true,
+            detail: `Kapolei → Downtown ${drive.trafficMinutes} min via ${providerNote(drive)}`,
+          }
         : { ok: false, detail: `no route returned (${reason ?? "error"})` };
     }),
     timed("turn-by-turn directions", async () => {
       const { drive, reason } = await probeDrive();
       if (!drive) return { ok: false, detail: `no route returned (${reason ?? "error"})` };
       const turns = drive.maneuvers?.length ?? 0;
-      if (turns > 0) return { ok: true, detail: `${turns} turns (${drive.provider ?? "tomtom"}), first: ${drive.maneuvers[0]?.instruction ?? ""}`.slice(0, 120) };
+      if (turns > 0)
+        return {
+          ok: true,
+          detail:
+            `${turns} turns (${drive.provider ?? "tomtom"}), first: ${drive.maneuvers[0]?.instruction ?? ""}`.slice(
+              0,
+              120,
+            ),
+        };
       const { lastUnreadInstructionShape } = await import("./drive.functions");
-      return { ok: false, detail: `no turns read; provider sent ${lastUnreadInstructionShape ?? "no instructions"}` };
+      return {
+        ok: false,
+        detail: `no turns read; provider sent ${lastUnreadInstructionShape ?? "no instructions"}`,
+      };
     }),
     timed("TomTom usage (this server)", async () => {
       const u = usageSnapshot();
@@ -105,7 +130,8 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
       };
     }),
     timed("place search (TomTom)", async () => {
-      if (healthSearch && Date.now() - healthSearch.at < HEALTH_CACHE_MS) return healthSearch.result;
+      if (healthSearch && Date.now() - healthSearch.at < HEALTH_CACHE_MS)
+        return healthSearch.result;
       if (!tomtomKey) return { ok: false, detail: "TOMTOM_API_KEY not set" };
       const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent("Ala Moana Center")}.json?key=${tomtomKey}&countrySet=US&limit=1&topLeft=21.75,-158.35&btmRight=21.20,-157.60`;
       const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -113,7 +139,10 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
       if (!response.ok) result = { ok: false, detail: `TomTom returned ${response.status}` };
       else {
         const payload = (await response.json()) as { results?: unknown[] };
-        result = { ok: (payload.results?.length ?? 0) > 0, detail: `${payload.results?.length ?? 0} results` };
+        result = {
+          ok: (payload.results?.length ?? 0) > 0,
+          detail: `${payload.results?.length ?? 0} results`,
+        };
       }
       healthSearch = { at: Date.now(), result };
       return result;
@@ -126,7 +155,14 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
       );
       return response.ok
         ? { ok: true, detail: "map style loads" }
-        : { ok: false, detail: `Mapbox returned ${response.status} (check the key's allowed addresses)` };
+        : {
+            ok: false,
+            detail: `Mapbox returned ${response.status} (check the key's allowed addresses)`,
+          };
+    }),
+    timed("police reports (HPD)", async () => {
+      const { probeHpd } = await import("./drive/hpd-incidents");
+      return probeHpd();
     }),
     timed("notifications setup", async () => {
       const account = readServiceAccount();

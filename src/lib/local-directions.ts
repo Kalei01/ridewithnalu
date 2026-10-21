@@ -3,6 +3,7 @@
  * and road labels before they reach the voice or the nav HUD. Wording only:
  * it never changes where a maneuver is or which road the route uses.
  */
+import { normalizeOkina, plainRoadKey } from "./traffic-incidents";
 import {
   angleDifference,
   bearingBetween,
@@ -70,11 +71,32 @@ const TRAILING_DIRECTION = new RegExp(
   "gi",
 );
 
-/** Say "H-1", never "I-H1" or "the I-H1". */
+/** Say "H-1", never "I-H1", "I H1" or "the I-H1". */
 export function tidyFreewayName(text: string): string {
   return text
-    .replace(/\b(?:the\s+)?(?:Interstate\s+(?:Highway\s+)?)?I-?H-?(\d{1,3})\b/gi, "H-$1")
+    .replace(/\b(?:the\s+)?(?:Interstate\s+(?:Highway\s+)?)?I[-\s]?H-?(\d{1,3})\b/gi, "H-$1")
     .replace(/\b(?:the\s+)?Interstate\s+(?:Highway\s+)?H-?(\d{1,3})\b/gi, "H-$1");
+}
+
+/** "Kalākaua Avenue/Kalakaua Avenue" (both spellings in one phrase) → one, keeping the diacritics. */
+export function tidyVariantSlashes(text: string): string {
+  return text.replace(
+    /(\S+(?:\s+\S+){0,3}?)\/([^\s/.,]+(?:\s+[^\s/.,]+){0,3})/g,
+    (whole, left: string, right: string) => {
+      const leftWords = left.split(/\s+/);
+      const rightWords = right.split(/\s+/);
+      for (let k = Math.min(4, leftWords.length, rightWords.length); k >= 1; k -= 1) {
+        const a = leftWords.slice(-k).join(" ");
+        const b = rightWords.slice(0, k).join(" ");
+        if (plainRoadKey(a) !== plainRoadKey(b)) continue;
+        const keep = /[^\x00-\x7f]/.test(b) && !/[^\x00-\x7f]/.test(a) ? b : a;
+        const lead = leftWords.slice(0, -k).join(" ");
+        const tail = rightWords.slice(k).join(" ");
+        return [lead, keep, tail].filter(Boolean).join(" ");
+      }
+      return whole;
+    },
+  );
 }
 
 /** "North Nimitz Hwy" and "N Nimitz Hwy" are both just Nimitz; same everywhere. */
@@ -133,7 +155,7 @@ export function landmarkTowardFor(...texts: Array<string | null | undefined>): s
  * never removed here: at a loop ramp "onto H-1 West" is what the driver needs.
  */
 export function localizeInstruction(instruction: string): string {
-  return tidyNimitz(tidyFreewayName(instruction));
+  return tidyNimitz(tidyFreewayName(tidyVariantSlashes(normalizeOkina(instruction))));
 }
 
 /**

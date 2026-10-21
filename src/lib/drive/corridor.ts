@@ -1,4 +1,4 @@
-import { localRoadName, routeCodeName } from "../traffic-incidents";
+import { localRoadName, plainRoadKey, routeCodeName } from "../traffic-incidents";
 
 export type GuidanceInstruction = {
   routeOffsetInMeters?: number;
@@ -160,6 +160,21 @@ export function extractCorridor(
   }
   if (!spans.size) return null;
 
+  // One surface street named for nearly the whole of a long drive is the
+  // provider merging its steps, not a real corridor (Kailua → Downtown came
+  // back as "Via Kuulei Road"). No label beats a wrong one.
+  if (totalMeters >= 8000 && instructions.length <= 8) {
+    for (const [name, span] of spans) {
+      if (
+        span.meters >= totalMeters * 0.85 &&
+        !isFreeway(withoutDirection(name)) &&
+        !/\b(?:Hwy|Highway)\b/i.test(name)
+      ) {
+        return null;
+      }
+    }
+  }
+
   const entries = [...spans.entries()];
   const threshold = Math.max(400, totalMeters * 0.06);
   const significant = entries.filter(([, span]) => span.meters >= threshold);
@@ -179,8 +194,15 @@ export function extractCorridor(
     // freeway plus sustained transitions; this preserves a real Moanalua Fwy →
     // H-1 West merge-back while excluding a momentary H-3 sign reference.
     const freewayFloor = Math.max(800, totalMeters * 0.025);
+    // H-3 (John A. Burns Fwy) is named on the Halawa interchange connectors that
+    // H-1 / Moanalua Fwy traffic passes through, so it only counts when the
+    // route really travels it: it is the main freeway, or a long stretch.
+    const h3Floor = Math.max(3000, totalMeters * 0.25);
     const travelledFreeways = freewayEntries.filter(
-      (entry) => entry === primaryFreeway || entry[1].meters >= freewayFloor,
+      (entry) =>
+        entry === primaryFreeway ||
+        (entry[1].meters >= freewayFloor &&
+          (!/^H-3\b/i.test(entry[0]) || entry[1].meters >= h3Floor)),
     );
     const firstFreewayOffset = travelledFreeways[0]?.[1].firstOffset ?? freewaySpan.firstOffset;
     const lastFreewayOffset = travelledFreeways.at(-1)?.[1].firstOffset ?? freewaySpan.firstOffset;
@@ -232,7 +254,10 @@ export function extractCorridor(
         : name;
     })
     // The feed can name one freeway two ways ("H-1" and "H-1 East"); say it once.
-    .filter((name, index, list) => list.indexOf(name) === index);
+    .filter(
+      (name, index, list) =>
+        list.findIndex((o) => plainRoadKey(o) === plainRoadKey(name)) === index,
+    );
 
   return { label: `Via ${roads.join(" → ")}`, roads, allRoads: [...spans.keys()] };
 }

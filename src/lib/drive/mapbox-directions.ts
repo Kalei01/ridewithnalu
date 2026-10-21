@@ -17,6 +17,9 @@
  */
 import { countCall, quotaSpent } from "./tomtom-guard";
 
+import { dedupeRoadVariants, normalizeOkina } from "../traffic-incidents";
+import { tidyVariantSlashes } from "../local-directions";
+
 type LatLon = { lat: number; lon: number };
 
 /** Same shape as TomTom Orbis instructions, so the existing maneuver/corridor code reads both. */
@@ -172,9 +175,11 @@ export function parseMapboxRoute(payload: MapboxPayload | null | undefined): Map
         maneuverPoint: { latitude: location[1], longitude: location[0] },
         // The depart step is kept (road names for the corridor) under a DEPART code buildManeuvers skips.
         maneuver: code ?? "DEPART",
-        instructionMessage: step.maneuver?.instruction ?? "",
+        instructionMessage: tidyVariantSlashes(normalizeOkina(step.maneuver?.instruction ?? "")),
         nextRoadInformation: {
-          ...(step.name ? { streetName: { text: step.name } } : {}),
+          ...(step.name
+            ? { streetName: { text: normalizeOkina(dedupeRoadVariants(step.name)) } }
+            : {}),
           ...(refs.length ? { roadShields: refs.map((text) => ({ roadNumber: { text } })) } : {}),
         },
       });
@@ -280,7 +285,10 @@ async function requestMapboxRoute(
     return route;
   } catch (error) {
     lastMapboxFailure = `Mapbox ${error instanceof Error ? error.name : "error"}`;
-    console.error("[drive] Mapbox directions failed", error instanceof Error ? error.name : "error");
+    console.error(
+      "[drive] Mapbox directions failed",
+      error instanceof Error ? error.name : "error",
+    );
     return null;
   }
 }
