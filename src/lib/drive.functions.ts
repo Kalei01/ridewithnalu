@@ -43,7 +43,7 @@ const schema = z.object({
         lon: z.number().min(-180).max(180),
       }),
     )
-    .max(2).optional(),
+    .max(400).optional(),
 });
 
 export type DriveIncident = {
@@ -100,11 +100,15 @@ export type DriveTime = {
   /** Congested nearby roads this route avoids entirely. */
   bypassedRoads: string[];
   /** Turn-by-turn maneuvers from TomTom guidance, for voice and the nav HUD. */
-  maneuvers: Array<{ lat: number; lon: number; maneuver: string; instruction: string; road: string | null }>;
+  maneuvers: Array<{
+    lat: number;
+    lon: number;
+    maneuver: string;
+    instruction: string;
+    road: string | null;
+  }>;
   fetchedAt: number;
   trafficBasis: "live" | "future-estimate";
-  /** Only on a route priced through via points: which request shape TomTom accepted. */
-  viaShape?: string;
 };
 
 export type DriveTrafficSection = {
@@ -134,6 +138,16 @@ function round(value: number) {
 
 const ORBIS_ROUTE_URL = "https://api.tomtom.com/maps/orbis/routing/routes/calculate?apiVersion=3";
 
+/** Short stable fingerprint of the via path (djb2 over the rounded points). */
+function viaKey(via: Array<{ lat: number; lon: number }> | undefined): string {
+  if (!via?.length) return "";
+  let h = 5381;
+  for (const p of via) {
+    for (const ch of `${round(p.lat)},${round(p.lon)};`) h = ((h << 5) + h + ch.charCodeAt(0)) | 0;
+  }
+  return `:via=${via.length}.${(h >>> 0).toString(36)}`;
+}
+
 /** One cache key per trip ends, departure (5-min bucket) and heading. */
 function driveCacheKey(data: z.infer<typeof schema>) {
   const from = `${round(data.fromLat)},${round(data.fromLon)}`;
@@ -143,8 +157,7 @@ function driveCacheKey(data: z.infer<typeof schema>) {
     : "now";
   const headingBucket =
     data.bearing === undefined ? "none" : Math.round((data.bearing % 360) / 15) * 15;
-  const via = (data.via ?? []).map((p) => `${round(p.lat)},${round(p.lon)}`).join(";");
-  return `${from}:${to}:${departureBucket}:${headingBucket}${via ? `:via=${via}` : ""}`;
+  return `${from}:${to}:${departureBucket}:${headingBucket}${viaKey(data.via)}`;
 }
 
 /** The live (or future-estimate) route request, the same for every caller. */
@@ -167,41 +180,30 @@ function orbisRouteBody(data: z.infer<typeof schema>) {
 
 type RouteBody = ReturnType<typeof orbisRouteBody>;
 type ViaPoint = { lat: number; lon: number };
-const point = (p: ViaPoint) => ({ type: "Point", coordinates: [p.lon, p.lat] });
 
 /**
- * Ways to ask TomTom Orbis v3 for a route that passes through given points.
- * The exact body shape was not documented where we could read it, so they are
- * tried in order until one is accepted; the accepted name is remembered for
- * this server and reported on the result (`viaShape`).
+ * TomTom Orbis v3 accepts a top-level `path` (a GeoJSON LineString) and prices
+ * the route along it with live traffic: verified live Oct 21 (the route passes
+ * the points; origin and destination stay in routePlanningLocations). The
+ * other shapes tried that day were refused (`.routePlanningLocations.waypoints`
+ * "Invalid value", array form, `.waypoints`, `.routePlanningLocations.path`
+ * "Unknown JSON field"). A rider's current road is sent as `via`.
  */
-const VIA_SHAPES: Array<{ name: string; apply: (body: RouteBody, via: ViaPoint[]) => object }> = [
-  // TomTom's own refusals (Oct 21): `.routePlanningLocations.waypoints` exists but
-  // rejects GeoJSON points; `.routePlanningLocations` as an array, `.waypoints` and
-  // `.routePlanningLocations.path` are not accepted. These two are what is left.
-  {
-    name: "pointWaypoints",
-    apply: (b, via) => ({
-      ...b,
-      routePlanningLocations: { ...b.routePlanningLocations, pointWaypoints: via.map(point) },
-    }),
-  },
-  {
-    name: "top-level-path",
-    apply: (b, via) => ({
-      ...b,
-      path: {
-        type: "LineString",
-        coordinates: [
-          b.routePlanningLocations.origin.coordinates,
-          ...via.map((p) => [p.lon, p.lat]),
-          b.routePlanningLocations.destination.coordinates,
-        ],
-      },
-    }),
-  },
-];
-let workingViaShape: string | null = null;
+function withViaPath(body: RouteBody, via: ViaPoint[]): object {
+  return {
+    ...body,
+    path: {
+      type: "LineString",
+      coordinates: [
+        body.routePlanningLocations.origin.coordinates,
+        ...via.map((p) => [p.lon, p.lat]),
+        body.routePlanningLocations.destination.coordinates,
+      ],
+    },
+  };
+}
+let viaRefusedUntil = 0;
+const VIA_RETRY_AFTER_MS = 10 * 60_000;
 
 function requestOrbisRoute(key: string, routeBody: object) {
   return fetch(ORBIS_ROUTE_URL, { signal: AbortSignal.timeout(8000),
@@ -240,38 +242,21 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     const routeUrl = ORBIS_ROUTE_URL;
     let routeBody: object = orbisRouteBody(data);
     let response: Response;
-    let viaShape: string | undefined;
     if (data.via?.length) {
-      const shapes = [...VIA_SHAPES].sort(
-        (a, b) => Number(b.name === workingViaShape) - Number(a.name === workingViaShape),
-      );
-      let accepted: Response | null = null;
-      const refusals: string[] = [];
-      for (const shape of shapes) {
-        const body = shape.apply(routeBody as RouteBody, data.via);
-        let attempt = await requestOrbisRoute(key, body);
-        if (attempt.status === 429) {
-          // TomTom limits requests per second; one short pause and a single retry.
-          await new Promise((resolve) => setTimeout(resolve, 800));
-          attempt = await requestOrbisRoute(key, body);
-        }
-        if (attempt.ok) {
-          accepted = attempt;
-          routeBody = body;
-          viaShape = shape.name;
-          workingViaShape = shape.name;
-          break;
-        }
-        const detail = `${shape.name}: ${attempt.status} ${(await attempt.text()).replace(/\s+/g, " ").slice(0, 220)}`;
-        refusals.push(detail);
-        console.error(`[drive] via shape rejected - ${detail}`);
+      // A refused (400) path request pauses via requests for a while: no repeated paid calls.
+      if (Date.now() < viaRefusedUntil) return null;
+      routeBody = withViaPath(routeBody as RouteBody, data.via);
+      response = await requestOrbisRoute(key, routeBody);
+      if (response.status === 429) {
+        // TomTom limits requests per second; one short pause and a single retry.
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        response = await requestOrbisRoute(key, routeBody);
       }
-      if (!accepted) {
-        console.error("[drive] no via shape accepted");
+      if (response.status === 400) {
+        console.error(`[drive] via path refused: ${(await response.text()).replace(/\s+/g, " ").slice(0, 300)}`);
+        viaRefusedUntil = Date.now() + VIA_RETRY_AFTER_MS;
         return null;
       }
-      console.info("[drive] via shape accepted", { viaShape });
-      response = accepted;
     } else {
       response = await requestOrbisRoute(key, routeBody);
     }
@@ -385,7 +370,6 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
       maneuvers: buildManeuvers(route?.instructions ?? [], fullPath),
       fetchedAt: Date.now(),
       trafficBasis: data.departureTime ? "future-estimate" : "live",
-      ...(viaShape ? { viaShape } : {}),
     };
 
     cacheDrive(cacheKey, result);
