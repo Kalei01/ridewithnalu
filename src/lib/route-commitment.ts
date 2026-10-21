@@ -564,9 +564,12 @@ export async function resolveLiveRoute(input: ResolveInput): Promise<ResolveOutp
   if (!viaPoints || viaPoints.length === 0) return accept(true);
   const status = memory.priceStatus(signature, now);
   if (status === "failed-recently") return accept(true);
-  if (status === "too-soon")
+  if (status === "too-soon") {
+    // A closure on her road must never wait for the next price check.
+    if (hasRoadClosure(committed)) return accept(true);
     // Priced a moment ago: leave the route as it is until the next refresh.
     return { route: committed, meta: { outcome: "keep", savesMin: null, why: "rate-limited" } };
+  }
 
   memory.recordPriceAttempt(now);
   const stay = await input.fetchVia(viaPoints);
@@ -606,6 +609,11 @@ export async function resolveLiveRoute(input: ResolveInput): Promise<ResolveOutp
   };
 }
 
+/** True when the route carries a reported road closure. */
+function hasRoadClosure(route: Pick<RouteLike, "incidents">): boolean {
+  return (route.incidents ?? []).some((i) => incidentCategoryLabel(i) === "Road closure");
+}
+
 /**
  * A priced "stay" route is only usable if it truly is the road she is on from
  * start to finish, and does not go through an exit she already turned down.
@@ -617,6 +625,8 @@ function validStay(
   now: number,
 ): boolean {
   if (stay.path.length < 2) return false;
+  // Never keep her heading into a reported closure, even when TomTom prices it.
+  if (hasRoadClosure(stay)) return false;
   if (declinedExitAhead(stay, memory, now) !== null) return false;
   return !differentCorridor(comparePaths(reference, stay.path));
 }

@@ -487,7 +487,7 @@ export default function LiveNavMap(props: LiveNavMapProps) {
                 {incidentNotice.label}
               </p>
               <p
-                className={`mt-0.5 text-sm font-semibold leading-snug text-foreground ${incidentNotice.compact ? "line-clamp-2" : "line-clamp-3"}`}
+                className={`mt-0.5 text-sm font-semibold leading-snug text-foreground line-clamp-3`}
               >
                 {incidentNotice.text}
               </p>

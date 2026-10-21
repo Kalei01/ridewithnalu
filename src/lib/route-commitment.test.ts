@@ -285,6 +285,24 @@ describe("route stickiness", () => {
     expect(r.route.corridorLabel).toBe("Via Kamehameha Hwy");
   });
 
+  it("never keeps her road when TomTom prices staying but the stay route carries a road closure", async () => {
+    const closure: DriveIncident = {
+      description: "Road closed",
+      road: "H-1 West",
+      category: "roadClosed",
+      delayMinutes: null,
+      points: [pt(-4000, 0)],
+    };
+    // staying is priced (and cheaper than the bar), but it runs into a closure
+    const r = await resolve(
+      onH1(),
+      viaKamehameha(20),
+      drive({ ...onH1(), trafficMinutes: 21, incidents: [closure] }),
+    );
+    expect(r.meta).toMatchObject({ outcome: "accept", unpriced: true });
+    expect(r.route.corridorLabel).toBe("Via Kamehameha Hwy");
+  });
+
   it("fails toward the fresh route when the priced 'stay' route wandered off the road", async () => {
     const r = await resolve(onH1(), viaKamehameha(20), viaKamehameha(40));
     expect(r.meta).toMatchObject({ outcome: "accept", unpriced: true });
