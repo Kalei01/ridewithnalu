@@ -8,13 +8,20 @@ import {
 
 /**
  * Today's season (Honolulu date), or null when none applies or the rider
- * turned seasonal touches off. Starts null so server and first client render
- * match, then reads the date and the device setting.
+ * turned seasonal touches off. The date alone decides the first render, so the
+ * server HTML already holds the seasonal line and nothing shifts when the page
+ * wakes up; the device's "off" switch is applied right after hydration.
  */
 export function useSeason(): ActiveSeason | null {
-  const [active, setActive] = useState<ActiveSeason | null>(null);
+  const [active, setActive] = useState<ActiveSeason | null>(() => activeSeason(new Date()));
   useEffect(() => {
-    const read = () => setActive(seasonalTouchesEnabled() ? activeSeason(new Date()) : null);
+    const read = () => {
+      const next = seasonalTouchesEnabled() ? activeSeason(new Date()) : null;
+      // Keep the same object when nothing changed, so the hourly check never rerenders.
+      setActive((prev) =>
+        prev?.season.id === next?.season.id && prev?.phase === next?.phase ? prev : next,
+      );
+    };
     read();
     // Re-check hourly so a tab left open across midnight switches itself.
     const id = window.setInterval(read, 60 * 60 * 1000);

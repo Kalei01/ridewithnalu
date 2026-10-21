@@ -33,6 +33,7 @@ import { onAnalyticsConsentChange } from "../lib/analytics";
 import { HomeLanding } from "../components/home/HomeLanding";
 import { timeOfDay } from "../lib/time-of-day";
 import { useSeason } from "../hooks/use-season";
+import { SEASON_OFF_SCRIPT } from "../lib/seasons";
 import { RETURNING_VISITOR_SCRIPT, hasSeenWelcome, introductionHidden, markIntroductionShown } from "../lib/welcome-seen";
 
 function NotFoundComponent() {
@@ -97,7 +98,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/icons/nalu-icon.svg", type: "image/svg+xml" },
       { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png", sizes: "180x180" },
     ],
-    scripts: [{ children: RETURNING_VISITOR_SCRIPT }],
+    scripts: [{ children: RETURNING_VISITOR_SCRIPT }, { children: SEASON_OFF_SCRIPT }],
   }),
   shellComponent: RootShell,
   component: RootComponent,

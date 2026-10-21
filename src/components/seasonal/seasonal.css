@@ -28,6 +28,10 @@ html[data-season-phase="afterglow"] {
 .nalu-season-line[data-season-phase="afterglow"] {
   color: var(--color-muted-foreground, inherit);
 }
+/* Rider switched it off: hidden before first paint by the head script. */
+html[data-season-off] .nalu-season-line {
+  display: none;
+}
 .nalu-season-motif {
   display: inline-flex;
   flex: none;

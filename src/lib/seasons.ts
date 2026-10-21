@@ -133,6 +133,14 @@ export function seasonGreeting(active: ActiveSeason, now: Date): string | null {
 const PREF_KEY = "nalu-seasonal-touches-v1";
 const PREF_EVENT = "nalu-seasonal-touches-change";
 
+/**
+ * Runs in <head> before the page paints: marks <html> when the rider turned
+ * seasonal touches off, so CSS hides the server-rendered seasonal line at once
+ * (no flash, no layout shift). Keep the key in step with PREF_KEY.
+ */
+export const SEASON_OFF_SCRIPT =
+  'try{if(localStorage.getItem("nalu-seasonal-touches-v1")==="off")document.documentElement.setAttribute("data-season-off","")}catch(e){}';
+
 /** Seasonal touches are on unless the rider turned them off on this device. */
 export function seasonalTouchesEnabled(): boolean {
   try {
@@ -149,6 +157,9 @@ export function setSeasonalTouchesEnabled(enabled: boolean): void {
   } catch {
     // Private mode or blocked storage: the choice just won't be remembered.
   }
+  // Keep the early "off" marker (SEASON_OFF_SCRIPT) in step without a reload.
+  if (enabled) document.documentElement.removeAttribute("data-season-off");
+  else document.documentElement.setAttribute("data-season-off", "");
   window.dispatchEvent(new Event(PREF_EVENT));
 }
 

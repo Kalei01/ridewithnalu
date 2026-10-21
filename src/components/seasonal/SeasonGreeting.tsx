@@ -19,7 +19,7 @@ export function SeasonGreeting({ className = "" }: { className?: string }) {
         aria-hidden="true"
         dangerouslySetInnerHTML={{ __html: active.season.motif }}
       />
-      <span>{line}</span>
+      <span suppressHydrationWarning>{line}</span>
     </p>
   );
 }
