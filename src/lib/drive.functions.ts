@@ -205,6 +205,11 @@ function withViaPath(body: RouteBody, via: ViaPoint[]): object {
   };
 }
 let viaRefusedUntil = 0;
+/** Why the last live lookup returned nothing (status code / short reason only), for the health check. */
+let lastDriveFailure: string | null = null;
+export function lastDriveFailureReason(): string | null {
+  return lastDriveFailure;
+}
 const VIA_RETRY_AFTER_MS = 10 * 60_000;
 
 function requestOrbisRoute(key: string, routeBody: object) {
@@ -264,6 +269,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     }
     if (!response.ok) {
       console.error(`[drive] Orbis routing unavailable: TomTom returned ${response.status}`);
+      lastDriveFailure = `TomTom HTTP ${response.status}`;
       return null;
     }
 
@@ -280,6 +286,7 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
     const summary = route?.summary;
     if (!summary?.travelDurationInSeconds) {
       console.warn("[drive] routing unavailable: no route was returned");
+      lastDriveFailure = "TomTom returned no route";
       return null;
     }
 
@@ -378,10 +385,11 @@ export async function lookupDriveTime(data: z.infer<typeof schema>): Promise<Dri
 
     cacheDrive(cacheKey, result);
     return result;
-  } catch {
+  } catch (error) {
     // An unavailable route is not a zero-minute drive. The caller can keep
     // rendering rail and cached schedules without a failed server action.
-    console.error("[drive] routing unavailable: TomTom request failed");
+    console.error("[drive] routing unavailable: TomTom request failed", error);
+    lastDriveFailure = `exception: ${error instanceof Error ? `${error.name}: ${error.message}` : "unknown"}`.slice(0, 160);
     return null;
   }
 }

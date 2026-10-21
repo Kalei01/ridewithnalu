@@ -3,7 +3,7 @@
  * (database, timetable planner, TomTom, Mapbox as seen from ridenalu.com,
  * notification setup) and reports ok/fail with a short plain reason.
  */
-import { lookupDriveTime } from "./drive.functions";
+import { lastDriveFailureReason, lookupDriveTime } from "./drive.functions";
 import { readServiceAccount } from "./fcm-direct.server";
 
 export type HealthCheck = { name: string; ok: boolean; detail: string; ms: number };
@@ -66,7 +66,7 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
       });
       return drive
         ? { ok: true, detail: `Kapolei → Downtown ${drive.trafficMinutes} min` }
-        : { ok: false, detail: "no route returned" };
+        : { ok: false, detail: `no route returned (${lastDriveFailureReason() ?? "error"})` };
     }),
     timed("turn-by-turn directions", async () => {
       const drive = await lookupDriveTime({
@@ -75,7 +75,7 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
         toLat: DOWNTOWN.lat,
         toLon: DOWNTOWN.lon,
       });
-      if (!drive) return { ok: false, detail: "no route returned" };
+      if (!drive) return { ok: false, detail: `no route returned (${lastDriveFailureReason() ?? "error"})` };
       const turns = drive.maneuvers?.length ?? 0;
       if (turns > 0) return { ok: true, detail: `${turns} turns, first: ${drive.maneuvers[0]?.instruction ?? ""}`.slice(0, 120) };
       const { lastUnreadInstructionShape } = await import("./drive.functions");
