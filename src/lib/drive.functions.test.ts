@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetHpd } from "./drive/hpd-incidents";
 import { breakerState, resetTomtomGuard, usageSnapshot, BREAKER_FORBIDDEN_MS } from "./drive/tomtom-guard";
 import { lookupDriveTime, lookupTrafficMinutes, resetDriveCaches } from "./drive.functions";
 const data = { fromLat: 21.3358, fromLon: -158.0798, toLat: 21.3099, toLon: -157.8644 };
@@ -6,6 +7,7 @@ const data = { fromLat: 21.3358, fromLon: -158.0798, toLat: 21.3099, toLon: -157
 beforeEach(() => {
   resetTomtomGuard();
   resetDriveCaches();
+  resetHpd();
   vi.stubEnv("MAPBOX_ACCESS_TOKEN", "pk.test");
 });
 
@@ -228,4 +230,34 @@ describe("TomTom call savings", () => {
     await lookupDriveTime(data, { lite: true });
     expect(tomtomCalls()).toBe(1);
   });
+
+  it("adds HPD police reports on the route to nearbyIncidents, with no delay, when TomTom incidents are down", async () => {
+    vi.stubEnv("TOMTOM_API_KEY", "test-key");
+    const now = new Date();
+    const hst = new Date(now.getTime() - 10 * 3600_000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const hpdRows = [
+      {
+        date: `${hst.getUTCFullYear()}-${pad(hst.getUTCMonth() + 1)}-${pad(hst.getUTCDate())}T00:00:00.000`,
+        time: `${pad(hst.getUTCHours())}:${pad(hst.getUTCMinutes())}`,
+        type: "TRAFFIC COLLISION",
+        address: "H1 FWY EB",
+        location: { latitude: "21.33", longitude: "-157.95" },
+      },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("honolulu.gov")) return new Response(JSON.stringify(hpdRows), { status: 200 });
+        if (url.includes("mapbox")) return new Response(JSON.stringify(mapboxBody), { status: 200 });
+        if (url.includes("tomtom")) return new Response("quota", { status: 403 });
+        return new Response("[]", { status: 200 });
+      }),
+    );
+    const drive = await lookupDriveTime(data);
+    expect(drive).toMatchObject({ provider: "mapbox", incidentsAvailable: false, hpdChecked: true, incidents: [] });
+    expect(drive?.nearbyIncidents).toHaveLength(1);
+    expect(drive?.nearbyIncidents?.[0]).toMatchObject({ source: "hpd", delayMinutes: null, category: "1" });
+  });
 });
+

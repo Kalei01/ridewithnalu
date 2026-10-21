@@ -7,4 +7,7 @@ it("says nothing for a normal TomTom answer and is honest about the fallback", (
     /Mapbox \(estimate\)/,
   );
   expect(driveSourceNote({ provider: "tomtom", incidentsAvailable: false })).toMatch(/paused/);
+  expect(
+    driveSourceNote({ provider: "mapbox", incidentsAvailable: false, hpdChecked: true }),
+  ).toMatch(/HPD/);
 });

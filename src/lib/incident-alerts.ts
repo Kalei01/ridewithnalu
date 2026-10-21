@@ -50,6 +50,11 @@ export function incidentWhere(incident: DriveIncident): string | null {
 }
 
 function headline(incident: DriveIncident): string {
+  if (incident.source === "hpd") {
+    const hpdLabel = incidentCategoryLabel(incident) ?? "Incident";
+    const hpdRoad = localRoadName(incident.road);
+    return `${hpdLabel}${hpdRoad ? ` on ${hpdRoad}` : ""}${incident.from ? ` near ${incident.from}` : ""}`;
+  }
   const label = incidentCategoryLabel(incident) ?? "Incident";
   const road = localRoadName(incident.road);
   const where = incidentWhere(incident);
@@ -63,7 +68,7 @@ function delayMinutes(incident: DriveIncident): number {
 /** HUD line, delay first when known: "+8 min · Accident on H-1 East near Aiea". */
 export function incidentHudText(incident: DriveIncident): string {
   const delay = delayMinutes(incident);
-  return `${delay > 0 ? `+${delay} min · ` : ""}${headline(incident)}`;
+  return `${delay > 0 ? `+${delay} min · ` : ""}${headline(incident)}${incident.source === "hpd" ? " (HPD)" : ""}`;
 }
 
 /** Spoken line: "Reported accident on H-1 East near Aiea, adding about 8 minutes." */
@@ -71,6 +76,8 @@ export function incidentSpeech(incident: DriveIncident): string {
   const delay = delayMinutes(incident);
   const spokenDelay =
     delay > 0 ? `, adding about ${delay} ${delay === 1 ? "minute" : "minutes"}` : "";
+  if (incident.source === "hpd")
+    return `Police report ${headline(incident).replace(/^./, (c) => c.toLowerCase())}.`;
   return `Reported ${headline(incident).replace(/^./, (c) => c.toLowerCase())}${spokenDelay}.`;
 }
 

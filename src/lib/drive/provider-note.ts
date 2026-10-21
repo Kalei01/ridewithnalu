@@ -6,11 +6,13 @@ import type { DriveTime } from "../drive.functions";
  * answers whose incident feed was read.
  */
 export function driveSourceNote(
-  drive: Pick<DriveTime, "provider" | "incidentsAvailable"> | null | undefined,
+  drive: Pick<DriveTime, "provider" | "incidentsAvailable" | "hpdChecked"> | null | undefined,
 ): string | null {
   if (!drive) return null;
+  const police = drive.hpdChecked ? " Police reports (HPD) are still shown." : "";
   if (drive.provider === "mapbox")
-    return "Live time from Mapbox (estimate). TomTom accident alerts are paused.";
-  if (drive.incidentsAvailable === false) return "Accident alerts are paused right now.";
+    return `Live time from Mapbox (estimate). TomTom accident alerts are paused.${police}`;
+  if (drive.incidentsAvailable === false)
+    return `TomTom accident alerts are paused right now.${police}`;
   return null;
 }

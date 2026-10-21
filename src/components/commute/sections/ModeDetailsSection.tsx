@@ -175,6 +175,22 @@ export function ModeDetailsSection(props: ModeDetailsSectionProps) {
                 {driveAvailable && driveSourceNote(drive) && (
                   <p className="mt-2 text-xs text-muted-foreground">{driveSourceNote(drive)}</p>
                 )}
+                {driveAvailable &&
+                  (drive?.nearbyIncidents ?? []).filter((i) => i.source === "hpd").length > 0 && (
+                    <div className="mt-3 border-l-2 border-warning pl-3">
+                      {(drive?.nearbyIncidents ?? [])
+                        .filter((i) => i.source === "hpd")
+                        .slice(0, 2)
+                        .map((i) => (
+                          <p key={i.id ?? i.description} className="text-sm text-foreground">
+                            {i.description}
+                          </p>
+                        ))}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Honolulu Police Department via Honolulu Open Data. No delay is reported.
+                      </p>
+                    </div>
+                  )}
                 {(drive?.hdotScheduledClosures?.length ?? 0) > 0 && (
                   <HdotRoadworkNotice
                     scheduledClosures={drive?.hdotScheduledClosures ?? []}

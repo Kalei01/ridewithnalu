@@ -255,7 +255,7 @@ export async function sharedIncidents<T>(
     const value = await load();
     if (value !== null) {
       incidentMemory.delete(key);
-      incidentMemory.set(key, { at: Date.now(), value });
+      incidentMemory.set(key, { at: now, value });
       while (incidentMemory.size > 12) {
         const oldest = incidentMemory.keys().next().value;
         if (typeof oldest !== "string") break;

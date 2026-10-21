@@ -30,6 +30,7 @@ import {
   typicalKey,
   type TomtomOutcome,
 } from "./drive/tomtom-guard";
+import { hpdNearRoute } from "./drive/hpd-incidents";
 import { fetchMapboxRoute, lastMapboxFailureReason, type MapboxRoute } from "./drive/mapbox-directions";
 
 // Per-visitor limits on paid lookups (see rate-limit.server.ts).
@@ -81,6 +82,10 @@ export type DriveIncident = {
   id?: string | null;
   /** Nearby list only: geometry sits on the driven route (within ~90 m). */
   onRoute?: boolean;
+  /** Who reported it. Absent means TomTom. "hpd" = Honolulu Police Department via Honolulu Open Data. */
+  source?: "tomtom" | "hpd";
+  /** When an HPD report was filed (ISO). HPD reports carry no delay and never change a verdict. */
+  reportedAt?: string | null;
 };
 
 export type DriveTime = {
@@ -136,6 +141,8 @@ export type DriveTime = {
    * Mapbox has no incident feed). Then an empty `incidents` list means "unknown", never "none".
    */
   incidentsAvailable?: boolean;
+  /** The HPD open-data feed was read for this answer (its reports, if any, are in `nearbyIncidents`). */
+  hpdChecked?: boolean;
 };
 
 export type DriveTrafficSection = {
@@ -254,6 +261,26 @@ function requestOrbisRoute(key: string, routeBody: object) {
     },
     body: JSON.stringify(routeBody),
   });
+}
+
+/**
+ * HPD police reports for a live route, merged into the "nearby" list only: reported
+ * facts that name a place, never a delay or a verdict input. A report is skipped when
+ * TomTom already lists a collision within 500 m of it.
+ */
+export async function withHpdReports(
+  nearby: DriveIncident[],
+  tomtomOnRoute: DriveIncident[],
+  route: { path: GeoPoint[]; roads: string[] },
+): Promise<{ nearby: DriveIncident[]; checked: boolean }> {
+  const { incidents, checked } = await hpdNearRoute(route);
+  const known = [...tomtomOnRoute, ...nearby].filter((i) => i.category === "1");
+  const fresh = incidents.filter(
+    (report) =>
+      !report.points[0] ||
+      !known.some((k) => (k.points ?? []).some((p) => metersBetween(p, report.points[0]!) < 500)),
+  );
+  return { nearby: [...nearby, ...fresh].slice(0, 8), checked };
 }
 
 const FALLBACK = Symbol("tomtom-fallback");
@@ -421,6 +448,11 @@ async function tomtomDriveTime(
       summary.lengthInMeters ?? 0,
       { fromLon: data.fromLon, toLon: data.toLon },
     );
+    // Police-reported incidents (free): a supplement, and the only incident source when TomTom's is down.
+    const hpd =
+      data.departureTime || lite
+        ? { nearby: nearbyIncidents ?? [], checked: false }
+        : await withHpdReports(nearbyIncidents ?? [], incidents, { path, roads: corridor?.allRoads ?? [] });
     // Compare against every road the route touches, so a road the drive uses
     // for even one leg is never advertised as skipped.
     const bypassedRoads = corridor ? bypassedCorridors(offRoute, corridor.allRoads) : [];
@@ -444,7 +476,7 @@ async function tomtomDriveTime(
       path,
       trafficSections,
       incidents,
-      nearbyIncidents,
+      nearbyIncidents: hpd.nearby,
       hdotLaneClosures,
       hdotScheduledClosures,
       corridorLabel: corridor?.label ?? null,
@@ -455,6 +487,7 @@ async function tomtomDriveTime(
       trafficBasis: data.departureTime ? "future-estimate" : "live",
       provider: "tomtom",
       incidentsAvailable,
+      hpdChecked: hpd.checked,
     };
 
     if (!lite) cacheDrive(cacheKey, result);
@@ -500,6 +533,9 @@ export async function driveTimeFromMapbox(data: z.infer<typeof schema>, route: M
     route.meters,
     { fromLon: data.fromLon, toLon: data.toLon },
   );
+  const hpd = data.departureTime
+    ? { nearby: [] as DriveIncident[], checked: false }
+    : await withHpdReports([], [], { path: fullPath, roads: corridor?.allRoads ?? [] });
   const trafficMinutes = Math.round(route.liveSeconds / 60);
   // Only when Mapbox itself returned a typical duration; otherwise there is no "usual" to compare.
   const typicalChecked = route.typicalSeconds !== null;
@@ -515,7 +551,7 @@ export async function driveTimeFromMapbox(data: z.infer<typeof schema>, route: M
     path: thinPath(fullPath),
     trafficSections,
     incidents: [],
-    nearbyIncidents: [],
+    nearbyIncidents: hpd.nearby,
     hdotLaneClosures,
     hdotScheduledClosures,
     corridorLabel: corridor?.label ?? null,
@@ -526,6 +562,7 @@ export async function driveTimeFromMapbox(data: z.infer<typeof schema>, route: M
     trafficBasis: data.departureTime ? "future-estimate" : "live",
     provider: "mapbox",
     incidentsAvailable: false,
+    hpdChecked: hpd.checked,
   };
 }
 
