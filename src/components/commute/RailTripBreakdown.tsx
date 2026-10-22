@@ -18,6 +18,7 @@ import {
 import { Leg, Option, modeIcon, vehicleName } from "@/lib/commute-model";
 import { skylineStationParts, withStation } from "@/lib/rail/station-names";
 import { StationName } from "@/components/commute/StationName";
+import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 
 export const WalkingMicroMap = lazy(() => import("@/components/commute/WalkingMicroMap"));
 
@@ -255,7 +256,7 @@ export function RailTripBreakdown({
                     </p>
                     <LandmarkHint name={transitStopName(leg, "to")} />
                     <p className="mt-1 text-xs font-semibold text-foreground">
-                      Ride {legMinutes ?? "—"} min
+                      Ride {legMinutes != null ? formatDriveMinutes(legMinutes) : "— min"}
                     </p>
                   </div>
                 ) : leg.mode === "rail" ? (

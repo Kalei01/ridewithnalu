@@ -1,3 +1,4 @@
+2026-10-22 HST · NALU MAIN · Both-directions planning shipped (363cb41, ba0a712): inbound only from Home/toggle, rail+P&R both ways, reversed-trip door leg fixed, TomTom in-flight dedupe. LOW left: Kapolei default on denied location, town-only quick picks, fixed pulse windows.
 2026-10-22 HST · NALU MAIN · Browse preview fixes (138df6c + weekday fix) shipped to /browse-preview; home screen unchanged. Next: both-directions build.
 # Inbox — agent reports to NALU MAIN (newest first, ≤ 60 lines)
 Written by the inbox routine (trig_018dVqisHDihRPYq9mBE1qtP) when an agent calls fire_trigger. NALU MAIN reads this at every wake. One line: date HST · agent · report · action.
