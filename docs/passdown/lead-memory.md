@@ -33,6 +33,8 @@ The full working memory of NALU MAIN COMMAND (1), written before it was archived
 
 - Oct 21: reroute-with-reason LIVE (78ec8d5 + a531590): stay on her road unless saves ≥ max(5 min,15%), reason from the differing stretch only, decline detection on ramp geometry, closure always reroutes, transit re-plans every 5 min while driving. TomTom Orbis v3 path pricing = top-level GeoJSON `path` LineString (follows the polyline; waypoints field refuses Points). Open: test for too-soon+closure branch; log only status code on TomTom 400; check her next drive log.
 
+- Oct 21–22: TomTom free monthly quota exhausted → Mapbox fallback LIVE (12494e8, 1c14c73 local names), usage cuts, HPD police reports display-only — but the HPD feed returns 0 rows live (health "police reports (HPD)": HTTP 200 via cloudflare, 0 rows) → next: fix query/endpoint. Browse redesign mockup sent to Josh (scratchpad/browse-design), awaiting his feedback before phases 3–4. Google for Startups follow-up drafted in Gmail.
+
 ## Josh's tools — verdicts (Oct 15, MAIN (4))
 No claude.ai plugins enabled (ListPlugins empty; ~/.claude/plugins empty). Nothing installed or enabled; no paid generations run.
 - Useful now: GitHub (PRs, CI, checks); Gmail (startup-credits drafts and notices — drafts only, Josh sends); built-in code-review / security-review / simplify (extra pass before risky pushes; our reviewers stay primary); run (launch the app to check a change); deep-research (credits eligibility questions only, it fans out subagents — rare).
