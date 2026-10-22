@@ -4444,7 +4444,10 @@ function Index() {
       <>
         <PullToRefresh onRefresh={refresh} refreshing={refreshing} enabled={!browseSheetOn} />
       {browseSheetOn ? (
-        <BrowseSheetScreen onOpenSettings={() => openSettingsList()} />
+        <>
+          <BrowseSheetScreen onOpenSettings={() => openSettingsList()} />
+          {setupDialog}
+        </>
       ) : (
       <BrowseScreen
         browseDeparturesFailed={browseDeparturesFailed}
