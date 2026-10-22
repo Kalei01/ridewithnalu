@@ -5,6 +5,8 @@ import { MapSection, type TransitMapSegment } from "@/components/commute/section
 import { ModeDetailsSection } from "@/components/commute/sections/ModeDetailsSection";
 import { ArriveBySection } from "@/components/commute/sections/ArriveBySection";
 import { BrowseScreen } from "@/components/commute/BrowseScreen";
+import { BrowseSheetScreen } from "@/components/commute/browse/BrowseSheetScreen";
+import { useBrowseSheetOptIn } from "@/components/commute/browse/browse-flag";
 import { activeRegion, regionTimeZone } from "@/lib/region";
 import { useGate } from "@/hooks/use-gate";
 import { SettingsHint } from "@/components/SettingsHint";
@@ -314,6 +316,7 @@ function Index() {
   const { user, loading: authLoading, signedInAt } = useAuth();
   // Plan checks (all allowed while the plan switches are off, Phase 1).
   const gate = useGate();
+  const browseSheetOn = useBrowseSheetOptIn();
   const [now, setNow] = useState(() => new Date());
   const [online, setOnline] = useState(true);
   useEffect(() => {
@@ -4439,7 +4442,10 @@ function Index() {
   if (browseActive) {
     return (
       <>
-        <PullToRefresh onRefresh={refresh} refreshing={refreshing} enabled />
+        <PullToRefresh onRefresh={refresh} refreshing={refreshing} enabled={!browseSheetOn} />
+      {browseSheetOn ? (
+        <BrowseSheetScreen onOpenSettings={() => openSettingsList()} />
+      ) : (
       <BrowseScreen
         browseDeparturesFailed={browseDeparturesFailed}
         browseDeparturesLoading={browseDeparturesLoading}
@@ -4503,6 +4509,7 @@ function Index() {
         westboundTrafficFailed={westboundTrafficFailed}
         westboundTrafficLoading={westboundTrafficLoading}
       />
+      )}
       </>
     );
   }

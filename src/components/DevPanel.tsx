@@ -7,6 +7,7 @@ import { DAILY_TRIP_LIMIT, ENFORCE_TIERS, FEATURE_TIER, writePreviewTier, type T
 import { readPushPrefs } from "@/lib/push-client";
 import { useServerFn } from "@tanstack/react-start";
 import { clearProblems, linkDeveloperPhone, listProblems, sendServerTestError, usageStats } from "@/lib/dev.functions";
+import { setBrowseSheetOptIn, useBrowseSheetOptIn } from "@/components/commute/browse/browse-flag";
 import { areaName } from "@/lib/problems";
 import { REGIONS, activeRegion, switchRegion, type RegionId } from "@/lib/region";
 
@@ -32,6 +33,7 @@ export function DevPanel() {
   const real = useRealTier();
   const { tier, previewing } = useTier();
   const [open, setOpen] = useState(false);
+  const browseSheetOn = useBrowseSheetOptIn();
   const [pushLinked, setPushLinked] = useState(false);
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const serverTest = useServerFn(sendServerTestError);
@@ -255,6 +257,27 @@ export function DevPanel() {
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
               Previewing shows that tier's limits on this phone only, even before limits are switched on.
+            </p>
+
+            <p className="mt-4 text-sm font-semibold">New Browse (preview)</p>
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              {[
+                { on: false, label: "Current" },
+                { on: true, label: "New (map + sheet)" },
+              ].map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  aria-pressed={browseSheetOn === option.on}
+                  onClick={() => setBrowseSheetOptIn(option.on)}
+                  className={`h-11 rounded-lg text-sm font-semibold ${browseSheetOn === option.on ? "bg-primary text-primary-foreground" : "border border-border"}`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Shows the new Browse on this phone only. Everyone else keeps the current one.
             </p>
 
             <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">

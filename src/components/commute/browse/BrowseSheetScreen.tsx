@@ -1,6 +1,15 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
-import { Bus, ChevronDown, ChevronRight, MapPinOff, Plus, TrainFront, X } from "lucide-react";
+import {
+  Bus,
+  ChevronDown,
+  ChevronRight,
+  MapPinOff,
+  Plus,
+  Settings,
+  TrainFront,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WaveMark } from "@/components/commute/NaluPersonalityStrip";
 import { WhereToSearch } from "@/components/home/WhereToSearch";
@@ -46,6 +55,7 @@ import {
 import { plannerHref } from "@/lib/home/planner-link";
 import { findByKind, kindLabel } from "@/lib/places/saved-places";
 import { activeRegion } from "@/lib/region";
+import { useBrowseSheetOptIn, useLeaveBrowseSheet } from "./browse-flag";
 import { BrowseSheet, type SheetState } from "./BrowseSheet";
 import type { MapCommand, MapLayers, MapSelection } from "./BrowseMap";
 import { MapControls } from "./MapControls";
@@ -89,7 +99,9 @@ function Roll({ value, children }: { value: string | number; children: React.Rea
  * Roads and stations follow the rider (their location, saved Home and Work),
  * in every direction: nothing here assumes the west side or a trip to work.
  */
-export function BrowseSheetScreen() {
+export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => void } = {}) {
+  const optedIn = useBrowseSheetOptIn();
+  const leaveSheet = useLeaveBrowseSheet();
   const [demo] = useState(readDemo);
   const data = useBrowseData(demo);
   const gate = useGate();
@@ -385,6 +397,16 @@ export function BrowseSheetScreen() {
         <span className="hidden pr-2 text-xs text-muted-foreground min-[380px]:inline">
           {alohaGreeting(data.now, profileFirstName(user))}
         </span>
+        {onOpenSettings && (
+          <button
+            type="button"
+            aria-label="Open settings"
+            onClick={onOpenSettings}
+            className="inline-flex size-11 items-center justify-center rounded-full text-muted-foreground active:bg-white/10"
+          >
+            <Settings aria-hidden="true" className="size-5" />
+          </button>
+        )}
       </div>
 
       <BrowseSheet state={sheet} onStateChange={setSheet} peek={peek}>
@@ -392,6 +414,15 @@ export function BrowseSheetScreen() {
           <p className="mt-2 w-fit rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
             Test: {activeRegion().name} · driving and rides only
           </p>
+        )}
+        {optedIn && (
+          <button
+            type="button"
+            onClick={leaveSheet}
+            className="mt-2 inline-flex min-h-11 items-center rounded-full border border-white/15 px-4 text-sm font-semibold text-foreground active:bg-white/10"
+          >
+            Back to current Browse
+          </button>
         )}
         <DataExpiryNotice />
         {!data.online && (
