@@ -12,7 +12,7 @@ Statuses stay on the numbered items below; this list only sets the order.
 2. DONE Oct 19 (station names and answer-first: every trip guide has a What-to-know strip after the Oct 15 redesign). Queued Oct 8: answer-first format plus a visible "Last updated" date, one guide per run, starting with skyline-park-and-ride, skyline-rail-guide, kapolei-to-downtown. Add the station-name update (English first, Hawaiian second) in the same edit.
 3. SKIP Oct 14 (rail guide already covers it; duplicate intent). Item 9: /guides/skyline-fares-and-hours (official sources only; verify the transfer window and hours first).
 4. Item 7: Organization, WebApplication and Article dateModified structured data. No new FAQ or HowTo (Google no longer shows them).
-5. Item 5: rush-hour section with TomTom figures, once the numbers are re-read at the source.
+5. DONE Oct 22. Item 5: rush-hour section on /oahu-commute with TomTom 2025 figures (read from the rendered page).
 6. Item 3, then 10: only if autocomplete or Search Console still shows demand.
 7. Item 11: homepage speed, after Phase 3.
 Not in the routine's hands: trust pages (separate session), item 6 (listings and outreach dropped: organic only).
@@ -39,7 +39,7 @@ Each run: check the 10 target queries in strategy.md section 4 with `bun scripts
 ## Next (only with evidence re-checked)
 3. TODO (Oct 8: autocomplete shows "pearl city to downtown honolulu"; still needs sourced station facts) Pearl City / ʻAiea to town guide (Kalauao, Waiawa, Hālawa stations) — one page, only if sourced facts are solid.
 4. TODO (Oct 8: no autocomplete demand for "pearl harbor hickam skyline" or "aiea to downtown honolulu"; lowest priority) Commuting to Pearl Harbor–Hickam (Makalapa station) — one page, sourced.
-5. TODO (Oct 8: autocomplete shows "honolulu rush hour times"; blocked until the TomTom figures below are re-read on tomtom.com/traffic-index/city/honolulu-hi/, which loads them with scripts and could not be fetched as text) "Honolulu rush hour": /oahu-commute's focus was set Oct 6 (choosing drive vs TheBus vs Skyline) — don't change its title or focus without Search Console evidence. A sourced rush-hour section on it is fine; it may cite TomTom's published Honolulu figures (2025: 50.5% congestion, 88 hours lost, 10 km in 25:06 morning / 26:19 evening rush) with attribution; no hour-by-hour start/end times without a citable source.
+5. DONE Oct 22 (sourced section live on /oahu-commute; TomTom figures read from the rendered page, City view, Metro noted). Originally: "Honolulu rush hour": /oahu-commute's focus was set Oct 6 (choosing drive vs TheBus vs Skyline) — don't change its title or focus without Search Console evidence. A sourced rush-hour section on it is fine; it may cite TomTom's published Honolulu figures (2025: 50.5% congestion, 88 hours lost, 10 km in 25:06 morning / 26:19 evening rush) with attribution; no hour-by-hour start/end times without a citable source.
 6. DECISION First-party drive-time sampling to answer "when to leave" — needs the owner's approval and a TomTom terms check. Never build it unasked.
 
 ## Josh's SEO pass (Oct 13, 2026; trimmed by NALU MAIN, approved by Josh). Start after Phase 2; 1–2 items per run, top-down

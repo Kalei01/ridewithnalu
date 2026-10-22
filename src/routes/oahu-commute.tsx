@@ -6,6 +6,12 @@ import { GUIDES, TRIP_GUIDES } from "@/components/guides/guides";
 
 // Facts below come from TheBus's GTFS timetable (checked October 2026) and the
 // HOLO fare table in src/lib/fares.ts. Update them when the timetable changes.
+// Sources (checked October 22, 2026): TomTom Traffic Index, Honolulu, HI, 2025
+// (tomtom.com/traffic-index/city/honolulu-hi/, rush-hour view set to City: 10 km in
+// 25 min 6 s morning at 79.1% congestion, 26 min 19 s evening at 81.3%, 88 hours lost in
+// rush hour, 1 hr 16 min more than 2024; average 10 km trip 20 min 59 s; Metro view:
+// 16 min 51 s morning, 18 min 38 s evening, 56 hours). TomTom gives no rush-hour clock
+// times, so none are stated. Re-check each year when the new index is published.
 const SKYLINE_STATIONS = [
   "East Kapolei (Kualakaʻi)",
   "UH West Oʻahu (Keoneʻae)",
@@ -166,6 +172,31 @@ function OahuCommutePage() {
               moment.
             </p>
           </div>
+        </section>
+
+        <section className="mt-12" aria-labelledby="rush-hour">
+          <h2 id="rush-hour" className="text-2xl font-bold">How heavy is rush hour in Honolulu?</h2>
+          <p className="mt-3 leading-7 text-muted-foreground">
+            Compared with an average trip, rush hour adds about four to five minutes to a 10 km drive,
+            and TomTom does not publish clock times for it. In its 2025 Traffic Index, a 10 km drive in central Honolulu took 25 minutes
+            in the morning rush and 26 in the evening rush, against about 21 minutes on an average
+            trip.
+          </p>
+          <ul className="mt-4 grid gap-2 leading-7 text-muted-foreground">
+            <li><span className="font-semibold text-foreground">Morning rush:</span> 10 km in 25 min 6 s, with a congestion level of 79.1%.</li>
+            <li><span className="font-semibold text-foreground">Evening rush:</span> 10 km in 26 min 19 s, with a congestion level of 81.3%.</li>
+            <li><span className="font-semibold text-foreground">TomTom's figure for time lost to rush-hour traffic, 2025:</span> 88 hours, which is 1 hour 16 minutes more than in 2024.</li>
+          </ul>
+          <p className="mt-4 leading-7 text-muted-foreground">
+            TomTom's congestion level is the extra travel time compared with free-flowing traffic, so
+            79.1% means the drive took about 79% longer than it would with no traffic. These are yearly averages for central Honolulu.
+            For the wider metro area TomTom reports lower rush-hour times, 16 min 51 s in the morning
+            and 18 min 38 s in the evening. Your own route can be better or worse, which is why Nalu
+            checks live traffic for your exact trip and compares it with the train and bus.
+          </p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Source: TomTom Traffic Index 2025, Honolulu, HI (checked October 2026).
+          </p>
         </section>
 
         <section className="mt-12" aria-labelledby="skyline">

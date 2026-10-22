@@ -91,3 +91,18 @@ Newest entry last. Each run of the twice-weekly search review appends one entry.
 **Rejected / not done:** rush-hour section (TomTom figures still unread at source); Pearl City and Pearl Harbor pages (no new demand); no titles or bodies changed.
 
 **Backlog status:** 2 DONE, 7 DONE (narrowed), 5 blocked on TomTom source, 3 and 4 need demand, 6 DECISION. Next real step is the Nov 11 CTR read, factoring in the Oct 15 redesign.
+
+## 2026-10-22 (Thu) — rush-hour section on /oahu-commute
+
+**Evidence** (Search Console, 28 days to Oct 22): 828 impressions (668 on Oct 19), 6 clicks, position 11.4. Gate: RUN (new queries; impressions +24%, just under the 25% line). /guides/skyline-park-and-ride 331 impr, 6 clicks (1.8%, position 7.4). /guides/skyline-rail-guide 198 impr, 0 clicks, position 12.9 (was 9.2 on 90 impr; queries "skyline hours" 10 impr at 15.1, "rail hours" 5, "what time the light rail start running" 11, "what time the skytrain open" 12). Others: airport 64 (22.4), Mililani 47 (11.1), late-night 39 (6.8), Kapolei 38 (13.9), UH 28, ʻEwa 21, /guides hub 20 (43.1). Index: 18 of 19 indexed; /disclaimer still "Discovered - currently not indexed". Autocomplete from Oct 8 still shows "honolulu rush hour times".
+- Rail guide position moved from 9.2 to 12.9 while impressions doubled. That fits more, broader queries, and the Oct 14 titles and Oct 15 redesign are inside the Nov 11 measurement window, so no titles or bodies were touched.
+
+**Changed**
+- New "How heavy is rush hour in Honolulu?" section on /oahu-commute (backlog item 5), answer first: rush hour adds about four to five minutes to a 10 km drive, and TomTom publishes no clock times. Figures read from tomtom.com/traffic-index/city/honolulu-hi/ in a rendered browser on Oct 22 (City view, which is the page's default): average 10 km trip 20 min 59 s; morning rush 25 min 6 s at 79.1% congestion; evening rush 26 min 19 s at 81.3%; 88 hours lost in rush hour, 1 hr 16 min more than 2024. The Metro view is lower (16 min 51 s morning, 18 min 38 s evening, 56 hours), and the section says so. No clock times and no promise about a rider's own route. Title, description and focus of /oahu-commute unchanged.
+- Backlog correction: the earlier note blocking item 5 ("figures unreadable") is resolved by reading the rendered page. Note for next year: the same page also has a per-hour weekly grid that only shows values on hover; I did not use it.
+
+**Reviewers:** transit-accuracy, mobile-design, security-keys (results below in the commit).
+
+**Rejected / not done:** Pearl City and Pearl Harbor pages (no new demand); no hour-by-hour rush times (no citable source); no title changes before Nov 11.
+
+**Backlog status:** 5 DONE (this run). 3, 4 need demand. 6 DECISION. Next real step is the Nov 11 CTR read, factoring in the Oct 15 redesign and this section.

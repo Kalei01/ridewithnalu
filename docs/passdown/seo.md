@@ -5,7 +5,7 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 - Oct 14: strategy written, docs/seo/strategy.md; run order is the RUN ORDER section of backlog.md. Evidence: 374 impressions, 4 clicks, pos 10.3; skyline-park-and-ride is the winner (157 impr, pos 7). Research only, no code changed.
 - Backlog: `docs/seo/backlog.md`; log: `docs/seo/search-review-log.md`.
 - Evidence so far (Oct 8): 18 impressions, 0 clicks, 18/19 pages indexed (/disclaimer unknown). Too thin to act on.
-- Rush-hour section waits on reading TomTom's Honolulu figures from the source.
+- Rush-hour section is live on /oahu-commute (Oct 22, TomTom 2025 City view).
 
 ## Waiting / follow-ups
 - Oct 15 (NALU MAIN): guide redesign FINISHED and live (28ed3f4); guide bodies are editable again. Titles, descriptions, FAQ, JSON-LD and section ids unchanged. Reuse the shared pieces in src/components/guides/GuideBlocks.tsx (StatTiles, OptionCards, GuideMap, GuideDetails, FactList, CompareCards) and GuideLayout's `strip` prop for answer-first work. Nov 11 CTR/position read must factor in the Oct 15 redesign. Answer-first still to do: ʻEwa, Mililani, airport, UH.
@@ -18,9 +18,10 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 - App station names live since e3a3638; guides can now be updated (English name first, Hawaiian second; table in docs/product/direction.md).
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R+ (Oct 22)
 - R+ (Oct 19)
 - R+ (Oct 15)
 - R0 (Oct 8)
 
 ## Last run
-- Mon Oct 19: RUN OK. 668 impressions, 6 clicks. Guide dateModified is now one constant (LAST_MODIFIED_ISO, bump with LAST_UPDATED). Answer-first and structured-data items closed. Next: Nov 11 CTR read (factor in Oct 15 redesign); item 5 waits on TomTom source; items 3, 4 need demand.
+- Thu Oct 22: RUN OK. 828 impressions, 6 clicks. Rush-hour section added to /oahu-commute with TomTom 2025 figures read from the rendered page. Next: Nov 11 CTR/position read (factor in Oct 15 redesign and this section); items 3, 4 need demand; item 6 is Josh's call.
