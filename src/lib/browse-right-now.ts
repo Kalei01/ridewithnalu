@@ -127,6 +127,52 @@ export function netDirection(path: LatLon[] | undefined): string | null {
       : "southbound";
 }
 
+const WORD_TO_BOUND: Record<string, string> = {
+  east: "eastbound",
+  west: "westbound",
+  north: "northbound",
+  south: "southbound",
+};
+
+/**
+ * The way a route travels on one of its roads, from the route's own road name
+ * ("H-1 East" → "eastbound"). Null when the route does not say: no direction is shown
+ * rather than a guess from the trip's overall bearing.
+ */
+export function routeDirectionOn(drive: DriveTime | undefined, road: string): string | null {
+  if (!drive) return null;
+  const key = roadKey(road);
+  for (const raw of drive.corridorRoads ?? []) {
+    if (roadKey(raw) !== key) continue;
+    const word = raw.match(/\b(east|west|north|south)(?:bound)?\b/i)?.[1];
+    if (word) return WORD_TO_BOUND[word.toLowerCase()] ?? null;
+  }
+  return null;
+}
+
+/** Provider and HDOT place names with the ʻokina and kahakō locals expect. */
+const PLACE_SPELLINGS: Array<[RegExp, string]> = [
+  [/\bAiea\b/g, "ʻAiea"],
+  [/\bEwa\b/g, "ʻEwa"],
+  [/\bWaianae\b/g, "Waiʻanae"],
+  [/\bKaneohe\b/g, "Kāneʻohe"],
+  [/\bWahiawa\b/g, "Wahiawā"],
+  [/\bWaikiki\b/g, "Waikīkī"],
+  [/\bHalawa\b/g, "Hālawa"],
+  [/\bKaimuki\b/g, "Kaimukī"],
+  [/\bKahala\b/g, "Kāhala"],
+  [/\bMoiliili\b/g, "Moʻiliʻili"],
+  [/\bHawaii Kai\b/g, "Hawaiʻi Kai"],
+  [/\bKalanianaole\b/g, "Kalanianaʻole"],
+  [/\bKapiolani\b/g, "Kapiʻolani"],
+];
+export function localPlace(text: string): string {
+  return PLACE_SPELLINGS.reduce(
+    (out, [pattern, replacement]) => out.replace(pattern, replacement),
+    text,
+  );
+}
+
 // ---- Incidents ----------------------------------------------------------
 
 const INCIDENT_SCORE: Record<string, number> = {
@@ -162,9 +208,10 @@ function incidentFocus(incident: DriveIncident): MapFocus | null {
 function incidentWhereText(incident: DriveIncident): string | null {
   const from = incident.from?.trim();
   const to = incident.to?.trim();
-  if (from && to && from.toLowerCase() !== to.toLowerCase()) return `${from} to ${to}`;
+  if (from && to && from.toLowerCase() !== to.toLowerCase())
+    return `${localPlace(from)} to ${localPlace(to)}`;
   const one = from || to;
-  return one ? `near ${one}` : null;
+  return one ? `near ${localPlace(one)}` : null;
 }
 
 function incidentKey(incident: DriveIncident): string {
@@ -281,26 +328,74 @@ function honoluluTodayUtc(nowMs: number): number {
   return Date.UTC(read("year"), read("month") - 1, read("day"));
 }
 
-export type ClosureState = "now" | "tonight" | "later" | "unknown";
+/** now: in effect. tonight: starts later tonight. today: a daytime window that starts later today. */
+export type ClosureState = "now" | "tonight" | "today" | "later" | "unknown";
+
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+/**
+ * Days of the week a schedule names ("Sunday night through Thursday night",
+ * "Monday through Friday", "weekdays"), as 0=Sunday…6; null when it names none.
+ * A "night" belongs to the day it starts on.
+ */
+export function scheduleWeekdays(text: string): Set<number> | null {
+  const lower = text.toLowerCase();
+  const found: { day: number; at: number }[] = [];
+  for (const m of lower.matchAll(
+    /\b(sun|mon|tues?|wed(?:nes)?|thu(?:rs?)?|fri|sat(?:ur)?)(?:day)\b/g,
+  )) {
+    const day = WEEKDAYS.findIndex((name) => name.startsWith(m[1]!.slice(0, 3)));
+    if (day >= 0) found.push({ day, at: m.index ?? 0 });
+  }
+  if (!found.length) {
+    if (/\bweekdays?\b/.test(lower)) return new Set([1, 2, 3, 4, 5]);
+    if (/\bweekends?\b/.test(lower)) return new Set([0, 6]);
+    return null;
+  }
+  const days = new Set<number>();
+  for (let i = 0; i < found.length; i += 1) {
+    const here = found[i]!;
+    days.add(here.day);
+    const next = found[i + 1];
+    if (next && /\b(?:through|thru|to)\b/.test(lower.slice(here.at, next.at))) {
+      for (let d = here.day; ; d = (d + 1) % 7) {
+        days.add(d);
+        if (d === next.day) break;
+      }
+    }
+  }
+  return days;
+}
 
 export function closureState(closure: HdotScheduledClosure, nowMs: number): ClosureState {
   const today = honoluluTodayUtc(nowMs);
-  const dates = scheduleDates(closure.schedule, today);
-  const explicitStart = dates.find((d) => !d.end);
-  const start = dates.length >= 2 ? dates[0]! : explicitStart;
-  if (start && !start.end && start.at > today) return "later";
-  if (dates.some((d) => d.end && d.at < today)) return "later";
   const window = closureWindow(closure);
   if (!window) return "unknown";
-  if (window === "all-day") return "now";
   const minutes = Math.floor(honoluluSeconds(new Date(nowMs)) / 60);
+  const overnight = window !== "all-day" && window.endMin <= window.startMin;
+  // The early-morning end of a night shift still belongs to the day it started on.
+  const inEarlyHours = window !== "all-day" && overnight && minutes < window.endMin;
+  const shiftDay = inEarlyHours ? today - 86_400_000 : today;
+
+  const dates = scheduleDates(closure.schedule, today);
+  const start = dates.length >= 2 ? dates[0] : dates.find((d) => !d.end);
+  const end = dates.length >= 2 ? dates[dates.length - 1] : dates.find((d) => d.end);
+  if (start && !start.end && start.at > shiftDay) return "later";
+  if (end && end.at < shiftDay) return "later";
+  // With no dates, a named run of weekdays decides which days it applies to.
+  if (!dates.length) {
+    const days = scheduleWeekdays(`${closure.schedule} ${closure.location}`);
+    if (days && !days.has(new Date(shiftDay).getUTCDay())) return "later";
+  }
+
+  if (window === "all-day") return "now";
   const { startMin, endMin } = window;
-  const overnight = endMin <= startMin;
   const active = overnight
     ? minutes >= startMin || minutes < endMin
     : minutes >= startMin && minutes < endMin;
   if (active) return "now";
-  return startMin > minutes ? "tonight" : "later";
+  if (startMin > minutes) return overnight || startMin >= 17 * 60 ? "tonight" : "today";
+  return "later";
 }
 
 export function clock12(totalMinutes: number): string {
@@ -314,11 +409,12 @@ const PLACE = "[A-Z][A-Za-zʻ'’-]+(?:\\s+[A-Z][A-Za-zʻ'’-]+){0,2}";
 /** "near Kunia" or "Kalaeloa to Kunia" from HDOT's wording; null when it names no place. */
 export function closureWhere(location: string): string | null {
   const near = location.match(new RegExp(`\\b(?:near|at|in the vicinity of)\\s+(${PLACE})`));
-  if (near) return `near ${near[1]}`;
+  if (near) return `near ${localPlace(near[1]!)}`;
   const range = location.match(
     new RegExp(`\\b(?:(?:East|West|North|South)bound\\s+)?(${PLACE})\\s+to\\s+(${PLACE})`),
   );
-  if (range && !/^(?:Exit|Lane|Lanes)\b/.test(range[1]!)) return `${range[1]} to ${range[2]}`;
+  if (range && !/^(?:Exit|Lane|Lanes)\b/.test(range[1]!))
+    return `${localPlace(range[1]!)} to ${localPlace(range[2]!)}`;
   return null;
 }
 
@@ -326,23 +422,32 @@ function closureRoadLabel(route: string): string {
   return route.replace(/^H-201$/i, "Moanalua Fwy");
 }
 
-function closureItem(closure: HdotScheduledClosure, state: ClosureState): RightNowItem {
+function closureItem(
+  closure: HdotScheduledClosure,
+  state: ClosureState,
+  onRoute: boolean,
+): RightNowItem {
   const window = closureWindow(closure);
   const lanes = tidyClosure(closure).lanes;
   const direction = closure.direction ?? null;
-  const when =
-    window === "all-day"
-      ? "Around the clock"
-      : window
-        ? `${state === "now" ? "Now, until " + clock12(window.endMin) : `Tonight ${clock12(window.startMin)}–${clock12(window.endMin)}`}`
-        : "";
+  let when = "";
+  if (window === "all-day") when = "Around the clock";
+  else if (window) {
+    const span = `${clock12(window.startMin)}–${clock12(window.endMin)}`;
+    if (state === "now") when = `Now, until ${clock12(window.endMin)}`;
+    else if (state === "tonight") when = `Heads-up: tonight ${span}`;
+    else when = `Heads-up: later today ${span}`;
+  }
   const where = closureWhere(closure.location);
   return {
     id: `closure:${closure.route}:${direction}:${closure.location.slice(0, 60)}`,
     kind: "closure",
-    tone: /full closure/i.test(lanes) ? "bad" : "warn",
-    title: `${closureRoadLabel(closure.route)}${direction ? ` ${direction}` : ""}: ${lanes.charAt(0).toLowerCase()}${lanes.slice(1)}`,
-    detail: [when, where].filter(Boolean).join(" · "),
+    // Not confirmed on this rider's stretch: information only.
+    tone: !onRoute ? "info" : /full closure/i.test(lanes) ? "bad" : "warn",
+    title: `${onRoute ? "" : "Elsewhere · "}${closureRoadLabel(closure.route)}${direction ? ` ${direction}` : ""}: ${lanes.charAt(0).toLowerCase()}${lanes.slice(1)}`,
+    detail: [when, where, onRoute ? null : "check whether it is on your stretch"]
+      .filter(Boolean)
+      .join(" · "),
     source: "Hawaiʻi DOT weekly list",
     focus: null,
   };
@@ -370,13 +475,14 @@ function slowdownItems(checks: RoadCheck[]): RightNowItem[] {
       if (delay < SLOWDOWN_MIN) continue;
       // An incident that already states its delay is the item; don't say the same minutes twice.
       if (drive.incidents.some((i) => (i.delayMinutes ?? 0) > 0)) continue;
-      const direction = netDirection(drive.path);
+      const mainRoad = checkRoadNames(check)[0] ?? "";
+      const direction = routeDirectionOn(drive, mainRoad);
       const worst = [...drive.trafficSections].sort((a, b) => b.delayMinutes - a.delayMinutes)[0];
       out.push({
-        id: `slowdown:${check.id}:${direction ?? "x"}`,
+        id: `slowdown:${check.id}:${drive === check.forward ? "f" : "b"}`,
         kind: "slowdown",
         tone: delay >= SERIOUS_DELAY_MIN ? "bad" : "warn",
-        title: `${names}${direction ? ` ${direction}` : ""}: +${delay} min over typical`,
+        title: `${mainRoad || names}${direction ? ` ${direction}` : ""}: +${delay} min over typical`,
         detail: drive.provider === "mapbox" ? "Live estimate" : "Live",
         source: drive.provider === "mapbox" ? "Mapbox" : "TomTom",
         focus: worst?.points?.length
@@ -425,36 +531,56 @@ export function buildRightNow(input: {
     ...routeRoadNames(c.forward),
     ...(c.back === c.forward ? [] : routeRoadNames(c.back)),
   ]);
-  const closureItems: { item: RightNowItem; state: ClosureState; severe: boolean }[] = [];
+  // The server's own spatial check says which listed closures sit on a checked route.
+  const confirmed = new Set(
+    checks.flatMap((c) =>
+      [c.forward, c.back].flatMap((d) =>
+        (d?.hdotScheduledClosures ?? []).map((x) => `${x.route}|${x.location}`),
+      ),
+    ),
+  );
+  const closureItems: {
+    item: RightNowItem;
+    state: ClosureState;
+    severe: boolean;
+    onRoute: boolean;
+  }[] = [];
   for (const closure of closures ?? []) {
     if (!closureOnRoads(closure, roads)) continue;
     const state = closureState(closure, nowMs);
-    if (state !== "now" && state !== "tonight") continue;
-    const item = closureItem(closure, state);
-    // Attach the closure to its road on the map: the corridor that carries it.
-    const carrier = checks.find((c) =>
-      closureOnRoads(closure, routeRoadNames(c.forward ?? c.back)),
-    );
-    const path = (carrier?.forward ?? carrier?.back)?.path;
-    if (path?.length) item.focus = { kind: "path", points: path };
-    closureItems.push({ item, state, severe: item.tone === "bad" });
+    if (state !== "now" && state !== "tonight" && state !== "today") continue;
+    const onRoute = confirmed.has(`${closure.route}|${closure.location}`);
+    const item = closureItem(closure, state, onRoute);
+    if (onRoute) {
+      // Attach the closure to its road on the map: the corridor that carries it.
+      const carrier = checks.find((c) =>
+        closureOnRoads(closure, routeRoadNames(c.forward ?? c.back)),
+      );
+      const path = (carrier?.forward ?? carrier?.back)?.path;
+      if (path?.length) item.focus = { kind: "path", points: path };
+    }
+    closureItems.push({ item, state, severe: item.tone === "bad", onRoute });
   }
-  // Active closures before tonight's; full closures before lane closures.
+  // On your stretch before elsewhere; in effect before upcoming; full closures before lane closures.
   closureItems.sort(
     (a, b) =>
-      Number(b.state === "now") - Number(a.state === "now") || Number(b.severe) - Number(a.severe),
+      Number(b.onRoute) - Number(a.onRoute) ||
+      Number(b.state === "now") - Number(a.state === "now") ||
+      Number(b.severe) - Number(a.severe),
   );
 
   const live = [...incidentRows, ...slowdowns];
   const serious = live.filter(isSerious);
   const restLive = live.filter((item) => !isSerious(item));
   const closureList = closureItems.map((c) => c.item);
+  // Morning: only what is in effect or comes later today; tonight's waits until 3 PM.
+  const morningClosures = closureItems.filter((c) => c.state !== "tonight").map((c) => c.item);
 
   // Morning: what is happening on the road, then closures still in effect (tonight's wait until 3 PM).
   // Evening/overnight: tonight's closures lead the ordinary items.
   const ranked = evening
     ? [...serious, ...closureList, ...restLive]
-    : [...serious, ...restLive, ...closureList.filter((_, i) => closureItems[i]!.state === "now")];
+    : [...serious, ...restLive, ...morningClosures];
   const items = ranked.slice(0, MAX_ITEMS);
 
   if (items.length) {
@@ -476,6 +602,11 @@ export function calmLine(checks: RoadCheck[]): string {
   );
   const label = names || joinNames(answered.map((c) => c.area));
   if (!withBaseline.length) return `${label}: no usual-time comparison right now`;
+  // Without the incident feed "nothing reported" proves nothing: never say clear.
+  const incidentsBlind = answered.some((c) =>
+    [c.forward, c.back].some((d) => d !== undefined && d.incidentsAvailable === false),
+  );
+  if (incidentsBlind) return `${label}: traffic looks normal; crash data limited right now`;
   const bothWays = withBaseline.every((c) => compared(c.forward) && compared(c.back));
   return bothWays ? `${label} clear both ways` : `${label} clear`;
 }

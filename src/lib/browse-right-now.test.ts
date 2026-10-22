@@ -58,6 +58,10 @@ const closure = (over: Partial<HdotScheduledClosure> = {}): HdotScheduledClosure
   ...over,
 });
 
+/** A check whose route the server confirmed carries these closures. */
+const carrying = (...items: HdotScheduledClosure[]) =>
+  check({ forward: drive({ hdotScheduledClosures: items }) });
+
 describe("closure windows", () => {
   it("reads the nightly window and wraps past midnight", () => {
     expect(closureWindow(closure())).toEqual({ startMin: 20 * 60, endMin: 5 * 60 });
@@ -159,13 +163,13 @@ describe("buildRightNow", () => {
       now: hst(18),
     });
     expect(result.items[0]?.title).toBe("Accident on H-1");
-    expect(result.items[0]?.detail).toBe("Aiea to Pearl City · live · +9 min");
+    expect(result.items[0]?.detail).toBe("ʻAiea to Pearl City · live · +9 min");
     expect(result.items[0]?.focus?.kind).toBe("point");
     expect(result.items[1]?.kind).toBe("closure");
   });
 
   it("shows tonight's closure ahead of a mild slowdown in the evening, behind it in the morning", () => {
-    const slow = drive({ delayMinutes: 6 });
+    const slow = drive({ delayMinutes: 6, hdotScheduledClosures: [closure()] });
     const evening = buildRightNow({
       checks: [check({ forward: slow })],
       closures: [closure()],
@@ -173,7 +177,7 @@ describe("buildRightNow", () => {
     });
     expect(evening.items.map((i) => i.kind)).toEqual(["closure", "slowdown"]);
     expect(evening.items[0]?.title).toBe("H-1 westbound: 2 lanes closed");
-    expect(evening.items[0]?.detail).toBe("Tonight 8 PM–5 AM · Kalaeloa to Kunia");
+    expect(evening.items[0]?.detail).toBe("Heads-up: tonight 8 PM–5 AM · Kalaeloa to Kunia");
     const morning = buildRightNow({
       checks: [check({ forward: slow })],
       closures: [closure()],
@@ -183,15 +187,10 @@ describe("buildRightNow", () => {
   });
 
   it("lists only closures on the rider's roads and at most three items", () => {
+    const four = ["a", "b", "c", "d"].map((location) => closure({ location }));
     const result = buildRightNow({
-      checks: [check()],
-      closures: [
-        closure({ route: "H-2" }),
-        closure({ location: "a" }),
-        closure({ location: "b" }),
-        closure({ location: "c" }),
-        closure({ location: "d" }),
-      ],
+      checks: [carrying(...four)],
+      closures: [closure({ route: "H-2" }), ...four],
       now: hst(21),
     });
     expect(result.items).toHaveLength(3);
@@ -216,5 +215,69 @@ describe("buildRightNow", () => {
     expect(
       buildRightNow({ checks: [check({ forward: old })], closures: [], now: hst(7) }).status,
     ).toBe("calm");
+  });
+});
+
+describe("closure dates and weekdays", () => {
+  const range = (schedule: string) => closure({ schedule });
+  // Wed Oct 21, 2026 (HST)
+  it("never says now before the start date, and not after the last date", () => {
+    const monday = range("from 8 p.m. to 5 a.m., Monday, Oct. 26, through Friday, Oct. 30");
+    expect(closureState(monday, hst(21).getTime())).toBe("later");
+    const over = range("from 8 p.m. to 5 a.m., Monday, Oct. 12, through Friday, Oct. 16");
+    expect(closureState(over, hst(21).getTime())).toBe("later");
+    const running = range("from 8 p.m. to 5 a.m., Monday, Oct. 19, through Friday, Oct. 23");
+    expect(closureState(running, hst(21).getTime())).toBe("now");
+  });
+  it("keeps the last night active until its morning end", () => {
+    const last = range("from 8 p.m. to 5 a.m., Monday, Oct. 19, through Wednesday, Oct. 21");
+    // 2 AM Thursday Oct 22 is still Wednesday night's shift.
+    const thursday2am = new Date(Date.UTC(2026, 9, 22, 12));
+    expect(closureState(last, thursday2am.getTime())).toBe("now");
+    expect(closureState(last, new Date(Date.UTC(2026, 9, 22, 20)).getTime())).toBe("later");
+  });
+  it("reads weekday spans: Sunday night through Thursday night", () => {
+    const span = range("from 9 p.m. to 4 a.m., Sunday night through Thursday night");
+    expect(closureState(span, hst(22).getTime())).toBe("now"); // Wednesday
+    expect(closureState(span, hst(22).getTime() + 2 * 86_400_000)).toBe("later"); // Friday
+  });
+  it("calls a daytime window that has not started 'today', not tonight", () => {
+    const day = range("from 9 a.m. to 3 p.m.");
+    expect(closureState(day, hst(7).getTime())).toBe("today");
+    expect(closureState(day, hst(10).getTime())).toBe("now");
+    const item = buildRightNow({
+      checks: [carrying(day)],
+      closures: [day],
+      now: hst(7),
+    }).items[0];
+    expect(item?.detail).toBe("Heads-up: later today 9 AM–3 PM · Kalaeloa to Kunia");
+  });
+});
+
+describe("rider-facing wording", () => {
+  it("names a direction only from the route's own road name", () => {
+    const slow = drive({ delayMinutes: 7, corridorRoads: ["H-1 East"] });
+    const named = buildRightNow({ checks: [check({ forward: slow })], closures: [], now: hst(8) });
+    expect(named.items[0]?.title).toBe("H-1 eastbound: +7 min over typical");
+    const plain = drive({ delayMinutes: 7, corridorRoads: ["Likelike Hwy"] });
+    const none = buildRightNow({ checks: [check({ forward: plain })], closures: [], now: hst(8) });
+    expect(none.items[0]?.title).toBe("Likelike Hwy: +7 min over typical");
+  });
+
+  it("shows a closure the server did not place on the route as Elsewhere, without a map target", () => {
+    const result = buildRightNow({ checks: [check()], closures: [closure()], now: hst(21) });
+    expect(result.items[0]?.title.startsWith("Elsewhere · H-1")).toBe(true);
+    expect(result.items[0]?.tone).toBe("info");
+    expect(result.items[0]?.focus).toBeNull();
+  });
+
+  it("never says clear when the incident feed is down", () => {
+    const blind = check({
+      forward: drive({ incidentsAvailable: false }),
+      back: drive({ incidentsAvailable: false, corridorRoads: ["Nimitz Hwy", "H-1 West"] }),
+    });
+    const line = buildRightNow({ checks: [blind], closures: [], now: hst(7) }).line;
+    expect(line).toBe("H-1 and Nimitz Hwy: traffic looks normal; crash data limited right now");
+    expect(line).not.toMatch(/clear/);
   });
 });

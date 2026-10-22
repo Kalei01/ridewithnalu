@@ -50,7 +50,7 @@ function drive(over: Partial<DriveTime>): DriveTime {
 const clear = (): RoadCheck => ({
   id: "kapolei-town",
   area: "Kapolei ↔ town",
-  forward: drive({}),
+  forward: drive({ hdotScheduledClosures: [KUNIA] }),
   back: drive({ path: [...PATH].reverse(), corridorRoads: ["Nimitz Hwy", "H-1 West"] }),
   loading: false,
   failed: false,

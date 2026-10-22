@@ -29,6 +29,7 @@ const ANCHORS: Anchor[] = [
   { id: "kapolei", name: "Kapolei", point: { lat: 21.3358, lon: -158.0798 } },
   { id: "ewa", name: "ʻEwa and Waipahu", point: { lat: 21.3822, lon: -158.0092 } },
   { id: "pearl", name: "Pearl City and Aiea", point: { lat: 21.3972, lon: -157.9751 } },
+  { id: "waianae", name: "Waiʻanae", point: { lat: 21.4478, lon: -158.1861 } },
   { id: "mililani", name: "Mililani", point: { lat: 21.451, lon: -158.015 } },
   { id: "wahiawa", name: "Wahiawā", point: { lat: 21.5028, lon: -158.0236 } },
   { id: "northshore", name: "the North Shore", point: { lat: 21.5953, lon: -158.1031 } },

@@ -16,6 +16,12 @@ describe("browseCorridors", () => {
     expect(ids[2]).toBe("northshore-town");
   });
 
+  it("sends a Waiʻanae rider to the Farrington corridor area", () => {
+    expect(
+      browseCorridors({ rider: { lat: 21.4478, lon: -158.1861 }, home: null, work: null })?.[0]?.id,
+    ).toBe("waianae-town");
+  });
+
   it("uses the saved Home and Work as the commute when both are set", () => {
     const result = browseCorridors({ rider: KAPOLEI, home: KAILUA, work: HALEIWA });
     expect(result).toHaveLength(1);
