@@ -1,3 +1,4 @@
+2026-10-22 HST · NALU MAIN · Browse preview fixes (138df6c + weekday fix) shipped to /browse-preview; home screen unchanged. Next: both-directions build.
 # Inbox — agent reports to NALU MAIN (newest first, ≤ 60 lines)
 Written by the inbox routine (trig_018dVqisHDihRPYq9mBE1qtP) when an agent calls fire_trigger. NALU MAIN reads this at every wake. One line: date HST · agent · report · action.
 2026-10-22 · Sonnet build (HPD placement, fix after transit-accuracy block) · gazetteer rebuilt from real route geometry: 31 nodes, 11 verified (exit/ramp maneuvers), rest map-only; notify needs verified+exact, node's own spot ≤120 m of route on the same freeway, same direction, ≤45 min, rider known ahead; geocode uses plain TomTom endpoint, health never geocodes; local commit, NOT pushed · for MAIN: re-run transit-accuracy, then push.

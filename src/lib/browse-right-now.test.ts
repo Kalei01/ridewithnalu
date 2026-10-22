@@ -241,6 +241,19 @@ describe("closure dates and weekdays", () => {
     expect(closureState(span, hst(22).getTime())).toBe("now"); // Wednesday
     expect(closureState(span, hst(22).getTime() + 2 * 86_400_000)).toBe("later"); // Friday
   });
+  it("applies weekdays-only to a dated range", () => {
+    const work = range("Oct. 19 – Nov. 6, 8:30 a.m. to 3:30 p.m., weekdays");
+    expect(closureState(work, hst(10).getTime())).toBe("now"); // Wednesday
+    const saturday = hst(10).getTime() + 3 * 86_400_000;
+    expect(closureState(work, saturday)).toBe("later");
+    expect(closureState(work, hst(7).getTime() + 3 * 86_400_000)).toBe("later");
+  });
+  it("does not read day names that only label dates as a weekday run", () => {
+    const nights = range(
+      "from Monday, Oct. 19 through Friday, Oct. 30, nightly from 8 p.m. to 5 a.m.",
+    );
+    expect(closureState(nights, hst(21).getTime() + 3 * 86_400_000)).toBe("now"); // Saturday
+  });
   it("calls a daytime window that has not started 'today', not tonight", () => {
     const day = range("from 9 a.m. to 3 p.m.");
     expect(closureState(day, hst(7).getTime())).toBe("today");

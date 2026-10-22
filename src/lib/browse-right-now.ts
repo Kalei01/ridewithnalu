@@ -382,11 +382,14 @@ export function closureState(closure: HdotScheduledClosure, nowMs: number): Clos
   const end = dates.length >= 2 ? dates[dates.length - 1] : dates.find((d) => d.end);
   if (start && !start.end && start.at > shiftDay) return "later";
   if (end && end.at < shiftDay) return "later";
-  // With no dates, a named run of weekdays decides which days it applies to.
-  if (!dates.length) {
-    const days = scheduleWeekdays(`${closure.schedule} ${closure.location}`);
-    if (days && !days.has(new Date(shiftDay).getUTCDay())) return "later";
-  }
+  // A named run of weekdays decides which days it applies to. Day names that only
+  // label a date ("Monday, Oct. 26") are dropped so the date range alone rules.
+  const dayText = `${closure.schedule} ${closure.location}`.replace(
+    /\b[a-z]+day,?\s+(?=(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d)/gi,
+    "",
+  );
+  const days = scheduleWeekdays(dayText);
+  if (days && !days.has(new Date(shiftDay).getUTCDay())) return "later";
 
   if (window === "all-day") return "now";
   const { startMin, endMin } = window;
