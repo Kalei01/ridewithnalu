@@ -7,7 +7,7 @@ Updated 2026-10-15 (run 3). I send nothing; you send each draft yourself.
 3. Cloudflare card: a Cloudflare invoice on 2026-10-04 suggests a payment method may already exist. Check the dashboard; do not add a card just for this.
 4. Tell me Nalu's start month/year. Google needs "founded within 24 months"; Cloudflare 10 years.
 5. Do you have, or in the last 31 days had, a paid Google Workspace on ridenalu.com? Google's Start tier excludes it.
-6. Google: still only the automated reply (checked Oct 21 HST). Follow-up DRAFT ready in Gmail (id r-6613626406750659906, reply in the same thread) — review and send if you agree.
+6. Google for Startups: DROPPED for now (Josh, Oct 22). Draft follow-up left unsent in Gmail; ignore it.
 7. Resolved (MAIN, Oct 14 HST): the paused Supabase project ridewithnalu-42d6da is not the one Nalu uses (live app runs on nsoameosqsnumjivkmyv; health check all OK). Nothing to do.
 8. Optional, free: Anthropic startups newsletter (claude.com/programs/startups); Hawaiʻi SBDC advising (hisbdc.org).
 9. Do not incorporate, pay for a DBA (~$51), or pay Apple ($99) yet.
