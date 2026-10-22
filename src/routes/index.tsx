@@ -2671,6 +2671,12 @@ function Index() {
           b: { lat: setup.destLat, lon: setup.destLon },
         }
       : null;
+  const sameAsDriveRow =
+    riderRoute !== null &&
+    riderRoute.a.lat === driveFrom.lat &&
+    riderRoute.a.lon === driveFrom.lon &&
+    riderRoute.b.lat === driveTo.lat &&
+    riderRoute.b.lon === driveTo.lon;
   const forwardTrip = riderRoute ?? { a: KAPOLEI_POINT, b: DOWNTOWN_POINT };
   const returnTrip = riderRoute ? { a: riderRoute.b, b: riderRoute.a } : { a: DOWNTOWN_POINT, b: KAPOLEI_POINT };
   const {
@@ -2679,10 +2685,14 @@ function Index() {
     isError: eastboundTrafficFailed,
     refetch: refetchEastboundTraffic,
   } = useQuery({
-    queryKey: ["browse-h1", "eastbound", forwardTrip.a.lat, forwardTrip.a.lon, forwardTrip.b.lat, forwardTrip.b.lon],
-    enabled: hydrated,
+    // The rider's own way there shares the Drive row's query (same key, same
+    // data) whenever it is the same drive; otherwise it is a Browse-only check.
+    queryKey: riderRoute
+      ? ["drive", forwardTrip.a.lat, forwardTrip.a.lon, forwardTrip.b.lat, forwardTrip.b.lon]
+      : ["browse-h1", "eastbound"],
+    enabled: hydrated && (browseActive || sameAsDriveRow),
     staleTime: 5 * 60_000,
-    refetchInterval: 5 * 60_000,
+    refetchInterval: riderRoute ? (browseActive ? 5 * 60_000 : false) : 5 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -2703,9 +2713,9 @@ function Index() {
     refetch: refetchWestboundTraffic,
   } = useQuery({
     queryKey: ["browse-h1", "westbound", returnTrip.a.lat, returnTrip.a.lon, returnTrip.b.lat, returnTrip.b.lon],
-    enabled: hydrated,
-    staleTime: 5 * 60_000,
-    refetchInterval: 5 * 60_000,
+    // Only while Browse is open, and no polling: the other way is context.
+    enabled: hydrated && browseActive,
+    staleTime: 15 * 60_000,
     retry: 1,
     queryFn: () =>
       fetchDriveTime({
@@ -4504,7 +4514,7 @@ function Index() {
         <Waves />
         <div className="mx-auto flex w-full max-w-[680px] flex-col">
           <CommuteHeader
-            heading={arrivingHome ? "Heading home" : inbound ? "Heading west" : "Heading out"}
+            heading={arrivingHome ? "Heading home" : "Heading out"}
             timeText={timeText}
             onAccount={() => {
               setRestoreSlot(null);
@@ -4536,7 +4546,7 @@ function Index() {
       <PullToRefresh onRefresh={refresh} refreshing={refreshing} enabled={!commitment} />
       <div className="mx-auto flex w-full max-w-[680px] flex-col">
         <CommuteHeader
-          heading={arrivingHome ? "Heading home" : inbound ? "Heading west" : "Heading out"}
+          heading={arrivingHome ? "Heading home" : "Heading out"}
           timeText={timeText}
           onAccount={() => {
             setRestoreSlot(null);

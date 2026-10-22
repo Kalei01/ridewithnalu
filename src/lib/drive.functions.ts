@@ -306,7 +306,27 @@ function outcomeOf(error: unknown): TomtomOutcome {
  * result says so (`provider: "mapbox"`, `incidentsAvailable: false`).
  * Mapbox results are never cached (their terms forbid it).
  */
-export async function lookupDriveTime(
+export function lookupDriveTime(
+  data: z.infer<typeof schema>,
+  options: { lite?: boolean } = {},
+): Promise<DriveTime | null> {
+  return shareInFlight(
+    `drive:${driveCacheKey(data)}:${data.forceRefresh ? 1 : 0}:${options.lite ? 1 : 0}`,
+    () => lookupDriveTimeUncoalesced(data, options),
+  );
+}
+
+/** Concurrent identical requests share one provider call. */
+const inFlight = new Map<string, Promise<unknown>>();
+function shareInFlight<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const pending = inFlight.get(key) as Promise<T> | undefined;
+  if (pending) return pending;
+  const promise = run().finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
+  return promise;
+}
+
+async function lookupDriveTimeUncoalesced(
   data: z.infer<typeof schema>,
   options: { lite?: boolean } = {},
 ): Promise<DriveTime | null> {
@@ -594,7 +614,15 @@ export function resetDriveCaches(): void {
  * One outgoing request instead of up to five, so a trip search fits the
  * server's per-request limit.
  */
-export async function lookupTrafficMinutes(
+export function lookupTrafficMinutes(
+  data: z.infer<typeof schema>,
+): Promise<{ trafficMinutes: number; provider?: "tomtom" | "mapbox" } | null> {
+  return shareInFlight(`traffic:${driveCacheKey(data)}`, () =>
+    lookupTrafficMinutesUncoalesced(data),
+  );
+}
+
+async function lookupTrafficMinutesUncoalesced(
   data: z.infer<typeof schema>,
 ): Promise<{ trafficMinutes: number; provider?: "tomtom" | "mapbox" } | null> {
   const key = tomtomKey();

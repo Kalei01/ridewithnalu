@@ -109,3 +109,51 @@ describe("transit planning works the same in both directions", () => {
     }
   }
 });
+
+describe("reversed trips", () => {
+  it("send no destination stop and drop trips that end far from the door", async () => {
+    const reversed = resolveTripDirection({
+      origin: haleiwa,
+      destination: pearlHarbor,
+      savedHome: haleiwa,
+      manualInbound: true,
+    });
+    expect(reversed.reverseTrip).toBe(true);
+    const seen: Array<Record<string, unknown>> = [];
+    const endsAtStation = {
+      ...optionRow,
+      legs: [
+        { kind: "rail", mode: "rail", from: "A", to: "Hālawa", to_stop_id: "10055",
+          depart_seconds: 43300, arrive_seconds: 45000 },
+      ],
+    };
+    rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+      if (fn === "plan_outbound") {
+        seen.push(args);
+        return { data: [endsAtStation], error: null };
+      }
+      if (fn === "plan_outbound_multi")
+        return { data: null, error: { code: "PGRST202", message: "missing" } };
+      return { data: [], error: null };
+    });
+    const options = await planTransitTrip({
+      arrivalStationId: null,
+      arriveByTarget: null,
+      browseStations: STATIONS,
+      carAtStation: false,
+      vehicleToStation: "vehicle",
+      inbound: true,
+      now: new Date("2026-10-14T22:00:00Z"),
+      nowSeconds: 12 * 3600,
+      parkedToday: null,
+      planMode: "leave-now",
+      scheduleAfterSeconds: 12 * 3600,
+      setup: { ...emptySetup, homeStopId: "10047", destStopId: "bus-stop" },
+      tripDirection: reversed,
+    } as unknown as Parameters<typeof planTransitTrip>[0]);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((c) => c["p_dest_stop"] === null)).toBe(true);
+    // The only trip ends at Hālawa, ~30 km from Haleʻiwa with no leg to the door.
+    expect(options).toEqual([]);
+  });
+});

@@ -198,7 +198,12 @@ async function searchTransit(
   const boardingStopId: string | null = tripDirection.reverseTrip
     ? (nearestRailStation(tripDirection.from, browseStations)?.stop_id ?? null)
     : setup.homeStopId;
-  const alightStopId = tripDirection.reverseTrip ? setup.homeStopId : setup.destStopId;
+  // Reversed trips pass no destination stop: a stop id adds a zero-minute walk,
+  // so the trip would "end" at the station. The destination coordinates give
+  // real walks from nearby stops instead.
+  const alightStopId: string = tripDirection.reverseTrip
+    ? (null as unknown as string)
+    : setup.destStopId;
   // With a car available, a few real stations that make progress toward the
   // destination are also tried as drop-off points (no lot needed there). Nothing
   // is assumed: the trip search times each, and the comparison decides.
@@ -430,8 +435,26 @@ async function searchTransit(
         ? await fetchOutboundTogether(stations, cursor)
         : null) ?? (await fetchOutboundEach(stations, cursor));
     // Safety net: with no vehicle available, no result may carry a car leg.
+    // A trip must reach the door: when it ends on a ride at a station farther
+    // than a walk from the destination, with no leg after it, it is not a trip.
+    const reachesDoor = (option: Option) => {
+      const last = option.legs.at(-1);
+      if (!last || (last.kind !== "rail" && last.kind !== "connect")) return true;
+      const to = tripDirection.to;
+      const stop = browseStations.find((station) => station.stop_id === last.to_stop_id);
+      if (!stop || to.lat === null || to.lon === null || stop.stop_lat == null || stop.stop_lon == null)
+        return true;
+      return (
+        metresBetween(
+          { lat: Number(stop.stop_lat), lon: Number(stop.stop_lon) },
+          { lat: to.lat, lon: to.lon },
+        ) <= MAX_STOP_WALK_M
+      );
+    };
     const found = searched.filter(
-      (option) => vehicleToStation !== "none" || !option.legs.some((leg) => leg.mode === "drive"),
+      (option) =>
+        (vehicleToStation !== "none" || !option.legs.some((leg) => leg.mode === "drive")) &&
+        reachesDoor(option),
     );
     const report: RetimeReport = {};
     const leaveNow = planMode !== "arrive-by";
@@ -475,32 +498,37 @@ async function searchTransit(
     // When Skyline is outside its published service window, do not let a
     // rail-inclusive planner result hide the remaining TheBus option. The
     // bus rescue is checked first so the UI can honestly compare Drive vs Bus.
-    let skylineOutOfService = false;
-    // Rail is only usable when it runs at the station the rider boards and the
-    // one they get off at, whichever way the trip goes.
-    const serviceStopIds = [...new Set([boardingStopId, arrivalStationId])].filter(
-      (id): id is string => Boolean(id),
-    );
-    for (const serviceStopId of serviceStopIds) {
+    // Started with the other searches (it never blocks them); repeat answers
+    // come from the planner cache. Rail is closed when it is not running at the
+    // station the rider boards (before the first or after the last train), or
+    // has finished for the night at the one they get off at. A far arrival
+    // station that simply opens later does not close the trip.
+    const serviceClosed = async (stopId: string, onlyAfterLast: boolean): Promise<boolean> => {
       try {
         const { data: serviceRows, error: serviceError } = await rpc("service_hours", {
-          p_stop_id: serviceStopId,
+          p_stop_id: stopId,
           p_route_type: 1,
         });
-        if (!serviceError) {
-          const today = (serviceRows ?? []).find((row) => Number(row.dow) === honoluluIsoDow(now));
-          if (
-            today &&
-            (nowSeconds >= Number(today.last_seconds) || nowSeconds < Number(today.first_seconds))
-          )
-            skylineOutOfService = true;
-        } else {
+        if (serviceError) {
           recordTransitRpcError("service_hours", serviceError);
+          return false;
         }
+        const today = (serviceRows ?? []).find((row) => Number(row.dow) === honoluluIsoDow(now));
+        if (!today) return false;
+        const after = nowSeconds >= Number(today.last_seconds);
+        return onlyAfterLast ? after : after || nowSeconds < Number(today.first_seconds);
       } catch (error) {
         recordTransitRpcError("service_hours", error);
+        return false;
       }
-    }
+    };
+    const outOfServicePromise = Promise.all([
+      boardingStopId ? serviceClosed(boardingStopId, false) : false,
+      arrivalStationId && arrivalStationId !== boardingStopId
+        ? serviceClosed(arrivalStationId, true)
+        : false,
+    ]).then((closed) => closed.some(Boolean));
+    const skylineOutOfService = await outOfServicePromise;
 
     if (skylineOutOfService) {
       const busRescue = await busPromise;

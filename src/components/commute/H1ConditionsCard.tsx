@@ -92,8 +92,8 @@ export function H1ConditionsCard({
   className?: string;
 }) {
   const rows = [
-    { label: labels?.first ?? "H-1 Eastbound", data: eastbound },
-    { label: labels?.second ?? "H-1 Westbound", data: westbound },
+    { label: labels?.first ?? "H-1 Eastbound", short: labels ? "There" : "East", data: eastbound },
+    { label: labels?.second ?? "H-1 Westbound", short: labels ? "Back" : "West", data: westbound },
   ];
 
   // Name the source that actually answered; Mapbox times are estimates.
@@ -147,7 +147,7 @@ export function H1ConditionsCard({
         <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
           <span className="flex items-center gap-2 whitespace-nowrap font-semibold text-foreground">
             <span className="nh-live-dot" aria-hidden="true" />
-            H-1 live
+            {labels?.title ?? "H-1 live"}
           </span>
           <span className="ml-auto flex flex-wrap justify-end gap-2">
             {loading ? (
@@ -159,14 +159,14 @@ export function H1ConditionsCard({
                 Not available
               </span>
             ) : (
-              rows.map(({ label, data }) => {
+              rows.map(({ label, short, data }) => {
                 const status = data ? trafficStatus(data.delayMinutes, data.incidents[0], data.typicalChecked !== false) : null;
                 return (
                   <span
                     key={label}
                     className={`whitespace-nowrap rounded-full bg-background px-2.5 py-1 text-xs font-semibold ${status?.className ?? "text-muted-foreground"}`}
                   >
-                    {label.slice(0, 4)} · {status?.label ?? "—"}
+                    {short} · {status?.label ?? "—"}
                   </span>
                 );
               })
