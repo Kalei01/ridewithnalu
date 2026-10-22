@@ -86,6 +86,14 @@ export type DriveIncident = {
   source?: "tomtom" | "hpd";
   /** When an HPD report was filed (ISO). HPD reports carry no delay and never change a verdict. */
   reportedAt?: string | null;
+  /** HPD only: how sure the placed position is. Only "exact" can ever be announced. */
+  confidence?: "exact" | "approximate";
+  /** HPD only: soft radius (metres) of an approximate position, for the map. */
+  radiusM?: number;
+  /** HPD only: direction named in the address (EB/WB/NB/SB), if any. */
+  direction?: "EB" | "WB" | "NB" | "SB" | null;
+  /** HPD only: the report is on a freeway (then its direction must match the route's to be announced). */
+  onFreeway?: boolean;
 };
 
 export type DriveTime = {

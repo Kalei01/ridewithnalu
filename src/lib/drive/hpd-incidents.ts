@@ -12,12 +12,32 @@
  * and the Location format are unverified, so the reader accepts the usual
  * variants and drops any row it cannot place in time.
  *
- * Reports are matched to a route by their Location coordinates when present,
- * otherwise by road names in the Address text only (no geocoding of any kind).
+ * The live feed carries no coordinates, so each report is placed from its address
+ * (hpd-geolocate.ts: freeway gazetteer, TomTom geocoding, area centroid) with an
+ * exact / approximate confidence. A report is matched to a route by that place;
+ * only an exact one on the route, ahead, in the route's direction and recent is
+ * ever announced (incident-alerts.ts). Reports that could not be placed fall back
+ * to road names in the address text, display only.
  */
 import { incidentTouchesRoute, type GeoPoint } from "./incident-correlation";
 import { titleCase } from "../commute-formatting";
 import { sharedIncidents } from "./tomtom-guard";
+import {
+  FREEWAY_SNAP_M,
+  bearingFitsHeading,
+  identifyFreeway,
+  type FreewayId,
+  type Heading,
+} from "./hpd-freeways";
+import {
+  defaultGeoDeps,
+  feedGeo,
+  placeHpdBatch,
+  placementSummary,
+  type HpdGeo,
+  type PlacementStats,
+} from "./hpd-geolocate";
+import { routeBearingAtSegment, routeMatch } from "./hpd-relevance";
 
 const HPD_BASE = "https://data.honolulu.gov/resource/ykb6-n5th.json";
 export const HPD_INCIDENTS_URL = `${HPD_BASE}?$limit=500`;
@@ -43,8 +63,12 @@ export const HPD_MAX_AGE_MS = 90 * 60_000;
 const HPD_CACHE_MS = 5 * 60_000;
 const HPD_FAILURE_BACKOFF_MS = 2 * 60_000;
 const HST_OFFSET_MS = -10 * 3600_000;
-/** A coordinate report counts as on the route within this distance. */
+/** A placed report is listed with a route within this distance. */
 const ON_ROUTE_M = 300;
+/** ...and is "in your way" (eligible to be announced) only within this distance of the route line. */
+export const IN_WAY_M = 120;
+/** Reports kept for the island map. */
+export const HPD_ISLAND_MAX_AGE_MS = 3 * 3600_000;
 
 export type HpdReport = {
   id: string;
@@ -56,6 +80,8 @@ export type HpdReport = {
   area: string | null;
   point: GeoPoint | null;
   atMs: number;
+  /** Where the report is, and how sure we are. Absent until the feed has been placed. */
+  geo?: HpdGeo | null;
 };
 
 type Row = Record<string, unknown>;
@@ -257,6 +283,8 @@ export function hpdPlaceText(label: string, address: string): string {
     : `${label} near ${first.text}${others ? ` at ${others}` : ""}`;
 }
 
+const lowerFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
+
 function hstClock(atMs: number): string {
   const d = new Date(atMs + HST_OFFSET_MS);
   const h = d.getUTCHours();
@@ -276,14 +304,37 @@ export type HpdDriveIncident = {
   points: GeoPoint[];
   source: "hpd";
   reportedAt: string;
-  /** True only when the report's own coordinates sit on the route; a road-name match is shown but never alerts. */
+  /**
+   * True only when the report is placed exactly, within 120 m of the route (a freeway report: on that
+   * freeway's carriageway, snapped to the route) and in the route's direction. A road-name match or
+   * an approximate pin is shown but never alerts.
+   */
   onRoute: boolean;
+  /** How sure the place is. Absent for a road-name match. */
+  confidence?: "exact" | "approximate";
+  /** Soft radius of an approximate place, metres. */
+  radiusM?: number;
+  /** EB / WB / NB / SB from the address; null when it names none. */
+  direction?: Heading | null;
+  /** The report names a gazetteer freeway. */
+  onFreeway?: boolean;
 };
+
+/** Does any of the route's road names denote this gazetteer freeway? */
+function routeUsesFreeway(roads: string[], id: FreewayId): boolean {
+  return roads.some((road) => identifyFreeway(road) === id);
+}
 
 /**
  * Reports that belong to this route, as incident records with `source: "hpd"`.
  * `roads` are the route's own road names (corridorRoads). Reports from the last
  * 90 minutes only. No delay is ever attached.
+ *
+ * A placed report is judged by where it is: within 300 m of the route it is listed, within
+ * 120 m (and exact, and in the route's direction) it is `onRoute`. A freeway report whose exit
+ * we know is checked against the route's own geometry: it counts when it lands within 400 m of
+ * the route on the same freeway, and is then snapped onto the route. Reports from the opposite
+ * carriageway are not listed.
  */
 export function hpdIncidentsForRoute(
   reports: HpdReport[],
@@ -298,10 +349,54 @@ export function hpdIncidentsForRoute(
     const age = nowMs - report.atMs;
     if (age < -5 * 60_000 || age > HPD_MAX_AGE_MS) continue;
     let road: string | null = null;
-    if (report.point) {
-      if (!incidentTouchesRoute([report.point], route.path, ON_ROUTE_M)) continue;
+    let point: GeoPoint | null = null;
+    let onRoute = false;
+    let confidence: "exact" | "approximate" | undefined;
+    let radiusM: number | undefined;
+    let direction: Heading | null | undefined;
+    let onFreeway = false;
+    const geo = report.geo ?? (report.point ? feedGeo(report.point, report.address) : null);
+    if (geo) {
+      confidence = geo.confidence;
+      radiusM = geo.radiusM;
+      direction = geo.direction;
+      onFreeway = geo.freeway !== null;
+      const match = routeMatch(geo.point, route.path);
+      const freeway = geo.freeway;
+      if (freeway) {
+        // The route has to use this freeway, and the report has to sit on it.
+        if (!routeUsesFreeway(route.roads, freeway) || !match) continue;
+        const tolerance = geo.confidence === "exact" ? FREEWAY_SNAP_M : geo.radiusM;
+        if (match.distanceM > tolerance) continue;
+        const heading = geo.direction
+          ? bearingFitsHeading(
+              routeBearingAtSegment(route.path, match.segmentIndex) ?? NaN,
+              geo.direction,
+            )
+          : null;
+        if (heading === false) continue; // the other carriageway
+        point = geo.confidence === "exact" ? match.snapped : geo.point;
+        onRoute = geo.confidence === "exact" && heading === true;
+        road = route.roads.find((r) => identifyFreeway(r) === freeway) ?? null;
+      } else {
+        const reach =
+          geo.confidence === "exact" ? ON_ROUTE_M : geo.how === "area" ? 0 : geo.radiusM;
+        if (!match || reach === 0 || match.distanceM > reach) continue;
+        const heading = geo.direction
+          ? bearingFitsHeading(
+              routeBearingAtSegment(route.path, match.segmentIndex) ?? NaN,
+              geo.direction,
+            )
+          : null;
+        if (heading === false) continue;
+        point = geo.point;
+        onRoute =
+          geo.confidence === "exact" &&
+          match.distanceM <= IN_WAY_M &&
+          (geo.direction === null || heading === true);
+      }
     } else {
-      // No coordinates: the route must pass the named place, i.e. at least two
+      // Not placed: the route must pass the named place, i.e. at least two
       // of the streets in the address (the road and its cross street) are roads
       // this route uses. One road alone could be anywhere along it.
       const parts = addressParts(report.address).map(normalize);
@@ -320,20 +415,70 @@ export function hpdIncidentsForRoute(
     const place = localStreet(addressParts(report.address)[0] ?? report.address).text;
     out.push({
       id: report.id,
-      description: `Police report: ${hpdPlaceText(report.label, report.address)}, ${hstClock(report.atMs)}`,
+      description: `Police report: ${lowerFirst(hpdPlaceText(report.label, report.address))}, ${hstClock(report.atMs)}`,
       road,
       delayMinutes: null,
       category: report.category,
       from: place,
       to: null,
       endTime: null,
-      points: report.point ? [report.point] : [],
+      points: point ? [point] : [],
       source: "hpd",
       reportedAt: new Date(report.atMs).toISOString(),
-      onRoute: report.point !== null,
+      onRoute,
+      ...(confidence ? { confidence } : {}),
+      ...(radiusM !== undefined ? { radiusM } : {}),
+      ...(direction !== undefined ? { direction } : {}),
+      ...(geo ? { onFreeway } : {}),
     });
   }
   return out.sort((a, b) => b.reportedAt.localeCompare(a.reportedAt)).slice(0, 5);
+}
+
+// ---- island pins ---------------------------------------------------------------
+
+/** One placed police report for the Browse map. */
+export type HpdPin = {
+  id: string;
+  label: string;
+  /** Same words as the drive details: "Police report: collision on H-1 eastbound near Moanalua, 6:42 PM". */
+  description: string;
+  reportedAt: string;
+  lat: number;
+  lon: number;
+  confidence: "exact" | "approximate";
+  /** Draw a soft circle of this radius around approximate pins. */
+  radiusM: number;
+  direction: Heading | null;
+  onFreeway: boolean;
+  /** TomTom-style category code ("1" collision, "8" closure, "14" stalled, "3" hazard). */
+  category: string;
+};
+
+export function hpdPins(
+  reports: HpdReport[],
+  nowMs: number,
+  maxAgeMs = HPD_ISLAND_MAX_AGE_MS,
+): HpdPin[] {
+  const pins: HpdPin[] = [];
+  for (const report of reports) {
+    const age = nowMs - report.atMs;
+    if (!report.geo || age < -5 * 60_000 || age > maxAgeMs) continue;
+    pins.push({
+      id: report.id,
+      label: report.label,
+      description: `Police report: ${lowerFirst(hpdPlaceText(report.label, report.address))}, ${hstClock(report.atMs)}`,
+      reportedAt: new Date(report.atMs).toISOString(),
+      lat: report.geo.point.lat,
+      lon: report.geo.point.lon,
+      confidence: report.geo.confidence,
+      radiusM: report.geo.radiusM,
+      direction: report.geo.direction,
+      onFreeway: report.geo.freeway !== null,
+      category: report.category,
+    });
+  }
+  return pins.sort((a, b) => b.reportedAt.localeCompare(a.reportedAt)).slice(0, 80);
 }
 
 // ---- fetching ---------------------------------------------------------------
@@ -343,7 +488,12 @@ let failedUntil = 0;
 /** The feed must show something this recent before we claim to cover the road. */
 const HPD_CURRENT_WITHIN_MS = 6 * 3600_000;
 
-export type HpdFeed = { reports: HpdReport[]; newestMs: number | null };
+export type HpdFeed = {
+  reports: HpdReport[];
+  newestMs: number | null;
+  /** How many of the last 3 hours of reports could be placed, and how well. */
+  placement: PlacementStats;
+};
 
 async function getRows(fetcher: typeof fetch, url: string): Promise<Response> {
   // Socrata throttles anonymous callers hard; an optional app token (a public, non-secret
@@ -445,7 +595,10 @@ export async function probeHpd(fetcher: typeof fetch = fetch, now = Date.now()):
   ).length;
   const newest = newestHpdRow(rows);
   const ageMin = newest === null ? null : Math.round((now - newest) / 60_000);
-  const shown = parseHpdRows(rows).length;
+  const usable = parseHpdRows(rows);
+  const shown = usable.length;
+  const recent = usable.filter((r) => now - r.atMs <= HPD_ISLAND_MAX_AGE_MS);
+  const placement = placementSummary((await placeHpdBatch(recent, defaultGeoDeps(now))).stats);
   const samples = rows
     .slice(0, 3)
     .map(
@@ -455,7 +608,7 @@ export async function probeHpd(fetcher: typeof fetch = fetch, now = Date.now()):
     .join(" | ");
   const sample = `date/time samples ${samples}`.slice(0, 140);
   const current = ageMin !== null && ageMin * 60_000 <= HPD_CURRENT_WITHIN_MS;
-  const detail = `${result.attempts.join("; ")}; used ${result.variant}; ${rows.length} rows, ${stamped} with a readable date+time, ${shown} usable kinds, newest ${
+  const detail = `${result.attempts.join("; ")}; used ${result.variant}; ${rows.length} rows, ${stamped} with a readable date+time, ${shown} usable kinds, last 3 h ${placement}, newest ${
     ageMin === null ? "none readable" : `${ageMin} min old`
   }${current ? "" : " (feed not counted as current)"}; fields: ${fields || "none"}; ${sample}`;
   return { ok: current, detail: detail.slice(0, 700) };
@@ -482,7 +635,10 @@ export async function loadHpdReports(
           }
           return null;
         }
-        return { reports: parseHpdRows(result.rows), newestMs: newestHpdRow(result.rows) };
+        const parsed = parseHpdRows(result.rows);
+        const recent = parsed.filter((r) => now - r.atMs <= HPD_ISLAND_MAX_AGE_MS);
+        const { placed, stats } = await placeHpdBatch(recent, defaultGeoDeps(now));
+        return { reports: placed, newestMs: newestHpdRow(result.rows), placement: stats };
       } catch (error) {
         console.warn("[hpd] incidents feed failed", error instanceof Error ? error.name : "error");
         failedUntil = now + HPD_FAILURE_BACKOFF_MS;
@@ -513,5 +669,25 @@ export async function hpdNearRoute(
     return { incidents: hpdIncidentsForRoute(feed.reports, route, now), checked: true };
   } catch {
     return { incidents: [], checked: false };
+  }
+}
+
+/** All recent placed reports, island-wide, from the shared 5-minute feed cache. Never throws. */
+export async function hpdIsland(
+  fetcher: typeof fetch = fetch,
+  now = Date.now(),
+): Promise<{ pins: HpdPin[]; checked: boolean; placement: string | null; attribution: string }> {
+  const none = { pins: [], checked: false, placement: null, attribution: HPD_ATTRIBUTION };
+  try {
+    const feed = await loadHpdReports(fetcher, now);
+    if (!feed || feed.newestMs === null || now - feed.newestMs > HPD_CURRENT_WITHIN_MS) return none;
+    return {
+      pins: hpdPins(feed.reports, now),
+      checked: true,
+      placement: placementSummary(feed.placement),
+      attribution: HPD_ATTRIBUTION,
+    };
+  } catch {
+    return none;
   }
 }

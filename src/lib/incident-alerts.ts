@@ -12,11 +12,18 @@ import {
   metersBetween,
 } from "./navigation-voice";
 import { incidentCategoryLabel, localRoadName } from "./traffic-incidents";
+import { bearingFitsHeading } from "./drive/hpd-freeways";
+import { routeBearingAt, routeMatch } from "./drive/hpd-relevance";
 
 type LatLon = { lat: number; lon: number };
 const ALERT_CATEGORIES = new Set(["Accident", "Road closure"]);
 /** An incident whose stated direction is more than this off our heading is the other carriageway. */
 const OPPOSITE_DEG = 100;
+
+/** A police report is announced only if it was filed this recently. */
+export const HPD_ALERT_MAX_AGE_MS = 45 * 60_000;
+/** ...and only if it sits this close to the route line. */
+export const HPD_ALERT_MAX_OFFSET_M = 120;
 
 const DIRECTION_BEARING: Record<string, number> = { east: 90, west: 270, north: 0, south: 180 };
 
@@ -62,12 +69,14 @@ function delayMinutes(incident: DriveIncident): number {
 
 /** HUD line, delay first when known: "+8 min · Accident on H-1 East near Aiea". */
 export function incidentHudText(incident: DriveIncident): string {
+  if (incident.source === "hpd") return incident.description;
   const delay = delayMinutes(incident);
   return `${delay > 0 ? `+${delay} min · ` : ""}${headline(incident)}`;
 }
 
 /** Spoken line: "Reported accident on H-1 East near Aiea, adding about 8 minutes." */
 export function incidentSpeech(incident: DriveIncident): string {
+  if (incident.source === "hpd") return `${incident.description.replace(/[.\s]+$/, "")}.`;
   const delay = delayMinutes(incident);
   const spokenDelay =
     delay > 0 ? `, adding about ${delay} ${delay === 1 ? "minute" : "minutes"}` : "";
@@ -134,6 +143,37 @@ export function incidentAlong(
   return Math.max(...ends) >= mine ? "ahead" : "behind";
 }
 
+/**
+ * A police report is "in your way" only when ALL hold: its place is exact (an
+ * intersection or exit match, never an approximate pin), it is within 120 m of the
+ * route line, it is recent (45 min), the direction in its address matches the
+ * route's direction there (a freeway report with no direction never qualifies),
+ * and, in planIncidentAlerts, it is not behind the rider. Anything else stays on
+ * the map and in Drive Details.
+ */
+export function hpdInYourWay(
+  incident: DriveIncident,
+  path: ReadonlyArray<LatLon>,
+  nowMs: number = Date.now(),
+): boolean {
+  if (incident.source !== "hpd" || incident.confidence !== "exact") return false;
+  const at = incident.points?.[0];
+  if (!at || path.length < 2) return false;
+  const reported = incident.reportedAt ? Date.parse(incident.reportedAt) : NaN;
+  if (!Number.isFinite(reported)) return false;
+  const age = nowMs - reported;
+  if (age > HPD_ALERT_MAX_AGE_MS || age < -5 * 60_000) return false;
+  const match = routeMatch(at, path);
+  if (!match || match.distanceM > HPD_ALERT_MAX_OFFSET_M) return false;
+  if (incident.direction) {
+    const bearing = routeBearingAt(at, path);
+    if (bearing === null || !bearingFitsHeading(bearing, incident.direction)) return false;
+  } else if (incident.onFreeway) {
+    return false;
+  }
+  return true;
+}
+
 export type IncidentAlertMemory = {
   /** Alert-worthy incidents seen on the route at some point this trip. */
   seenOnRoute: Set<string>;
@@ -157,17 +197,27 @@ export function alertEligible(input: {
   incidents: DriveIncident[];
   nearby?: DriveIncident[];
   path: ReadonlyArray<LatLon>;
+  nowMs?: number;
 }): { onRoute: Map<string, DriveIncident>; offRoute: Map<string, DriveIncident> } {
   const onRoute = new Map<string, DriveIncident>();
   const offRoute = new Map<string, DriveIncident>();
-  // Police open-data reports (source "hpd") are display-only: no speech, no push, no HUD.
+  // Police reports (source "hpd") are announced only under hpdInYourWay; otherwise display-only.
+  const nowMs = input.nowMs ?? Date.now();
+  const hpdAlert = (incident: DriveIncident) =>
+    isAlertIncident(incident) && hpdInYourWay(incident, input.path, nowMs);
   for (const incident of input.incidents) {
-    if (incident.source === "hpd") continue;
+    if (incident.source === "hpd") {
+      if (hpdAlert(incident)) onRoute.set(incidentAlertKey(incident), incident);
+      continue;
+    }
     if (isAlertIncident(incident) && !isOppositeDirection(incident, input.path))
       onRoute.set(incidentAlertKey(incident), incident);
   }
   for (const incident of input.nearby ?? []) {
-    if (incident.source === "hpd") continue;
+    if (incident.source === "hpd") {
+      if (hpdAlert(incident)) onRoute.set(incidentAlertKey(incident), incident);
+      continue;
+    }
     if (!isAlertIncident(incident) || isOppositeDirection(incident, input.path)) continue;
     const key = incidentAlertKey(incident);
     if (incident.onRoute) onRoute.set(key, incident);
@@ -183,7 +233,12 @@ export function alertEligible(input: {
  */
 export function detailedAlertCovers(
   fresh: DriveIncident[],
-  input: { incidents: DriveIncident[]; nearby?: DriveIncident[]; path: ReadonlyArray<LatLon> },
+  input: {
+    incidents: DriveIncident[];
+    nearby?: DriveIncident[];
+    path: ReadonlyArray<LatLon>;
+    nowMs?: number;
+  },
 ): boolean {
   if (fresh.length === 0) return false;
   const { onRoute } = alertEligible(input);
@@ -209,6 +264,7 @@ export function planIncidentAlerts(
     nearby?: DriveIncident[];
     path: ReadonlyArray<LatLon>;
     rider?: LatLon | null;
+    nowMs?: number;
   },
   memory: IncidentAlertMemory,
 ): IncidentAlertPlan {

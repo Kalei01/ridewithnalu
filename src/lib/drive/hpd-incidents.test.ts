@@ -109,7 +109,7 @@ describe("matching to a route", () => {
       source: "hpd",
       onRoute: true,
       delayMinutes: null,
-      description: "Police report: Collision on H-1 eastbound near Moanalua, 1:45 PM",
+      description: "Police report: collision on H-1 eastbound near Moanalua, 1:45 PM",
     });
   });
   it("without coordinates, shows a report only when the route passes the named place (road and cross street)", () => {
@@ -119,7 +119,7 @@ describe("matching to a route", () => {
       NOW,
     );
     expect(both.map((f) => f.description)).toEqual([
-      "Police report: Stalled vehicle near Kamehameha Highway at Kaiahua Street, 1:30 PM",
+      "Police report: stalled vehicle near Kamehameha Highway at Kaiahua Street, 1:30 PM",
     ]);
     expect(both[0]?.onRoute).toBe(false);
     expect(both[0]?.road).toBe("Kamehameha Hwy");

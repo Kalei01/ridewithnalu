@@ -126,7 +126,7 @@ export async function runHealthChecks(): Promise<{ ok: boolean; checks: HealthCh
       const incidents = pct(u.tomtomIncidents);
       return {
         ok: routing < 80 && incidents < 80,
-        detail: `routing ${u.tomtomRouting.used}/${u.tomtomRouting.limit} (~${u.tomtomRouting.remainingEstimate} left), incidents ${u.tomtomIncidents.used}/${u.tomtomIncidents.limit}, Mapbox ${u.mapboxDirections.used}/${u.mapboxDirections.limit}; counted on this instance only, so a floor; dashboard is the truth`,
+        detail: `routing ${u.tomtomRouting.used}/${u.tomtomRouting.limit} (~${u.tomtomRouting.remainingEstimate} left), incidents ${u.tomtomIncidents.used}/${u.tomtomIncidents.limit}, geocoding ${u.tomtomGeocoding.used}/${u.tomtomGeocoding.limit}, Mapbox ${u.mapboxDirections.used}/${u.mapboxDirections.limit}; counted on this instance only, so a floor; dashboard is the truth`,
       };
     }),
     timed("place search (TomTom)", async () => {

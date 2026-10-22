@@ -11,6 +11,8 @@
 
 export const TOMTOM_ROUTING_MONTHLY_LIMIT = 20_000;
 export const TOMTOM_INCIDENTS_MONTHLY_LIMIT = 2_500;
+/** TomTom Geocoding (separate quota from routing): used to place HPD police reports. */
+export const TOMTOM_GEOCODING_MONTHLY_LIMIT = 20_000;
 /** Mapbox Directions free tier: 100,000 requests a month. We stop well short of it. */
 export const MAPBOX_DIRECTIONS_MONTHLY_LIMIT = 100_000;
 const MAPBOX_STOP_FRACTION = 0.95;
@@ -23,12 +25,13 @@ export const BREAKER_TRANSIENT_MS = 60_000;
 
 export type TomtomOutcome = number | "timeout" | "error";
 
-export type TomtomScope = "routing" | "incidents";
+export type TomtomScope = "routing" | "incidents" | "geocoding";
 
 /** Routing and incident details have separate quotas, so each has its own breaker. */
 const breakers: Record<TomtomScope, { until: number; reason: string | null }> = {
   routing: { until: 0, reason: null },
   incidents: { until: 0, reason: null },
+  geocoding: { until: 0, reason: null },
 };
 
 /** Whether TomTom may be called now (false while that scope's breaker is open). */
@@ -72,17 +75,19 @@ export function breakerState(
 
 // ---- monthly usage (per server instance) -----------------------------------
 
-export type UsageKind = "tomtomRouting" | "tomtomIncidents" | "mapboxDirections";
+export type UsageKind =
+  "tomtomRouting" | "tomtomIncidents" | "tomtomGeocoding" | "mapboxDirections";
 
 const LIMITS: Record<UsageKind, number> = {
   tomtomRouting: TOMTOM_ROUTING_MONTHLY_LIMIT,
   tomtomIncidents: TOMTOM_INCIDENTS_MONTHLY_LIMIT,
+  tomtomGeocoding: TOMTOM_GEOCODING_MONTHLY_LIMIT,
   mapboxDirections: MAPBOX_DIRECTIONS_MONTHLY_LIMIT,
 };
 
 const usage: { month: string; counts: Record<UsageKind, number>; warned: Set<UsageKind> } = {
   month: "",
-  counts: { tomtomRouting: 0, tomtomIncidents: 0, mapboxDirections: 0 },
+  counts: { tomtomRouting: 0, tomtomIncidents: 0, tomtomGeocoding: 0, mapboxDirections: 0 },
   warned: new Set(),
 };
 
@@ -94,7 +99,7 @@ function rollMonth(now: number) {
   const month = monthOf(now);
   if (usage.month === month) return;
   usage.month = month;
-  usage.counts = { tomtomRouting: 0, tomtomIncidents: 0, mapboxDirections: 0 };
+  usage.counts = { tomtomRouting: 0, tomtomIncidents: 0, tomtomGeocoding: 0, mapboxDirections: 0 };
   usage.warned = new Set();
 }
 
@@ -129,6 +134,7 @@ export type UsageSnapshot = {
   scope: "this server instance only (under-estimate)";
   tomtomRouting: { used: number; limit: number; remainingEstimate: number };
   tomtomIncidents: { used: number; limit: number; remainingEstimate: number };
+  tomtomGeocoding: { used: number; limit: number; remainingEstimate: number };
   mapboxDirections: { used: number; limit: number; remainingEstimate: number };
 };
 
@@ -144,6 +150,7 @@ export function usageSnapshot(now = Date.now()): UsageSnapshot {
     scope: "this server instance only (under-estimate)",
     tomtomRouting: one("tomtomRouting"),
     tomtomIncidents: one("tomtomIncidents"),
+    tomtomGeocoding: one("tomtomGeocoding"),
     mapboxDirections: one("mapboxDirections"),
   };
 }
@@ -157,8 +164,9 @@ export function tomtomRoutingAllowed(now = Date.now()): boolean {
 export function resetTomtomGuard(): void {
   breakers.routing = { until: 0, reason: null };
   breakers.incidents = { until: 0, reason: null };
+  breakers.geocoding = { until: 0, reason: null };
   usage.month = "";
-  usage.counts = { tomtomRouting: 0, tomtomIncidents: 0, mapboxDirections: 0 };
+  usage.counts = { tomtomRouting: 0, tomtomIncidents: 0, tomtomGeocoding: 0, mapboxDirections: 0 };
   usage.warned = new Set();
   typicalCache.clear();
   incidentMemory.clear();
