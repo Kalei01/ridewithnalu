@@ -1,25 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import {
-  Bus,
-  ChevronDown,
-  ChevronRight,
-  MapPinOff,
-  Plus,
-  RefreshCw,
-  TrainFront,
-  X,
-} from "lucide-react";
+import { Bus, ChevronDown, ChevronRight, MapPinOff, Plus, TrainFront, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { WaveMark } from "@/components/commute/NaluPersonalityStrip";
 import { WhereToSearch } from "@/components/home/WhereToSearch";
 import "@/components/home/home.css";
@@ -28,7 +10,7 @@ import { StationName } from "@/components/commute/StationName";
 import { LandmarkHint } from "@/components/commute/TransitNotices";
 import { WalkingMicroMap } from "@/components/commute/RailTripBreakdown";
 import { DataExpiryNotice } from "@/components/commute/DataExpiry";
-import { H1ConditionsCard, TONE_CLASS } from "@/components/commute/H1ConditionsCard";
+import { TONE_CLASS } from "@/components/commute/H1ConditionsCard";
 import { RoadworkTile } from "@/components/commute/RoadworkTile";
 import {
   AskNaluIfAvailable,
@@ -53,45 +35,74 @@ import {
   titleCase,
 } from "@/lib/commute-formatting";
 import { HOLO_FARES } from "@/lib/fares";
-import { h1PeekLine, nextTrainLine, waitText } from "@/lib/browse-peek";
+import { waitText } from "@/lib/browse-peek";
+import {
+  incidentPins,
+  roadLines,
+  trafficSourceLabel,
+  type MapFocus,
+  type RightNowItem,
+} from "@/lib/browse-right-now";
 import { plannerHref } from "@/lib/home/planner-link";
 import { findByKind, kindLabel } from "@/lib/places/saved-places";
 import { activeRegion } from "@/lib/region";
 import { BrowseSheet, type SheetState } from "./BrowseSheet";
-import type { MapLayers, MapSelection } from "./BrowseMap";
+import type { MapCommand, MapLayers, MapSelection } from "./BrowseMap";
+import { MapControls } from "./MapControls";
+import { RightNowBlock, RightNowLine } from "./RightNow";
+import { RoadStatusRows } from "./OnTheRoad";
+import { browseDemo } from "./browse-demo";
 import { scrollBehavior } from "@/lib/motion";
 import { useBrowseData } from "./useBrowseData";
 
 const BrowseMap = lazy(() => import("./BrowseMap"));
 
 const LAYERS_KEY = "nalu-browse-layers-v1";
-const DEFAULT_LAYERS: MapLayers = { stops: true, skyline: true, places: true };
-/** The chips along the map's top edge. Phase 3 adds Traffic, Incidents and Roadwork here. */
-const LAYER_CHIPS: { id: keyof MapLayers; label: string }[] = [
-  { id: "stops", label: "Stops" },
-  { id: "skyline", label: "Skyline" },
-  { id: "places", label: "Places" },
-];
+const DEFAULT_LAYERS: MapLayers = {
+  skyline: true,
+  traffic: true,
+  incidents: true,
+  stops: true,
+  places: true,
+};
 
-const CHIP_KINDS = ["home", "work", "gym"] as const;
+/** Test states (?demo=morning-clear | morning-incident | evening), development builds only. */
+function readDemo() {
+  if (!import.meta.env.DEV || typeof window === "undefined") return null;
+  return browseDemo(new URLSearchParams(window.location.search).get("demo"));
+}
+
+/** A number that rolls up once when it changes (never on a redraw with the same value). */
+function Roll({ value, children }: { value: string | number; children: React.ReactNode }) {
+  return (
+    <span key={value} className="nb-roll">
+      {children}
+    </span>
+  );
+}
 
 /**
  * Browse as one live map with one bottom sheet (preview at /browse-preview).
- * Same data and the same cards as the Browse screen, regrouped:
- *   PEEK  Where to? + one live line + one live number
- *   HALF  destination chips, Today, On the road, Near you
- *   FULL  weekly digest, walk to a picked stop, Ask Nalu, Install, alerts
+ *   PEEK  Right now (one line) + Where to?
+ *   HALF  Right now (up to 3 items), Where to?, saved places, Today
+ *   FULL  On the road, Near you, then the quiet cards
+ * Roads and stations follow the rider (their location, saved Home and Work),
+ * in every direction: nothing here assumes the west side or a trip to work.
  */
 export function BrowseSheetScreen() {
-  const data = useBrowseData();
+  const [demo] = useState(readDemo);
+  const data = useBrowseData(demo);
   const gate = useGate();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [sheet, setSheet] = useState<SheetState>("peek");
-  const [stationExpanded, setStationExpanded] = useState(false);
+  // The station card (map pin or tap) replaces the Near-you lists until closed.
+  const [stationFocus, setStationFocus] = useState(false);
+  const [stopsOpen, setStopsOpen] = useState(false);
   // True once the rider chose a stop themselves (a pin or a chip), not the default one.
   const [stopPicked, setStopPicked] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [activeItem, setActiveItem] = useState<string | null>(null);
+  const [command, setCommand] = useState<MapCommand | null>(null);
+  const nonce = useRef(0);
 
   const {
     browseStation,
@@ -101,6 +112,8 @@ export function BrowseSheetScreen() {
     nearbyStops,
     selectedNearbyStop,
     nowSeconds,
+    rightNow,
+    roadChecks,
   } = data;
 
   const hasTransit = activeRegion().hasTransit;
@@ -110,14 +123,10 @@ export function BrowseSheetScreen() {
     listedStops.find((stop) => stop.stopId === selectedNearbyStop?.stopId) ??
     listedStops[0] ??
     null;
-  const roadLine = h1PeekLine(
-    data.eastboundTraffic,
-    data.westboundTraffic,
-    data.trafficUnavailable && !data.trafficLoading,
-  );
-  const trainLine = browseStation
-    ? nextTrainLine(browseDirections, nowSeconds, browseStation.stopName, data.browseWalkMinutes)
-    : null;
+
+  const lines = roadLines(roadChecks);
+  const pins = incidentPins(roadChecks, data.now.getTime());
+  const trainSource = trafficSourceLabel(roadChecks);
 
   // How much of the map's lower part the open sheet covers, so the map can keep
   // its view centered in what is still visible.
@@ -141,8 +150,10 @@ export function BrowseSheetScreen() {
       ) as Partial<MapLayers> | null;
       if (saved && typeof saved === "object")
         setLayers({
-          stops: saved.stops !== false,
           skyline: saved.skyline !== false,
+          traffic: saved.traffic !== false,
+          incidents: saved.incidents !== false,
+          stops: saved.stops !== false,
           places: saved.places !== false,
         });
     } catch {
@@ -163,6 +174,7 @@ export function BrowseSheetScreen() {
   const [selection, setSelection] = useState<MapSelection | null>(null);
   const nearRef = useRef<HTMLElement | null>(null);
   const stopsRef = useRef<HTMLElement | null>(null);
+  const stationRef = useRef<HTMLElement | null>(null);
 
   const mapStations = data.browseStations
     .filter((s) => s.stop_lat !== null && s.stop_lon !== null)
@@ -181,26 +193,44 @@ export function BrowseSheetScreen() {
   const selectedPlace =
     selection?.kind === "place" ? (mapPlaces.find((p) => p.id === selection.id) ?? null) : null;
 
+  function openHalf() {
+    setSheet((current) => (current === "peek" ? "half" : current));
+  }
+
   function pickStop(stopId: string) {
     data.setSelectedNearbyStopId(stopId);
     setStopPicked(true);
     setSelection({ kind: "stop", id: stopId });
-    setSheet((current) => (current === "peek" ? "half" : current));
+    setStationFocus(false);
+    setStopsOpen(true);
+    openHalf();
   }
 
   /** A pin was tapped: the sheet opens to the matching card. */
   function selectOnMap(next: MapSelection) {
     if (next.kind === "place") {
       setSelection(next);
-      setSheet((current) => (current === "peek" ? "half" : current));
+      openHalf();
+      return;
+    }
+    if (next.kind === "incident") {
+      setSelection(next);
+      setActiveItem(next.id);
+      openHalf();
       return;
     }
     const inNearby = nearbyStops.some((stop) => stop.stopId === next.id);
-    if (next.kind === "stop" || inNearby) {
+    if (next.kind === "stop" && next.id !== browseStation?.stopId) {
       pickStop(next.id);
       return;
     }
-    // A Skyline station that is not among the nearby stops becomes "Near you".
+    if (next.kind === "stop" && inNearby && next.id === browseStation?.stopId) {
+      setStationFocus(true);
+      setSelection({ kind: "station", id: next.id });
+      openHalf();
+      return;
+    }
+    // A Skyline station that is not the nearest becomes "Near you".
     const station = data.browseStations.find((item) => item.stop_id === next.id);
     if (station && station.stop_id !== browseStation?.stopId) {
       data.rememberBrowseStation({
@@ -212,22 +242,42 @@ export function BrowseSheetScreen() {
         ...(browseStation?.userLon !== undefined ? { userLon: browseStation.userLon } : {}),
       });
     }
-    setStationExpanded(true);
+    setStationFocus(true);
     setSelection(next);
-    setSheet((current) => (current === "peek" ? "half" : current));
+    openHalf();
+  }
+
+  function closeStation() {
+    setStationFocus(false);
+    setSelection(null);
+  }
+
+  /** A Right now item was tapped: the map flies to it. */
+  function flyTo(item: RightNowItem, focus: MapFocus | null) {
+    setActiveItem(item.id);
+    if (!focus) return;
+    nonce.current += 1;
+    setCommand(
+      focus.kind === "point"
+        ? { nonce: nonce.current, type: "point", point: focus.point }
+        : { nonce: nonce.current, type: "path", points: focus.points },
+    );
+  }
+  function locate() {
+    nonce.current += 1;
+    setCommand({ nonce: nonce.current, type: "locate" });
   }
 
   // Bring the matching card into view when something is selected on the map.
   useEffect(() => {
     if (!selection) return;
     const frame = window.requestAnimationFrame(() => {
-      // A bus stop scrolls to its own arrivals; a station to the station card.
       const target =
-        selection.kind === "place"
+        selection.kind === "place" || selection.kind === "incident"
           ? null
           : selection.kind === "stop" && selection.id !== browseStation?.stopId
             ? (stopsRef.current ?? nearRef.current)
-            : nearRef.current;
+            : (stationRef.current ?? nearRef.current);
       const body = (target ?? nearRef.current)?.closest(".nb-sheet-body") as HTMLElement | null;
       if (!body) return;
       const top = target
@@ -238,40 +288,31 @@ export function BrowseSheetScreen() {
     return () => window.cancelAnimationFrame(frame);
   }, [selection]);
 
-  async function refresh() {
-    setRefreshing(true);
-    try {
-      await queryClient.invalidateQueries();
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
+  const header =
+    sheet === "peek" ? (
+      <RightNowLine now={rightNow} onOpen={openHalf} />
+    ) : (
+      <RightNowBlock now={rightNow} activeId={activeItem} onFocus={flyTo} />
+    );
   const peek = (
-    <div onFocusCapture={() => setSheet((current) => (current === "peek" ? "half" : current))}>
-      <WhereToSearch />
-      <button
-        type="button"
-        className="nb-peek-row"
-        onClick={() => setSheet((current) => (current === "peek" ? "half" : current))}
-        aria-label="Show what is happening now"
-      >
-        <span className="flex min-w-0 flex-1 items-center gap-2 text-sm font-medium text-foreground">
-          <span className="nh-live-dot shrink-0" aria-hidden="true" />
-          <span className="truncate">{roadLine ?? "Checking the roads…"}</span>
-        </span>
-      </button>
-      {trainLine && (
-        <p
-          className="nb-peek-row flex items-center gap-2 text-sm text-muted-foreground"
-          aria-label={`Scheduled: ${trainLine}`}
-        >
-          <TrainFront aria-hidden="true" className="size-4 shrink-0 text-primary" />
-          <span className="truncate">{trainLine}</span>
-        </p>
-      )}
+    <div>
+      {header}
+      <div className="nb-where" onFocusCapture={openHalf}>
+        <WhereToSearch />
+      </div>
     </div>
   );
+
+  const skylineFar = data.skylineOutOfReach;
+  const stationCard =
+    browseStation && !skylineFar ? (
+      <StationCard
+        data={data}
+        stationRef={stationRef}
+        onClose={closeStation}
+        focus={stationFocus}
+      />
+    ) : null;
 
   return (
     <main className="nh nb text-foreground">
@@ -306,6 +347,9 @@ export function BrowseSheetScreen() {
                   stations={mapStations}
                   places={mapPlaces}
                   layers={layers}
+                  traffic={lines}
+                  incidents={pins}
+                  command={command}
                   selected={selection}
                   onSelect={selectOnMap}
                   coverBottom={cover}
@@ -319,7 +363,7 @@ export function BrowseSheetScreen() {
             <p className="relative mx-auto flex max-w-[320px] items-center gap-2 px-6 pt-40 text-sm text-muted-foreground">
               <MapPinOff aria-hidden="true" className="size-5 shrink-0" />
               {data.browseLocationDenied
-                ? "Location is off, so the map is hidden. Skyline and H-1 below still work."
+                ? "Location is off, so the map is hidden. Turn it on to see roads and Skyline near you."
                 : "Finding where you are…"}
             </p>
           </div>
@@ -327,37 +371,20 @@ export function BrowseSheetScreen() {
       </div>
 
       {browseUserPoint && (
-        <div className="nb-layers" role="group" aria-label="Map layers">
-          {LAYER_CHIPS.map((chip) => (
-            <button
-              key={chip.id}
-              type="button"
-              className="nb-layer-chip"
-              aria-pressed={layers[chip.id]}
-              onClick={() => toggleLayer(chip.id)}
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
+        <MapControls
+          layers={layers}
+          onToggle={toggleLayer}
+          onLocate={locate}
+          trafficSource={trainSource}
+        />
       )}
 
       <div className="nb-brand">
         <WaveMark className="h-5 w-auto text-foreground" />
         <span className="text-base font-medium tracking-wide">Nalu</span>
-        <span className="hidden text-xs text-muted-foreground min-[380px]:inline">
+        <span className="hidden pr-2 text-xs text-muted-foreground min-[380px]:inline">
           {alohaGreeting(data.now, profileFirstName(user))}
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Refresh commute conditions"
-          onClick={() => void refresh()}
-          disabled={refreshing}
-          className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-        >
-          <RefreshCw />
-        </Button>
       </div>
 
       <BrowseSheet state={sheet} onStateChange={setSheet} peek={peek}>
@@ -415,38 +442,40 @@ export function BrowseSheetScreen() {
           </section>
         )}
 
-        {/* Quick destinations */}
-        <div className="nh-rail-scroll mt-3" role="group" aria-label="Quick destinations">
-          {CHIP_KINDS.map((kind) => {
-            const Icon = shortcutIcon(kind);
-            const place = findByKind(data.savedPlaces, kind);
-            const href = place
-              ? plannerHref({ name: place.name || place.label, lat: place.lat, lon: place.lon })
-              : "/";
+        {/* The station card replaces the Near-you lists while a station is picked. */}
+        {stationFocus && stationCard}
+
+        {/* Saved places are shortcuts, never assumptions: no default destination. */}
+        <div className="nh-rail-scroll mt-1" role="group" aria-label="Saved places">
+          {data.savedPlaces.slice(0, 4).map((place) => {
+            const Icon = shortcutIcon(place.kind);
             return (
               <a
-                key={kind}
-                href={href}
-                className={`nh-chip ${place ? "" : "opacity-70"}`}
-                aria-label={
-                  place ? `Plan a trip to ${kindLabel(kind)}` : `Set up ${kindLabel(kind)}`
-                }
+                key={place.id}
+                href={plannerHref({
+                  name: place.name || place.label,
+                  lat: place.lat,
+                  lon: place.lon,
+                })}
+                className="nh-chip"
+                aria-label={`Plan a trip to ${place.label || kindLabel(place.kind)}`}
               >
                 <Icon aria-hidden="true" className="size-4 text-muted-foreground" />{" "}
-                {kindLabel(kind)}
+                {place.label || kindLabel(place.kind)}
               </a>
             );
           })}
-          <a href="/" className="nh-chip">
-            <Plus aria-hidden="true" className="size-4 text-muted-foreground" /> Add Place
+          <a href="/" className="nh-chip" aria-label="Add a place">
+            <Plus aria-hidden="true" className="size-4 text-muted-foreground" />
+            {data.savedPlaces.length ? "" : "Add place"}
           </a>
         </div>
 
-        {/* Today: Morning / Evening Pulse and Beat the Rush, one heading */}
+        {/* Today: Morning / Evening Pulse and Beat the Rush (each in its own time window) */}
         {hasTransit && (
           <section className="nb-card nb-today" aria-label="Today">
             <h2 className="nb-card-title">Today</h2>
-            <div className="nh-card p-4">
+            <div className="nh-card nb-today-card">
               <MorningPulse
                 home={data.browseHome}
                 work={data.browseWork}
@@ -464,273 +493,80 @@ export function BrowseSheetScreen() {
           </section>
         )}
 
-        {/* On the road: H-1 (with its incidents), roadwork, weather */}
-        {hasTransit && (
-          <section className="nb-card" aria-label="On the road">
-            <h2 className="nb-card-title">On the road</h2>
-            <div className="nh-card nb-card-inner">
-              <H1ConditionsCard
-                eastbound={data.eastboundTraffic}
-                westbound={data.westboundTraffic}
-                loading={data.trafficLoading}
-                unavailable={data.trafficUnavailable}
-                compact
-                className=""
-              />
-              <RoadworkTile />
-              <details className="nh-card nh-details">
-                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
-                  <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-                    {data.browseWeatherSummary}
-                  </span>
-                  <ChevronDown className="nh-chevron ml-auto size-4 shrink-0 text-muted-foreground" />
-                </summary>
-                <div className="border-t border-white/10 px-4 py-3">
-                  {data.browseWeatherLine ? (
-                    <p className={`text-sm ${TONE_CLASS[data.browseWeatherLine.tone]}`}>
-                      {data.browseWeatherLine.text}
-                    </p>
-                  ) : data.browseWeather ? (
-                    <p className="text-sm text-muted-foreground">
-                      No weather or air-quality concerns right now.
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {data.browseWeatherFailed || (!browseStation && data.browseLocationDenied)
-                        ? "Weather isn’t available right now."
-                        : "Checking weather…"}
-                    </p>
-                  )}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Weather: NWS · Air quality: AirNow / EPA
+        {/* On the road: the rider's own roads both ways, roadwork, weather */}
+        <section className="nb-card" aria-label="On the road">
+          <h2 className="nb-card-title">On the road</h2>
+          <div className="nh-card nb-card-inner">
+            <RoadStatusRows
+              checks={roadChecks}
+              loading={rightNow.status === "loading"}
+              unavailable={rightNow.status === "failed"}
+            />
+            <RoadworkTile />
+            <details className="nh-card nh-details">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                  {data.browseWeatherSummary}
+                </span>
+                <ChevronDown className="nh-chevron ml-auto size-4 shrink-0 text-muted-foreground" />
+              </summary>
+              <div className="border-t border-white/10 px-4 py-3">
+                {data.browseWeatherLine ? (
+                  <p className={`text-sm ${TONE_CLASS[data.browseWeatherLine.tone]}`}>
+                    {data.browseWeatherLine.text}
                   </p>
-                </div>
-              </details>
-            </div>
-          </section>
-        )}
+                ) : data.browseWeather ? (
+                  <p className="text-sm text-muted-foreground">
+                    No weather or air-quality concerns right now.
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {data.browseWeatherFailed || (!browseStation && data.browseLocationDenied)
+                      ? "Weather isn’t available right now."
+                      : "Checking weather…"}
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Weather: NWS · Air quality: AirNow / EPA
+                </p>
+              </div>
+            </details>
+          </div>
+        </section>
 
-        {/* Near you: nearest Skyline station + nearby stops */}
+        {/* Near you: nearest Skyline station (wherever the rider is) + nearby stops */}
         {hasTransit && (
           <section ref={nearRef} className="nb-card" aria-label="Near you">
             <h2 className="nb-card-title">Near you</h2>
-            {browseStation && data.browseFar && !stationExpanded ? (
-              <button
-                type="button"
-                onClick={() => setStationExpanded(true)}
-                className="nh-card flex w-full min-w-0 items-center gap-2 px-4 py-3 text-left text-sm"
-                aria-label="Show Skyline station details"
-              >
-                <TrainFront className="size-4 shrink-0 text-primary" />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold text-foreground">
-                    <StationName name={browseStation.stopName} />
-                  </span>
-                  <span className="block text-muted-foreground">
-                    {browseUserPoint
-                      ? `${formatDistance(distanceM(browseUserPoint, browseStation))} away`
-                      : ""}
-                    {browseUserPoint && data.trainsEveryMinutes ? " · " : ""}
-                    {data.trainsEveryMinutes ? `Trains every ${data.trainsEveryMinutes} min` : ""}
-                  </span>
-                </span>
-                <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
-              </button>
-            ) : (
-              <div className="nh-card p-4" aria-labelledby="browse-station-title">
-                <div className="flex items-start gap-3">
-                  <TrainFront className="mt-5 size-6 shrink-0 text-primary" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                      Skyline station
-                    </p>
-                    <h3 id="browse-station-title" className="text-xl font-semibold text-foreground">
-                      <Select
-                        value={browseStation?.stopId ?? ""}
-                        onValueChange={(stopId) => {
-                          const station = browseStations.find((item) => item.stop_id === stopId);
-                          if (!station) return;
-                          data.rememberBrowseStation({
-                            stopId: station.stop_id,
-                            stopName: station.stop_name ?? "",
-                            lat: Number(station.stop_lat),
-                            lon: Number(station.stop_lon),
-                            ...(browseStation?.userLat !== undefined
-                              ? { userLat: browseStation.userLat }
-                              : {}),
-                            ...(browseStation?.userLon !== undefined
-                              ? { userLon: browseStation.userLon }
-                              : {}),
-                          });
-                        }}
-                      >
-                        <SelectTrigger
-                          className="h-auto min-h-11 w-full justify-start gap-2 border-0 bg-transparent px-0 py-1 text-left text-xl font-semibold whitespace-normal shadow-none focus:ring-0 focus-visible:ring-2 [&>span]:line-clamp-none [&>span]:whitespace-normal"
-                          aria-label="Choose Skyline station"
-                        >
-                          <SelectValue
-                            placeholder={
-                              browseStations.length ? "Choose a station" : "Finding your station…"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {browseStations.map((station) => (
-                            <SelectItem key={station.stop_id} value={station.stop_id}>
-                              <StationName name={station.stop_name} />
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </h3>
-                    {browseStation && <LandmarkHint name={browseStation.stopName} />}
-                  </div>
-                  {data.browseFar && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Collapse station card"
-                      onClick={() => setStationExpanded(false)}
-                    >
-                      <ChevronDown className="size-4 rotate-180" />
-                    </Button>
-                  )}
-                </div>
-                {browseStation && (
-                  <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold">
-                    {browseUserPoint && (
-                      <span className="rounded-full border border-border px-2 py-0.5 text-foreground">
-                        {formatDistance(distanceM(browseUserPoint, browseStation))} away
-                      </span>
-                    )}
-                    {data.trainsEveryMinutes && (
-                      <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
-                        Trains every {data.trainsEveryMinutes} min
-                      </span>
-                    )}
-                    {data.stationParking && (
-                      <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
-                        {data.stationParking.status === "limited"
-                          ? "Limited parking"
-                          : "Park & Ride available"}
-                        {data.stationParking.note ? ` · ${data.stationParking.note}` : ""}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {browseStation &&
-                  browseUserPoint &&
-                  data.browseWalkMinutes !== null &&
-                  data.browseWalkMinutes > 18 &&
-                  data.feederBuses.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-semibold text-foreground">
-                      {data.feederBuses.slice(0, 2).map((bus) => (
-                        <span
-                          key={bus.route_short_name}
-                          className="rounded-full border border-border px-2 py-0.5"
-                        >
-                          <Bus className="mr-1 inline size-3" />
-                          TheBus {bus.route_short_name} · {bus.ride_minutes} min ride · leaves{" "}
-                          {clockFromSeconds(bus.depart_seconds)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                {data.browseLocationDenied && browseStation && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Location unavailable · showing a data-derived West Oahu station
-                  </p>
-                )}
-                {browseStation && (
-                  <div
-                    className="mt-4 grid grid-cols-2 gap-3"
-                    aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
-                  >
-                    {data.browseDeparturesLoading && (
-                      <p className="text-sm text-muted-foreground">Loading departures…</p>
-                    )}
-                    {data.browseDeparturesFailed && (
-                      <p className="col-span-2 text-sm text-warning">
-                        Rail departure times are not available right now.
-                      </p>
-                    )}
-                    {!data.browseDeparturesLoading &&
-                      !data.browseDeparturesFailed &&
-                      browseDirections.length === 0 && (
-                        <p className="col-span-2 text-sm text-muted-foreground">
-                          No rail departures are scheduled from this station right now.
-                        </p>
-                      )}
-                    {browseDirections.map((direction) => {
-                      const first = direction[0];
-                      const second = direction[1];
-                      const towardDowntown =
-                        first?.terminus_lon !== null &&
-                        first?.terminus_lon !== undefined &&
-                        first.terminus_lon > browseStation.lon;
-                      const endpoint =
-                        terminusLabel(first?.direction_terminus) ||
-                        stationLabel(first?.trip_headsign) ||
-                        "the end of the line";
-                      const secondsAway = (first?.departure_seconds ?? 0) - nowSeconds;
-                      const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
-                      const nowDeparture = secondsAway >= -30 && secondsAway < 60;
-                      const soon = secondsAway >= 60 && secondsAway < 20 * 60;
-                      return (
-                        <article
-                          key={`${first?.route_id}-${first?.direction_id ?? "x"}`}
-                          className="browse-departure-card nh-card nh-fade-in min-w-0 p-3"
-                        >
-                          <h4 className="text-sm font-semibold text-foreground">
-                            {towardDowntown ? "Eastbound" : "Westbound"}
-                          </h4>
-                          <p className="mt-0.5 text-xs text-muted-foreground">to {endpoint}</p>
-                          {first && (
-                            <div className="mt-3">
-                              <p className="text-2xl font-semibold tabular-nums text-primary">
-                                {nowDeparture ? (
-                                  <>
-                                    Now{" "}
-                                    <span className="block text-xs font-normal text-muted-foreground">
-                                      {clockFromSeconds(first.departure_seconds)}
-                                    </span>
-                                  </>
-                                ) : soon ? (
-                                  <>
-                                    in {minutesAway} min{" "}
-                                    <span className="block text-xs font-normal text-muted-foreground">
-                                      {clockFromSeconds(first.departure_seconds)}
-                                    </span>
-                                  </>
-                                ) : (
-                                  clockFromSeconds(first.departure_seconds)
-                                )}
-                              </p>
-                              {second && (
-                                <p className="mt-1.5 text-xs text-muted-foreground">
-                                  Miss it? Next train at{" "}
-                                  {clockFromSeconds(second.departure_seconds)}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-                <p className="mt-3 text-xs text-muted-foreground">
-                  HOLO fare {HOLO_FARES.singleRide} · free TheBus–Skyline transfers for{" "}
-                  {HOLO_FARES.transferWindowHours} hours
+            {skylineFar && browseStation ? (
+              <div className="nh-card flex items-start gap-3 px-4 py-3 text-sm">
+                <TrainFront
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                />
+                <p className="text-muted-foreground">
+                  <span className="font-semibold text-foreground">
+                    Skyline doesn’t reach this area.
+                  </span>{" "}
+                  The closest station, {stationLabel(browseStation.stopName)}, is{" "}
+                  {formatDistance(data.browseStationMeters ?? 0)} away. Buses near you are below.
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Scheduled times · TheBus / DTS</p>
               </div>
-            )}
+            ) : !stationFocus && stationCard ? (
+              stationCard
+            ) : !browseStation ? (
+              <p className="nh-card px-4 py-3 text-sm text-muted-foreground">
+                {data.browseLocationDenied
+                  ? "Turn on location to see the closest Skyline station."
+                  : "Finding the closest Skyline station…"}
+              </p>
+            ) : null}
 
             {browseUserPoint && (
               <details
                 ref={stopsRef as React.RefObject<HTMLDetailsElement>}
-                open
+                open={stopsOpen}
+                onToggle={(event) => setStopsOpen((event.currentTarget as HTMLDetailsElement).open)}
                 className="nh-card nh-details mt-3"
               >
                 <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
@@ -902,5 +738,156 @@ export function BrowseSheetScreen() {
         </div>
       </BrowseSheet>
     </main>
+  );
+}
+
+type BrowseData = ReturnType<typeof useBrowseData>;
+
+/** The closest Skyline station: two directions as scheduled, then each direction's last train. */
+function StationCard({
+  data,
+  stationRef,
+  onClose,
+  focus,
+}: {
+  data: BrowseData;
+  stationRef: React.RefObject<HTMLElement | null>;
+  onClose: () => void;
+  focus: boolean;
+}) {
+  const { browseStation, browseDirections, browseLastTrains, nowSeconds, browseUserPoint } = data;
+  if (!browseStation) return null;
+  return (
+    <section
+      ref={stationRef}
+      className={`nb-station nh-card p-4 ${focus ? "nb-select-card mt-3" : ""}`}
+      aria-label="Skyline station"
+    >
+      <div className="flex items-start gap-3">
+        <TrainFront aria-hidden="true" className="mt-1 size-5 shrink-0 text-primary" />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg font-semibold leading-tight text-foreground">
+            <StationName name={browseStation.stopName} hawaiianClassName="text-xs font-normal" />
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {browseUserPoint
+              ? `${formatDistance(distanceM(browseUserPoint, browseStation))} away`
+              : ""}
+            {browseUserPoint && data.trainsEveryMinutes ? " · " : ""}
+            {data.trainsEveryMinutes ? `Trains every ${data.trainsEveryMinutes} min` : ""}
+            {data.stationParking
+              ? ` · ${data.stationParking.status === "limited" ? "Limited parking" : "Park & Ride"}`
+              : ""}
+          </p>
+          <LandmarkHint name={browseStation.stopName} />
+        </div>
+        {focus && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-11 shrink-0"
+            aria-label="Close station"
+            onClick={onClose}
+          >
+            <X className="size-4" />
+          </Button>
+        )}
+      </div>
+
+      <div
+        className="mt-3 divide-y divide-white/10"
+        aria-label={`Departures from ${stationLabel(browseStation.stopName)}`}
+      >
+        {data.browseDeparturesLoading && (
+          <p className="py-2 text-sm text-muted-foreground">Loading departures…</p>
+        )}
+        {data.browseDeparturesFailed && (
+          <p className="py-2 text-sm text-warning">
+            Rail departure times are not available right now.
+          </p>
+        )}
+        {!data.browseDeparturesLoading &&
+          !data.browseDeparturesFailed &&
+          browseDirections.length === 0 && (
+            <p className="py-2 text-sm text-muted-foreground">
+              No rail departures are scheduled from this station right now.
+            </p>
+          )}
+        {browseDirections.slice(0, 2).map((direction) => {
+          const first = direction[0];
+          if (!first) return null;
+          const towardDowntown =
+            first.terminus_lon !== null &&
+            first.terminus_lon !== undefined &&
+            first.terminus_lon > browseStation.lon;
+          const endpoint =
+            terminusLabel(first.direction_terminus) ||
+            stationLabel(first.trip_headsign) ||
+            "the end of the line";
+          const secondsAway = first.departure_seconds - nowSeconds;
+          const minutesAway = Math.max(1, Math.ceil(secondsAway / 60));
+          const nowDeparture = secondsAway >= -30 && secondsAway < 60;
+          const soon = secondsAway >= 60 && secondsAway < 20 * 60;
+          const key = `${first.route_id}-${first.direction_id ?? "x"}`;
+          const last = browseLastTrains.get(key);
+          const lastGone = last ? last.departure_seconds < nowSeconds - 30 : false;
+          const lastSoon = last
+            ? last.departure_seconds >= nowSeconds && last.departure_seconds - nowSeconds <= 90 * 60
+            : false;
+          return (
+            <div key={key} className="py-2.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {towardDowntown ? "Eastbound" : "Westbound"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">to {endpoint}</p>
+                </div>
+                <p className="shrink-0 text-right text-xl font-semibold tabular-nums text-primary">
+                  {nowDeparture ? (
+                    <Roll value="now">Now</Roll>
+                  ) : soon ? (
+                    <Roll value={minutesAway}>in {minutesAway} min</Roll>
+                  ) : (
+                    clockFromSeconds(first.departure_seconds)
+                  )}
+                  {(nowDeparture || soon) && (
+                    <span className="block text-xs font-normal text-muted-foreground">
+                      {clockFromSeconds(first.departure_seconds)}
+                    </span>
+                  )}
+                </p>
+              </div>
+              {last && (
+                <p
+                  className={`nb-last mt-1.5 text-xs ${lastSoon ? "nb-last-soon text-foreground" : "text-muted-foreground"}`}
+                >
+                  {lastGone
+                    ? `Last train tonight was ${clockFromSeconds(last.departure_seconds)}`
+                    : `Last train ${clockFromSeconds(last.departure_seconds)}`}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        As scheduled · timetable from TheBus / DTS, not live tracking
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        HOLO fare {HOLO_FARES.singleRide} · free TheBus–Skyline transfers for{" "}
+        {HOLO_FARES.transferWindowHours} hours
+      </p>
+      <a
+        href={plannerHref({
+          name: stationLabel(browseStation.stopName),
+          lat: browseStation.lat,
+          lon: browseStation.lon,
+        })}
+        className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
+      >
+        Plan a trip to this station <ChevronRight aria-hidden="true" className="size-4" />
+      </a>
+    </section>
   );
 }

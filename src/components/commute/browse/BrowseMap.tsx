@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { LocateFixed, Maximize } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { removeMapSafely } from "@/lib/leaflet-safe";
 import { flyMotion, prefersReducedMotion } from "@/lib/motion";
 import { skylineStationParts } from "@/lib/rail/station-names";
@@ -30,8 +28,40 @@ export type MapPlace = {
   lon: number;
 };
 export type MapSelection =
-  { kind: "stop"; id: string } | { kind: "station"; id: string } | { kind: "place"; id: string };
-export type MapLayers = { stops: boolean; skyline: boolean; places: boolean };
+  | { kind: "stop"; id: string }
+  | { kind: "station"; id: string }
+  | { kind: "place"; id: string }
+  | { kind: "incident"; id: string };
+export type MapLayers = {
+  skyline: boolean;
+  traffic: boolean;
+  incidents: boolean;
+  stops: boolean;
+  places: boolean;
+};
+type LL = { lat: number; lon: number };
+/** One checked road, ready to draw: where it runs and how it is flowing. */
+export type MapTraffic = {
+  id: string;
+  path: LL[];
+  /** "clear": the live check answered with a usual-time comparison. "unknown": it did not. */
+  state: "clear" | "unknown";
+  sections: { severity: "moderate" | "heavy"; points: LL[] }[];
+  /** Changes when the data does, so the layer redraws only then. */
+  key: string;
+};
+export type MapIncident = {
+  id: string;
+  lat: number;
+  lon: number;
+  label: string;
+  tone: "bad" | "warn" | "info";
+};
+/** Something the sheet asks the map to do: fly to a place, or back to the rider. */
+export type MapCommand =
+  | { nonce: number; type: "locate" }
+  | { nonce: number; type: "point"; point: LL }
+  | { nonce: number; type: "path"; points: LL[] };
 
 const TILES = {
   url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_3t31_1_b6f69033d24b3d666819845e",
@@ -45,6 +75,8 @@ const BUS_GLYPH =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-1l1.5 2h-3L14 18h-4l-1.5 2h-3L7 18H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Zm0 3v5h12V7H6Zm1 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm10 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>';
 const HOME_GLYPH =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 10.5V21h6v-6h6v6h6V10.5L12 3Z"/></svg>';
+const ALERT_GLYPH =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 22 20H2L12 2.5Zm-1 7v5h2v-5h-2Zm0 6.5v2h2v-2h-2Z"/></svg>';
 const WORK_GLYPH =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2Zm0 2v2h6V5H9Z"/></svg>';
 
@@ -73,6 +105,15 @@ function icon(
   });
 }
 
+function incidentIcon(label: string, tone: MapIncident["tone"], selected: boolean, pulse: boolean) {
+  return L.divIcon({
+    className: "nalu-marker-shell nb-pin",
+    html: `<span class="nb-incident nb-incident-${tone}${selected ? " is-selected" : ""}${pulse ? " is-new" : ""}" role="img" aria-label="${label}">${ALERT_GLYPH}</span>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  });
+}
+
 function stationLabelHtml(name: string) {
   const parts = skylineStationParts(name);
   const english = parts?.english ?? name;
@@ -96,6 +137,9 @@ export default function BrowseMap({
   stations,
   places,
   layers,
+  traffic,
+  incidents,
+  command,
   selected,
   onSelect,
   coverBottom = 0,
@@ -105,6 +149,9 @@ export default function BrowseMap({
   stations: MapStation[];
   places: MapPlace[];
   layers: MapLayers;
+  traffic: MapTraffic[];
+  incidents: MapIncident[];
+  command: MapCommand | null;
   selected: MapSelection | null;
   onSelect: (selection: MapSelection) => void;
   /** Pixels of the map's lower part covered by the sheet. */
@@ -128,13 +175,14 @@ export default function BrowseMap({
     const map = L.map(node, {
       zoomControl: false,
       attributionControl: true,
-      scrollWheelZoom: false,
+      scrollWheelZoom: true,
       dragging: true,
     }).setView([userPoint.lat, userPoint.lon], 13);
     L.tileLayer(TILES.url, { maxZoom: 19, subdomains: "abcd", attribution: TILES.attribution })
       .addTo(map)
       .bringToBack();
-    L.control.zoom({ position: "bottomright" }).addTo(map);
+    // Pinch (or the wheel) zooms; there are no +/- buttons.
+    map.createPane("nb-traffic-pane").style.zIndex = "410";
     map.createPane("nb-line-pane").style.zIndex = "420";
     map.createPane("nalu-stop-pane").style.zIndex = "650";
     map.createPane("nalu-location-pane").style.zIndex = "700";
@@ -154,7 +202,10 @@ export default function BrowseMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const pulsedRef = useRef(new Set<string>());
   const signature = [
+    layers.traffic && traffic.map((t) => `${t.id}:${t.key}`).join(","),
+    layers.incidents && incidents.map((i) => `${i.id}`).join(","),
     layers.stops && stops.map((s) => s.stopId).join(","),
     layers.skyline && stations.map((s) => s.stopId).join(","),
     layers.places && places.map((p) => `${p.id}:${p.lat},${p.lon}`).join(","),
@@ -170,6 +221,66 @@ export default function BrowseMap({
     group.clearLayers();
     const isSel = (kind: MapSelection["kind"], id: string) =>
       selected?.kind === kind && selected.id === id;
+
+    if (layers.traffic) {
+      // Only the roads Nalu checks for this rider are coloured; others carry no colour at all.
+      for (const road of traffic) {
+        if (road.path.length < 2) continue;
+        const line = road.path.map((p) => [p.lat, p.lon] as L.LatLngTuple);
+        const base = road.state === "clear" ? "#30d158" : "#8e8e93";
+        L.polyline(line, {
+          pane: "nb-traffic-pane",
+          color: "#06090d",
+          weight: 9,
+          opacity: 0.55,
+          interactive: false,
+        }).addTo(group);
+        L.polyline(line, {
+          pane: "nb-traffic-pane",
+          color: base,
+          weight: 5,
+          opacity: road.state === "clear" ? 0.8 : 0.55,
+          interactive: false,
+        }).addTo(group);
+        for (const section of road.sections) {
+          if (section.points.length < 2) continue;
+          const heavy = section.severity === "heavy";
+          const pts = section.points.map((p) => [p.lat, p.lon] as L.LatLngTuple);
+          L.polyline(pts, {
+            pane: "nb-traffic-pane",
+            color: heavy ? "#ff453a" : "#ffb340",
+            weight: 5,
+            opacity: 0.95,
+            interactive: false,
+          }).addTo(group);
+          // Flowing dashes only where traffic is slow; slower flow = heavier congestion (CSS).
+          L.polyline(pts, {
+            pane: "nb-traffic-pane",
+            color: "#ffffff",
+            weight: 2,
+            opacity: 0.85,
+            dashArray: "2 14",
+            className: heavy ? "nb-flow nb-flow-heavy" : "nb-flow nb-flow-moderate",
+            interactive: false,
+          }).addTo(group);
+        }
+      }
+    }
+    if (layers.incidents) {
+      for (const incident of incidents) {
+        const fresh = !pulsedRef.current.has(incident.id);
+        pulsedRef.current.add(incident.id);
+        const marker = L.marker([incident.lat, incident.lon], {
+          pane: "nalu-stop-pane",
+          icon: incidentIcon(incident.label, incident.tone, isSel("incident", incident.id), fresh),
+          title: incident.label,
+          keyboard: true,
+          zIndexOffset: 400,
+        });
+        marker.on("click", () => onSelectRef.current({ kind: "incident", id: incident.id }));
+        marker.addTo(group);
+      }
+    }
 
     const { known: lineStations, unknown } = splitSkylineStations(stations);
     if (unknown.length)
@@ -297,6 +408,7 @@ export default function BrowseMap({
   const selectedPoint = (() => {
     if (!selected) return null;
     if (selected.kind === "place") return places.find((p) => p.id === selected.id) ?? null;
+    if (selected.kind === "incident") return incidents.find((i) => i.id === selected.id) ?? null;
     if (selected.kind === "station") return stations.find((s) => s.stopId === selected.id) ?? null;
     return stops.find((s) => s.stopId === selected.id) ?? null;
   })();
@@ -349,14 +461,30 @@ export default function BrowseMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopsKey]);
 
-  const fit = () => {
+  // The sheet asks the map to fly somewhere (a tapped "Right now" item) or back to the rider.
+  const lastCommand = useRef(0);
+  useEffect(() => {
     const map = mapRef.current;
-    const points = fitPoints();
-    if (map && points.length > 1)
-      map.flyToBounds(L.latLngBounds(points), { ...fitOptions(), ...flyMotion(0.4) });
-  };
-  const recenter = () =>
-    mapRef.current?.flyTo([userPoint.lat, userPoint.lon], 15, { ...flyMotion(0.4) });
+    if (!map || !command || command.nonce === lastCommand.current) return;
+    lastCommand.current = command.nonce;
+    const padBottom = 56 + coverRef.current;
+    if (command.type === "locate") {
+      map.flyTo([userRef.current.lat, userRef.current.lon], 14, { ...flyMotion(0.45) });
+    } else if (command.type === "point") {
+      const zoom = Math.max(map.getZoom(), 14);
+      const target = map.project([command.point.lat, command.point.lon], zoom);
+      // Aim a little above centre: the sheet covers the lower part.
+      const center = map.unproject(target.add([0, coverRef.current / 2]), zoom);
+      map.flyTo(center, zoom, { ...flyMotion(0.45) });
+    } else if (command.points.length > 1) {
+      map.flyToBounds(L.latLngBounds(command.points.map((p) => [p.lat, p.lon] as L.LatLngTuple)), {
+        paddingTopLeft: [40, 150] as L.PointTuple,
+        paddingBottomRight: [40, padBottom] as L.PointTuple,
+        maxZoom: 13,
+        ...flyMotion(0.45),
+      });
+    }
+  }, [command]);
 
   return (
     <div
@@ -368,28 +496,6 @@ export default function BrowseMap({
         className="h-full w-full"
         aria-label="Map of nearby stops, the Skyline line and your places"
       />
-      <div className="nb-map-buttons" aria-label="Map controls">
-        <Button
-          type="button"
-          variant="secondary"
-          size="icon"
-          onClick={fit}
-          aria-label="Fit nearby stops"
-          className="size-11 border border-border bg-background/95 shadow-lg"
-        >
-          <Maximize className="size-5" />
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="icon"
-          onClick={recenter}
-          aria-label="Recenter on my location"
-          className="size-11 border border-border bg-background/95 shadow-lg"
-        >
-          <LocateFixed className="size-5" />
-        </Button>
-      </div>
     </div>
   );
 }

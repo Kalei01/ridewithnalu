@@ -36,13 +36,15 @@ export function BrowseSheet({
 }: {
   state: SheetState;
   onStateChange: (next: SheetState) => void;
-  /** Always visible: the search field and the live line. */
+  /** The header: Right now and the search field. Taller than the closed sheet shows once opened. */
   peek: ReactNode;
   /** The cards. Hidden from taps and screen readers while the sheet is a peek. */
   children: ReactNode;
 }) {
   const sheetRef = useRef<HTMLElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
+  // Invisible element as tall as the closed sheet's visible part (CSS --nb-peek, safe area included).
+  const probeRef = useRef<HTMLDivElement | null>(null);
   const drag = useRef<{
     startY: number;
     startOffset: number;
@@ -63,9 +65,8 @@ export function BrowseSheet({
   /** How far down (px) the sheet sits in each state. */
   function offsets(): Record<SheetState, number> {
     const sheet = sheetRef.current;
-    const header = headerRef.current;
     const height = sheet?.offsetHeight ?? 0;
-    const peekVisible = header?.offsetHeight ?? 0;
+    const peekVisible = probeRef.current?.offsetHeight ?? headerRef.current?.offsetHeight ?? 0;
     const halfVisible = Math.min(height, window.innerHeight * HALF_SHARE);
     return { full: 0, half: height - halfVisible, peek: height - peekVisible };
   }
@@ -150,6 +151,7 @@ export function BrowseSheet({
       data-state={state}
       aria-label="Nalu: where to, and what is happening now"
     >
+      <div ref={probeRef} className="nb-peek-probe" aria-hidden="true" />
       <div ref={headerRef} className="nb-sheet-header">
         <button
           type="button"

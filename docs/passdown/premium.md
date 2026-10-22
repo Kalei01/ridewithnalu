@@ -1,10 +1,12 @@
 # Passdown — Premium UX Review (Wed 10:47 AM HST)
-Last updated: 2026-10-18 (Browse sheet phase 2 preview). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
+Last updated: 2026-10-22 (Browse sheet phase 3 preview). Keep ≤ 60 lines; see README.md. Gate and cadence: `docs/agents/run-gates.md`.
 
 ## Current focus
 - Backlog: `docs/experience/backlog.md`; seasons: `docs/experience/seasonal.md`; direction: `docs/product/direction.md`.
 - Station names: being built by "NALU — Skyline station names in app (Sonnet)" (English name, Hawaiian name smaller and muted underneath). Review it live on your next run if shipped.
 - "Tell Nalu something" form polish: done Oct 11 (visible off checkbox, "Your note" label).
+
+## Browse sheet PHASE 3 (Oct 22, local commit, not pushed): see backlog.md Browse Phase 3 line. New: RightNow.tsx, OnTheRoad.tsx, MapControls.tsx, browse-demo.ts (dev ?demo=), browse-flag.ts; lib browse-right-now.ts / browse-corridors.ts (+tests). Old Browse untouched.
 
 ## Browse redesign (sheet) — PHASE 1 of 4 (Oct 18, Sonnet build for MAIN) — PREVIEW ONLY
 - /browse-preview (noindex, not linked, not in sitemap; "/" Browse untouched). Plan, phases and approved motions: `docs/experience/backlog.md`.

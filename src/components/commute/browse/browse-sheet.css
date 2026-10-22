@@ -7,7 +7,7 @@
   inset: 0;
   overflow: hidden;
   background: var(--nh-sea, #0a1117);
-  --nb-peek: calc(9.75rem + env(safe-area-inset-bottom));
+  --nb-peek: calc(11.25rem + env(safe-area-inset-bottom));
   --nb-h: calc(100dvh - 4rem - env(safe-area-inset-top));
   --nb-half: 50dvh;
 }
@@ -82,9 +82,19 @@
   }
 }
 
+.nb-peek-probe {
+  position: absolute;
+  left: 0;
+  width: 0;
+  height: var(--nb-peek);
+  visibility: hidden;
+  pointer-events: none;
+}
+/* Closed: exactly the peek height. Open: as tall as Right now needs (the blue glow under
+   Where to? is never clipped there). */
 .nb-sheet-header {
   flex: none;
-  height: var(--nb-peek);
+  max-height: calc(var(--nb-h) - 6rem);
   overflow: hidden;
   padding: 0 max(1rem, env(safe-area-inset-left)) env(safe-area-inset-bottom)
     max(1rem, env(safe-area-inset-right));
@@ -100,6 +110,12 @@
   justify-content: center;
   touch-action: none;
   cursor: grab;
+}
+.nb-sheet[data-state="peek"] .nb-sheet-header {
+  height: var(--nb-peek);
+}
+.nb-sheet[data-state="full"] .nb-sheet-header {
+  overflow-y: auto;
 }
 .nb-sheet-header > :not(.nb-handle) {
   position: relative;
@@ -134,19 +150,237 @@
   }
 }
 
-.nb-peek-row {
+/* Right now */
+.nb-now-line {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   width: 100%;
-  min-height: 1.75rem;
-  margin-top: 0.25rem;
+  min-height: 2.75rem;
   text-align: left;
 }
-.nb-sheet-header .nh-search-field {
-  min-height: 3.25rem;
-  /* The home page's blue glow would be clipped by the peek's edge. */
-  box-shadow: 0 1px 0 rgb(255 255 255 / 6%) inset;
+.nb-now-dot {
+  display: inline-block;
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+}
+.nb-now {
+  margin-top: 0.25rem;
+}
+.nb-now .nb-card-title {
+  margin-bottom: 0.25rem;
+}
+.nb-now-calm {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+}
+.nb-now-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nb-now-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 4%);
+  text-align: left;
+  transition: background-color 140ms ease;
+}
+button.nb-now-item:active {
+  background: rgb(255 255 255 / 9%);
+}
+.nb-now-item[aria-current="true"] {
+  border-color: rgb(108 184 255 / 45%);
+}
+
+/* Station card: the rolled-up minute and the last-train glow (two soft pulses, then rest) */
+.nb-roll {
+  display: inline-block;
+}
+.nb-last-soon {
+  border-radius: 0.5rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nb-roll {
+    animation: nb-roll 220ms cubic-bezier(0.22, 0.8, 0.3, 1) both;
+  }
+  .nb-last-soon {
+    animation: nb-glow 1.6s ease-in-out 2;
+  }
+}
+@keyframes nb-roll {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes nb-glow {
+  50% {
+    background: rgb(10 132 255 / 22%);
+    box-shadow: 0 0 0 4px rgb(10 132 255 / 22%);
+  }
+}
+
+/* Today card items sit in one card, divided */
+.nb-today-card {
+  padding: 0.75rem 1rem;
+}
+
+/* Map layers menu + locate (top right, under the safe area) */
+.nb-controls {
+  position: absolute;
+  z-index: 3;
+  right: max(0.75rem, env(safe-area-inset-right));
+  top: max(0.75rem, env(safe-area-inset-top));
+  display: flex;
+  gap: 0.5rem;
+}
+.nb-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(10 14 18 / 88%);
+  color: var(--color-foreground);
+  transition: transform 120ms ease;
+}
+.nb-control:active {
+  transform: scale(0.96);
+}
+.nb-layers-menu {
+  position: absolute;
+  top: 3.25rem;
+  right: 0;
+  width: min(18.5rem, calc(100vw - 1.5rem));
+  padding: 0.35rem;
+  border-radius: 1rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(13 18 23 / 96%);
+  box-shadow: 0 18px 40px -18px rgb(0 0 0 / 80%);
+}
+.nb-layers-row {
+  display: flex;
+  align-items: flex-start;
+  cursor: pointer;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: 0.7rem;
+}
+.nb-layers-check {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0.1rem 0 0;
+  accent-color: #0a84ff;
+}
+
+/* Traffic flow: dashes travel along slow stretches; slower travel = heavier congestion */
+.nb-flow {
+  stroke-linecap: round;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nb-flow-moderate {
+    animation: nb-flow 1.4s linear infinite;
+  }
+  .nb-flow-heavy {
+    animation: nb-flow 3.2s linear infinite;
+  }
+}
+@keyframes nb-flow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+/* Incident pins: a ring pulses three times when the pin first appears, then rests */
+.nb-incident {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin: 0.5rem;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  color: #fff;
+}
+.nb-incident svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.nb-incident-bad {
+  background: #ff453a;
+}
+.nb-incident-warn {
+  background: #e08a00;
+}
+.nb-incident-info {
+  background: #0a84ff;
+}
+.nb-incident.is-selected {
+  box-shadow: 0 0 0 4px rgb(255 255 255 / 30%);
+}
+.nb-incident::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nb-incident.is-new::after {
+    animation: nb-ring 1.4s ease-out 3;
+  }
+}
+@keyframes nb-ring {
+  from {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+/* Where to? keeps the blue hue the app has always had around and under it: the field's own
+   glow (home.css) plus a soft wash behind it. The peek leaves room below so it is not clipped. */
+.nb-where {
+  position: relative;
+  margin-top: 0.5rem;
+  padding-bottom: 2rem;
+}
+.nb-where::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -1rem;
+  right: -1rem;
+  top: -0.5rem;
+  bottom: 0;
+  background: radial-gradient(ellipse 80% 70% at 50% 62%, rgb(10 132 255 / 24%), transparent 72%);
+  pointer-events: none;
 }
 .nb-sheet-header .nh-search-input {
   min-height: 3rem;
@@ -160,6 +394,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
@@ -213,59 +448,6 @@
   margin-top: 1rem;
 }
 
-/* ---- Map layers (Phase 2) ---- */
-/* Toggle chips along the map's top edge, under the brand pill. Traffic, Incidents and
-   Roadwork chips join this row in Phase 3: .nb-layers scrolls sideways when it fills. */
-.nb-layers {
-  position: absolute;
-  z-index: 2;
-  left: 0;
-  right: 0;
-  top: calc(max(0.75rem, env(safe-area-inset-top)) + 3.5rem);
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding: 0 max(0.75rem, env(safe-area-inset-right)) 0 max(0.75rem, env(safe-area-inset-left));
-  scrollbar-width: none;
-}
-.nb-layers::-webkit-scrollbar {
-  display: none;
-}
-.nb-layer-chip {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 0.4rem;
-  min-height: 2.75rem;
-  padding: 0 0.9rem;
-  border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 14%);
-  background: rgb(10 14 18 / 88%);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-muted-foreground);
-  transition:
-    background-color 140ms ease,
-    color 140ms ease,
-    border-color 140ms ease;
-}
-.nb-layer-chip:active {
-  transform: scale(0.97);
-}
-.nb-layer-chip[aria-pressed="true"] {
-  background: rgb(10 132 255 / 22%);
-  border-color: rgb(108 184 255 / 55%);
-  color: var(--color-foreground);
-}
-.nb-map-buttons {
-  position: absolute;
-  z-index: 500;
-  right: max(0.75rem, env(safe-area-inset-right));
-  top: calc(max(0.75rem, env(safe-area-inset-top)) + 7rem);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
 .nb-marker-place {
   border-radius: 0.5rem;
   background: #f5b84a;

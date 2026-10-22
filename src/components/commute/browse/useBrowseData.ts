@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import { outdoorConditions } from "@/lib/weather.functions";
 import { airLine, type WeatherLine } from "@/components/commute/H1ConditionsCard";
 import { useRailStations } from "@/hooks/use-rail-stations";
+import { getOahuRoadwork } from "@/lib/roadwork.functions";
+import { browseCorridors } from "@/lib/browse-corridors";
+import { buildRightNow, type RoadCheck } from "@/lib/browse-right-now";
+import type { BrowseDemo } from "./browse-demo";
 import {
   BROWSE_LOCATION_DENIED_KEY,
   BROWSE_STATION_KEY,
-  DOWNTOWN_POINT,
-  KAPOLEI_POINT,
   STORAGE_KEY,
   type BrowseDeparture,
   type BrowseStation,
@@ -44,10 +46,11 @@ const NO_STATIONS: import("@/lib/commute-model").RailStation[] = [];
  * When Browse's state moves out of index.tsx (Phase 3), this hook is the
  * piece to replace with the shared one.
  */
-export function useBrowseData() {
+export function useBrowseData(demo?: BrowseDemo | null) {
   const [hydrated, setHydrated] = useState(false);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
-  const [now, setNow] = useState(() => new Date());
+  const [clockNow, setNow] = useState(() => new Date());
+  const now = demo?.now ?? clockNow;
   const [online, setOnline] = useState(true);
   const [browseStation, setBrowseStation] = useState<BrowseStation | null>(null);
   const [browseLocationDenied, setBrowseLocationDenied] = useState(false);
@@ -127,13 +130,18 @@ export function useBrowseData() {
     );
   }, [hydrated, browseStation, browseLocationDenied]);
 
+  // Without location: the station nearest a saved Home (then Work). With neither, none:
+  // Nalu never guesses where the rider is.
   useEffect(() => {
     if (!browseLocationDenied || browseStation || browseStations.length === 0) return;
+    const reference = findByKind(savedPlaces, "home") ?? findByKind(savedPlaces, "work");
+    if (!reference || reference.lat == null || reference.lon == null) return;
+    const refPoint = { lat: reference.lat, lon: reference.lon };
     const nearest = browseStations
       .filter((station) => station.stop_lat !== null && station.stop_lon !== null)
       .map((station) => ({
         station,
-        distance: distanceM(KAPOLEI_POINT, {
+        distance: distanceM(refPoint, {
           lat: Number(station.stop_lat),
           lon: Number(station.stop_lon),
         }),
@@ -146,7 +154,7 @@ export function useBrowseData() {
       lat: Number(nearest.stop_lat),
       lon: Number(nearest.stop_lon),
     });
-  }, [browseLocationDenied, browseStation, browseStations]);
+  }, [browseLocationDenied, browseStation, browseStations, savedPlaces]);
 
   const {
     data: browseDepartures = [],
@@ -182,6 +190,33 @@ export function useBrowseData() {
     return Array.from(groups.values());
   }, [browseDepartures, browseStation?.stopName]);
 
+  // The evening's timetable for this station, to name each direction's last train (scheduled, not live).
+  const { data: eveningDepartures = [] } = useQuery({
+    queryKey: ["browse-last-trains", browseStation?.stopId],
+    enabled: hydrated && Boolean(browseStation?.stopId),
+    staleTime: 6 * 60 * 60_000,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rail_departures", {
+        p_home_stop: browseStation?.stopId as string,
+        p_after_seconds: 18 * 3600,
+        p_limit: 120,
+      });
+      if (error) throw error;
+      return (data ?? []) as BrowseDeparture[];
+    },
+  });
+  /** Latest scheduled departure per direction, keyed like browseDirections. */
+  const browseLastTrains = useMemo(() => {
+    const last = new Map<string, BrowseDeparture>();
+    for (const departure of eveningDepartures) {
+      const key = `${departure.route_id}-${departure.direction_id ?? "x"}`;
+      const held = last.get(key);
+      if (!held || departure.departure_seconds > held.departure_seconds) last.set(key, departure);
+    }
+    return last;
+  }, [eveningDepartures]);
+
   const browseUserPoint = useMemo(() => {
     if (browseStation?.userLat == null || browseStation.userLon == null) return null;
     return { lat: browseStation.userLat, lon: browseStation.userLon };
@@ -190,6 +225,10 @@ export function useBrowseData() {
   const browseFar = Boolean(
     browseUserPoint && browseStation && distanceM(browseUserPoint, browseStation) > 2414,
   );
+  const browseStationMeters =
+    browseUserPoint && browseStation ? distanceM(browseUserPoint, browseStation) : null;
+  /** Skyline's line ends near Kalihi: from farther than this it is not an option for the rider. */
+  const skylineOutOfReach = browseStationMeters !== null && browseStationMeters > 10_000;
   const browseWalkMinutes =
     browseUserPoint && browseStation
       ? walkingEstimate(browseUserPoint, browseStation).minutes
@@ -294,7 +333,8 @@ export function useBrowseData() {
   const selectedNearbyStop =
     nearbyStops.find((stop) => stop.stopId === selectedNearbyStopId) ?? nearbyStops[0] ?? null;
 
-  // H-1 both ways, the same two checks Browse makes.
+  // The roads this rider depends on, both ways (src/lib/browse-corridors.ts): their
+  // saved Home and Work, else the main road between where they are and town.
   const rawFetchDriveTime = useServerFn(driveTime);
   const fetchDriveTime = async (
     input: Parameters<typeof rawFetchDriveTime>[0],
@@ -303,40 +343,92 @@ export function useBrowseData() {
     if (!result) throw new Error("Drive routing temporarily unavailable");
     return result;
   };
-  const eastbound = useQuery({
-    queryKey: ["browse-h1", "eastbound"],
-    enabled: hydrated,
-    staleTime: 5 * 60_000,
-    refetchInterval: 5 * 60_000,
-    retry: 1,
-    queryFn: () =>
-      fetchDriveTime({
-        data: {
-          fromLat: KAPOLEI_POINT.lat,
-          fromLon: KAPOLEI_POINT.lon,
-          toLat: DOWNTOWN_POINT.lat,
-          toLon: DOWNTOWN_POINT.lon,
-          forceRefresh: false,
-        },
+  const homePoint = browseHome ? { lat: browseHome.lat, lon: browseHome.lon } : null;
+  const workPoint = browseWork ? { lat: browseWork.lat, lon: browseWork.lon } : null;
+  // Ready once location is settled (found or refused) and saved places are read.
+  const locationSettled = hydrated && (Boolean(browseUserPoint) || browseLocationDenied);
+  const riderLat = browseUserPoint?.lat.toFixed(2);
+  const riderLon = browseUserPoint?.lon.toFixed(2);
+  const homeLat = homePoint?.lat;
+  const homeLon = homePoint?.lon;
+  const workLat = workPoint?.lat;
+  const workLon = workPoint?.lon;
+  const corridors = useMemo(
+    () =>
+      locationSettled
+        ? browseCorridors({ rider: browseUserPoint, home: homePoint, work: workPoint })
+        : null,
+    // The rider's spot matters to about a kilometre, not every GPS tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locationSettled, riderLat, riderLon, homeLat, homeLon, workLat, workLon],
+  );
+  const driveQueries = useQueries({
+    queries: (demo ? [] : (corridors ?? [])).flatMap((corridor) =>
+      (["forward", "back"] as const).map((way) => {
+        const from = way === "forward" ? corridor.a : corridor.b;
+        const to = way === "forward" ? corridor.b : corridor.a;
+        return {
+          queryKey: ["browse-corridor", corridor.id, way],
+          staleTime: 5 * 60_000,
+          refetchInterval: 5 * 60_000,
+          retry: 1,
+          queryFn: () =>
+            fetchDriveTime({
+              data: {
+                fromLat: from.lat,
+                fromLon: from.lon,
+                toLat: to.lat,
+                toLon: to.lon,
+                forceRefresh: false,
+              },
+            }),
+        };
       }),
+    ),
   });
-  const westbound = useQuery({
-    queryKey: ["browse-h1", "westbound"],
-    enabled: hydrated,
-    staleTime: 5 * 60_000,
-    refetchInterval: 5 * 60_000,
-    retry: 1,
-    queryFn: () =>
-      fetchDriveTime({
-        data: {
-          fromLat: DOWNTOWN_POINT.lat,
-          fromLon: DOWNTOWN_POINT.lon,
-          toLat: KAPOLEI_POINT.lat,
-          toLon: KAPOLEI_POINT.lon,
-          forceRefresh: false,
-        },
-      }),
+  const driveSignature = driveQueries.map((q) => `${q.dataUpdatedAt}:${q.status}`).join("|");
+  const roadChecks = useMemo<RoadCheck[]>(() => {
+    if (demo) return demo.checks;
+    return (corridors ?? []).map((corridor, index) => {
+      const forward = driveQueries[index * 2];
+      const back = driveQueries[index * 2 + 1];
+      return {
+        id: corridor.id,
+        area: corridor.area,
+        forward: forward?.data,
+        back: back?.data,
+        loading: Boolean(forward?.isLoading || back?.isLoading),
+        failed: Boolean(forward?.isError || back?.isError),
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [corridors, demo, driveSignature]);
+  const checksLoading =
+    !demo && (!locationSettled || roadChecks.some((c) => c.loading && !c.forward && !c.back));
+  const trafficUnavailable =
+    !demo &&
+    locationSettled &&
+    (corridors === null ||
+      (roadChecks.length > 0 && roadChecks.every((c) => c.failed && !c.forward && !c.back)));
+
+  const { data: roadwork } = useQuery({
+    queryKey: ["oahu-roadwork"],
+    queryFn: () => getOahuRoadwork(),
+    staleTime: 30 * 60_000,
+    enabled: hydrated && !demo,
   });
+  const closures = demo ? demo.closures : roadwork?.ok ? roadwork.closures : null;
+  const rightNow = useMemo(() => {
+    const result = buildRightNow({ checks: roadChecks, closures, now });
+    // Still on its way: say so rather than "Can't check".
+    if (checksLoading && result.status !== "items") {
+      return { status: "loading" as const, line: "Checking the roads…", items: [] };
+    }
+    if (trafficUnavailable && result.status === "calm") {
+      return { status: "failed" as const, line: "Can’t check traffic right now", items: [] };
+    }
+    return result;
+  }, [roadChecks, closures, now, checksLoading, trafficUnavailable]);
 
   const fetchWeather = useServerFn(outdoorConditions);
   const { data: browseWeather, isError: browseWeatherFailed } = useQuery({
@@ -388,12 +480,6 @@ export function useBrowseData() {
     });
   }, [browseWeather, browseWeatherFailed, browseStation, browseLocationDenied]);
 
-  const trafficLoading = eastbound.isLoading || westbound.isLoading;
-  const trafficUnavailable =
-    eastbound.isError ||
-    westbound.isError ||
-    (!trafficLoading && (!eastbound.data || !westbound.data));
-
   return {
     hydrated,
     online,
@@ -406,9 +492,12 @@ export function useBrowseData() {
     browseStations,
     browseUserPoint,
     browseFar,
+    browseStationMeters,
+    skylineOutOfReach,
     browseWalkMinutes,
     browseLocationDenied,
     browseDirections,
+    browseLastTrains,
     browseDeparturesLoading,
     browseDeparturesFailed,
     trainsEveryMinutes,
@@ -419,10 +508,10 @@ export function useBrowseData() {
     selectedNearbyStop,
     setSelectedNearbyStopId,
     rememberBrowseStation,
-    eastboundTraffic: eastbound.data,
-    westboundTraffic: westbound.data,
-    trafficLoading,
-    trafficUnavailable,
+    roadChecks,
+    rightNow,
+    closures,
+    corridors,
     browseWeather,
     browseWeatherFailed,
     browseWeatherLine,
