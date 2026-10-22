@@ -91,9 +91,11 @@ type Found = {
   kind: "cross" | "address" | "street";
   provider: "tomtom";
 };
-type CacheEntry = { at: number; found: Found | null };
+type CacheEntry = { at: number; found: Found | null; unavailable?: true };
+/** After a failed provider call the address is not asked again for this long. */
+export const GEO_UNAVAILABLE_TTL_MS = 10 * 60_000;
 const cache = new Map<string, CacheEntry>();
-const inflight = new Map<string, Promise<Found | "unavailable" | null>>();
+const inflight = new Map<string, Promise<Found | "unavailable" | "skipped" | null>>();
 
 export function resetHpdGeo(): void {
   cache.clear();
@@ -138,6 +140,8 @@ export type GeoDeps = {
   tomtomKey: string;
   mapboxToken: string;
   now: number;
+  /** Cache and gazetteer only: no provider call of any kind (health checks, previews). */
+  offline?: boolean;
 };
 
 export function defaultGeoDeps(now = Date.now()): GeoDeps {
@@ -152,31 +156,80 @@ export function defaultGeoDeps(now = Date.now()): GeoDeps {
 type TomTomResult = {
   type?: string;
   position?: { lat?: number; lon?: number };
-  address?: { streetName?: string };
+  address?: { streetName?: string; freeformAddress?: string };
 };
 
-/** "KAMEHAMEHA HWY / KAIAHUA ST" → "Kamehameha Hwy & Kaiahua St" for a cross-street lookup. */
+/** "KAMEHAMEHA HWY / KAIAHUA ST" → "KAMEHAMEHA HWY & KAIAHUA ST" for a cross-street lookup. */
 function crossQuery(key: string): string {
   return key.split(" / ").join(" & ");
 }
 
-async function tomtomGeocode(key: string, deps: GeoDeps): Promise<Found | "unavailable" | null> {
+const STREET_WORDS = new Set([
+  "HWY",
+  "RD",
+  "ST",
+  "AVE",
+  "BLVD",
+  "PKWY",
+  "DR",
+  "LN",
+  "PL",
+  "N",
+  "S",
+  "E",
+  "W",
+]);
+
+/** The distinctive word of a street ("KAMEHAMEHA" from "KAMEHAMEHA HWY"). */
+function mainWord(street: string): string | null {
+  return (
+    stripHeading(street)
+      .split(" ")
+      .find((w) => /[A-Z]/.test(w) && w.length > 2 && !STREET_WORDS.has(w)) ?? null
+  );
+}
+
+/** Does the answer name at least one of the streets we asked about? */
+function namesMatch(result: TomTomResult, streets: string[]): boolean {
+  const text = plain(
+    `${result.address?.streetName ?? ""} ${result.address?.freeformAddress ?? ""}`,
+  );
+  if (!text.trim()) return false;
+  return streets.some((street) => {
+    const word = mainWord(street);
+    return word !== null && text.includes(word);
+  });
+}
+
+/**
+ * One TomTom Geocoding lookup. The plain /search/2/geocode endpoint is used (country and the
+ * Oʻahu box only, no idxSet: its behaviour could not be checked from here), so nothing is
+ * trusted on faith: the answer is "exact" only when TomTom says the result is a Cross Street
+ * (for an intersection) or a Point Address (for a block address) AND the street it names is
+ * one of the streets in the report. A result with no type, another type, or other street
+ * names is "approximate". "skipped" = no call was made (no key, breaker open, quota spent);
+ * "unavailable" = a call was made and failed.
+ */
+async function tomtomGeocode(
+  key: string,
+  deps: GeoDeps,
+): Promise<Found | "unavailable" | "skipped" | null> {
   if (
     !deps.tomtomKey ||
     !tomtomAvailable("geocoding", deps.now) ||
     quotaSpent("tomtomGeocoding", deps.now)
   )
-    return "unavailable";
-  const parts = key.split(" / ").filter(Boolean);
-  const isCross = parts.length >= 2;
-  const attempts: Array<{ query: string; idxSet: string; kind: Found["kind"] }> = isCross
+    return "skipped";
+  const streets = key.split(" / ").filter(Boolean);
+  const isCross = streets.length >= 2;
+  const attempts: Array<{ query: string; kind: Found["kind"] }> = isCross
     ? [
-        { query: crossQuery(key), idxSet: "Xstr", kind: "cross" },
-        { query: parts[0]!, idxSet: "Str", kind: "street" },
+        { query: crossQuery(key), kind: "cross" },
+        { query: streets[0]!, kind: "street" },
       ]
     : /^\d/.test(key)
-      ? [{ query: key, idxSet: "PAD,Addr", kind: "address" }]
-      : [{ query: key, idxSet: "Str", kind: "street" }];
+      ? [{ query: key, kind: "address" }]
+      : [{ query: key, kind: "street" }];
   for (const attempt of attempts) {
     countCall("tomtomGeocoding", deps.now);
     try {
@@ -185,7 +238,6 @@ async function tomtomGeocode(key: string, deps: GeoDeps): Promise<Found | "unava
         countrySet: "US",
         limit: "3",
         language: "en-US",
-        idxSet: attempt.idxSet,
         topLeft: `${OAHU.maxLat},${OAHU.minLon}`,
         btmRight: `${OAHU.minLat},${OAHU.maxLon}`,
       });
@@ -202,14 +254,11 @@ async function tomtomGeocode(key: string, deps: GeoDeps): Promise<Found | "unava
         if (typeof lat !== "number" || typeof lon !== "number") continue;
         const point = { lat, lon };
         if (!insideOahu(point)) continue;
-        // Exact only when TomTom says what it found: a cross street, or a point address.
-        const kind: Found["kind"] =
-          attempt.kind === "cross" && result.type === "Cross Street"
-            ? "cross"
-            : attempt.kind === "address" && result.type === "Point Address"
-              ? "address"
-              : "street";
-        return { point, kind, provider: "tomtom" };
+        const exact =
+          namesMatch(result, streets) &&
+          ((attempt.kind === "cross" && result.type === "Cross Street") ||
+            (attempt.kind === "address" && result.type === "Point Address"));
+        return { point, kind: exact ? attempt.kind : "street", provider: "tomtom" };
       }
     } catch (error) {
       noteTomtomOutcome(
@@ -251,19 +300,25 @@ async function mapboxGeocode(key: string, deps: GeoDeps): Promise<GeoPoint | nul
 
 type Budget = { left: number };
 
-/** Cached TomTom geocode of a normalized address. Returns "unavailable" when no provider call could be made or it failed. */
+/** Cached TomTom geocode of a normalized address. */
 async function geocodeKey(
   key: string,
   deps: GeoDeps,
   budget: Budget,
-): Promise<{ found: Found | null; fromCache: boolean } | "unavailable" | "over-budget"> {
+): Promise<{ found: Found | null } | "unavailable" | "over-budget"> {
   const hit = cache.get(key);
-  if (hit && deps.now - hit.at < (hit.found ? GEO_TTL_MS : GEO_MISS_TTL_MS))
-    return { found: hit.found, fromCache: true };
+  if (hit) {
+    if (hit.unavailable) {
+      if (deps.now - hit.at < GEO_UNAVAILABLE_TTL_MS) return "unavailable";
+    } else if (deps.now - hit.at < (hit.found ? GEO_TTL_MS : GEO_MISS_TTL_MS)) {
+      return { found: hit.found };
+    }
+  }
+  if (deps.offline) return "unavailable";
   const running = inflight.get(key);
   if (running) {
     const shared = await running;
-    return shared === "unavailable" ? "unavailable" : { found: shared, fromCache: true };
+    return shared === "unavailable" || shared === "skipped" ? "unavailable" : { found: shared };
   }
   if (budget.left <= 0) return "over-budget";
   budget.left -= 1;
@@ -271,9 +326,13 @@ async function geocodeKey(
   inflight.set(key, task);
   try {
     const result = await task;
-    if (result === "unavailable") return "unavailable";
+    if (result === "skipped") return "unavailable";
+    if (result === "unavailable") {
+      remember(key, { at: deps.now, found: null, unavailable: true });
+      return "unavailable";
+    }
     remember(key, { at: deps.now, found: result });
-    return { found: result, fromCache: false };
+    return { found: result };
   } finally {
     inflight.delete(key);
   }
@@ -305,8 +364,9 @@ export async function placeHpdAddress(
           reason: "placed",
           geo: {
             point: freeway.point,
-            confidence: "exact",
-            radiusM: 150,
+            // Only a node placed at a real exit maneuver is exact; a snapped name is a soft pin.
+            confidence: freeway.verified ? "exact" : "approximate",
+            radiusM: freeway.verified ? 150 : 800,
             direction: freeway.heading,
             how: "freeway-exit",
             provider: "gazetteer",
@@ -339,7 +399,7 @@ export async function placeHpdAddress(
         : { geo: null, reason: "over-budget" };
     }
     if (result === "unavailable") {
-      const point = key ? await mapboxGeocode(key, deps) : null;
+      const point = key && !deps.offline ? await mapboxGeocode(key, deps) : null;
       if (point)
         return {
           reason: "placed",

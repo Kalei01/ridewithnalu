@@ -165,6 +165,9 @@ export function hpdInYourWay(
   if (age > HPD_ALERT_MAX_AGE_MS || age < -5 * 60_000) return false;
   const match = routeMatch(at, path);
   if (!match || match.distanceM > HPD_ALERT_MAX_OFFSET_M) return false;
+  // The server judged "same freeway as the route" and "same direction"; a stale or hand-made
+  // record without that verdict is not announced.
+  if (incident.onRoute !== true) return false;
   if (incident.direction) {
     const bearing = routeBearingAt(at, path);
     if (bearing === null || !bearingFitsHeading(bearing, incident.direction)) return false;
@@ -277,6 +280,8 @@ export function planIncidentAlerts(
     if (along.get(key) === "behind") continue;
     memory.seenOnRoute.add(key);
     if (memory.spoken.has(key)) continue;
+    // A police report is only spoken when we know it is ahead; unknown rider position stays silent.
+    if (incident.source === "hpd" && along.get(key) !== "ahead") continue;
     memory.spoken.add(key);
     speak.push({ key, incident, text: incidentSpeech(incident) });
   }

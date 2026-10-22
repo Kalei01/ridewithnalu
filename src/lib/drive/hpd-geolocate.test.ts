@@ -24,7 +24,13 @@ const NOW = Date.UTC(2026, 9, 21, 23, 55); // 1:55 PM HST
 const iso = (minAgo: number) => new Date(NOW - minAgo * 60_000).toISOString();
 
 const crossStreetBody = {
-  results: [{ type: "Cross Street", position: { lat: 21.3189, lon: -157.8782 } }],
+  results: [
+    {
+      type: "Cross Street",
+      position: { lat: 21.3189, lon: -157.8782 },
+      address: { streetName: "Kamehameha Highway" },
+    },
+  ],
 };
 const streetBody = { results: [{ type: "Street", position: { lat: 21.32, lon: -157.88 } }] };
 
@@ -46,13 +52,25 @@ beforeEach(() => {
 
 describe("freeway gazetteer", () => {
   it("is a real table with the freeways Honolulu police report on", () => {
-    expect(GAZETTEER_STATS.nodes).toBeGreaterThanOrEqual(40);
+    expect(GAZETTEER_STATS.nodes).toBeGreaterThanOrEqual(30);
+    // Only nodes placed at a real exit / ramp maneuver are verified; the rest are soft.
+    expect(GAZETTEER_STATS.verified).toBeGreaterThanOrEqual(10);
+    expect(GAZETTEER_STATS.verified).toBeLessThan(GAZETTEER_STATS.nodes);
+    // No alias belongs to two nodes of one freeway at different places.
+    for (const f of FREEWAYS) {
+      const seen = new Map<string, string>();
+      for (const n of f.nodes)
+        for (const a of n.names) {
+          expect(seen.has(a) && seen.get(a) !== n.names[0]).toBe(false);
+          seen.set(a, n.names[0]!);
+        }
+    }
     expect(FREEWAYS.map((f) => f.id)).toEqual(
       expect.arrayContaining(["H1", "H2", "H3", "H201", "LIKELIKE", "PALI", "NIMITZ"]),
     );
   });
   it("reads the direction from the address", () => {
-    expect(parseHeading("H-1 FWY EB / MOANALUA")).toBe("EB");
+    expect(parseHeading("H-1 FWY EB / PAIWA ST")).toBe("EB");
     expect(parseHeading("H1 FWY WB")).toBe("WB");
     expect(parseHeading("H2 NORTHBOUND / WAIPIO")).toBe("NB");
     expect(parseHeading("KAMEHAMEHA HWY / KAIAHUA ST")).toBeNull();
@@ -66,9 +84,15 @@ describe("freeway gazetteer", () => {
     expect(identifyFreeway("KAIAHUA ST")).toBeNull();
   });
   it("places an exit on the carriageway of its direction, keeping EB and WB apart", () => {
-    const eb = placeOnFreeway("H-1 FWY EB / MOANALUA")!;
-    const wb = placeOnFreeway("H-1 FWY WB / MOANALUA")!;
-    expect(eb).toMatchObject({ freeway: "H1", heading: "EB", match: "exit", node: "moanalua" });
+    const eb = placeOnFreeway("H-1 FWY EB / PAIWA ST")!;
+    const wb = placeOnFreeway("H-1 FWY WB / PAIWA ST")!;
+    expect(eb).toMatchObject({
+      freeway: "H1",
+      heading: "EB",
+      match: "exit",
+      node: "waipahu",
+      verified: true,
+    });
     expect(wb.heading).toBe("WB");
     // Same exit, opposite carriageways: the eastbound side is the south side (driver's right).
     expect(eb.point.lat).toBeLessThan(wb.point.lat);
@@ -76,8 +100,18 @@ describe("freeway gazetteer", () => {
     expect(same(eb.point.lon, wb.point.lon)).toBe(true);
   });
   it("matches exit names loosely (suffixes, 'exit', ramps) and an unknown exit is only 'line'", () => {
-    expect(placeOnFreeway("H1 FWY EB / AIEA EXIT")?.node).toBe("waimalu");
-    expect(placeOnFreeway("H1 FWY EB / KUNIA RD ON-RAMP")?.node).toBe("kunia");
+    expect(placeOnFreeway("H1 FWY EB / AIEA EXIT")).toMatchObject({
+      node: "waimalu",
+      verified: false,
+    });
+    expect(placeOnFreeway("H1 FWY EB / KINAU STREET OFF-RAMP")).toMatchObject({
+      node: "kinau",
+      verified: true,
+    });
+    // A bare "Moanalua" could be the road or the freeway: not guessed.
+    expect(placeOnFreeway("H1 FWY EB / MOANALUA")?.match).toBe("line");
+    expect(placeOnFreeway("H1 FWY EB / KUNIA RD ON-RAMP")?.match).toBe("line");
+    expect(placeOnFreeway("H1 FWY EB / H201")).toMatchObject({ node: "halawa", verified: true });
     expect(placeOnFreeway("H1 FWY WB / SOMEWHERE")?.match).toBe("line");
     expect(placeOnFreeway("KAMEHAMEHA HWY / KAIAHUA ST")).toBeNull();
     // An ordinary road named Pali Hwy at a street we have no node for is the geocoder's job.
@@ -89,7 +123,7 @@ describe("freeway gazetteer", () => {
 describe("placing a report", () => {
   it("freeway + exit: exact, no network", async () => {
     const fetcher = vi.fn();
-    const out = await placeHpdAddress("H1 FWY EB / MOANALUA", "Central", deps(fetcher));
+    const out = await placeHpdAddress("H1 FWY EB / PAIWA ST", "Central", deps(fetcher));
     expect(out.geo).toMatchObject({
       confidence: "exact",
       how: "freeway-exit",
@@ -121,7 +155,7 @@ describe("placing a report", () => {
     expect(url).toContain(
       "/search/2/geocode/Kamehameha HWY & KAIAHUA ST".replace("Kamehameha HWY", "KAMEHAMEHA HWY"),
     );
-    expect(url).toContain("idxSet=Xstr");
+    expect(url).not.toContain("idxSet");
     expect(url).toContain("topLeft=21.75,-158.35");
     expect(usageSnapshot(NOW).tomtomGeocoding.used).toBe(1);
   });
@@ -132,10 +166,60 @@ describe("placing a report", () => {
   });
   it("a block address with a point-address answer is exact", async () => {
     const fetcher = vi.fn(async () =>
-      json({ results: [{ type: "Point Address", position: { lat: 21.2851, lon: -157.8372 } }] }),
+      json({
+        results: [
+          {
+            type: "Point Address",
+            position: { lat: 21.2851, lon: -157.8372 },
+            address: { streetName: "Kapiʻolani Boulevard" },
+          },
+        ],
+      }),
     );
     const out = await placeHpdAddress("1600 KAPIOLANI BLVD", null, deps(fetcher));
     expect(out.geo).toMatchObject({ confidence: "exact", how: "address" });
+  });
+  it("trusts nothing it cannot check: no type, or a street that is not in the report, is approximate", async () => {
+    const at = { lat: 21.3189, lon: -157.8782 };
+    for (const result of [
+      { position: at, address: { streetName: "Kamehameha Highway" } }, // no type
+      { type: "Cross Street", position: at, address: { streetName: "Ala Moana Boulevard" } }, // other street
+      { type: "Cross Street", position: at }, // no street names
+    ]) {
+      resetHpdGeo();
+      const out = await placeHpdAddress(
+        "KAMEHAMEHA HWY / KAIAHUA ST",
+        null,
+        deps(vi.fn(async () => json({ results: [result] }))),
+      );
+      expect(out.geo?.confidence).toBe("approximate");
+    }
+  });
+  it("a failed provider call is remembered for 10 minutes, not retried every time", async () => {
+    const fetcher = vi.fn(async () => new Response("down", { status: 500 }));
+    await placeHpdAddress("A ST / B ST", "Waikiki", deps(fetcher));
+    await placeHpdAddress("A ST / B ST", "Waikiki", deps(fetcher, { now: NOW + 5 * 60_000 }));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await placeHpdAddress("A ST / B ST", "Waikiki", deps(fetcher, { now: NOW + 11 * 60_000 }));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it("offline mode (health) uses cache and gazetteer only, never a provider", async () => {
+    const fetcher = vi.fn(async () => json(crossStreetBody));
+    await placeHpdAddress("KAMEHAMEHA HWY / KAIAHUA ST", null, deps(fetcher));
+    fetcher.mockClear();
+    const hit = await placeHpdAddress(
+      "KAMEHAMEHA HWY / KAIAHUA ST",
+      null,
+      deps(fetcher, { offline: true }),
+    );
+    const miss = await placeHpdAddress(
+      "X ST / Y ST",
+      "Waikiki",
+      deps(fetcher, { offline: true, mapboxToken: "pk" }),
+    );
+    expect(hit.geo?.confidence).toBe("exact");
+    expect(miss.geo?.how).toBe("area");
+    expect(fetcher).not.toHaveBeenCalled();
   });
   it("ignores answers outside Oʻahu", async () => {
     const fetcher = vi.fn(async () =>
@@ -166,8 +250,24 @@ describe("placing a report", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
   it("shares one lookup between identical reports in a batch and caps new lookups", async () => {
-    const fetcher = vi.fn(async () => json(crossStreetBody));
-    const same = [0, 1, 2].map(() => ({ address: "A ST / B ST", area: null, point: null }));
+    const echo = (url: string) =>
+      json({
+        results: [
+          {
+            type: "Cross Street",
+            position: { lat: 21.3189, lon: -157.8782 },
+            address: {
+              streetName: decodeURIComponent(url.split("/geocode/")[1]!.split(".json")[0]!),
+            },
+          },
+        ],
+      });
+    const fetcher = vi.fn(async (url: string) => echo(url));
+    const same = [0, 1, 2].map(() => ({
+      address: "KAMEHAMEHA HWY / KAIAHUA ST",
+      area: null,
+      point: null,
+    }));
     const batch = await placeHpdBatch(same, deps(fetcher));
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(batch.stats).toEqual({ total: 3, placed: 3, exact: 3, approximate: 0 });
@@ -197,7 +297,10 @@ describe("placing a report", () => {
       deps(fetcher, { mapboxToken: "pk.test" }),
     );
     expect(out.geo).toMatchObject({ confidence: "approximate", provider: "mapbox" });
-    expect(hpdGeoCacheSize()).toBe(0);
+    // Only a "TomTom is down" marker is kept; the Mapbox position is never stored.
+    expect(hpdGeoCacheSize()).toBe(1);
+    const again = await placeHpdAddress("A ST / B ST", "Waikiki", deps(fetcher, { offline: true }));
+    expect(again.geo?.provider).toBe("area");
   });
   it("no TomTom key and no Mapbox: falls back to the area centroid, approximate", async () => {
     const out = await placeHpdAddress("A ST / B ST", "Waikiki", deps(vi.fn(), { tomtomKey: "" }));
@@ -207,10 +310,12 @@ describe("placing a report", () => {
 
 // ---- route relevance ------------------------------------------------------------
 
+// A straight eastbound route through the Paiwa Street exit on H-1 (a verified node).
+const paiwa = placeOnFreeway("H1 FWY / PAIWA ST")!.point;
 const eastPath = [
-  { lat: 21.358, lon: -157.92 },
-  { lat: 21.358, lon: -157.905 },
-  { lat: 21.358, lon: -157.89 },
+  { lat: paiwa.lat, lon: paiwa.lon - 0.015 },
+  { lat: paiwa.lat, lon: paiwa.lon },
+  { lat: paiwa.lat, lon: paiwa.lon + 0.015 },
 ];
 const westPath = [...eastPath].reverse();
 
@@ -242,7 +347,7 @@ const asDrive = (h: NonNullable<ReturnType<typeof listed>>): DriveIncident =>
 
 describe("is a police report in your way", () => {
   it("same direction, ahead, recent, exact, on the route: yes", async () => {
-    const r = await report("H1 FWY EB / MOANALUA");
+    const r = await report("H1 FWY EB / PAIWA ST");
     const incident = listed(r)!;
     expect(incident).toMatchObject({
       onRoute: true,
@@ -251,36 +356,36 @@ describe("is a police report in your way", () => {
       onFreeway: true,
     });
     expect(incident.description).toBe(
-      "Police report: collision on H-1 eastbound near Moanalua, 1:45 PM",
+      "Police report: collision on H-1 eastbound near Paiwa Street, 1:45 PM",
     );
     expect(hpdInYourWay(asDrive(incident), eastPath, NOW)).toBe(true);
   });
   it("opposite direction: not listed for the route, and never announced", async () => {
-    const r = await report("H1 FWY WB / MOANALUA");
+    const r = await report("H1 FWY WB / PAIWA ST");
     expect(listed(r, eastPath)).toBeUndefined();
     // Even if it were handed straight to the alert check (e.g. a stale list), it is refused.
-    const forced = { ...listed(await report("H1 FWY EB / MOANALUA"))!, direction: "WB" as const };
+    const forced = { ...listed(await report("H1 FWY EB / PAIWA ST"))!, direction: "WB" as const };
     expect(hpdInYourWay(asDrive(forced), eastPath, NOW)).toBe(false);
     // The same report is in the way of a westbound rider.
     expect(listed(r, westPath)?.onRoute).toBe(true);
   });
   it("a freeway report with no direction is listed but never announced", async () => {
-    const r = await report("H1 FWY / MOANALUA");
+    const r = await report("H1 FWY / PAIWA ST");
     const incident = listed(r)!;
     expect(incident.onRoute).toBe(false);
     expect(hpdInYourWay(asDrive({ ...incident, onRoute: true }), eastPath, NOW)).toBe(false);
   });
   it("older than 45 minutes: shown, not announced", async () => {
-    const r = await report("H1 FWY EB / MOANALUA", 50);
+    const r = await report("H1 FWY EB / PAIWA ST", 50);
     const incident = listed(r)!;
     expect(incident).toBeDefined();
     expect(hpdInYourWay(asDrive(incident), eastPath, NOW)).toBe(false);
     expect(
-      hpdInYourWay(asDrive(listed(await report("H1 FWY EB / MOANALUA", 40))!), eastPath, NOW),
+      hpdInYourWay(asDrive(listed(await report("H1 FWY EB / PAIWA ST", 40))!), eastPath, NOW),
     ).toBe(true);
   });
   it("more than 120 m from the route line: not announced", async () => {
-    const incident = asDrive(listed(await report("H1 FWY EB / MOANALUA"))!);
+    const incident = asDrive(listed(await report("H1 FWY EB / PAIWA ST"))!);
     const moved = { ...incident, points: [{ lat: 21.3595, lon: -157.905 }] }; // about 165 m north
     expect(hpdInYourWay(moved, eastPath, NOW)).toBe(false);
   });
@@ -290,17 +395,42 @@ describe("is a police report in your way", () => {
     const incident = listed(r)!;
     expect(incident?.onRoute ?? false).toBe(false);
     const onRoute = {
-      ...asDrive(listed(await report("H1 FWY EB / MOANALUA"))!),
+      ...asDrive(listed(await report("H1 FWY EB / PAIWA ST"))!),
       confidence: "approximate" as const,
     };
     expect(hpdInYourWay(onRoute, eastPath, NOW)).toBe(false);
   });
+  it("the report is never moved onto the route: 300 m off is listed but not announced; far off falls back to road names", async () => {
+    const r = await report("H1 FWY EB / PAIWA ST");
+    const shifted = eastPath.map((p) => ({ ...p, lat: p.lat + 0.0027 })); // about 300 m north
+    const near = listed(r, shifted)!;
+    expect(near.onRoute).toBe(false);
+    expect(near.points[0]).toEqual(r.geo!.point);
+    expect(hpdInYourWay(asDrive({ ...near, onRoute: true }), shifted, NOW)).toBe(false);
+    const far = eastPath.map((p) => ({ ...p, lat: p.lat + 0.02 }));
+    expect(listed(r, far, ["H-1 East"])).toBeUndefined(); // nothing to say by name either
+    const byName = listed(r, far, ["H-1 East", "Paiwa St"])!;
+    expect(byName).toMatchObject({ onRoute: false, points: [] });
+    expect(byName.confidence).toBeUndefined();
+  });
+  it("an H-1 report is not on an H-201 route", async () => {
+    const r = await report("H1 FWY EB / PAIWA ST");
+    expect(listed(r, eastPath, ["Moanalua Fwy East"])).toBeUndefined();
+  });
   it("a route that does not use the freeway never lists its report", async () => {
-    const r = await report("H1 FWY EB / MOANALUA");
+    const r = await report("H1 FWY EB / PAIWA ST");
     expect(listed(r, eastPath, ["Nimitz Hwy"])).toBeUndefined();
   });
   it("street intersection: exact and in the way when the geocoded point is on the route", async () => {
-    const onPath = { results: [{ type: "Cross Street", position: { lat: 21.358, lon: -157.9 } }] };
+    const onPath = {
+      results: [
+        {
+          type: "Cross Street",
+          position: { lat: paiwa.lat, lon: paiwa.lon },
+          address: { streetName: "Kamehameha Highway" },
+        },
+      ],
+    };
     const [placed] = (
       await placeHpdBatch(
         parseHpdRows([
@@ -323,9 +453,9 @@ describe("is a police report in your way", () => {
 
 describe("island pins", () => {
   it("expose confidence, radius and direction; only placed, recent reports", async () => {
-    const exact = await report("H1 FWY EB / MOANALUA", 10);
+    const exact = await report("H1 FWY EB / PAIWA ST", 10);
     const soft = await report("H1 FWY WB", 20);
-    const old = await report("H1 FWY EB / MOANALUA", 200);
+    const old = await report("H1 FWY EB / PAIWA ST", 200);
     const pins = hpdPins([exact, soft, old], NOW);
     expect(pins.map((p) => p.confidence).sort()).toEqual(["approximate", "exact"]);
     expect(pins.find((p) => p.confidence === "exact")).toMatchObject({
@@ -339,27 +469,30 @@ describe("island pins", () => {
 
 describe("announcing", () => {
   it("speaks an in-your-way report once, shows it on the HUD, and keeps a behind or approximate one silent", async () => {
-    const incident = asDrive(listed(await report("H1 FWY EB / MOANALUA"))!);
+    const incident = asDrive(listed(await report("H1 FWY EB / PAIWA ST"))!);
     const memory = newIncidentAlertMemory();
     const input = {
       incidents: [],
       nearby: [incident],
       path: eastPath,
-      rider: { lat: 21.358, lon: -157.915 },
+      rider: { lat: paiwa.lat, lon: paiwa.lon - 0.01 },
       nowMs: NOW,
     };
     const first = planIncidentAlerts(input, memory);
     expect(first.speak).toHaveLength(1);
     expect(first.speak[0]!.text).toBe(
-      "Police report: collision on H-1 eastbound near Moanalua, 1:45 PM.",
+      "Police report: collision on H-1 eastbound near Paiwa Street, 1:45 PM.",
     );
     expect(first.hud?.text).toBe(
-      "Police report: collision on H-1 eastbound near Moanalua, 1:45 PM",
+      "Police report: collision on H-1 eastbound near Paiwa Street, 1:45 PM",
     );
     expect(planIncidentAlerts(input, memory).speak).toHaveLength(0); // once per id
+    // Rider position unknown: shown on the HUD maybe, but never spoken.
+    const unknown = planIncidentAlerts({ ...input, rider: null }, newIncidentAlertMemory());
+    expect(unknown.speak).toHaveLength(0);
     // Rider already past it: nothing.
     const past = planIncidentAlerts(
-      { ...input, rider: { lat: 21.358, lon: -157.895 } },
+      { ...input, rider: { lat: paiwa.lat, lon: paiwa.lon + 0.01 } },
       newIncidentAlertMemory(),
     );
     expect(past.speak).toHaveLength(0);
@@ -381,7 +514,7 @@ describe("health detail", () => {
         date: "2026-10-21T00:00:00.000",
         time: "13:45",
         type: "TRAFFIC COLLISION",
-        address: "H1 FWY EB / MOANALUA",
+        address: "H1 FWY EB / PAIWA ST",
         area: "Central",
       },
       {
@@ -400,7 +533,10 @@ describe("health detail", () => {
       },
     ];
     const fetcher = vi.fn(async () => json(rows));
+    const spy = vi.spyOn(globalThis, "fetch");
     const probe = await probeHpd(fetcher as unknown as typeof fetch, NOW);
+    expect(spy).not.toHaveBeenCalled(); // health never spends geocoding quota
+    spy.mockRestore();
     expect(probe.detail).toContain("placed 2 of 3 (exact 1, approximate 1)");
   });
 });

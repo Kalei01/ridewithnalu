@@ -23,7 +23,7 @@ import { incidentTouchesRoute, type GeoPoint } from "./incident-correlation";
 import { titleCase } from "../commute-formatting";
 import { sharedIncidents } from "./tomtom-guard";
 import {
-  FREEWAY_SNAP_M,
+  FREEWAY_LIST_M,
   bearingFitsHeading,
   identifyFreeway,
   type FreewayId,
@@ -356,49 +356,54 @@ export function hpdIncidentsForRoute(
     let direction: Heading | null | undefined;
     let onFreeway = false;
     const geo = report.geo ?? (report.point ? feedGeo(report.point, report.address) : null);
+    let placedOnRoute = false;
     if (geo) {
-      confidence = geo.confidence;
-      radiusM = geo.radiusM;
-      direction = geo.direction;
-      onFreeway = geo.freeway !== null;
       const match = routeMatch(geo.point, route.path);
       const freeway = geo.freeway;
+      const bearing = match ? routeBearingAtSegment(route.path, match.segmentIndex) : null;
+      const heading =
+        geo.direction && bearing !== null ? bearingFitsHeading(bearing, geo.direction) : null;
       if (freeway) {
-        // The route has to use this freeway, and the report has to sit on it.
-        if (!routeUsesFreeway(route.roads, freeway) || !match) continue;
-        const tolerance = geo.confidence === "exact" ? FREEWAY_SNAP_M : geo.radiusM;
-        if (match.distanceM > tolerance) continue;
-        const heading = geo.direction
-          ? bearingFitsHeading(
-              routeBearingAtSegment(route.path, match.segmentIndex) ?? NaN,
-              geo.direction,
-            )
-          : null;
-        if (heading === false) continue; // the other carriageway
-        point = geo.confidence === "exact" ? match.snapped : geo.point;
-        onRoute = geo.confidence === "exact" && heading === true;
-        road = route.roads.find((r) => identifyFreeway(r) === freeway) ?? null;
+        // The report's own position must be near this route, and the route must be on the SAME
+        // freeway (an H-1 report is not on an H-201 route). The position is never moved onto
+        // the route. Farther than 400 m, or on another freeway: only the road-name match below.
+        if (
+          match &&
+          geo.how !== "freeway-area" &&
+          match.distanceM <= FREEWAY_LIST_M &&
+          routeUsesFreeway(route.roads, freeway)
+        ) {
+          if (heading === false) continue; // the other carriageway
+          placedOnRoute = true;
+          point = geo.point;
+          confidence = geo.confidence;
+          radiusM = geo.radiusM;
+          direction = geo.direction;
+          onFreeway = true;
+          onRoute = geo.confidence === "exact" && match.distanceM <= IN_WAY_M && heading === true;
+          road = route.roads.find((r) => identifyFreeway(r) === freeway) ?? null;
+        }
       } else {
         const reach =
           geo.confidence === "exact" ? ON_ROUTE_M : geo.how === "area" ? 0 : geo.radiusM;
         if (!match || reach === 0 || match.distanceM > reach) continue;
-        const heading = geo.direction
-          ? bearingFitsHeading(
-              routeBearingAtSegment(route.path, match.segmentIndex) ?? NaN,
-              geo.direction,
-            )
-          : null;
         if (heading === false) continue;
+        placedOnRoute = true;
         point = geo.point;
+        confidence = geo.confidence;
+        radiusM = geo.radiusM;
+        direction = geo.direction;
         onRoute =
           geo.confidence === "exact" &&
           match.distanceM <= IN_WAY_M &&
           (geo.direction === null || heading === true);
       }
-    } else {
-      // Not placed: the route must pass the named place, i.e. at least two
-      // of the streets in the address (the road and its cross street) are roads
-      // this route uses. One road alone could be anywhere along it.
+    }
+    if (!placedOnRoute) {
+      // Not placed, or a freeway report not near this route: the route must pass the named
+      // place, i.e. at least two of the streets in the address (the road and its cross
+      // street) are roads this route uses. One road alone could be anywhere along it.
+      // Display only.
       const parts = addressParts(report.address).map(normalize);
       const matched = new Set<string>();
       let firstRoad: string | null = null;
@@ -429,7 +434,7 @@ export function hpdIncidentsForRoute(
       ...(confidence ? { confidence } : {}),
       ...(radiusM !== undefined ? { radiusM } : {}),
       ...(direction !== undefined ? { direction } : {}),
-      ...(geo ? { onFreeway } : {}),
+      ...(placedOnRoute ? { onFreeway } : {}),
     });
   }
   return out.sort((a, b) => b.reportedAt.localeCompare(a.reportedAt)).slice(0, 5);
@@ -598,7 +603,10 @@ export async function probeHpd(fetcher: typeof fetch = fetch, now = Date.now()):
   const usable = parseHpdRows(rows);
   const shown = usable.length;
   const recent = usable.filter((r) => now - r.atMs <= HPD_ISLAND_MAX_AGE_MS);
-  const placement = placementSummary((await placeHpdBatch(recent, defaultGeoDeps(now))).stats);
+  // Health must never spend geocoding quota: cache, gazetteer and area centroids only.
+  const placement = placementSummary(
+    (await placeHpdBatch(recent, { ...defaultGeoDeps(now), offline: true })).stats,
+  );
   const samples = rows
     .slice(0, 3)
     .map(
