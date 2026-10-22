@@ -71,9 +71,15 @@ const text = (value: unknown): string | null =>
 
 /** "2026-10-21T00:00:00.000" + "13:45" / "1:45 PM" / "134500" in Hawaii time → epoch ms. */
 export function hpdTimestamp(dateValue: unknown, timeValue: unknown): number | null {
-  const date = text(dateValue)?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const dateText = text(dateValue);
+  const iso = dateText?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  // Text columns often hold "10/21/2026" (US month/day/year), optionally followed by a time.
+  const us = dateText?.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  const date = iso ? [iso[0], iso[1], iso[2], iso[3]] : us ? [us[0], us[3], us[1], us[2]] : null;
   const time = text(timeValue) ?? (typeof timeValue === "number" ? String(timeValue) : null);
   if (!date || !time) return null;
+  if (Number(date[2]) < 1 || Number(date[2]) > 12 || Number(date[3]) < 1 || Number(date[3]) > 31)
+    return null;
   let hour: number;
   let minute: number;
   const clock = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?$/);
@@ -355,14 +361,24 @@ export type HpdProbe = {
   detail: string;
 };
 
+export type HpdRowsResult = {
+  rows: unknown[] | null;
+  /** Which request produced the rows: the filtered "query" or the "plain" URL. */
+  variant: "query" | "plain" | null;
+  /** Short per-attempt notes (status, non-JSON, empty) for the health page. */
+  attempts: string[];
+  /** True when the last non-OK/non-JSON answer was a hard failure (not just empty). */
+  failed: boolean;
+};
+
 /**
- * Health probe for the police feed: runs the same query as production, then the
- * plain URL if that fails, and reports HTTP status, row counts, how many rows
- * parse into a timestamp, the newest row's age, and the field names seen.
+ * Fetches rows: the filtered query first; if it errors, is not JSON, or returns
+ * zero rows (a valid but non-matching $where, e.g. Date stored as text), retries
+ * the plain URL and lets the client-side date parsing do the filtering.
  */
-export async function probeHpd(fetcher: typeof fetch = fetch, now = Date.now()): Promise<HpdProbe> {
+export async function fetchHpdRows(fetcher: typeof fetch, now: number): Promise<HpdRowsResult> {
   const attempts: string[] = [];
-  let rows: unknown = null;
+  let failed = false;
   for (const [label, url] of [
     ["query", hpdQueryUrl(now)],
     ["plain", HPD_INCIDENTS_URL],
@@ -372,18 +388,53 @@ export async function probeHpd(fetcher: typeof fetch = fetch, now = Date.now()):
       const server = response.headers?.get?.("server") ?? "";
       const cf = response.headers?.get?.("cf-mitigated") ? " cf-mitigated" : "";
       attempts.push(`${label}: HTTP ${response.status}${cf}${server ? ` (${server})` : ""}`);
+      const body = await response.text().catch(() => "");
       if (!response.ok) {
-        const body = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 80);
-        if (body) attempts.push(`body: ${body}`);
+        failed = true;
+        const snippet = body.replace(/\s+/g, " ").slice(0, 80);
+        if (snippet) attempts.push(`body: ${snippet}`);
         continue;
       }
-      rows = await response.json();
-      break;
+      const type = response.headers?.get?.("content-type") ?? "";
+      let parsed: unknown;
+      try {
+        if (body.trimStart().startsWith("<")) throw new Error("html");
+        parsed = JSON.parse(body);
+      } catch {
+        failed = true;
+        attempts.push(
+          `${label}: non-JSON response (likely a bot challenge)${type ? ` [${type.slice(0, 30)}]` : ""}`,
+        );
+        continue;
+      }
+      if (!Array.isArray(parsed)) {
+        failed = true;
+        attempts.push(`${label}: JSON but not a row list`);
+        continue;
+      }
+      if (parsed.length === 0) {
+        attempts.push(`${label}: 0 rows`);
+        continue;
+      }
+      return { rows: parsed, variant: label, attempts, failed: false };
     } catch (error) {
+      failed = true;
       attempts.push(`${label}: ${error instanceof Error ? error.name : "error"}`);
     }
   }
-  if (!Array.isArray(rows)) return { ok: false, detail: attempts.join("; ").slice(0, 300) };
+  return { rows: null, variant: null, attempts, failed };
+}
+
+/**
+ * Health probe for the police feed: runs the same fetch as production (filtered
+ * query, then the plain URL), and reports which variant worked, HTTP status, row
+ * counts, how many rows parse into a timestamp, the newest row's age, the field
+ * names and a sample of the date/time values.
+ */
+export async function probeHpd(fetcher: typeof fetch = fetch, now = Date.now()): Promise<HpdProbe> {
+  const result = await fetchHpdRows(fetcher, now);
+  const rows = result.rows;
+  if (!rows) return { ok: false, detail: result.attempts.join("; ").slice(0, 400) };
   const first = (rows[0] ?? {}) as Row;
   const fields = Object.keys(first).slice(0, 12).join(",");
   const stamped = rows.filter(
@@ -395,16 +446,19 @@ export async function probeHpd(fetcher: typeof fetch = fetch, now = Date.now()):
   const newest = newestHpdRow(rows);
   const ageMin = newest === null ? null : Math.round((now - newest) / 60_000);
   const shown = parseHpdRows(rows).length;
-  const sample =
-    `date=${JSON.stringify(field(first, "date") ?? null)} time=${JSON.stringify(field(first, "time") ?? null)}`.slice(
-      0,
-      80,
-    );
+  const samples = rows
+    .slice(0, 3)
+    .map(
+      (r) =>
+        `${JSON.stringify(field((r ?? {}) as Row, "date") ?? null)} ${JSON.stringify(field((r ?? {}) as Row, "time") ?? null)}`,
+    )
+    .join(" | ");
+  const sample = `date/time samples ${samples}`.slice(0, 140);
   const current = ageMin !== null && ageMin * 60_000 <= HPD_CURRENT_WITHIN_MS;
-  const detail = `${attempts.join("; ")}; ${rows.length} rows, ${stamped} with a readable date+time, ${shown} usable kinds, newest ${
+  const detail = `${result.attempts.join("; ")}; used ${result.variant}; ${rows.length} rows, ${stamped} with a readable date+time, ${shown} usable kinds, newest ${
     ageMin === null ? "none readable" : `${ageMin} min old`
-  }${current ? "" : " (feed not counted as current)"}; fields: ${fields || "none"}; first row ${sample}`;
-  return { ok: current, detail: detail.slice(0, 600) };
+  }${current ? "" : " (feed not counted as current)"}; fields: ${fields || "none"}; ${sample}`;
+  return { ok: current, detail: detail.slice(0, 700) };
 }
 
 /** Recent HPD reports, shared by every rider for 5 minutes. Null (never throws) when unreachable. */
@@ -418,17 +472,17 @@ export async function loadHpdReports(
     HPD_CACHE_MS,
     async () => {
       try {
-        let response = await getRows(fetcher, hpdQueryUrl(now));
-        // A rejected query (400/404: the field name differs) retries with the plain URL.
-        if (response.status === 400 || response.status === 404)
-          response = await getRows(fetcher, HPD_INCIDENTS_URL);
-        if (!response.ok) {
-          console.warn(`[hpd] incidents feed returned ${response.status}`);
-          failedUntil = now + HPD_FAILURE_BACKOFF_MS;
+        const result = await fetchHpdRows(fetcher, now);
+        if (!result.rows) {
+          if (result.failed) {
+            console.warn(
+              `[hpd] incidents feed unusable: ${result.attempts.join("; ").slice(0, 200)}`,
+            );
+            failedUntil = now + HPD_FAILURE_BACKOFF_MS;
+          }
           return null;
         }
-        const rows: unknown = await response.json();
-        return { reports: parseHpdRows(rows), newestMs: newestHpdRow(rows) };
+        return { reports: parseHpdRows(result.rows), newestMs: newestHpdRow(result.rows) };
       } catch (error) {
         console.warn("[hpd] incidents feed failed", error instanceof Error ? error.name : "error");
         failedUntil = now + HPD_FAILURE_BACKOFF_MS;

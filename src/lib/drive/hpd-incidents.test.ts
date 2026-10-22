@@ -166,7 +166,7 @@ describe("feed and alerts", () => {
       await hpdNearRoute({ path: route, roads: [] }, blocked as unknown as typeof fetch, NOW),
     ).toEqual({ incidents: [], checked: false });
     await hpdNearRoute({ path: route, roads: [] }, blocked as unknown as typeof fetch, NOW + 1000);
-    expect(blocked).toHaveBeenCalledTimes(1); // backs off for 2 minutes
+    expect(blocked).toHaveBeenCalledTimes(2); // query + plain once, then backs off for 2 minutes
   });
   it("never claims coverage when the feed is empty or stale", async () => {
     const stale = [
@@ -254,5 +254,41 @@ describe("probeHpd", () => {
     expect(probe.ok).toBe(false);
     expect(probe.detail).toMatch(/0 with a readable date\+time/);
     expect(probe.detail).toMatch(/newest none readable/);
+  });
+
+  it("falls back to the plain URL when the filtered query returns an empty array", async () => {
+    const urls: string[] = [];
+    const fetcher = (async (url: string) => {
+      urls.push(url);
+      return url.includes("where")
+        ? json(200, [])
+        : json(200, [
+            { date: "10/21/2026", time: "09:30", type: "TRAFFIC COLLISION", address: "H1 FWY" },
+          ]);
+    }) as unknown as typeof fetch;
+    const probe = await probeHpd(fetcher, now);
+    expect(urls).toHaveLength(2);
+    expect(probe.ok).toBe(true);
+    expect(probe.detail).toMatch(/query: HTTP 200.*query: 0 rows.*plain: HTTP 200.*used plain/);
+    expect(probe.detail).toMatch(/1 with a readable date\+time/);
+    expect(probe.detail).toMatch(/date\/time samples "10\/21\/2026" "09:30"/);
+    expect(probe.detail).toMatch(/fields: date,time,type,address/);
+  });
+
+  it("names an HTML body as a likely bot challenge", async () => {
+    const fetcher = (async () =>
+      new Response("<!DOCTYPE html><html>Just a moment...</html>", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      })) as unknown as typeof fetch;
+    const probe = await probeHpd(fetcher, now);
+    expect(probe.ok).toBe(false);
+    expect(probe.detail).toMatch(/non-JSON response \(likely a bot challenge\)/);
+  });
+
+  it("reads text dates like 10/21/2026 with 07:45 in Hawaii time", () => {
+    expect(hpdTimestamp("10/21/2026", "07:45")).toBe(Date.UTC(2026, 9, 21, 17, 45));
+    expect(hpdTimestamp("10/21/2026 12:00:00 AM", "07:45")).toBe(Date.UTC(2026, 9, 21, 17, 45));
+    expect(hpdTimestamp("13/40/2026", "07:45")).toBeNull();
   });
 });
