@@ -456,7 +456,7 @@ async function tomtomDriveTime(
     const corridor = extractCorridor(
       normalizeOrbisInstructions(route?.instructions ?? []),
       summary.lengthInMeters ?? 0,
-      { fromLon: data.fromLon, toLon: data.toLon },
+      { fromLon: data.fromLon, toLon: data.toLon, fromLat: data.fromLat, toLat: data.toLat },
     );
     // Police-reported incidents (free): a supplement, and the only incident source when TomTom's is down.
     const hpd =
@@ -541,7 +541,7 @@ export async function driveTimeFromMapbox(data: z.infer<typeof schema>, route: M
   const corridor = extractCorridor(
     normalizeOrbisInstructions(route.instructions),
     route.meters,
-    { fromLon: data.fromLon, toLon: data.toLon },
+    { fromLon: data.fromLon, toLon: data.toLon, fromLat: data.fromLat, toLat: data.toLat },
   );
   const hpd = data.departureTime
     ? { nearby: [] as DriveIncident[], checked: false }

@@ -143,6 +143,7 @@ import { rescueAdvice } from "@/lib/nalu-ai.functions";
 import { finishTripLog, startTripLog } from "@/lib/trip-log";
 import { TellNaluLink } from "@/components/TellNalu";
 import { parseSharedDestination, parseSharedTiming, sharedTripPreview } from "@/lib/share-trip";
+import { nearestRailStation } from "@/lib/rail/park-and-ride";
 import { airLine, type WeatherLine } from "@/components/commute/H1ConditionsCard";
 import {
   clockFromSeconds,
@@ -2657,13 +2658,28 @@ function Index() {
     chooseArriveBy(clockInputValue(typicalArrival));
   }, [hydrated, arriveByInput, typicalArrival]);
 
+  // The Browse traffic card follows the rider's own route (both ways) once a
+  // trip is set; the Kapolei <-> downtown corridor is only the starting default.
+  const riderRoute =
+    configured &&
+    setup.homeLat !== null &&
+    setup.homeLon !== null &&
+    setup.destLat !== null &&
+    setup.destLon !== null
+      ? {
+          a: { lat: setup.homeLat, lon: setup.homeLon },
+          b: { lat: setup.destLat, lon: setup.destLon },
+        }
+      : null;
+  const forwardTrip = riderRoute ?? { a: KAPOLEI_POINT, b: DOWNTOWN_POINT };
+  const returnTrip = riderRoute ? { a: riderRoute.b, b: riderRoute.a } : { a: DOWNTOWN_POINT, b: KAPOLEI_POINT };
   const {
     data: eastboundTraffic,
     isLoading: eastboundTrafficLoading,
     isError: eastboundTrafficFailed,
     refetch: refetchEastboundTraffic,
   } = useQuery({
-    queryKey: ["browse-h1", "eastbound"],
+    queryKey: ["browse-h1", "eastbound", forwardTrip.a.lat, forwardTrip.a.lon, forwardTrip.b.lat, forwardTrip.b.lon],
     enabled: hydrated,
     staleTime: 5 * 60_000,
     refetchInterval: 5 * 60_000,
@@ -2671,10 +2687,10 @@ function Index() {
     queryFn: () =>
       fetchDriveTime({
         data: {
-          fromLat: KAPOLEI_POINT.lat,
-          fromLon: KAPOLEI_POINT.lon,
-          toLat: DOWNTOWN_POINT.lat,
-          toLon: DOWNTOWN_POINT.lon,
+          fromLat: forwardTrip.a.lat,
+          fromLon: forwardTrip.a.lon,
+          toLat: forwardTrip.b.lat,
+          toLon: forwardTrip.b.lon,
           forceRefresh: takeForcedTrafficRefresh(),
         },
       }),
@@ -2686,7 +2702,7 @@ function Index() {
     isError: westboundTrafficFailed,
     refetch: refetchWestboundTraffic,
   } = useQuery({
-    queryKey: ["browse-h1", "westbound"],
+    queryKey: ["browse-h1", "westbound", returnTrip.a.lat, returnTrip.a.lon, returnTrip.b.lat, returnTrip.b.lon],
     enabled: hydrated,
     staleTime: 5 * 60_000,
     refetchInterval: 5 * 60_000,
@@ -2694,26 +2710,30 @@ function Index() {
     queryFn: () =>
       fetchDriveTime({
         data: {
-          fromLat: DOWNTOWN_POINT.lat,
-          fromLon: DOWNTOWN_POINT.lon,
-          toLat: KAPOLEI_POINT.lat,
-          toLon: KAPOLEI_POINT.lon,
+          fromLat: returnTrip.a.lat,
+          fromLon: returnTrip.a.lon,
+          toLat: returnTrip.b.lat,
+          toLon: returnTrip.b.lon,
           forceRefresh: takeForcedTrafficRefresh(),
         },
       }),
   });
 
   // Real service hours for the rail station, used when nothing is reachable.
+  // Hours at the station the rider boards, whichever way the trip goes.
+  const railHoursStopId = reverseTrip
+    ? (nearestRailStation(tripDirection.from, browseStations)?.stop_id ?? null)
+    : setup.homeStopId;
   const { data: railHours = [] } = useQuery({
-    queryKey: ["service-hours", inbound ? arrivalStationId : setup.homeStopId],
+    queryKey: ["service-hours", railHoursStopId],
     // Service hours are independent of trip-planning results. Fetch them immediately
     // so Nalu can explain a closed rail service window instead of waiting on a
     // timetable query that can never return an option after service has ended.
-    enabled: hydrated && Boolean(inbound ? arrivalStationId : setup.homeStopId),
+    enabled: hydrated && Boolean(railHoursStopId),
     staleTime: 12 * 60 * 60_000,
     queryFn: async () => {
       const { data, error } = await plannerRpc("service_hours", {
-        p_stop_id: (inbound ? arrivalStationId : setup.homeStopId) as string,
+        p_stop_id: railHoursStopId as string,
         p_route_type: 1,
       });
       if (error) throw error;
@@ -3301,15 +3321,15 @@ function Index() {
   // still need two buses); a row for something the rider can't use is left out.
   const tripChoices: TripChoice[] = [
     ...(resources.vehicle ? [driveChoice] : []),
-    // Any Skyline trip shows, whoever is travelling. With a car available, going
-    // out, the row is always there so the rider sees it was checked.
+    // Any Skyline trip shows, whoever is travelling. With a car available, in
+    // either direction, the row is always there so the rider sees it was checked.
     // Outside Skyline's hours the row stays, to say it has stopped. A failed
     // Skyline search keeps it too, to say it couldn't be checked.
     ...(choicePicks.skyline.option ||
     lockedChoice === "skyline" ||
     railServiceClosed ||
     (skylineUnchecked && !optionsLoading) ||
-    (vehicleToSkyline !== "none" && !inbound)
+    vehicleToSkyline !== "none"
       ? [transitChoice("skyline")]
       : []),
     transitChoice("bus"),
@@ -4461,6 +4481,15 @@ function Index() {
         trainsEveryMinutes={trainsEveryMinutes}
         user={user}
         westboundTraffic={westboundTraffic}
+        trafficLabels={
+          riderRoute
+            ? {
+                title: "Your drive",
+                first: `To ${setup.destinationName || "destination"}`,
+                second: "Return trip",
+              }
+            : undefined
+        }
         westboundTrafficFailed={westboundTrafficFailed}
         westboundTrafficLoading={westboundTrafficLoading}
       />

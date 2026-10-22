@@ -628,8 +628,11 @@ export async function bestRailBetween(fromPoint: Pt, toPoint: Pt, afterSeconds: 
   const destIndex = skylineStationIndex(dest.name);
   const candidates: Array<typeof nearestOrigin> = [nearestOrigin];
 
-  if (originIndex !== null && destIndex !== null && originIndex > destIndex) {
-    for (let index = originIndex - 1; index > destIndex; index -= 1) {
+  if (originIndex !== null && destIndex !== null && originIndex !== destIndex) {
+    // Intermediate stations, walking from the origin toward the destination:
+    // the line runs both ways, so the step is -1 or +1.
+    const step = originIndex > destIndex ? -1 : 1;
+    for (let index = originIndex + step; index !== destIndex; index += step) {
       const stationName = SKYLINE_STATIONS[index];
       if (!stationName) continue;
       const candidate = await stationByName(stationName);

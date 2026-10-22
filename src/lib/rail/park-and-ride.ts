@@ -53,6 +53,22 @@ export function nearestParkAndRide<T extends Station>(origin: Point, stations: T
   return best?.station ?? null;
 }
 
+/** The rail station closest to `point`, from the loaded rail stations. */
+export function nearestRailStation<T extends Station>(point: Point, stations: T[]): T | null {
+  if (point.lat == null || point.lon == null) return null;
+  const from = { lat: point.lat, lon: point.lon };
+  let best: { station: T; metres: number } | null = null;
+  for (const station of stations) {
+    if (station.stop_lat == null || station.stop_lon == null) continue;
+    const metres = metresBetween(from, {
+      lat: Number(station.stop_lat),
+      lon: Number(station.stop_lon),
+    });
+    if (!best || metres < best.metres) best = { station, metres };
+  }
+  return best?.station ?? null;
+}
+
 type DriveAccessOption = {
   legs: Array<{ kind?: string; mode: string; to_stop_id?: string | null | undefined }>;
 };

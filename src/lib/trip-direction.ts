@@ -16,8 +16,9 @@ function matchesSavedHome(point: Point, home: Point | null): boolean {
   );
 }
 
-/** Keep the chosen start and destination in travel order; a manual return on an
- * eastbound legacy setup is the only case that reverses those two points. */
+/** Keep the chosen start and destination in travel order. `inbound` means
+ * "arriving at saved Home" (or the explicit Work -> Home toggle), nothing else;
+ * only a manual return to Home from a non-Home destination reverses the points. */
 export function resolveTripDirection(input: {
   origin: Point;
   destination: Point;
@@ -26,11 +27,10 @@ export function resolveTripDirection(input: {
 }): ResolvedTripDirection {
   const { origin, destination, savedHome } = input;
   const destinationIsHome = matchesSavedHome(destination, savedHome);
-  const destinationIsWest = origin.lon !== null && destination.lon !== null &&
-    destination.lon < origin.lon;
-  const inferredInbound = destinationIsHome || destinationIsWest;
-  const inbound = input.manualInbound ?? inferredInbound;
-  const reverseTrip = inbound && input.manualInbound === true && !inferredInbound;
+  // Direction is about Home, never geography: Oʻahu riders live and work in
+  // every part of the island, so "west" or "east" says nothing about it.
+  const inbound = input.manualInbound ?? destinationIsHome;
+  const reverseTrip = inbound && input.manualInbound === true && !destinationIsHome;
   const from = reverseTrip ? destination : origin;
   const to = reverseTrip ? origin : destination;
   return {

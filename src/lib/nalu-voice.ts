@@ -658,7 +658,7 @@ export function naluPulseTagline(
 /** What the home page knows right now (every field from a real check, or empty). */
 export type NaluHomeContext = {
   period: "morning" | "evening" | "other";
-  /** Which drive the numbers are for: into town (eastbound) or home (westbound). */
+  /** Which drive the numbers are for: into town (eastbound) or out toward Kapolei (westbound). */
   direction: "eastbound" | "westbound";
   /** Minutes slower than usual on that drive (live vs TomTom's usual), or null when there's no usual to compare. */
   delayMinutes: number | null;
@@ -673,14 +673,14 @@ export type NaluHomeContext = {
 };
 
 /**
- * The home page's one friendly line ("Pau hana traffic: the drive home via
+ * The home page's one friendly line ("Pau hana traffic: the drive out toward Kapolei via
  * H-1 is 6 min slower than usual — Skyline's every 15 min."). Built from real
  * conditions only (one traffic check, so no trends); with nothing checked it
  * says nothing.
  */
 export function naluHomeLine(context: NaluHomeContext): string | null {
   const { period, direction, delayMinutes, onH1, skylineEvery, skylineStopped, showersArea } = context;
-  const drive = `${direction === "eastbound" ? "the drive into town" : "the drive home"}${onH1 ? " via H-1" : ""}`;
+  const drive = `${direction === "eastbound" ? "the drive into town" : "the drive out toward Kapolei"}${onH1 ? " via H-1" : ""}`;
   const skyline = skylineEvery ? ` — Skyline's every ${skylineEvery} min.` : ".";
   const slower = delayMinutes !== null ? `${formatDriveMinutes(delayMinutes)} slower than usual` : "";
   if (delayMinutes !== null && delayMinutes >= 3 && period !== "other")

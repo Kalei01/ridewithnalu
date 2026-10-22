@@ -73,6 +73,7 @@ export type BrowseScreenProps = {
   browseWeatherLine: import("@/components/commute/H1ConditionsCard").WeatherLine | null;
   browseWeatherSummary: string;
   browseWork: { lat: number; lon: number; label: string } | null;
+  trafficLabels?: { title: string; first: string; second: string } | undefined;
   eastboundTraffic: NoInfer<import("@/lib/drive.functions").DriveTime> | undefined;
   eastboundTrafficFailed: boolean;
   eastboundTrafficLoading: boolean;
@@ -149,6 +150,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
     browseWeatherSummary,
     browseWork,
     eastboundTraffic,
+    trafficLabels,
     eastboundTrafficFailed,
     eastboundTrafficLoading,
     feederBuses,
@@ -755,6 +757,7 @@ export function BrowseScreen(props: BrowseScreenProps) {
               <H1ConditionsCard
                 eastbound={eastboundTraffic}
                 westbound={westboundTraffic}
+                labels={trafficLabels}
                 loading={trafficLoading}
                 unavailable={trafficUnavailable}
                 compact

@@ -6,7 +6,7 @@ import { collectArriveByOptions } from "@/lib/rail/arrive-by-search";
 import { findInboundOptions, hubAccessFallback } from "@/lib/rail/inbound-fallback";
 import { type PlanMode } from "@/components/commute/ArriveByControls";
 import { MAX_STOP_WALK_M } from "@/lib/rail/walk-preference";
-import { metresBetween } from "@/lib/rail/park-and-ride";
+import { metresBetween, nearestRailStation } from "@/lib/rail/park-and-ride";
 import { outboundStations, type OutboundStation } from "@/lib/rail/outbound-stations";
 import { dropOffCandidates, pickupCandidates } from "@/lib/rail/drop-off";
 import type { VehicleToStation } from "@/lib/trip-access";
@@ -191,6 +191,14 @@ async function searchTransit(
     setup,
     tripDirection,
   } = ctx;
+  // setup.homeStopId is the rail station nearest the trip origin and
+  // setup.destStopId a stop near the destination. A reversed trip (Work -> Home)
+  // starts at the saved destination, so its boarding station is found from the
+  // trip's own origin and its last stop is the one near Home.
+  const boardingStopId: string | null = tripDirection.reverseTrip
+    ? (nearestRailStation(tripDirection.from, browseStations)?.stop_id ?? null)
+    : setup.homeStopId;
+  const alightStopId = tripDirection.reverseTrip ? setup.homeStopId : setup.destStopId;
   // With a car available, a few real stations that make progress toward the
   // destination are also tried as drop-off points (no lot needed there). Nothing
   // is assumed: the trip search times each, and the comparison decides.
@@ -205,8 +213,8 @@ async function searchTransit(
       : [];
   // The home station counts too: with a car available a ride there needs no lot.
   const dropOffStops: ReadonlySet<string> = new Set(
-    vehicleToStation === "vehicle" && setup.homeStopId
-      ? [...dropOffStations.map((s) => s.stop_id), setup.homeStopId]
+    vehicleToStation === "vehicle" && boardingStopId
+      ? [...dropOffStations.map((s) => s.stop_id), boardingStopId]
       : dropOffStations.map((s) => s.stop_id),
   );
   // With no vehicle available (taking the bus), no path may end up with a car leg.
@@ -327,7 +335,7 @@ async function searchTransit(
         p_origin_lat: tripDirection.from.lat as number,
         p_origin_lon: tripDirection.from.lon as number,
         p_station: station,
-        p_dest_stop: setup.destStopId,
+        p_dest_stop: alightStopId,
         p_allow_drive: allowDrive,
         p_after_seconds: cursor,
         p_limit: planMode === "arrive-by" ? 8 : 4,
@@ -385,7 +393,7 @@ async function searchTransit(
         p_stations: stations.map((station) => station.stopId),
         p_allow_drive: stations.map((station) => station.allowDrive),
         p_limits: stations.map(() => limit),
-        p_dest_stop: setup.destStopId,
+        p_dest_stop: alightStopId,
         p_after_seconds: cursor,
         p_dest_lat: tripDirection.to.lat as number,
         p_dest_lon: tripDirection.to.lon as number,
@@ -411,7 +419,7 @@ async function searchTransit(
   // station with a lot, and the drop-off stations chosen above.
   const fetchOutbound = async (cursor: number, searchLater = true): Promise<Option[]> => {
     const stations = outboundStations({
-      homeStopId: setup.homeStopId,
+      homeStopId: boardingStopId as string,
       vehicle: vehicleToStation === "vehicle",
       origin: tripDirection.from,
       browseStations,
@@ -460,14 +468,20 @@ async function searchTransit(
     // at most a few at once), the slowest search is never the one waiting.
     const generalPromise = fetchGeneralTransit(cursor);
     const busPromise = fetchBusRescue(cursor);
-    const outboundPromise = inbound ? Promise.resolve<Option[]>([]) : fetchOutbound(cursor);
+    // Walk/ride/drive-to-station + rail + bus is planned from the rider's own
+    // origin in every direction; it never depends on which way the trip heads.
+    const outboundPromise = boardingStopId ? fetchOutbound(cursor) : Promise.resolve<Option[]>([]);
 
     // When Skyline is outside its published service window, do not let a
     // rail-inclusive planner result hide the remaining TheBus option. The
     // bus rescue is checked first so the UI can honestly compare Drive vs Bus.
     let skylineOutOfService = false;
-    const serviceStopId = inbound ? arrivalStationId : setup.homeStopId;
-    if (serviceStopId) {
+    // Rail is only usable when it runs at the station the rider boards and the
+    // one they get off at, whichever way the trip goes.
+    const serviceStopIds = [...new Set([boardingStopId, arrivalStationId])].filter(
+      (id): id is string => Boolean(id),
+    );
+    for (const serviceStopId of serviceStopIds) {
       try {
         const { data: serviceRows, error: serviceError } = await rpc("service_hours", {
           p_stop_id: serviceStopId,
@@ -475,10 +489,11 @@ async function searchTransit(
         });
         if (!serviceError) {
           const today = (serviceRows ?? []).find((row) => Number(row.dow) === honoluluIsoDow(now));
-          skylineOutOfService = Boolean(
+          if (
             today &&
-            (nowSeconds >= Number(today.last_seconds) || nowSeconds < Number(today.first_seconds)),
-          );
+            (nowSeconds >= Number(today.last_seconds) || nowSeconds < Number(today.first_seconds))
+          )
+            skylineOutOfService = true;
         } else {
           recordTransitRpcError("service_hours", serviceError);
         }
@@ -533,9 +548,9 @@ async function searchTransit(
 
     // Inbound Skyline trips keep the proven multi-station fallbacks. These are
     // only reached after the generalized planner returns zero options.
-    if (!inbound) {
-      // Home -> Work (outbound) still needs the established Skyline planner
-      // as a fallback. The generalized planner can legitimately return zero
+    {
+      // The established origin-station Skyline planner is a fallback in both
+      // directions. The generalized planner can legitimately return zero
       // when its door-to-door bus/rail chain cannot be formed, while the
       // configured home station + destination stop has a valid Skyline trip.
       const outboundOptions = await outboundPromise;

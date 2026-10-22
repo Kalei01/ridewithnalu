@@ -28,6 +28,21 @@ describe("extractCorridor", () => {
     expect(corridor?.roads).toEqual(["Ala Moana Blvd", "H-1 West"]);
   });
 
+  it("names H-2 north or south from latitude, never east or west", () => {
+    const steps = [
+      { routeOffsetInMeters: 0, street: "Kamehameha Hwy" },
+      { routeOffsetInMeters: 2000, roadNumbers: ["Interstate H-2"] },
+    ];
+    const north = extractCorridor(steps, 20000, {
+      fromLon: -157.97, toLon: -158.02, fromLat: 21.39, toLat: 21.5,
+    });
+    expect(north?.roads).toContain("H-2 North");
+    const south = extractCorridor(steps, 20000, {
+      fromLon: -158.02, toLon: -157.97, fromLat: 21.5, toLat: 21.39,
+    });
+    expect(south?.roads).toContain("H-2 South");
+  });
+
   it("drops trivial slip roads", () => {
     const corridor = extractCorridor(
       [

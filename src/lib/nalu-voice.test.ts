@@ -268,7 +268,7 @@ describe("naluHomeLine", () => {
   };
   it("says pau hana traffic from one real check, without a trend", () => {
     expect(naluHomeLine(base)).toBe(
-      "Pau hana traffic: the drive home via H-1 is 6 min slower than usual — Skyline's every 15 min.",
+      "Pau hana traffic: the drive out toward Kapolei via H-1 is 6 min slower than usual — Skyline's every 15 min.",
     );
   });
   it("says the morning rush on the drive into town", () => {
@@ -278,7 +278,7 @@ describe("naluHomeLine", () => {
   });
   it("never names H-1 when the route isn't on it", () => {
     expect(naluHomeLine({ ...base, onH1: false, skylineEvery: null })).toBe(
-      "Pau hana traffic: the drive home is 6 min slower than usual.",
+      "Pau hana traffic: the drive out toward Kapolei is 6 min slower than usual.",
     );
   });
   it("mentions showers when traffic is unremarkable", () => {

@@ -76,6 +76,7 @@ export function H1ConditionsCard({
   loading,
   unavailable,
   weatherLine,
+  labels,
   compact = false,
   className = "mt-4",
 }: {
@@ -84,13 +85,15 @@ export function H1ConditionsCard({
   loading: boolean;
   unavailable: boolean;
   weatherLine?: WeatherLine | null;
+  /** The rider's own route, both ways. Without it the card shows the H-1 corridor. */
+  labels?: { title: string; first: string; second: string } | undefined;
   compact?: boolean;
   /** Outer spacing for the compact card. */
   className?: string;
 }) {
   const rows = [
-    { label: "Eastbound", data: eastbound },
-    { label: "Westbound", data: westbound },
+    { label: labels?.first ?? "H-1 Eastbound", data: eastbound },
+    { label: labels?.second ?? "H-1 Westbound", data: westbound },
   ];
 
   // Name the source that actually answered; Mapbox times are estimates.
@@ -192,7 +195,7 @@ export function H1ConditionsCard({
     >
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="h1-conditions-title" className="text-lg font-semibold">
-          H-1 conditions
+          {labels?.title ?? "H-1 conditions"}
         </h2>
         <span className="shrink-0 text-xs text-muted-foreground">{providerLabel}</span>
       </div>
@@ -209,7 +212,7 @@ export function H1ConditionsCard({
             return (
               <div key={label} className="py-3">
                 <div className="grid min-h-9 grid-cols-[minmax(0,1fr)_minmax(7rem,auto)] items-center gap-4">
-                  <span className="min-w-0 text-sm text-foreground">H-1 {label}</span>
+                  <span className="min-w-0 text-sm text-foreground">{label}</span>
                   <span
                     className={`min-w-28 text-center text-sm font-semibold tabular-nums ${status?.className ?? "text-muted-foreground"}`}
                   >

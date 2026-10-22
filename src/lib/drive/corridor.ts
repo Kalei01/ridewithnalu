@@ -69,9 +69,17 @@ function mergeRampNames(instructions: GuidanceInstruction[], names: Array<string
   }
 }
 
-/** East/West suffix for freeways, derived from the trip's own geometry. */
-function freewayDirection(fromLon: number, toLon: number): "East" | "West" {
-  return toLon >= fromLon ? "East" : "West";
+type Endpoints = { fromLon: number; toLon: number; fromLat?: number; toLat?: number };
+
+/** Direction suffix for a freeway, derived from the trip's own geometry. H-2
+ * runs north/south (Pearl City to Wahiawā); the others run east/west. */
+function freewayDirection(
+  freeway: string,
+  endpoints: Endpoints,
+): "East" | "West" | "North" | "South" {
+  if (/^H-?2$/i.test(freeway) && endpoints.fromLat !== undefined && endpoints.toLat !== undefined)
+    return endpoints.toLat >= endpoints.fromLat ? "North" : "South";
+  return endpoints.toLon >= endpoints.fromLon ? "East" : "West";
 }
 
 /**
@@ -120,7 +128,7 @@ function withoutDirection(name: string) {
 export function extractCorridor(
   instructions: GuidanceInstruction[],
   totalMeters: number,
-  endpoints?: { fromLon: number; toLon: number },
+  endpoints?: Endpoints,
   maxRoads = 5,
 ): RouteCorridor | null {
   if (!instructions.length) return null;
@@ -250,7 +258,7 @@ export function extractCorridor(
       const stated = statedDirections.get(baseName);
       if (stated) return `${baseName} ${stated}`;
       return endpoints
-        ? `${baseName} ${freewayDirection(endpoints.fromLon, endpoints.toLon)}`
+        ? `${baseName} ${freewayDirection(baseName, endpoints)}`
         : name;
     })
     // The feed can name one freeway two ways ("H-1" and "H-1 East"); say it once.

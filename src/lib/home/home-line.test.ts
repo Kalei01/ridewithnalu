@@ -27,7 +27,7 @@ const live = (over: Partial<HomeLive> = {}): HomeLive => ({
 describe("homeLineFor", () => {
   it("uses the drive home and the westbound trains still to come in the afternoon", () => {
     expect(homeLineFor(live(), evening)).toBe(
-      "Pau hana traffic: the drive home via H-1 is 6 min slower than usual — Skyline's every 15 min.",
+      "Pau hana traffic: the drive out toward Kapolei via H-1 is 6 min slower than usual — Skyline's every 15 min.",
     );
   });
   it("says nothing about traffic with no usual to compare", () => {
@@ -42,7 +42,7 @@ describe("homeLineFor", () => {
     const empty = { eastbound: trains(70000, 600), westbound: trains(70000, 600) };
     expect(
       homeLineFor(live({ traffic: { eastbound: null, westbound: calm }, skyline: empty }), late),
-    ).toBe("Skyline's pau for the night, and the drive home via H-1's moving like usual.");
+    ).toBe("Skyline's pau for the night, and the drive out toward Kapolei via H-1's moving like usual.");
     expect(
       homeLineFor(live({ traffic: { eastbound: null, westbound: calm }, skyline: null }), late),
     ).toBeNull();

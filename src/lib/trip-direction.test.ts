@@ -17,10 +17,10 @@ describe("trip direction", () => {
     });
   });
 
-  it("selects inbound for a westward custom destination without claiming it is Home", () => {
+  it("does not treat a westward custom destination as inbound", () => {
     const trip = resolveTripDirection({ origin: downtown, destination: kapolei,
       savedHome: null, manualInbound: null });
-    expect(trip).toMatchObject({ inbound: true, reverseTrip: false,
+    expect(trip).toMatchObject({ inbound: false, reverseTrip: false,
       arrivingAtSavedHome: false, from: downtown, to: kapolei });
   });
 
@@ -46,4 +46,35 @@ describe("trip direction", () => {
     expect(legacyReturn).toMatchObject({ inbound: true, reverseTrip: true,
       arrivingAtSavedHome: true, from: downtown, to: kapolei });
   });
+
+  const kaneohe = { lat: 21.4181, lon: -157.8036 };
+  const haleiwa = { lat: 21.5919, lon: -158.1031 };
+  const pearlHarbor = { lat: 21.3649, lon: -157.9496 };
+  const pairs: Array<[string, typeof kapolei, typeof kapolei]> = [
+    ["town and Kapolei", downtown, kapolei],
+    ["Kāneʻohe and Kapolei", kaneohe, kapolei],
+    ["Haleʻiwa and Pearl Harbor", haleiwa, pearlHarbor],
+  ];
+
+  for (const [name, a, b] of pairs) {
+    it(`reads direction from Home only, both ways between ${name}`, () => {
+      for (const [home, away] of [[a, b], [b, a]] as const) {
+        // Heading to Home is inbound, heading out of Home is not, wherever Home is.
+        const toHome = resolveTripDirection({ origin: away, destination: home,
+          savedHome: home, manualInbound: null });
+        expect(toHome).toMatchObject({ inbound: true, reverseTrip: false, from: away, to: home });
+        const fromHome = resolveTripDirection({ origin: home, destination: away,
+          savedHome: home, manualInbound: null });
+        expect(fromHome).toMatchObject({ inbound: false, reverseTrip: false, from: home, to: away });
+        // No saved Home: geography alone never makes a trip inbound.
+        const none = resolveTripDirection({ origin: home, destination: away,
+          savedHome: null, manualInbound: null });
+        expect(none.inbound).toBe(false);
+        // The Work -> Home toggle brings the rider back to Home.
+        const back = resolveTripDirection({ origin: home, destination: away,
+          savedHome: home, manualInbound: true });
+        expect(back).toMatchObject({ inbound: true, reverseTrip: true, from: away, to: home });
+      }
+    });
+  }
 });
