@@ -10,6 +10,7 @@ import {
   incidentPins,
   roadLines,
   trafficCard,
+  trafficSourceLabel,
   type RoadCheck,
 } from "./browse-right-now";
 
@@ -357,26 +358,85 @@ describe("map incident kinds and the traffic card", () => {
     ]);
   });
 
-  it("states only what the provider gave: level, delay, source and age", () => {
+  it("does not name a road it cannot place: a multi-road route is titled by its area and way", () => {
     const c = check({
       delayMinutes: 7,
       trafficSections: [{ severity: "heavy", delayMinutes: 6, points: pts }],
     });
     const line = roadLines([c])[0]!;
     const card = trafficCard([c], line, 0, hst(7, 5).getTime())!;
-    expect(card.title).toBe("H-1 eastbound");
+    expect(card.title).toBe("Kapolei ↔ town route, heading east");
+    expect(card.title).not.toContain("H-1");
     expect(card.level).toBe("Heavy traffic");
     expect(card.facts).toEqual(["+6 min on this stretch", "+7 min over usual on the whole route"]);
     expect(card.source).toBe("TomTom · live · updated 5 min ago");
     expect(card.between).toBeNull();
   });
 
+  it("names the road when the route has only one", () => {
+    const c = check({ corridorRoads: ["H-1 East"] });
+    const card = trafficCard([c], roadLines([c])[0]!, null, hst(7).getTime())!;
+    expect(card.title).toBe("H-1 eastbound");
+  });
+
+  it("tapping the road shows both directions, never one leg's word for both", () => {
+    const c: RoadCheck = {
+      ...check({ delayMinutes: 0 }),
+      back: drive({
+        delayMinutes: 15,
+        path: [...pts].reverse(),
+        fetchedAt: hst(7).getTime(),
+      }),
+    };
+    const card = trafficCard([c], roadLines([c])[0]!, null, hst(7).getTime())!;
+    expect(card.legs).toEqual([
+      { label: "Heading east", text: "running as usual" },
+      { label: "Heading west", text: "+15 min over usual" },
+    ]);
+    expect(card.level).toBeNull();
+  });
+
   it("says there is no usual-time comparison instead of inventing a delay", () => {
     const c = check({ typicalChecked: false, provider: "mapbox", delayMinutes: 0 });
     const line = roadLines([c])[0]!;
     const card = trafficCard([c], line, null, hst(7).getTime())!;
-    expect(card.facts).toEqual([]);
-    expect(card.level).toBeNull();
-    expect(card.source).toContain("Mapbox · live, no usual-time comparison");
+    expect(card.legs[0]!.text).toBe("no usual-time comparison");
+    expect(card.source).toContain("Mapbox · live (no usual-time comparison)");
+    expect(trafficSourceLabel([c])).toBe("Mapbox · live (no usual-time comparison)");
+  });
+
+  it("says live only for live data, and gives the age of a check kept after a failure", () => {
+    const later = check({ trafficBasis: "future-estimate" });
+    expect(trafficSourceLabel([later])).toBe("TomTom · estimate for a later time");
+    const kept = { ...check({}), failed: true };
+    const card = trafficCard([kept], roadLines([kept])[0]!, null, hst(7, 12).getTime())!;
+    expect(card.source).toBe("TomTom · from 12 min ago");
+  });
+
+  it("borrows an incident's stretch only from a road on this route", () => {
+    const at = pts[0]!;
+    const mk = (road: string) =>
+      check({
+        corridorRoads: ["H-1 East", "Nimitz Hwy"],
+        trafficSections: [{ severity: "heavy", delayMinutes: 6, points: pts }],
+        incidents: [
+          {
+            id: "i",
+            description: "x",
+            delayMinutes: 5,
+            road,
+            category: "1",
+            from: "Aiea",
+            to: "Pearl City",
+            points: [at],
+          },
+        ],
+      });
+    const onRoute = mk("H-1");
+    expect(trafficCard([onRoute], roadLines([onRoute])[0]!, 0, hst(7).getTime())!.between).toBe(
+      "ʻAiea → Pearl City",
+    );
+    const other = mk("Kamehameha Hwy");
+    expect(trafficCard([other], roadLines([other])[0]!, 0, hst(7).getTime())!.between).toBeNull();
   });
 });

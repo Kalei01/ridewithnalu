@@ -158,6 +158,12 @@ export function TrafficCard({ card, onClose }: { card: TrafficCardData; onClose:
           </p>
           {card.between && <p className="mt-0.5 text-sm text-foreground">{card.between}</p>}
           {card.level && <p className="mt-1 text-sm font-semibold text-foreground">{card.level}</p>}
+          {card.legs.map((leg) => (
+            <p key={leg.label} className="mt-1 text-sm text-foreground">
+              {leg.label}
+              <span className="text-muted-foreground"> · {leg.text}</span>
+            </p>
+          ))}
           {card.facts.map((fact) => (
             <p key={fact} className="mt-0.5 text-sm text-muted-foreground">
               {fact}

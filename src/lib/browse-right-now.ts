@@ -714,27 +714,39 @@ export function roadLines(checks: RoadCheck[]): RoadLine[] {
   return lines;
 }
 
-/** Who answered, for the Layers menu: "TomTom, live", "Mapbox estimate", or null. */
+/** One wording for who answered, shared by the Layers menu and the traffic card. */
+function providerWording(drive: DriveTime): string {
+  const provider = drive.provider === "mapbox" ? "Mapbox" : "TomTom";
+  const live = drive.trafficBasis === "live";
+  const compared = drive.typicalChecked !== false;
+  return `${provider} · ${live ? "live" : "estimate for a later time"}${
+    drive.provider === "mapbox" && !compared ? " (no usual-time comparison)" : ""
+  }`;
+}
+
+/** Who answered, for the Layers menu: "TomTom · live", "Mapbox · live (no usual-time comparison)", or null. */
 export function trafficSourceLabel(checks: RoadCheck[]): string | null {
   const drives = checks
     .flatMap((c) => [c.forward, c.back])
     .filter((d): d is DriveTime => d !== undefined);
   if (!drives.length) return null;
-  return drives.some((d) => d.provider === "mapbox") ? "Mapbox estimate" : "TomTom, live";
+  return providerWording(drives.find((d) => d.provider === "mapbox") ?? drives[0]!);
 }
 
 // ---- Traffic card -------------------------------------------------------
 
 export type TrafficCardData = {
-  /** "H-1 westbound" (road and way only as far as the data says). */
+  /** A road is named only when the route has one main road; otherwise "Kapolei ↔ town route". */
   title: string;
-  /** "ʻAiea → Pearl City" when a reported incident names the stretch; otherwise null. */
+  /** "ʻAiea → Pearl City" when a reported incident on this same road names the stretch; otherwise null. */
   between: string | null;
-  /** "Heavy traffic", "Slow traffic", "No slowdown reported here", or null when unknown. */
+  /** "Heavy traffic", "Slow traffic" for a tapped slow stretch; otherwise null. */
   level: string | null;
   tone: "bad" | "warn" | "info";
-  /** Lines that restate the provider's own numbers. Absent data is absent here. */
+  /** The provider's own numbers for the tapped stretch. Absent data is absent here. */
   facts: string[];
+  /** Each direction's state when the road itself was tapped (never one leg's word for both). */
+  legs: { label: string; text: string }[];
   /** "TomTom · live · updated 3 min ago". */
   source: string;
 };
@@ -745,10 +757,22 @@ function nearPoint(a: LatLon, b: LatLon, meters: number): boolean {
   return Math.hypot(dLat, dLon) <= meters;
 }
 
+/** The way a leg travels, from its own geometry ("heading east"); null when it barely moves. */
+function legWay(drive: DriveTime): string | null {
+  const net = netDirection(drive.path);
+  return net ? `heading ${net.replace("bound", "")}` : null;
+}
+
+function legText(drive: DriveTime): string {
+  if (drive.typicalChecked === false) return "no usual-time comparison";
+  const delay = Math.round(drive.delayMinutes);
+  return delay >= 1 ? `+${delay} min over usual` : "running as usual";
+}
+
 /**
  * The card for a tapped road segment. `sectionIndex` is the index into the road line's
  * `sections` (a slow stretch), or null for the road itself. Only the provider's own
- * numbers are stated; nothing is estimated.
+ * numbers are stated; nothing is estimated and no road is named unless the route has just one.
  */
 export function trafficCard(
   checks: RoadCheck[],
@@ -759,22 +783,30 @@ export function trafficCard(
   const check = checks.find((c) => c.id === line.id);
   if (!check) return null;
   const section = sectionIndex === null ? null : (line.sections[sectionIndex] ?? null);
-  const drive = section
-    ? section.way === "f"
-      ? check.forward
-      : check.back
-    : (check.forward ?? check.back);
+  const legs: { drive: DriveTime; id: "f" | "b" }[] = [];
+  if (check.forward) legs.push({ drive: check.forward, id: "f" });
+  if (check.back && check.back !== check.forward) legs.push({ drive: check.back, id: "b" });
+  const tappedLegs = section ? legs.filter((l) => l.id === section.way) : legs;
+  const drive = tappedLegs[0]?.drive;
   if (!drive) return null;
 
-  const road = checkRoadNames(check)[0] ?? "";
-  const direction = road ? routeDirectionOn(drive, road) : null;
-  const title = road ? `${road}${direction ? ` ${direction}` : ""}` : check.area;
+  // Per-stretch road names are not in the data: name the road only when the whole route has one main road.
+  const roadNames = routeRoadNames(drive);
+  const oneRoad = roadNames.length === 1 ? roadNames[0]! : null;
+  const way = section ? legWay(drive) : null;
+  const direction = oneRoad ? routeDirectionOn(drive, oneRoad) : null;
+  const title = oneRoad
+    ? `${oneRoad}${direction ? ` ${direction}` : ""}`
+    : `${check.area} route${way ? `, ${way}` : ""}`;
 
-  // A reported stretch ("Aiea to Pearl City") only when an incident on this drive sits on this segment.
+  // Borrow an incident's named stretch only when it is on a road of this route and on this stretch.
   let between: string | null = null;
   if (section) {
+    const routeKeys = new Set(roadNames.map(roadKey));
     const hit = drive.incidents.find(
       (i) =>
+        i.road &&
+        routeKeys.has(roadKey(localRoadName(i.road) ?? i.road)) &&
         i.from?.trim() &&
         i.to?.trim() &&
         i.from.trim().toLowerCase() !== i.to.trim().toLowerCase() &&
@@ -783,37 +815,37 @@ export function trafficCard(
     if (hit) between = `${localPlace(hit.from!.trim())} → ${localPlace(hit.to!.trim())}`;
   }
 
-  const compared = drive.typicalChecked !== false;
   const facts: string[] = [];
   if (section && section.delayMinutes >= 1)
     facts.push(`+${section.delayMinutes} min on this stretch`);
-  if (compared) {
+  if (section && drive.typicalChecked !== false) {
     const delay = Math.round(drive.delayMinutes);
     if (delay >= 1) facts.push(`+${delay} min over usual on the whole route`);
-    else if (!section) facts.push("Running about as usual");
   }
 
-  const level = section
-    ? section.severity === "heavy"
-      ? "Heavy traffic"
-      : "Slow traffic"
-    : line.state === "clear"
-      ? "No slowdown reported here"
-      : null;
+  const legLines = section
+    ? []
+    : legs.map((l) => ({
+        label: (legWay(l.drive) ?? (l.id === "f" ? "one way" : "the other way")).replace(
+          /^./,
+          (c) => c.toUpperCase(),
+        ),
+        text: legText(l.drive),
+      }));
+
+  const level = section ? (section.severity === "heavy" ? "Heavy traffic" : "Slow traffic") : null;
   const tone: TrafficCardData["tone"] = section
     ? section.severity === "heavy"
       ? "bad"
       : "warn"
     : "info";
 
-  const provider = drive.provider === "mapbox" ? "Mapbox" : "TomTom";
+  // Always say how fresh it is; a check kept after a failed refresh says "from N min ago".
+  const stale = check.failed;
   const age = drive.fetchedAt ? ageText(drive.fetchedAt, nowMs) : null;
-  const source = [
-    provider,
-    drive.provider === "mapbox" && !compared ? "live, no usual-time comparison" : "live",
-    age ? `updated ${age}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  return { title, between, level, tone, facts, source };
+  const wording = providerWording(drive);
+  const source = stale
+    ? [wording.replace(" · live", ""), age ? `from ${age}` : null].filter(Boolean).join(" · ")
+    : [wording, age ? `updated ${age}` : null].filter(Boolean).join(" · ");
+  return { title, between, level, tone, facts, legs: legLines, source };
 }
