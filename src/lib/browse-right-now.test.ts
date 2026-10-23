@@ -7,6 +7,9 @@ import {
   closureState,
   closureWhere,
   closureWindow,
+  incidentPins,
+  roadLines,
+  trafficCard,
   type RoadCheck,
 } from "./browse-right-now";
 
@@ -311,5 +314,69 @@ describe("rider-facing wording", () => {
     const line = buildRightNow({ checks: [blind], closures: [], now: hst(7) }).line;
     expect(line).toBe("H-1 and Nimitz Hwy: traffic looks normal; crash data limited right now");
     expect(line).not.toMatch(/clear/);
+  });
+});
+
+describe("map incident kinds and the traffic card", () => {
+  const pts = [
+    { lat: 21.33, lon: -158.0 },
+    { lat: 21.34, lon: -157.95 },
+  ];
+  const check = (over: Partial<DriveTime>): RoadCheck => ({
+    id: "c1",
+    area: "Kapolei ↔ town",
+    forward: drive({ fetchedAt: hst(7).getTime(), ...over }),
+    back: undefined,
+    loading: false,
+    failed: false,
+  });
+
+  it("gives crashes, police reports, closures and roadwork their own pin kind", () => {
+    const at = { lat: 21.33, lon: -157.9 };
+    const c = check({
+      incidents: [
+        { id: "a", description: "x", delayMinutes: null, road: "H-1", category: "1", points: [at] },
+        {
+          id: "b",
+          description: "x",
+          delayMinutes: null,
+          road: null,
+          category: "6",
+          source: "hpd",
+          points: [at],
+        },
+        { id: "c", description: "x", delayMinutes: null, road: "H-1", category: "8", points: [at] },
+        { id: "d", description: "x", delayMinutes: null, road: "H-1", category: "9", points: [at] },
+      ],
+    });
+    expect(incidentPins([c], hst(7).getTime()).map((p) => p.kind)).toEqual([
+      "crash",
+      "police",
+      "closure",
+      "roadwork",
+    ]);
+  });
+
+  it("states only what the provider gave: level, delay, source and age", () => {
+    const c = check({
+      delayMinutes: 7,
+      trafficSections: [{ severity: "heavy", delayMinutes: 6, points: pts }],
+    });
+    const line = roadLines([c])[0]!;
+    const card = trafficCard([c], line, 0, hst(7, 5).getTime())!;
+    expect(card.title).toBe("H-1 eastbound");
+    expect(card.level).toBe("Heavy traffic");
+    expect(card.facts).toEqual(["+6 min on this stretch", "+7 min over usual on the whole route"]);
+    expect(card.source).toBe("TomTom · live · updated 5 min ago");
+    expect(card.between).toBeNull();
+  });
+
+  it("says there is no usual-time comparison instead of inventing a delay", () => {
+    const c = check({ typicalChecked: false, provider: "mapbox", delayMinutes: 0 });
+    const line = roadLines([c])[0]!;
+    const card = trafficCard([c], line, null, hst(7).getTime())!;
+    expect(card.facts).toEqual([]);
+    expect(card.level).toBeNull();
+    expect(card.source).toContain("Mapbox · live, no usual-time comparison");
   });
 });

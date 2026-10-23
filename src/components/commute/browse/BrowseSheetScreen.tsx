@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { ClientOnly } from "@tanstack/react-router";
+import { ClientOnly, Link } from "@tanstack/react-router";
 import {
   Bus,
   ChevronDown,
   ChevronRight,
+  House,
   MapPinOff,
   Plus,
   Settings,
@@ -48,6 +49,7 @@ import {
   incidentItems,
   incidentPins,
   roadLines,
+  trafficCard,
   trafficSourceLabel,
   type MapFocus,
   type RightNowItem,
@@ -59,7 +61,7 @@ import { useBrowseSheetOptIn, useLeaveBrowseSheet } from "./browse-flag";
 import { BrowseSheet, type SheetState } from "./BrowseSheet";
 import type { MapCommand, MapLayers, MapSelection } from "./BrowseMap";
 import { MapControls } from "./MapControls";
-import { ItemCard, RightNowBlock, RightNowLine, RoadClosuresRow } from "./RightNow";
+import { ItemCard, RightNowBlock, RightNowLine, RoadClosuresRow, TrafficCard } from "./RightNow";
 import { RoadStatusRows } from "./OnTheRoad";
 import { browseDemo } from "./browse-demo";
 import { scrollBehavior } from "@/lib/motion";
@@ -253,7 +255,7 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
     }
     beginFocus();
     setActiveItem(next.kind === "incident" ? next.id : null);
-    if (next.kind === "place" || next.kind === "incident") {
+    if (next.kind === "place" || next.kind === "incident" || next.kind === "traffic") {
       setStationFocus(false);
       setSelection(next);
       return;
@@ -319,6 +321,16 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
       ? (nearbyStops.find((s) => s.stopId === selection.id) ?? null)
       : null;
 
+  // A tapped road segment: "<road id>#<slow stretch number, or b for the road itself>".
+  const trafficData = useMemo(() => {
+    if (selection?.kind !== "traffic") return null;
+    const cut = selection.id.lastIndexOf("#");
+    const line = lines.find((l) => l.id === selection.id.slice(0, cut));
+    if (!line) return null;
+    const part = selection.id.slice(cut + 1);
+    return trafficCard(roadChecks, line, part === "b" ? null : Number(part), data.now.getTime());
+  }, [selection, lines, roadChecks, data.now]);
+
   const skylineFar = data.skylineOutOfReach;
   // The tapped item's card: a place, a station, a stop, or an incident/closure/slowdown.
   const focusCard = selectedPlace ? (
@@ -363,6 +375,8 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
     <section className="nb-select-card nh-card p-4" aria-label={titleCase(selectedStop.stopName)}>
       <StopDetail stop={selectedStop} nowSeconds={nowSeconds} onClose={closeFocus} />
     </section>
+  ) : trafficData ? (
+    <TrafficCard card={trafficData} onClose={closeFocus} />
   ) : activeCard ? (
     <ItemCard item={activeCard} onClose={closeFocus} />
   ) : null;
@@ -373,12 +387,40 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
     ) : (
       (focusCard ?? <RightNowBlock now={rightNow} activeId={activeItem} onFocus={flyTo} />)
     );
+  /* Saved places are shortcuts, never assumptions: no default destination. One scrolling row, visible at peek. */
+  const placeChips = (
+    <div className="nh-rail-scroll nb-chips" role="group" aria-label="Saved places">
+      {data.savedPlaces.slice(0, 4).map((place) => {
+        const Icon = shortcutIcon(place.kind);
+        return (
+          <a
+            key={place.id}
+            href={plannerHref({
+              name: place.name || place.label,
+              lat: place.lat,
+              lon: place.lon,
+            })}
+            className="nh-chip"
+            aria-label={`Plan a trip to ${place.label || kindLabel(place.kind)}`}
+          >
+            <Icon aria-hidden="true" className="size-4 text-muted-foreground" />{" "}
+            {place.label || kindLabel(place.kind)}
+          </a>
+        );
+      })}
+      <a href="/" className="nh-chip" aria-label="Add a place">
+        <Plus aria-hidden="true" className="size-4 text-muted-foreground" />
+        {data.savedPlaces.length ? "" : "Add place"}
+      </a>
+    </div>
+  );
   const peek = (
     <div>
       {header}
       <div className="nb-where" onFocusCapture={openHalf}>
         <WhereToSearch />
       </div>
+      {placeChips}
     </div>
   );
 
@@ -453,8 +495,15 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
       )}
 
       <div className="nb-brand">
-        <WaveMark className="h-5 w-auto text-foreground" />
-        <span className="text-base font-medium tracking-wide">Nalu</span>
+        <Link
+          to="/welcome"
+          aria-label="Nalu home"
+          className="nb-home -ml-2 inline-flex min-h-11 items-center gap-2 rounded-full pl-3 pr-2 active:bg-white/10"
+        >
+          <House aria-hidden="true" className="size-5 text-foreground" />
+          <WaveMark className="h-5 w-auto text-foreground" />
+          <span className="text-base font-medium tracking-wide">Nalu</span>
+        </Link>
         <span className="hidden pr-2 text-xs text-muted-foreground min-[380px]:inline">
           {alohaGreeting(data.now, profileFirstName(user))}
         </span>
@@ -495,32 +544,6 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
             reconnect.
           </p>
         )}
-
-        {/* Saved places are shortcuts, never assumptions: no default destination. */}
-        <div className="nh-rail-scroll mt-1" role="group" aria-label="Saved places">
-          {data.savedPlaces.slice(0, 4).map((place) => {
-            const Icon = shortcutIcon(place.kind);
-            return (
-              <a
-                key={place.id}
-                href={plannerHref({
-                  name: place.name || place.label,
-                  lat: place.lat,
-                  lon: place.lon,
-                })}
-                className="nh-chip"
-                aria-label={`Plan a trip to ${place.label || kindLabel(place.kind)}`}
-              >
-                <Icon aria-hidden="true" className="size-4 text-muted-foreground" />{" "}
-                {place.label || kindLabel(place.kind)}
-              </a>
-            );
-          })}
-          <a href="/" className="nh-chip" aria-label="Add a place">
-            <Plus aria-hidden="true" className="size-4 text-muted-foreground" />
-            {data.savedPlaces.length ? "" : "Add place"}
-          </a>
-        </div>
 
         {/* Today: Morning / Evening Pulse and Beat the Rush (each in its own time window) */}
         {hasTransit && (

@@ -4,6 +4,7 @@ import { removeMapSafely } from "@/lib/leaflet-safe";
 import { flyMotion, prefersReducedMotion } from "@/lib/motion";
 import { skylineStationParts } from "@/lib/rail/station-names";
 import { splitSkylineStations } from "@/lib/rail/skyline-stations";
+import { INCIDENT_GLYPH } from "./incident-glyphs";
 
 /**
  * The Browse sheet's map: one dark, non-satellite map with switchable layers.
@@ -31,7 +32,9 @@ export type MapSelection =
   | { kind: "stop"; id: string }
   | { kind: "station"; id: string }
   | { kind: "place"; id: string }
-  | { kind: "incident"; id: string };
+  | { kind: "incident"; id: string }
+  /** A traffic-coloured road segment: id is "<road id>#<slow-stretch number or b for the road itself>". */
+  | { kind: "traffic"; id: string; lat: number; lon: number };
 export type MapLayers = {
   skyline: boolean;
   traffic: boolean;
@@ -56,6 +59,7 @@ export type MapIncident = {
   lon: number;
   label: string;
   tone: "bad" | "warn" | "info";
+  kind: "crash" | "police" | "closure" | "roadwork" | "other";
 };
 /** Something the sheet asks the map to do: fly to a place, or back to the rider. */
 export type MapCommand =
@@ -75,8 +79,6 @@ const BUS_GLYPH =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-1l1.5 2h-3L14 18h-4l-1.5 2h-3L7 18H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Zm0 3v5h12V7H6Zm1 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm10 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>';
 const HOME_GLYPH =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 10.5V21h6v-6h6v6h6V10.5L12 3Z"/></svg>';
-const ALERT_GLYPH =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 22 20H2L12 2.5Zm-1 7v5h2v-5h-2Zm0 6.5v2h2v-2h-2Z"/></svg>';
 const WORK_GLYPH =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2Zm0 2v2h6V5H9Z"/></svg>';
 
@@ -105,12 +107,20 @@ function icon(
   });
 }
 
-function incidentIcon(label: string, tone: MapIncident["tone"], selected: boolean, pulse: boolean) {
+function incidentIcon(
+  label: string,
+  kind: MapIncident["kind"],
+  tone: MapIncident["tone"],
+  selected: boolean,
+  pulse: boolean,
+) {
+  const cls = kind === "other" ? `nb-incident-${tone}` : `nb-incident-${kind}`;
   return L.divIcon({
-    className: "nalu-marker-shell nb-pin",
-    html: `<span class="nb-incident nb-incident-${tone}${selected ? " is-selected" : ""}${pulse ? " is-new" : ""}" role="img" aria-label="${label}">${ALERT_GLYPH}</span>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
+    className: "nalu-marker-shell nb-pin nb-pin-incident",
+    html: `<span class="nb-incident ${cls}${selected ? " is-selected" : ""}${pulse ? " is-new" : ""}" role="img" aria-label="${label}">${INCIDENT_GLYPH[kind]}</span>`,
+    // A 44 px hit area around the 36 px circle.
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 }
 
@@ -228,6 +238,16 @@ export default function BrowseMap({
         if (road.path.length < 2) continue;
         const line = road.path.map((p) => [p.lat, p.lon] as L.LatLngTuple);
         const base = road.state === "clear" ? "#30d158" : "#8e8e93";
+        const tap = (id: string) => (event: L.LeafletMouseEvent) => {
+          L.DomEvent.stopPropagation(event);
+          onSelectRef.current({
+            kind: "traffic",
+            id,
+            lat: event.latlng.lat,
+            lon: event.latlng.lng,
+          });
+        };
+        const roadSelected = selected?.kind === "traffic" && selected.id.startsWith(`${road.id}#`);
         L.polyline(line, {
           pane: "nb-traffic-pane",
           color: "#06090d",
@@ -242,8 +262,18 @@ export default function BrowseMap({
           opacity: road.state === "clear" ? 0.8 : 0.55,
           interactive: false,
         }).addTo(group);
-        for (const section of road.sections) {
-          if (section.points.length < 2) continue;
+        // A wide, invisible strip makes the road easy to tap with a finger.
+        L.polyline(line, {
+          pane: "nb-traffic-pane",
+          color: "#000",
+          weight: 26,
+          opacity: 0,
+          bubblingMouseEvents: false,
+        })
+          .on("click", tap(`${road.id}#b`))
+          .addTo(group);
+        road.sections.forEach((section, index) => {
+          if (section.points.length < 2) return;
           const heavy = section.severity === "heavy";
           const pts = section.points.map((p) => [p.lat, p.lon] as L.LatLngTuple);
           L.polyline(pts, {
@@ -263,7 +293,32 @@ export default function BrowseMap({
             className: heavy ? "nb-flow nb-flow-heavy" : "nb-flow nb-flow-moderate",
             interactive: false,
           }).addTo(group);
-        }
+          L.polyline(pts, {
+            pane: "nb-traffic-pane",
+            color: "#000",
+            weight: 26,
+            opacity: 0,
+            bubblingMouseEvents: false,
+          })
+            .on("click", tap(`${road.id}#${index}`))
+            .addTo(group);
+          if (selected?.kind === "traffic" && selected.id === `${road.id}#${index}`)
+            L.polyline(pts, {
+              pane: "nb-traffic-pane",
+              color: "#fff",
+              weight: 9,
+              opacity: 0.45,
+              interactive: false,
+            }).addTo(group);
+        });
+        if (roadSelected && selected.id.endsWith("#b"))
+          L.polyline(line, {
+            pane: "nb-traffic-pane",
+            color: "#fff",
+            weight: 9,
+            opacity: 0.3,
+            interactive: false,
+          }).addTo(group);
       }
     }
     if (layers.incidents) {
@@ -272,7 +327,13 @@ export default function BrowseMap({
         pulsedRef.current.add(incident.id);
         const marker = L.marker([incident.lat, incident.lon], {
           pane: "nalu-stop-pane",
-          icon: incidentIcon(incident.label, incident.tone, isSel("incident", incident.id), fresh),
+          icon: incidentIcon(
+            incident.label,
+            incident.kind,
+            incident.tone,
+            isSel("incident", incident.id),
+            fresh,
+          ),
           title: incident.label,
           keyboard: true,
           zIndexOffset: 400,
@@ -290,12 +351,20 @@ export default function BrowseMap({
       );
     if (layers.skyline && lineStations.length > 1) {
       const line = lineStations.map((s) => [s.lat, s.lon] as L.LatLngTuple);
-      L.polyline(line, { pane: "nb-line-pane", color: "#0a84ff", weight: 9, opacity: 0.18 }).addTo(
-        group,
-      );
-      L.polyline(line, { pane: "nb-line-pane", color: "#6cb8ff", weight: 3, opacity: 0.95 }).addTo(
-        group,
-      );
+      L.polyline(line, {
+        pane: "nb-line-pane",
+        color: "#0a84ff",
+        weight: 9,
+        opacity: 0.18,
+        interactive: false,
+      }).addTo(group);
+      L.polyline(line, {
+        pane: "nb-line-pane",
+        color: "#6cb8ff",
+        weight: 3,
+        opacity: 0.95,
+        interactive: false,
+      }).addTo(group);
     }
     if (layers.skyline) {
       for (const station of lineStations) {
@@ -408,6 +477,7 @@ export default function BrowseMap({
   const selectedPoint = (() => {
     if (!selected) return null;
     if (selected.kind === "place") return places.find((p) => p.id === selected.id) ?? null;
+    if (selected.kind === "traffic") return { lat: selected.lat, lon: selected.lon };
     if (selected.kind === "incident") return incidents.find((i) => i.id === selected.id) ?? null;
     if (selected.kind === "station") return stations.find((s) => s.stopId === selected.id) ?? null;
     return stops.find((s) => s.stopId === selected.id) ?? null;

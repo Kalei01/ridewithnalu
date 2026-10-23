@@ -625,13 +625,27 @@ export function calmLine(checks: RoadCheck[]): string {
 
 // ---- Map data -----------------------------------------------------------
 
+/** What a map pin looks like: each kind has its own colour and glyph. */
+export type IncidentKind = "crash" | "police" | "closure" | "roadwork" | "other";
+
 export type IncidentPin = {
   id: string;
   lat: number;
   lon: number;
   label: string;
   tone: RightNowItem["tone"];
+  kind: IncidentKind;
 };
+
+/** Police (HPD) reports first, then the provider's own category. */
+export function incidentKind(incident: DriveIncident): IncidentKind {
+  if (incident.source === "hpd") return "police";
+  const label = incidentLabel(incident);
+  if (label === "Accident") return "crash";
+  if (label === "Road closure" || label === "Lane closure") return "closure";
+  if (label === "Roadwork") return "roadwork";
+  return "other";
+}
 
 /** One pin per reported incident that carries its own coordinates (TomTom, and police reports that have them). */
 export function incidentPins(checks: RoadCheck[], nowMs: number): IncidentPin[] {
@@ -641,7 +655,14 @@ export function incidentPins(checks: RoadCheck[], nowMs: number): IncidentPin[] 
     const points = incident.points;
     if (!item || !points?.length) continue;
     const mid = points[Math.floor(points.length / 2)]!;
-    pins.push({ id: item.id, lat: mid.lat, lon: mid.lon, label: item.title, tone: item.tone });
+    pins.push({
+      id: item.id,
+      lat: mid.lat,
+      lon: mid.lon,
+      label: item.title,
+      tone: item.tone,
+      kind: incidentKind(incident),
+    });
   }
   return pins;
 }
@@ -651,7 +672,13 @@ export type RoadLine = {
   path: LatLon[];
   /** "clear" only when the live check had a usual-time comparison; otherwise "unknown" (grey). */
   state: "clear" | "unknown";
-  sections: { severity: "moderate" | "heavy"; points: LatLon[] }[];
+  sections: {
+    severity: "moderate" | "heavy";
+    points: LatLon[];
+    /** Which way's check reported it ("f" forward, "b" back) and its own delay. */
+    way: "f" | "b";
+    delayMinutes: number;
+  }[];
   key: string;
 };
 
@@ -669,7 +696,12 @@ export function roadLines(checks: RoadCheck[]): RoadLine[] {
     const sections = drives.flatMap((d) =>
       d.trafficSections
         .filter((s) => s.points.length >= 2)
-        .map((s) => ({ severity: s.severity, points: toLL(simplifyPath(s.points, 15)) })),
+        .map((s) => ({
+          severity: s.severity,
+          points: toLL(simplifyPath(s.points, 15)),
+          way: d === check.forward ? ("f" as const) : ("b" as const),
+          delayMinutes: Math.round(s.delayMinutes),
+        })),
     );
     lines.push({
       id: check.id,
@@ -689,4 +721,99 @@ export function trafficSourceLabel(checks: RoadCheck[]): string | null {
     .filter((d): d is DriveTime => d !== undefined);
   if (!drives.length) return null;
   return drives.some((d) => d.provider === "mapbox") ? "Mapbox estimate" : "TomTom, live";
+}
+
+// ---- Traffic card -------------------------------------------------------
+
+export type TrafficCardData = {
+  /** "H-1 westbound" (road and way only as far as the data says). */
+  title: string;
+  /** "ʻAiea → Pearl City" when a reported incident names the stretch; otherwise null. */
+  between: string | null;
+  /** "Heavy traffic", "Slow traffic", "No slowdown reported here", or null when unknown. */
+  level: string | null;
+  tone: "bad" | "warn" | "info";
+  /** Lines that restate the provider's own numbers. Absent data is absent here. */
+  facts: string[];
+  /** "TomTom · live · updated 3 min ago". */
+  source: string;
+};
+
+function nearPoint(a: LatLon, b: LatLon, meters: number): boolean {
+  const dLat = (a.lat - b.lat) * 111_000;
+  const dLon = (a.lon - b.lon) * 111_000 * Math.cos((a.lat * Math.PI) / 180);
+  return Math.hypot(dLat, dLon) <= meters;
+}
+
+/**
+ * The card for a tapped road segment. `sectionIndex` is the index into the road line's
+ * `sections` (a slow stretch), or null for the road itself. Only the provider's own
+ * numbers are stated; nothing is estimated.
+ */
+export function trafficCard(
+  checks: RoadCheck[],
+  line: RoadLine,
+  sectionIndex: number | null,
+  nowMs: number,
+): TrafficCardData | null {
+  const check = checks.find((c) => c.id === line.id);
+  if (!check) return null;
+  const section = sectionIndex === null ? null : (line.sections[sectionIndex] ?? null);
+  const drive = section
+    ? section.way === "f"
+      ? check.forward
+      : check.back
+    : (check.forward ?? check.back);
+  if (!drive) return null;
+
+  const road = checkRoadNames(check)[0] ?? "";
+  const direction = road ? routeDirectionOn(drive, road) : null;
+  const title = road ? `${road}${direction ? ` ${direction}` : ""}` : check.area;
+
+  // A reported stretch ("Aiea to Pearl City") only when an incident on this drive sits on this segment.
+  let between: string | null = null;
+  if (section) {
+    const hit = drive.incidents.find(
+      (i) =>
+        i.from?.trim() &&
+        i.to?.trim() &&
+        i.from.trim().toLowerCase() !== i.to.trim().toLowerCase() &&
+        i.points?.some((p) => section.points.some((q) => nearPoint(p, q, 400))),
+    );
+    if (hit) between = `${localPlace(hit.from!.trim())} → ${localPlace(hit.to!.trim())}`;
+  }
+
+  const compared = drive.typicalChecked !== false;
+  const facts: string[] = [];
+  if (section && section.delayMinutes >= 1)
+    facts.push(`+${section.delayMinutes} min on this stretch`);
+  if (compared) {
+    const delay = Math.round(drive.delayMinutes);
+    if (delay >= 1) facts.push(`+${delay} min over usual on the whole route`);
+    else if (!section) facts.push("Running about as usual");
+  }
+
+  const level = section
+    ? section.severity === "heavy"
+      ? "Heavy traffic"
+      : "Slow traffic"
+    : line.state === "clear"
+      ? "No slowdown reported here"
+      : null;
+  const tone: TrafficCardData["tone"] = section
+    ? section.severity === "heavy"
+      ? "bad"
+      : "warn"
+    : "info";
+
+  const provider = drive.provider === "mapbox" ? "Mapbox" : "TomTom";
+  const age = drive.fetchedAt ? ageText(drive.fetchedAt, nowMs) : null;
+  const source = [
+    provider,
+    drive.provider === "mapbox" && !compared ? "live, no usual-time comparison" : "live",
+    age ? `updated ${age}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return { title, between, level, tone, facts, source };
 }

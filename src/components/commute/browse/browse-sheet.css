@@ -7,7 +7,7 @@
   inset: 0;
   overflow: hidden;
   background: var(--nh-sea, #0a1117);
-  --nb-peek: calc(12rem + env(safe-area-inset-bottom));
+  --nb-peek: calc(13.75rem + env(safe-area-inset-bottom));
   --nb-h: calc(100dvh - 4rem - env(safe-area-inset-top));
   --nb-half: 50dvh;
 }
@@ -294,6 +294,43 @@ button.nb-now-item:active {
   padding: 0.6rem 0.65rem;
   border-radius: 0.7rem;
 }
+.nb-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.5rem;
+  margin: 0.25rem 0.65rem 0.4rem;
+  padding: 0.6rem 0 0.1rem;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  list-style: none;
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+.nb-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.nb-legend-dot {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  border: 1.5px solid #fff;
+  color: #fff;
+}
+.nb-legend-dot.nb-incident-police {
+  color: #1a1200;
+}
+.nb-legend-dot.nb-incident-roadwork {
+  color: #1a1400;
+}
+.nb-legend-dot svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
 .nb-layers-check {
   flex: none;
   width: 1.25rem;
@@ -323,25 +360,44 @@ button.nb-now-item:active {
   }
 }
 
+.nalu-marker-shell.nb-pin-incident {
+  width: 44px !important;
+  height: 44px !important;
+}
 /* Incident pins: a ring pulses three times when the pin first appears, then rests */
 .nb-incident {
   position: relative;
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
-  margin: 0.5rem;
+  /* 36 px circle inside the 44 px marker box: the whole box is the tap target. */
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: 0;
   border-radius: 999px;
   border: 2px solid #fff;
   color: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 55%);
 }
 .nb-incident svg {
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   fill: currentColor;
 }
+/* Crash: red. Police report: amber. Closure: orange. Roadwork: yellow. */
+.nb-incident-crash,
 .nb-incident-bad {
-  background: #ff453a;
+  background: #ff3b30;
+}
+.nb-incident-police {
+  background: #ffb000;
+  color: #1a1200;
+}
+.nb-incident-closure {
+  background: #f26a1b;
+}
+.nb-incident-roadwork {
+  background: #ffe14d;
+  color: #1a1400;
 }
 .nb-incident-warn {
   background: #e08a00;
@@ -380,7 +436,16 @@ button.nb-now-item:active {
 .nb-where {
   position: relative;
   margin-top: 0.5rem;
-  padding-bottom: 2rem;
+  padding-bottom: 0.6rem;
+}
+/* Place shortcuts: one scrolling row right under Where to?, visible without opening the sheet. */
+.nb-sheet-header .nb-chips {
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  scroll-padding-inline: 1rem;
+  padding-bottom: 0.15rem;
+  /* No snapping: the row always opens at its first chip. */
+  scroll-snap-type: none;
 }
 .nb-where::before {
   content: "";

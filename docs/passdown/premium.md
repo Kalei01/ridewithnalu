@@ -7,6 +7,7 @@ Last updated: 2026-10-22 (Browse sheet phase 3 preview). Keep ≤ 60 lines; see 
 - "Tell Nalu something" form polish: done Oct 11 (visible off checkbox, "Your note" label).
 
 ## Browse sheet PHASE 3 (Oct 22, local commit, not pushed): see backlog.md Browse Phase 3 line. New: RightNow.tsx, OnTheRoad.tsx, MapControls.tsx, browse-demo.ts (dev ?demo=), browse-flag.ts; lib browse-right-now.ts / browse-corridors.ts (+tests). Old Browse untouched.
+- Browse sheet round 5 (Oct 23, local commit): place chips at peek, Home button (-> /welcome) in brand pill, tap a traffic segment -> Traffic card, distinct incident icons (crash red, police amber, closure orange, roadwork yellow) + Layers legend. Dev demo `?demo=incident-kinds`.
 
 ## Browse redesign (sheet) — PHASE 1 of 4 (Oct 18, Sonnet build for MAIN) — PREVIEW ONLY
 - /browse-preview (noindex, not linked, not in sitemap; "/" Browse untouched). Plan, phases and approved motions: `docs/experience/backlog.md`.

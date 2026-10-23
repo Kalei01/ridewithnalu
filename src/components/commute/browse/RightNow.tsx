@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, Construction, X } from "lucide-react";
-import type { MapFocus, RightNow, RightNowItem } from "@/lib/browse-right-now";
+import type { MapFocus, RightNow, RightNowItem, TrafficCardData } from "@/lib/browse-right-now";
 
 /**
  * "Right now" leads the Browse sheet: what is happening on the roads this rider
@@ -129,6 +129,41 @@ export function ItemCard({ item, onClose }: { item: RightNowItem; onClose: () =>
           </p>
           {item.detail && <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>}
           <p className="mt-2 text-xs text-muted-foreground">Source: {item.source}</p>
+        </div>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="-mr-1 -mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-white/10"
+        >
+          <X aria-hidden="true" className="size-4" />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** The card for a tapped road segment: road and way, the stretch, the level, the provider's numbers. */
+export function TrafficCard({ card, onClose }: { card: TrafficCardData; onClose: () => void }) {
+  return (
+    <section className="nb-select-card nh-card p-4" aria-label={card.title}>
+      <div className="flex items-start gap-3">
+        <span className={`nb-now-dot mt-2 ${DOT[card.tone]}`} aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Traffic
+          </p>
+          <p className="mt-0.5 break-words text-lg font-semibold leading-snug text-foreground">
+            {card.title}
+          </p>
+          {card.between && <p className="mt-0.5 text-sm text-foreground">{card.between}</p>}
+          {card.level && <p className="mt-1 text-sm font-semibold text-foreground">{card.level}</p>}
+          {card.facts.map((fact) => (
+            <p key={fact} className="mt-0.5 text-sm text-muted-foreground">
+              {fact}
+            </p>
+          ))}
+          <p className="mt-2 text-xs text-muted-foreground">{card.source}</p>
         </div>
         <button
           type="button"

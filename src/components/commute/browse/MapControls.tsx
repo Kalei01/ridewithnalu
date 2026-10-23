@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Layers, LocateFixed } from "lucide-react";
 import type { MapLayers } from "./BrowseMap";
+import { INCIDENT_GLYPH } from "./incident-glyphs";
+
+const LEGEND = [
+  { kind: "crash", label: "Crash" },
+  { kind: "police", label: "Police report" },
+  { kind: "closure", label: "Closure" },
+  { kind: "roadwork", label: "Roadwork" },
+] as const;
 
 const ROWS: { id: keyof MapLayers; label: string; note?: string }[] = [
   { id: "skyline", label: "Skyline & stations" },
@@ -87,6 +95,19 @@ export function MapControls({
               </span>
             </label>
           ))}
+          <ul className="nb-legend" aria-label="Incident icons">
+            {LEGEND.map((item) => (
+              <li key={item.kind}>
+                <span
+                  className={`nb-legend-dot nb-incident-${item.kind}`}
+                  aria-hidden="true"
+                  // Static, trusted glyph markup from incident-glyphs.ts.
+                  dangerouslySetInnerHTML={{ __html: INCIDENT_GLYPH[item.kind] }}
+                />
+                {item.label}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

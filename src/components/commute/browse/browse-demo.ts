@@ -90,6 +90,60 @@ export function browseDemo(name: string | null): BrowseDemo | null {
       });
       return { now: hst(7, 10), checks: [check], closures: [KUNIA] };
     }
+    case "incident-kinds": {
+      // One of each map icon: crash, police report, closure, roadwork (sample places only).
+      const check = clear();
+      const at = (i: number) => [PATH[i]!];
+      check.forward = drive({
+        delayMinutes: 9,
+        trafficMinutes: 45,
+        incidents: [
+          {
+            id: "k1",
+            description: "Accident",
+            road: "H-1",
+            category: "1",
+            from: "Aiea",
+            to: "Pearl City",
+            delayMinutes: 9,
+            points: [PATH[4]!, PATH[3]!],
+          },
+          {
+            id: "k2",
+            delayMinutes: null,
+            description: "Collision",
+            road: "Kamehameha Hwy",
+            category: "6",
+            source: "hpd",
+            reportedAt: new Date(Date.UTC(2026, 9, 21, 16, 50)).toISOString(),
+            points: at(2),
+          },
+          {
+            id: "k3",
+            delayMinutes: null,
+            description: "Closed",
+            road: "H-1",
+            category: "8",
+            from: "Waipahu",
+            to: "Pearl City",
+            points: [PATH[5]!, PATH[5]!],
+          },
+          {
+            id: "k4",
+            delayMinutes: null,
+            description: "Works",
+            road: "Nimitz Hwy",
+            category: "9",
+            points: at(6),
+          },
+        ],
+        trafficSections: [
+          { severity: "heavy", delayMinutes: 9, points: PATH.slice(3, 6) },
+          { severity: "moderate", delayMinutes: 3, points: PATH.slice(0, 3) },
+        ],
+      });
+      return { now: hst(7, 10), checks: [check], closures: [KUNIA] };
+    }
     case "evening":
       return { now: hst(17, 40), checks: [clear()], closures: [KUNIA] };
     default:
