@@ -112,3 +112,19 @@ describe("ordering and shown rows", () => {
     expect(stopBuses(live, NOW, []).length).toBe(0);
   });
 });
+
+describe("bus tag minutes", () => {
+  it("tells two buses of one route apart by minutes away", () => {
+    const buses = stopBuses(
+      [
+        arrival({}),
+        arrival({
+          estimatedSeconds: NOW + 19 * 60,
+          vehicle: { id: "bus-2", lat: 21.4, lon: -158.1 },
+        }),
+      ],
+      NOW,
+    );
+    expect(buses.map((b) => b.minutes)).toEqual([7, 19]);
+  });
+});

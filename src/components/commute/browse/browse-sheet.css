@@ -583,7 +583,7 @@ button.nb-now-item:active {
 /* Live bus on the map: a rounded route tag with a bus glyph. Distinct from the round stop pins.
    Positions are replaced on each 60 s refresh; nothing animates, so reduced motion needs no override. */
 .nalu-marker-shell.nb-live-bus-shell {
-  width: 56px !important;
+  width: 96px !important;
   height: 32px !important;
 }
 .nb-live-bus {

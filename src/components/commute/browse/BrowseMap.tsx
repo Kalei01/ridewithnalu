@@ -107,23 +107,29 @@ function icon(
   });
 }
 
-const NO_BUSES: ReadonlyArray<{ id: string; route: string; lat: number; lon: number }> = [];
+const NO_BUSES: ReadonlyArray<{
+  id: string;
+  route: string;
+  lat: number;
+  lon: number;
+  minutes: number;
+}> = [];
 
 /** A bus on its way: a rounded tag with the route number, clearly not a stop pin. Static, never animated. */
-function liveBusIcon(route: string) {
+function liveBusIcon(route: string, minutes: number) {
   const el = document.createElement("span");
   el.className = "nb-live-bus";
   el.setAttribute("role", "img");
-  el.setAttribute("aria-label", `Bus ${route}, live position`);
+  el.setAttribute("aria-label", `Bus ${route}, live, ${minutes} min away`);
   el.innerHTML = BUS_GLYPH;
   const number = document.createElement("span");
-  number.textContent = route.slice(0, 4);
+  number.textContent = `${route.slice(0, 4)} · ${minutes} min`;
   el.appendChild(number);
   return L.divIcon({
     className: "nalu-marker-shell nb-live-bus-shell",
     html: el,
-    iconSize: [56, 32],
-    iconAnchor: [28, 16],
+    iconSize: [96, 32],
+    iconAnchor: [48, 16],
   });
 }
 
@@ -188,7 +194,13 @@ export default function BrowseMap({
   /** Pixels of the map's lower part covered by the sheet. */
   coverBottom?: number;
   /** Live buses heading to the open stop card's stop. Empty when no card is open. */
-  liveBuses?: ReadonlyArray<{ id: string; route: string; lat: number; lon: number }>;
+  liveBuses?: ReadonlyArray<{
+    id: string;
+    route: string;
+    lat: number;
+    lon: number;
+    minutes: number;
+  }>;
 }) {
   const [zoomTick, setZoomTick] = useState(0);
   const nodeRef = useRef<HTMLDivElement | null>(null);
@@ -218,6 +230,8 @@ export default function BrowseMap({
     map.createPane("nb-traffic-pane").style.zIndex = "410";
     map.createPane("nb-line-pane").style.zIndex = "420";
     map.createPane("nalu-stop-pane").style.zIndex = "650";
+    // Under the station labels (tooltip pane, 650) and pins.
+    map.createPane("nb-bus-pane").style.zIndex = "640";
     map.createPane("nalu-location-pane").style.zIndex = "700";
     groupRef.current = L.layerGroup().addTo(map);
     // Station names show once the map is zoomed in far enough to read them.
@@ -238,7 +252,9 @@ export default function BrowseMap({
 
   // Live buses live in their own layer: a 60 s position refresh never rebuilds the pins above.
   const busLayerRef = useRef<L.LayerGroup | null>(null);
-  const busSignature = liveBuses.map((b) => `${b.id}:${b.route}:${b.lat},${b.lon}`).join("|");
+  const busSignature = liveBuses
+    .map((b) => `${b.id}:${b.route}:${b.minutes}:${b.lat},${b.lon}`)
+    .join("|");
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -247,8 +263,8 @@ export default function BrowseMap({
     layer.clearLayers();
     for (const bus of liveBuses) {
       L.marker([bus.lat, bus.lon], {
-        pane: "nalu-location-pane",
-        icon: liveBusIcon(bus.route),
+        pane: "nb-bus-pane",
+        icon: liveBusIcon(bus.route, bus.minutes),
         title: `Bus ${bus.route}`,
         keyboard: false,
         interactive: false,

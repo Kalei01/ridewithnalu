@@ -867,7 +867,7 @@ function StopDetail({
               </span>
               <span className="flex shrink-0 flex-col items-end">
                 <span className="font-bold tabular-nums">{clockFromSeconds(seconds)}</span>
-                {stop.routeType !== 1 && (
+                {stop.routeType !== 1 && anyLive && (
                   <span className={isLive ? "nb-live-tag" : "text-[11px] text-muted-foreground"}>
                     {isLive ? "Live" : "Scheduled"}
                   </span>

@@ -48,7 +48,14 @@ export function labelDepartures<T extends ScheduledDeparture>(
     .map(({ departure, live: isLive, seconds }) => ({ departure, live: isLive, seconds }));
 }
 
-export type StopBus = { id: string; route: string; lat: number; lon: number };
+export type StopBus = {
+  id: string;
+  route: string;
+  lat: number;
+  lon: number;
+  /** Whole minutes until it reaches the stop, so two buses of one route read differently. */
+  minutes: number;
+};
 
 /** Live buses with a GPS fix that have not yet left this stop, one marker per vehicle. */
 export function stopBuses(
@@ -78,7 +85,13 @@ export function stopBuses(
     const id = vehicle.id || `${arrival.routeShortName}:${vehicle.lat},${vehicle.lon}`;
     if (seen.has(id)) continue;
     seen.add(id);
-    out.push({ id, route: arrival.routeShortName, lat: vehicle.lat, lon: vehicle.lon });
+    out.push({
+      id,
+      route: arrival.routeShortName,
+      lat: vehicle.lat,
+      lon: vehicle.lon,
+      minutes: Math.max(0, Math.ceil((arrival.estimatedSeconds - nowSeconds) / 60)),
+    });
   }
   return out;
 }
