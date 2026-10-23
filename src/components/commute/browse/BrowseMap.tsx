@@ -107,6 +107,26 @@ function icon(
   });
 }
 
+const NO_BUSES: ReadonlyArray<{ id: string; route: string; lat: number; lon: number }> = [];
+
+/** A bus on its way: a rounded tag with the route number, clearly not a stop pin. Static, never animated. */
+function liveBusIcon(route: string) {
+  const el = document.createElement("span");
+  el.className = "nb-live-bus";
+  el.setAttribute("role", "img");
+  el.setAttribute("aria-label", `Bus ${route}, live position`);
+  el.innerHTML = BUS_GLYPH;
+  const number = document.createElement("span");
+  number.textContent = route.slice(0, 4);
+  el.appendChild(number);
+  return L.divIcon({
+    className: "nalu-marker-shell nb-live-bus-shell",
+    html: el,
+    iconSize: [56, 32],
+    iconAnchor: [28, 16],
+  });
+}
+
 function incidentIcon(
   label: string,
   kind: MapIncident["kind"],
@@ -153,6 +173,7 @@ export default function BrowseMap({
   selected,
   onSelect,
   coverBottom = 0,
+  liveBuses = NO_BUSES,
 }: {
   userPoint: { lat: number; lon: number };
   stops: MapStop[];
@@ -166,6 +187,8 @@ export default function BrowseMap({
   onSelect: (selection: MapSelection) => void;
   /** Pixels of the map's lower part covered by the sheet. */
   coverBottom?: number;
+  /** Live buses heading to the open stop card's stop. Empty when no card is open. */
+  liveBuses?: ReadonlyArray<{ id: string; route: string; lat: number; lon: number }>;
 }) {
   const [zoomTick, setZoomTick] = useState(0);
   const nodeRef = useRef<HTMLDivElement | null>(null);
@@ -207,10 +230,35 @@ export default function BrowseMap({
       removeMapSafely(map);
       mapRef.current = null;
       groupRef.current = null;
+      busLayerRef.current = null;
       dotRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Live buses live in their own layer: a 60 s position refresh never rebuilds the pins above.
+  const busLayerRef = useRef<L.LayerGroup | null>(null);
+  const busSignature = liveBuses.map((b) => `${b.id}:${b.route}:${b.lat},${b.lon}`).join("|");
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!busLayerRef.current) busLayerRef.current = L.layerGroup().addTo(map);
+    const layer = busLayerRef.current;
+    layer.clearLayers();
+    for (const bus of liveBuses) {
+      L.marker([bus.lat, bus.lon], {
+        pane: "nalu-location-pane",
+        icon: liveBusIcon(bus.route),
+        title: `Bus ${bus.route}`,
+        keyboard: false,
+        interactive: false,
+      }).addTo(layer);
+    }
+    return () => {
+      layer.clearLayers();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busSignature]);
 
   const pulsedRef = useRef(new Set<string>());
   const signature = [

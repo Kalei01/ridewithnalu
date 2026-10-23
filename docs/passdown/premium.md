@@ -9,6 +9,8 @@ Last updated: 2026-10-22 (Browse sheet phase 3 preview). Keep ≤ 60 lines; see 
 ## Browse sheet PHASE 3 (Oct 22, local commit, not pushed): see backlog.md Browse Phase 3 line. New: RightNow.tsx, OnTheRoad.tsx, MapControls.tsx, browse-demo.ts (dev ?demo=), browse-flag.ts; lib browse-right-now.ts / browse-corridors.ts (+tests). Old Browse untouched.
 - Browse sheet round 5 (Oct 23, local commit): place chips at peek, Home button (-> /welcome) in brand pill, tap a traffic segment -> Traffic card, distinct incident icons (crash red, police amber, closure orange, roadwork yellow) + Layers legend. Dev demo `?demo=incident-kinds`.
 
+- Browse sheet round 6 (Oct 23, local commit): drive time on place chips (reuses corridor check + main-screen ["drive"] cache; at most 2 extra lookups, Home/Work only, via useChipDriveTimes) and live bus markers + Live/Scheduled tags on bus stop cards (useStopBuses, 60 s, lib/browse-stop-buses.ts). Demo `?demo=chips-buses`.
+
 ## Browse redesign (sheet) — PHASE 1 of 4 (Oct 18, Sonnet build for MAIN) — PREVIEW ONLY
 - /browse-preview (noindex, not linked, not in sitemap; "/" Browse untouched). Plan, phases and approved motions: `docs/experience/backlog.md`.
 - Code: `src/components/commute/browse/` — `BrowseSheet.tsx`+`browse-sheet.css` (PEEK/HALF/FULL, handle drag + tap + keyboard, transform only, `inert` when peeked), `BrowseSheetScreen.tsx` (composition), `useBrowseData.ts` (copy of Browse's queries from index.tsx, same cache keys; Phase 3 replaces it with the shared hook), `src/lib/browse-peek.ts` (+test: peek line and next-train number). `MorningPulse/EveningPulse/BeatTheRush` got an additive `embedded` prop (Today card). Near-you JSX is a copy of BrowseScreen's; delete the duplication when Browse switches.

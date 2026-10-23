@@ -54,6 +54,7 @@ import {
   type MapFocus,
   type RightNowItem,
 } from "@/lib/browse-right-now";
+import type { BusArrival } from "@/lib/bus-arrivals.functions";
 import { plannerHref } from "@/lib/home/planner-link";
 import { findByKind, kindLabel } from "@/lib/places/saved-places";
 import { activeRegion } from "@/lib/region";
@@ -66,6 +67,10 @@ import { RoadStatusRows } from "./OnTheRoad";
 import { browseDemo } from "./browse-demo";
 import { scrollBehavior } from "@/lib/motion";
 import { useBrowseData } from "./useBrowseData";
+import { useChipDriveTimes } from "./useChipDriveTimes";
+import { useStopBuses } from "./useStopBuses";
+import { labelDepartures, stopBuses } from "@/lib/browse-stop-buses";
+import { formatDriveMinutes } from "@/lib/drive/traffic-summary";
 
 const BrowseMap = lazy(() => import("./BrowseMap"));
 
@@ -321,6 +326,22 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
       ? (nearbyStops.find((s) => s.stopId === selection.id) ?? null)
       : null;
 
+  // Live buses for the open stop card only; closing the card clears them from the map.
+  const liveArrivals = useStopBuses(selectedStop, nowSeconds, demo);
+  const liveBuses = useMemo(
+    () => (selectedStop ? stopBuses(liveArrivals, nowSeconds) : []),
+    [selectedStop, liveArrivals, nowSeconds],
+  );
+  const chipMinutes = useChipDriveTimes({
+    places: data.savedPlaces,
+    home: findByKind(data.savedPlaces, "home") ?? null,
+    work: findByKind(data.savedPlaces, "work") ?? null,
+    rider: browseUserPoint,
+    corridors: data.corridors,
+    roadChecks,
+    demo,
+  });
+
   // A tapped road segment: "<road id>#<slow stretch number, or b for the road itself>".
   const trafficData = useMemo(() => {
     if (selection?.kind !== "traffic") return null;
@@ -373,7 +394,12 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
     <StationCard data={data} stationRef={stationRef} onClose={closeFocus} focus />
   ) : selectedStop ? (
     <section className="nb-select-card nh-card p-4" aria-label={titleCase(selectedStop.stopName)}>
-      <StopDetail stop={selectedStop} nowSeconds={nowSeconds} onClose={closeFocus} />
+      <StopDetail
+        stop={selectedStop}
+        nowSeconds={nowSeconds}
+        live={liveArrivals}
+        onClose={closeFocus}
+      />
     </section>
   ) : trafficData ? (
     <TrafficCard card={trafficData} onClose={closeFocus} />
@@ -392,6 +418,8 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
     <div className="nh-rail-scroll nb-chips" role="group" aria-label="Saved places">
       {data.savedPlaces.slice(0, 4).map((place) => {
         const Icon = shortcutIcon(place.kind);
+        const minutes = chipMinutes.get(place.id);
+        const placeName = place.label || kindLabel(place.kind);
         return (
           <a
             key={place.id}
@@ -401,10 +429,15 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
               lon: place.lon,
             })}
             className="nh-chip"
-            aria-label={`Plan a trip to ${place.label || kindLabel(place.kind)}`}
+            aria-label={`Plan a trip to ${placeName}${minutes ? `, about ${formatDriveMinutes(minutes)} drive from here` : ""}`}
           >
-            <Icon aria-hidden="true" className="size-4 text-muted-foreground" />{" "}
-            {place.label || kindLabel(place.kind)}
+            <Icon aria-hidden="true" className="size-4 text-muted-foreground" /> {placeName}
+            {minutes ? (
+              <span className="nb-chip-time" aria-hidden="true">
+                {" · "}
+                {formatDriveMinutes(minutes)}
+              </span>
+            ) : null}
           </a>
         );
       })}
@@ -468,6 +501,7 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
                   selected={selection}
                   onSelect={selectOnMap}
                   coverBottom={cover}
+                  liveBuses={liveBuses}
                 />
               </Suspense>
             </ClientOnly>
@@ -751,12 +785,18 @@ type NearbyStopRow = BrowseData["nearbyStops"][number];
 function StopDetail({
   stop,
   nowSeconds,
+  live,
   onClose,
 }: {
   stop: NearbyStopRow;
   nowSeconds: number;
+  /** Live TheBus arrivals for this stop (bus stops only); undefined when none are known. */
+  live?: BusArrival[] | undefined;
   onClose?: () => void;
 }) {
+  // Departed buses never show as catchable; a row is live only when a live arrival confirms it.
+  const rows = labelDepartures(stop.arrivals, stop.routeType === 1 ? undefined : live, nowSeconds);
+  const anyLive = rows.slice(0, 3).some((row) => row.live);
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
@@ -779,11 +819,9 @@ function StopDetail({
           </p>
         </div>
         <div className="flex shrink-0 items-start gap-1">
-          {stop.arrivals[0] && (
+          {rows[0] && (
             <p className="whitespace-nowrap pt-0.5 text-lg font-bold tabular-nums text-primary">
-              {waitText(
-                Math.max(0, Math.ceil((stop.arrivals[0].departure_seconds - nowSeconds) / 60)),
-              )}
+              {waitText(Math.max(0, Math.ceil((rows[0].seconds - nowSeconds) / 60)))}
             </p>
           )}
           {onClose && (
@@ -800,8 +838,8 @@ function StopDetail({
         </div>
       </div>
       <div className="mt-3 divide-y divide-white/10">
-        {stop.arrivals.length ? (
-          stop.arrivals.slice(0, 3).map((arrival, index) => (
+        {rows.length ? (
+          rows.slice(0, 3).map(({ departure: arrival, live: isLive, seconds }, index) => (
             <div
               key={`${arrival.departure_seconds}-${index}`}
               className="flex items-center gap-2 py-2 text-sm text-foreground"
@@ -818,8 +856,13 @@ function StopDetail({
                     : titleCase(arrival.headsign)
                   : "Destination unavailable"}
               </span>
-              <span className="shrink-0 font-bold tabular-nums">
-                {clockFromSeconds(arrival.departure_seconds)}
+              <span className="flex shrink-0 flex-col items-end">
+                <span className="font-bold tabular-nums">{clockFromSeconds(seconds)}</span>
+                {stop.routeType !== 1 && (
+                  <span className={isLive ? "nb-live-tag" : "text-[11px] text-muted-foreground"}>
+                    {isLive ? "Live" : "Scheduled"}
+                  </span>
+                )}
               </span>
             </div>
           ))
@@ -827,7 +870,11 @@ function StopDetail({
           <p className="text-sm text-muted-foreground">No upcoming scheduled arrivals right now.</p>
         )}
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">Scheduled times · TheBus / DTS</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {anyLive
+          ? "Live where marked, otherwise scheduled · TheBus / DTS"
+          : "Scheduled times · TheBus / DTS"}
+      </p>
       <a
         href={plannerHref({
           name: titleCase(stop.stopName),

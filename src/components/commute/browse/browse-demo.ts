@@ -7,7 +7,15 @@ import type { DriveTime } from "@/lib/drive.functions";
 import type { HdotScheduledClosure } from "@/lib/hdot-lane-closures.functions";
 import type { RoadCheck } from "@/lib/browse-right-now";
 
-export type BrowseDemo = { now: Date; checks: RoadCheck[]; closures: HdotScheduledClosure[] };
+export type BrowseDemo = {
+  now: Date;
+  checks: RoadCheck[];
+  closures: HdotScheduledClosure[];
+  /** Sample chip drive times (screenshots only). */
+  chipMinutes?: { home?: number; work?: number };
+  /** Sample bus positions; the open stop card's first departures are shown live at these spots (screenshots only). */
+  busPositions?: Array<{ lat: number; lon: number }>;
+};
 
 const hst = (hour: number, minute = 0) => new Date(Date.UTC(2026, 9, 21, hour + 10, minute));
 
@@ -144,9 +152,26 @@ export function browseDemo(name: string | null): BrowseDemo | null {
       });
       return { now: hst(7, 10), checks: [check], closures: [KUNIA] };
     }
+    case "chips-buses": {
+      // Sample chip times and sample live buses (not real data) for photographing the stop card.
+      const at = hst(7, 5);
+      return {
+        now: at,
+        checks: [clear()],
+        closures: [KUNIA],
+        chipMinutes: { home: 32, work: 65 },
+        busPositions: DEMO_BUS_POSITIONS,
+      };
+    }
     case "evening":
       return { now: hst(17, 40), checks: [clear()], closures: [KUNIA] };
     default:
       return null;
   }
 }
+
+/** Sample bus positions on the way to a stop (not real). The first two departures are shown as live, the rest as scheduled. */
+const DEMO_BUS_POSITIONS = [
+  { lat: 21.3465, lon: -158.0645 },
+  { lat: 21.3585, lon: -158.0365 },
+];
