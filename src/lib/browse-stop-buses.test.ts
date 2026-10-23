@@ -92,3 +92,23 @@ describe("stopBuses", () => {
     expect(stopBuses(undefined, NOW)).toEqual([]);
   });
 });
+
+describe("ordering and shown rows", () => {
+  it("re-sorts by the effective time after live times are swapped in", () => {
+    const rows = labelDepartures(
+      [dep(NOW + 5 * 60), dep(NOW + 8 * 60, "9", "Kalihi")],
+      [arrival({ estimatedSeconds: NOW + 12 * 60 })],
+      NOW,
+    );
+    expect(rows.map((r) => r.departure.route_short_name)).toEqual(["9", "42"]);
+  });
+  it("draws only buses behind the shown rows", () => {
+    const live = [
+      arrival({}),
+      arrival({ routeShortName: "A", vehicle: { id: "b2", lat: 21.4, lon: -158.1 } }),
+    ];
+    const shown = [{ route: "42", headsign: "Ewa Beach", seconds: NOW + 7 * 60 }];
+    expect(stopBuses(live, NOW, shown).map((b) => b.id)).toEqual(["bus-1"]);
+    expect(stopBuses(live, NOW, []).length).toBe(0);
+  });
+});

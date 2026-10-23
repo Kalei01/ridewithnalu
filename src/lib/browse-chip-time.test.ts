@@ -82,3 +82,42 @@ describe("sources of known drive times", () => {
     expect(known).toEqual([{ from: { lat: 1, lon: 2 }, to: { lat: 3, lon: 4 }, minutes: 12 }]);
   });
 });
+
+describe("age and provider limits", () => {
+  const NOW = 1_000_000_000;
+  const at = (ageMin: number) => NOW - ageMin * 60_000;
+  const trip = (extra: Partial<KnownDrive>): KnownDrive[] => [
+    { from: HOME, to: WORK, minutes: 41, ...extra },
+  ];
+  it("drops reused times older than 10 minutes", () => {
+    const pick = (age: number) =>
+      chipDriveTime({
+        rider: RIDER_AT_HOME,
+        place: WORK,
+        lookupIds: new Set(),
+        known: trip({ at: at(age) }),
+        now: NOW,
+      });
+    expect(pick(9)).toEqual({ status: "known", minutes: 41 });
+    expect(pick(11)).toEqual({ status: "hidden" });
+  });
+  it("hides Mapbox fallback times, and asks for a lookup instead for Home/Work", () => {
+    const pick = (ids: Set<string>) =>
+      chipDriveTime({
+        rider: RIDER_AT_HOME,
+        place: WORK,
+        lookupIds: ids,
+        known: trip({ provider: "mapbox" }),
+        now: NOW,
+      });
+    expect(pick(new Set())).toEqual({ status: "hidden" });
+    expect(pick(lookup)).toEqual({ status: "fetch" });
+  });
+  it("carries age and provider from the road checks", () => {
+    const known = knownFromCorridors(
+      [{ a: HOME, b: WORK }],
+      [{ forward: { trafficMinutes: 41, fetchedAt: 5, provider: "tomtom" } }],
+    );
+    expect(known[0]).toMatchObject({ at: 5, provider: "tomtom" });
+  });
+});

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { busArrivals, type BusArrival } from "@/lib/bus-arrivals.functions";
 import type { NearbyArrival } from "@/lib/commute-model";
+import { BUS_POSITION_MAX_AGE_MS } from "@/lib/browse-stop-buses";
 import type { BrowseDemo } from "./browse-demo";
 
 /**
@@ -22,7 +23,7 @@ export function useStopBuses(
     headsign: a.headsign,
     scheduledSeconds: a.departure_seconds,
   }));
-  const { data } = useQuery({
+  const { data, dataUpdatedAt } = useQuery({
     queryKey: ["browse-stop-live", stop?.stopId, demo ? "demo" : "live"],
     enabled: isBus,
     staleTime: 30_000,
@@ -52,5 +53,7 @@ export function useStopBuses(
       return result.error ? [] : result.arrivals;
     },
   });
-  return isBus ? data : undefined;
+  // A failed refresh keeps the old answer in React Query; positions older than ~2 min are dropped.
+  const fresh = Date.now() - dataUpdatedAt <= BUS_POSITION_MAX_AGE_MS;
+  return isBus && fresh ? data : undefined;
 }

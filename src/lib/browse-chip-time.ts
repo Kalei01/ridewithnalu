@@ -16,7 +16,27 @@ export const CHIP_HERE_METERS = 300;
 /** A stored drive time counts as "from the rider" / "to the place" within this distance. */
 export const CHIP_MATCH_METERS = 300;
 
-export type KnownDrive = { from: LatLon; to: LatLon; minutes: number };
+/** A held drive time older than this is not shown: React Query keeps old data after a failed refetch. */
+export const CHIP_MAX_AGE_MS = 10 * 60_000;
+
+export type KnownDrive = {
+  from: LatLon;
+  to: LatLon;
+  minutes: number;
+  /** When the time was measured (ms). Missing means just now (sample data). */
+  at?: number;
+  /** A Mapbox fallback time has no usual-time comparison, so it is never shown on a chip. */
+  provider?: string;
+};
+
+/** True when a drive time is fresh enough, and from a provider with a usual-time comparison, to show. */
+export function chipTimeUsable(
+  drive: { at?: number | undefined; provider?: string | undefined },
+  now = Date.now(),
+): boolean {
+  if (drive.provider === "mapbox") return false;
+  return drive.at === undefined || now - drive.at <= CHIP_MAX_AGE_MS;
+}
 
 export type ChipPlace = { id: string; lat: number; lon: number };
 
@@ -32,12 +52,14 @@ export function chipDriveTime(input: {
   /** Ids of the rider's Home and Work places: the only chips allowed to trigger a lookup. */
   lookupIds: ReadonlySet<string>;
   known: readonly KnownDrive[];
+  now?: number;
 }): ChipTime {
-  const { rider, place, lookupIds, known } = input;
+  const { rider, place, lookupIds, known, now = Date.now() } = input;
   if (!rider) return { status: "hidden" };
   if (distanceBetweenM(rider, place) < CHIP_HERE_METERS) return { status: "hidden" };
   const reused = known.find(
     (drive) =>
+      chipTimeUsable(drive, now) &&
       Number.isFinite(drive.minutes) &&
       drive.minutes > 0 &&
       distanceBetweenM(drive.from, rider) <= CHIP_MATCH_METERS &&
@@ -47,28 +69,38 @@ export function chipDriveTime(input: {
   return lookupIds.has(place.id) ? { status: "fetch" } : { status: "hidden" };
 }
 
+function held(from: LatLon, to: LatLon, d: HeldDrive): KnownDrive {
+  return {
+    from,
+    to,
+    minutes: d.trafficMinutes,
+    ...(d.fetchedAt !== undefined ? { at: d.fetchedAt } : {}),
+    ...(d.provider ? { provider: d.provider } : {}),
+  };
+}
+
 /** Drive times the Browse road checks already hold, as trips (forward and back). */
+type HeldDrive = { trafficMinutes: number; fetchedAt?: number; provider?: string };
+
 export function knownFromCorridors(
   corridors: ReadonlyArray<{ a: LatLon; b: LatLon }> | null,
   checks: ReadonlyArray<{
-    forward?: { trafficMinutes: number } | undefined;
-    back?: { trafficMinutes: number } | undefined;
+    forward?: HeldDrive | undefined;
+    back?: HeldDrive | undefined;
   }>,
 ): KnownDrive[] {
   const out: KnownDrive[] = [];
   (corridors ?? []).forEach((corridor, i) => {
     const check = checks[i];
-    if (check?.forward)
-      out.push({ from: corridor.a, to: corridor.b, minutes: check.forward.trafficMinutes });
-    if (check?.back)
-      out.push({ from: corridor.b, to: corridor.a, minutes: check.back.trafficMinutes });
+    if (check?.forward) out.push(held(corridor.a, corridor.b, check.forward));
+    if (check?.back) out.push(held(corridor.b, corridor.a, check.back));
   });
   return out;
 }
 
 /** Drive times already in the query cache under the main screen's ["drive", fromLat, fromLon, toLat, toLon]. */
 export function knownFromDriveCache(
-  entries: ReadonlyArray<[readonly unknown[], { trafficMinutes?: number } | undefined]>,
+  entries: ReadonlyArray<[readonly unknown[], Partial<HeldDrive> | undefined]>,
 ): KnownDrive[] {
   const out: KnownDrive[] = [];
   for (const [key, value] of entries) {
@@ -80,11 +112,16 @@ export function knownFromDriveCache(
       typeof toLon === "number" &&
       typeof value?.trafficMinutes === "number"
     ) {
-      out.push({
-        from: { lat: fromLat, lon: fromLon },
-        to: { lat: toLat, lon: toLon },
-        minutes: value.trafficMinutes,
-      });
+      out.push(
+        held(
+          { lat: fromLat, lon: fromLon },
+          { lat: toLat, lon: toLon },
+          {
+            ...value,
+            trafficMinutes: value.trafficMinutes,
+          },
+        ),
+      );
     }
   }
   return out;

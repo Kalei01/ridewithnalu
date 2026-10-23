@@ -42,17 +42,21 @@ export function labelDepartures<T extends ScheduledDeparture>(
       leave_by_seconds: match ? match.estimatedSeconds : departure.departure_seconds,
     };
   });
-  return dropDeparted(rows, nowSeconds).map(({ departure, live: isLive, seconds }) => ({
-    departure,
-    live: isLive,
-    seconds,
-  }));
+  // A live time can swap a row's place in the order: soonest effective time first.
+  return dropDeparted(rows, nowSeconds)
+    .sort((a, b) => a.seconds - b.seconds)
+    .map(({ departure, live: isLive, seconds }) => ({ departure, live: isLive, seconds }));
 }
 
 export type StopBus = { id: string; route: string; lat: number; lon: number };
 
 /** Live buses with a GPS fix that have not yet left this stop, one marker per vehicle. */
-export function stopBuses(live: readonly BusArrival[] | undefined, nowSeconds: number): StopBus[] {
+export function stopBuses(
+  live: readonly BusArrival[] | undefined,
+  nowSeconds: number,
+  /** Only buses of the departures shown on the card (route + headsign + time confirmed). */
+  shown?: ReadonlyArray<{ route: string | null; headsign: string | null; seconds: number }>,
+): StopBus[] {
   const seen = new Set<string>();
   const out: StopBus[] = [];
   const upcoming = dropDeparted(
@@ -62,6 +66,15 @@ export function stopBuses(live: readonly BusArrival[] | undefined, nowSeconds: n
   for (const { arrival } of upcoming) {
     const vehicle = arrival.vehicle;
     if (!arrival.isLive || arrival.canceled || !vehicle) continue;
+    if (
+      shown &&
+      !shown.some(
+        (row) =>
+          row.route === arrival.routeShortName &&
+          Math.abs(row.seconds - arrival.estimatedSeconds) <= 60,
+      )
+    )
+      continue;
     const id = vehicle.id || `${arrival.routeShortName}:${vehicle.lat},${vehicle.lon}`;
     if (seen.has(id)) continue;
     seen.add(id);
@@ -69,3 +82,6 @@ export function stopBuses(live: readonly BusArrival[] | undefined, nowSeconds: n
   }
   return out;
 }
+
+/** Vehicle positions older than this are not drawn (a failed refresh must not leave stale buses). */
+export const BUS_POSITION_MAX_AGE_MS = 2 * 60_000;

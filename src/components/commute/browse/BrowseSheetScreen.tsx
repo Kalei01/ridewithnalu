@@ -328,10 +328,19 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
 
   // Live buses for the open stop card only; closing the card clears them from the map.
   const liveArrivals = useStopBuses(selectedStop, nowSeconds, demo);
-  const liveBuses = useMemo(
-    () => (selectedStop ? stopBuses(liveArrivals, nowSeconds) : []),
-    [selectedStop, liveArrivals, nowSeconds],
-  );
+  const liveBuses = useMemo(() => {
+    if (!selectedStop) return [];
+    // Only the buses behind the rows the card shows.
+    const shown = labelDepartures(selectedStop.arrivals, liveArrivals, nowSeconds)
+      .slice(0, 3)
+      .filter((row) => row.live)
+      .map((row) => ({
+        route: row.departure.route_short_name,
+        headsign: row.departure.headsign,
+        seconds: row.seconds,
+      }));
+    return stopBuses(liveArrivals, nowSeconds, shown);
+  }, [selectedStop, liveArrivals, nowSeconds]);
   const chipMinutes = useChipDriveTimes({
     places: data.savedPlaces,
     home: findByKind(data.savedPlaces, "home") ?? null,

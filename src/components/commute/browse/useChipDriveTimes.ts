@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { driveTime, type DriveTime } from "@/lib/drive.functions";
 import {
   chipDriveTime,
+  chipTimeUsable,
   knownFromCorridors,
   knownFromDriveCache,
   type KnownDrive,
@@ -27,8 +28,8 @@ export function useChipDriveTimes(input: {
   rider: LatLon | null;
   corridors: ReadonlyArray<{ a: LatLon; b: LatLon }> | null;
   roadChecks: ReadonlyArray<{
-    forward?: { trafficMinutes: number } | undefined;
-    back?: { trafficMinutes: number } | undefined;
+    forward?: { trafficMinutes: number; fetchedAt?: number; provider?: string } | undefined;
+    back?: { trafficMinutes: number; fetchedAt?: number; provider?: string } | undefined;
   }>;
   demo?: BrowseDemo | null;
 }): Map<string, number> {
@@ -82,7 +83,7 @@ export function useChipDriveTimes(input: {
           },
         });
         if (!result) throw new Error("Drive routing temporarily unavailable");
-        return result.trafficMinutes;
+        return { minutes: result.trafficMinutes, provider: result.provider };
       },
     })),
   });
@@ -92,8 +93,14 @@ export function useChipDriveTimes(input: {
     if (pick.status === "known") out.set(place.id, pick.minutes);
   }
   toFetch.forEach((place, i) => {
-    const minutes = fetched[i]?.data;
-    if (typeof minutes === "number" && minutes > 0) out.set(place.id, minutes);
+    const q = fetched[i];
+    const answer = q?.data;
+    if (
+      answer &&
+      answer.minutes > 0 &&
+      chipTimeUsable({ at: q.dataUpdatedAt, provider: answer.provider })
+    )
+      out.set(place.id, answer.minutes);
   });
   return out;
 }
