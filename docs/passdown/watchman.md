@@ -10,6 +10,7 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - Skyline alert is CLOSED (Oct 14). Keep the SILENT FAILURES check + 60 s retry; if "No Skyline trip" returns, reopen in alerts.md and escalate to MAIN (inbox.md). Planner health 5.4–6.4 s: only flag if >6000 AND new info; known issue.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R0 (Fri Oct 23: trips yes; riders OK first try; TomTom 403 → Mapbox fallback still on, seen again)
 - R0 (Thu Oct 22: trips yes; riders OK first try; only known issue: TomTom 403 → Mapbox fallback, seen again)
 - R+ (Wed Oct 21: Drive "Can't check traffic" on all trips; TomTom health checks fail "no route returned"; escalated, alerts.md + inbox)
 - S (Tue Oct 20: trips skipped — no code change since Oct 19, no open alert, planner 1627 ms, 5 R0 in a row; health + 19/19 pages OK)
@@ -21,4 +22,4 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Thu Oct 22, 6:17 AM HST (trips: yes — OPEN alert + code changes): planner 1980 ms, 19/19 pages OK, http→https 301. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (4.6/5.1/11.1 s); retries fine. Health: drive times via Mapbox fallback (TomTom HTTP 403 quota/key) — known, riders unaffected.
+- Fri Oct 23, 6:16 AM HST (trips: yes — OPEN/mitigated alert + code changes): planner 5595 ms, 19/19 pages OK, http→https 301. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (2.6–4.6 s); retries fine. Health: drive via Mapbox fallback (TomTom HTTP 403) — known, riders unaffected.
