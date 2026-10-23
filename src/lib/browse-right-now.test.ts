@@ -165,37 +165,56 @@ describe("buildRightNow", () => {
     expect(result.items[0]?.title).toBe("Accident on H-1");
     expect(result.items[0]?.detail).toBe("ʻAiea to Pearl City · live · +9 min");
     expect(result.items[0]?.focus?.kind).toBe("point");
-    expect(result.items[1]?.kind).toBe("closure");
+    // The weekly closure is not up here: it waits in the closures list.
+    expect(result.items).toHaveLength(1);
+    expect(result.closures.map((c) => c.kind)).toEqual(["closure"]);
   });
 
-  it("shows tonight's closure ahead of a mild slowdown in the evening, behind it in the morning", () => {
+  it("keeps live traffic at the top at every hour; tonight's closure waits in the closures list", () => {
     const slow = drive({ delayMinutes: 6, hdotScheduledClosures: [closure()] });
+    for (const hour of [8, 17]) {
+      const result = buildRightNow({
+        checks: [check({ forward: slow })],
+        closures: [closure()],
+        now: hst(hour),
+      });
+      expect(result.items.map((i) => i.kind)).toEqual(["slowdown"]);
+      expect(result.closures).toHaveLength(1);
+    }
     const evening = buildRightNow({
       checks: [check({ forward: slow })],
       closures: [closure()],
       now: hst(17),
     });
-    expect(evening.items.map((i) => i.kind)).toEqual(["closure", "slowdown"]);
-    expect(evening.items[0]?.title).toBe("H-1 westbound: 2 lanes closed");
-    expect(evening.items[0]?.detail).toBe("Heads-up: tonight 8 PM–5 AM · Kalaeloa to Kunia");
-    const morning = buildRightNow({
-      checks: [check({ forward: slow })],
-      closures: [closure()],
-      now: hst(8),
-    });
-    expect(morning.items.map((i) => i.kind)).toEqual(["slowdown"]);
+    expect(evening.closures[0]?.title).toBe("H-1 westbound: 2 lanes closed");
+    expect(evening.closures[0]?.detail).toBe("Heads-up: tonight 8 PM–5 AM · Kalaeloa to Kunia");
   });
 
-  it("lists only closures on the rider's roads and at most three items", () => {
+  it("lists only closures on the rider's roads; one confirmed and active now may stay in Right now", () => {
     const four = ["a", "b", "c", "d"].map((location) => closure({ location }));
     const result = buildRightNow({
       checks: [carrying(...four)],
       closures: [closure({ route: "H-2" }), ...four],
       now: hst(21),
     });
-    expect(result.items).toHaveLength(3);
-    expect(result.items.every((i) => /^H-1/.test(i.title))).toBe(true);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.kind).toBe("closure");
     expect(result.items[0]?.detail.startsWith("Now, until 5 AM")).toBe(true);
+    expect(result.closures).toHaveLength(4);
+    expect(result.closures.every((i) => /^H-1/.test(i.title))).toBe(true);
+  });
+
+  it("does not keep a closure up top when it is only tonight or not confirmed on the route", () => {
+    const early = buildRightNow({
+      checks: [carrying(closure())],
+      closures: [closure()],
+      now: hst(16),
+    });
+    expect(early.items).toHaveLength(0);
+    expect(early.status).toBe("calm");
+    const unconfirmed = buildRightNow({ checks: [check()], closures: [closure()], now: hst(21) });
+    expect(unconfirmed.items).toHaveLength(0);
+    expect(unconfirmed.closures).toHaveLength(1);
   });
 
   it("drops police reports older than 90 minutes", () => {
@@ -262,7 +281,7 @@ describe("closure dates and weekdays", () => {
       checks: [carrying(day)],
       closures: [day],
       now: hst(7),
-    }).items[0];
+    }).closures[0];
     expect(item?.detail).toBe("Heads-up: later today 9 AM–3 PM · Kalaeloa to Kunia");
   });
 });
@@ -279,9 +298,9 @@ describe("rider-facing wording", () => {
 
   it("shows a closure the server did not place on the route as Elsewhere, without a map target", () => {
     const result = buildRightNow({ checks: [check()], closures: [closure()], now: hst(21) });
-    expect(result.items[0]?.title.startsWith("Elsewhere · H-1")).toBe(true);
-    expect(result.items[0]?.tone).toBe("info");
-    expect(result.items[0]?.focus).toBeNull();
+    expect(result.closures[0]?.title.startsWith("Elsewhere · H-1")).toBe(true);
+    expect(result.closures[0]?.tone).toBe("info");
+    expect(result.closures[0]?.focus).toBeNull();
   });
 
   it("never says clear when the incident feed is down", () => {

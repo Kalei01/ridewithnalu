@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import {
   Bus,
@@ -46,6 +46,7 @@ import {
 import { HOLO_FARES } from "@/lib/fares";
 import { waitText } from "@/lib/browse-peek";
 import {
+  incidentItems,
   incidentPins,
   roadLines,
   trafficSourceLabel,
@@ -59,7 +60,7 @@ import { useBrowseSheetOptIn, useLeaveBrowseSheet } from "./browse-flag";
 import { BrowseSheet, type SheetState } from "./BrowseSheet";
 import type { MapCommand, MapLayers, MapSelection } from "./BrowseMap";
 import { MapControls } from "./MapControls";
-import { RightNowBlock, RightNowLine } from "./RightNow";
+import { ItemCard, RightNowBlock, RightNowLine, RoadClosuresRow } from "./RightNow";
 import { RoadStatusRows } from "./OnTheRoad";
 import { browseDemo } from "./browse-demo";
 import { scrollBehavior } from "@/lib/motion";
@@ -115,6 +116,10 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
   const [activeItem, setActiveItem] = useState<string | null>(null);
   const [command, setCommand] = useState<MapCommand | null>(null);
   const nonce = useRef(0);
+  const mainRef = useRef<HTMLElement | null>(null);
+  // Where the sheet was before a tapped item raised it; the card's X returns there.
+  const prevSheet = useRef<SheetState>("peek");
+  const [focusTick, setFocusTick] = useState(0);
 
   const {
     browseStation,
@@ -184,8 +189,6 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
     });
   }
   const [selection, setSelection] = useState<MapSelection | null>(null);
-  const nearRef = useRef<HTMLElement | null>(null);
-  const stopsRef = useRef<HTMLElement | null>(null);
   const stationRef = useRef<HTMLElement | null>(null);
 
   const mapStations = data.browseStations
@@ -205,41 +208,55 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
   const selectedPlace =
     selection?.kind === "place" ? (mapPlaces.find((p) => p.id === selection.id) ?? null) : null;
 
+  const focused = Boolean(selection || activeItem || stationFocus);
+
+  /**
+   * Something was tapped (a pin or a list item): raise the sheet to at least half,
+   * remember where it was, and scroll it to the top so the item's card is in view.
+   */
+  function beginFocus() {
+    if (!focused) prevSheet.current = sheet;
+    setSheet((current) => (current === "peek" ? "half" : current));
+    setFocusTick((tick) => tick + 1);
+  }
   function openHalf() {
     setSheet((current) => (current === "peek" ? "half" : current));
   }
+  /** The card's X: back to the sheet as it was. */
+  function closeFocus() {
+    setSelection(null);
+    setStationFocus(false);
+    setActiveItem(null);
+    setSheet(prevSheet.current);
+  }
+  // A card does not outlive a closed sheet.
+  useEffect(() => {
+    if (sheet !== "peek") return;
+    setSelection(null);
+    setStationFocus(false);
+    setActiveItem(null);
+  }, [sheet]);
 
   function pickStop(stopId: string) {
+    beginFocus();
     data.setSelectedNearbyStopId(stopId);
     setStopPicked(true);
     setSelection({ kind: "stop", id: stopId });
     setStationFocus(false);
-    setStopsOpen(true);
-    openHalf();
+    setActiveItem(null);
   }
 
   /** A pin was tapped: the sheet opens to the matching card. */
   function selectOnMap(next: MapSelection) {
-    if (next.kind === "place") {
-      setSelection(next);
-      openHalf();
-      return;
-    }
-    if (next.kind === "incident") {
-      setSelection(next);
-      setActiveItem(next.id);
-      openHalf();
-      return;
-    }
-    const inNearby = nearbyStops.some((stop) => stop.stopId === next.id);
     if (next.kind === "stop" && next.id !== browseStation?.stopId) {
       pickStop(next.id);
       return;
     }
-    if (next.kind === "stop" && inNearby && next.id === browseStation?.stopId) {
-      setStationFocus(true);
-      setSelection({ kind: "station", id: next.id });
-      openHalf();
+    beginFocus();
+    setActiveItem(next.kind === "incident" ? next.id : null);
+    if (next.kind === "place" || next.kind === "incident") {
+      setStationFocus(false);
+      setSelection(next);
       return;
     }
     // A Skyline station that is not the nearest becomes "Near you".
@@ -255,17 +272,14 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
       });
     }
     setStationFocus(true);
-    setSelection(next);
-    openHalf();
+    setSelection(next.kind === "stop" ? { kind: "station", id: next.id } : next);
   }
 
-  function closeStation() {
-    setStationFocus(false);
-    setSelection(null);
-  }
-
-  /** A Right now item was tapped: the map flies to it. */
+  /** A Right now (or closure) item was tapped: its card opens and the map flies to it. */
   function flyTo(item: RightNowItem, focus: MapFocus | null) {
+    beginFocus();
+    setStationFocus(false);
+    setSelection(item.kind === "incident" ? { kind: "incident", id: item.id } : null);
     setActiveItem(item.id);
     if (!focus) return;
     nonce.current += 1;
@@ -280,31 +294,85 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
     setCommand({ nonce: nonce.current, type: "locate" });
   }
 
-  // Bring the matching card into view when something is selected on the map.
+  // The sheet and its header start from the top, so the tapped item's card is the first thing seen.
   useEffect(() => {
-    if (!selection) return;
+    if (!focusTick) return;
     const frame = window.requestAnimationFrame(() => {
-      const target =
-        selection.kind === "place" || selection.kind === "incident"
-          ? null
-          : selection.kind === "stop" && selection.id !== browseStation?.stopId
-            ? (stopsRef.current ?? nearRef.current)
-            : (stationRef.current ?? nearRef.current);
-      const body = (target ?? nearRef.current)?.closest(".nb-sheet-body") as HTMLElement | null;
-      if (!body) return;
-      const top = target
-        ? target.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 8
-        : 0;
-      body.scrollTo({ top, behavior: scrollBehavior() });
+      mainRef.current
+        ?.querySelectorAll<HTMLElement>(".nb-sheet-header, .nb-sheet-body")
+        .forEach((el) => el.scrollTo({ top: 0, behavior: scrollBehavior() }));
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [selection]);
+  }, [focusTick]);
+
+  // Every item that can have a card: live items, the closures list, and any reported incident.
+  const itemById = useMemo(() => {
+    const all = [
+      ...rightNow.items,
+      ...rightNow.closures,
+      ...incidentItems(roadChecks, data.now.getTime()),
+    ];
+    return new Map(all.map((item) => [item.id, item]));
+  }, [rightNow, roadChecks, data.now]);
+  const activeCard = activeItem ? (itemById.get(activeItem) ?? null) : null;
+  const selectedStop =
+    selection?.kind === "stop"
+      ? (nearbyStops.find((s) => s.stopId === selection.id) ?? null)
+      : null;
+
+  const skylineFar = data.skylineOutOfReach;
+  // The tapped item's card: a place, a station, a stop, or an incident/closure/slowdown.
+  const focusCard = selectedPlace ? (
+    <section className="nb-select-card nh-card p-4" aria-label={`${selectedPlace.label}`}>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            {selectedPlace.kind === "home" ? "Home" : "Work"}
+          </p>
+          <p className="mt-0.5 break-words text-lg font-semibold text-foreground">
+            {selectedPlace.address || selectedPlace.label}
+          </p>
+        </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-11 shrink-0"
+          aria-label="Close"
+          onClick={closeFocus}
+        >
+          <X className="size-4" />
+        </Button>
+      </div>
+      <Button
+        className="mt-3 h-12 w-full text-base"
+        onClick={() =>
+          window.location.assign(
+            plannerHref({
+              name: selectedPlace.label,
+              lat: selectedPlace.lat,
+              lon: selectedPlace.lon,
+            }),
+          )
+        }
+      >
+        Plan trip
+      </Button>
+    </section>
+  ) : stationFocus && browseStation ? (
+    <StationCard data={data} stationRef={stationRef} onClose={closeFocus} focus />
+  ) : selectedStop ? (
+    <section className="nb-select-card nh-card p-4" aria-label={titleCase(selectedStop.stopName)}>
+      <StopDetail stop={selectedStop} nowSeconds={nowSeconds} onClose={closeFocus} />
+    </section>
+  ) : activeCard ? (
+    <ItemCard item={activeCard} onClose={closeFocus} />
+  ) : null;
 
   const header =
     sheet === "peek" ? (
       <RightNowLine now={rightNow} onOpen={openHalf} />
     ) : (
-      <RightNowBlock now={rightNow} activeId={activeItem} onFocus={flyTo} />
+      (focusCard ?? <RightNowBlock now={rightNow} activeId={activeItem} onFocus={flyTo} />)
     );
   const peek = (
     <div>
@@ -315,19 +383,13 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
     </div>
   );
 
-  const skylineFar = data.skylineOutOfReach;
   const stationCard =
     browseStation && !skylineFar ? (
-      <StationCard
-        data={data}
-        stationRef={stationRef}
-        onClose={closeStation}
-        focus={stationFocus}
-      />
+      <StationCard data={data} stationRef={stationRef} onClose={closeFocus} focus={false} />
     ) : null;
 
   return (
-    <main className="nh nb text-foreground">
+    <main ref={mainRef} className="nh nb text-foreground">
       <div ref={mapRef} className="nb-map">
         {browseUserPoint ? (
           <section aria-label="Nearby transit map" className="nh-island-card relative">
@@ -409,7 +471,7 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
         )}
       </div>
 
-      <BrowseSheet state={sheet} onStateChange={setSheet} peek={peek}>
+      <BrowseSheet state={sheet} onStateChange={setSheet} peek={peek} focused={Boolean(focusCard)}>
         {!hasTransit && (
           <p className="mt-2 w-fit rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
             Test: {activeRegion().name} · driving and rides only
@@ -434,47 +496,6 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
             reconnect.
           </p>
         )}
-
-        {selectedPlace && (
-          <section className="nb-select-card nh-card p-4" aria-label={`${selectedPlace.label}`}>
-            <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  {selectedPlace.kind === "home" ? "Home" : "Work"}
-                </p>
-                <p className="mt-0.5 break-words text-lg font-semibold text-foreground">
-                  {selectedPlace.address || selectedPlace.label}
-                </p>
-              </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="size-11 shrink-0"
-                aria-label="Close place"
-                onClick={() => setSelection(null)}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-            <Button
-              className="mt-3 h-12 w-full text-base"
-              onClick={() =>
-                window.location.assign(
-                  plannerHref({
-                    name: selectedPlace.label,
-                    lat: selectedPlace.lat,
-                    lon: selectedPlace.lon,
-                  }),
-                )
-              }
-            >
-              Plan trip
-            </Button>
-          </section>
-        )}
-
-        {/* The station card replaces the Near-you lists while a station is picked. */}
-        {stationFocus && stationCard}
 
         {/* Saved places are shortcuts, never assumptions: no default destination. */}
         <div className="nh-rail-scroll mt-1" role="group" aria-label="Saved places">
@@ -533,6 +554,7 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
               loading={rightNow.status === "loading"}
               unavailable={rightNow.status === "failed"}
             />
+            <RoadClosuresRow items={rightNow.closures} activeId={activeItem} onFocus={flyTo} />
             <RoadworkTile />
             <details className="nh-card nh-details">
               <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
@@ -567,7 +589,7 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
 
         {/* Near you: nearest Skyline station (wherever the rider is) + nearby stops */}
         {hasTransit && (
-          <section ref={nearRef} className="nb-card" aria-label="Near you">
+          <section className="nb-card" aria-label="Near you">
             <h2 className="nb-card-title">Near you</h2>
             {skylineFar && browseStation ? (
               <div className="nh-card flex items-start gap-3 px-4 py-3 text-sm">
@@ -595,7 +617,6 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
 
             {browseUserPoint && (
               <details
-                ref={stopsRef as React.RefObject<HTMLDetailsElement>}
                 open={stopsOpen}
                 onToggle={(event) => setStopsOpen((event.currentTarget as HTMLDetailsElement).open)}
                 className="nh-card nh-details mt-3"
@@ -646,84 +667,7 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
                   {data.nearbyStopsLoading && (
                     <p className="text-sm text-muted-foreground">Finding nearby transit…</p>
                   )}
-                  {shownStop && (
-                    <div>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-semibold text-foreground">
-                            {shownStop.routeType === 1 ? (
-                              <StationName
-                                name={shownStop.stopName}
-                                hawaiianClassName="text-xs font-normal"
-                              />
-                            ) : (
-                              titleCase(shownStop.stopName)
-                            )}
-                          </div>
-                          <LandmarkHint name={shownStop.stopName} />
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {formatDistance(shownStop.distanceM)} away
-                          </p>
-                        </div>
-                        {shownStop.arrivals[0] && (
-                          <p className="shrink-0 whitespace-nowrap text-lg font-bold tabular-nums text-primary">
-                            {waitText(
-                              Math.max(
-                                0,
-                                Math.ceil(
-                                  (shownStop.arrivals[0].departure_seconds - nowSeconds) / 60,
-                                ),
-                              ),
-                            )}
-                          </p>
-                        )}
-                      </div>
-                      <div className="mt-3 divide-y divide-white/10">
-                        {shownStop.arrivals.length ? (
-                          shownStop.arrivals.slice(0, 3).map((arrival, index) => (
-                            <div
-                              key={`${arrival.departure_seconds}-${index}`}
-                              className="flex items-center gap-2 py-2 text-sm text-foreground"
-                            >
-                              <span className="shrink-0 rounded-md bg-primary/15 px-2 py-1 font-bold text-primary">
-                                {shownStop.routeType === 1
-                                  ? "Skyline"
-                                  : arrival.route_short_name || arrival.route_long_name || "Bus"}
-                              </span>
-                              <span className="min-w-0 flex-1 line-clamp-2 font-medium">
-                                {arrival.headsign
-                                  ? shownStop.routeType === 1
-                                    ? stationLabel(arrival.headsign)
-                                    : titleCase(arrival.headsign)
-                                  : "Destination unavailable"}
-                              </span>
-                              <span className="shrink-0 font-bold tabular-nums">
-                                {clockFromSeconds(arrival.departure_seconds)}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            No upcoming scheduled arrivals right now.
-                          </p>
-                        )}
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Scheduled times · TheBus / DTS
-                      </p>
-                      <a
-                        href={plannerHref({
-                          name: titleCase(shownStop.stopName),
-                          lat: shownStop.lat,
-                          lon: shownStop.lon,
-                        })}
-                        className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
-                      >
-                        Plan a trip to this stop{" "}
-                        <ChevronRight aria-hidden="true" className="size-4" />
-                      </a>
-                    </div>
-                  )}
+                  {shownStop && <StopDetail stop={shownStop} nowSeconds={nowSeconds} />}
                 </div>
               </details>
             )}
@@ -773,6 +717,102 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
 }
 
 type BrowseData = ReturnType<typeof useBrowseData>;
+type NearbyStopRow = BrowseData["nearbyStops"][number];
+
+/** A bus stop (or rail stop): its name, next departures by route, and the way to plan a trip there. */
+function StopDetail({
+  stop,
+  nowSeconds,
+  onClose,
+}: {
+  stop: NearbyStopRow;
+  nowSeconds: number;
+  onClose?: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {onClose && (
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              {stop.routeType === 1 ? "Rail stop" : "Bus stop"}
+            </p>
+          )}
+          <div className="font-semibold text-foreground">
+            {stop.routeType === 1 ? (
+              <StationName name={stop.stopName} hawaiianClassName="text-xs font-normal" />
+            ) : (
+              titleCase(stop.stopName)
+            )}
+          </div>
+          <LandmarkHint name={stop.stopName} />
+          <p className="mt-1 text-xs text-muted-foreground">
+            {formatDistance(stop.distanceM)} away
+          </p>
+        </div>
+        <div className="flex shrink-0 items-start gap-1">
+          {stop.arrivals[0] && (
+            <p className="whitespace-nowrap pt-0.5 text-lg font-bold tabular-nums text-primary">
+              {waitText(
+                Math.max(0, Math.ceil((stop.arrivals[0].departure_seconds - nowSeconds) / 60)),
+              )}
+            </p>
+          )}
+          {onClose && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="-mr-2 -mt-2 size-11 shrink-0"
+              aria-label="Close"
+              onClick={onClose}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+      <div className="mt-3 divide-y divide-white/10">
+        {stop.arrivals.length ? (
+          stop.arrivals.slice(0, 3).map((arrival, index) => (
+            <div
+              key={`${arrival.departure_seconds}-${index}`}
+              className="flex items-center gap-2 py-2 text-sm text-foreground"
+            >
+              <span className="shrink-0 rounded-md bg-primary/15 px-2 py-1 font-bold text-primary">
+                {stop.routeType === 1
+                  ? "Skyline"
+                  : arrival.route_short_name || arrival.route_long_name || "Bus"}
+              </span>
+              <span className="line-clamp-2 min-w-0 flex-1 font-medium">
+                {arrival.headsign
+                  ? stop.routeType === 1
+                    ? stationLabel(arrival.headsign)
+                    : titleCase(arrival.headsign)
+                  : "Destination unavailable"}
+              </span>
+              <span className="shrink-0 font-bold tabular-nums">
+                {clockFromSeconds(arrival.departure_seconds)}
+              </span>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">No upcoming scheduled arrivals right now.</p>
+        )}
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">Scheduled times · TheBus / DTS</p>
+      <a
+        href={plannerHref({
+          name: titleCase(stop.stopName),
+          lat: stop.lat,
+          lon: stop.lon,
+        })}
+        className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary"
+      >
+        Plan a trip to this stop <ChevronRight aria-hidden="true" className="size-4" />
+      </a>
+    </div>
+  );
+}
 
 /** The closest Skyline station: two directions as scheduled, then each direction's last train. */
 function StationCard({

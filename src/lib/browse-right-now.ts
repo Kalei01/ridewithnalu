@@ -4,9 +4,10 @@
  * live checks and the state's roadwork list say; nothing is estimated.
  *
  * - One calm line when everything checked is clear, otherwise up to 3 ranked items.
- * - Time-aware: in the evening and overnight (from 3 PM) tonight's lane closures
- *   come ahead of ordinary slowdowns; in the morning live traffic comes first.
- *   A serious live incident (accident, closed road, 10+ min delay) always leads.
+ * - Live traffic leads at every hour: serious incidents (accident, closed road, 10+ min
+ *   delay) first, then other crashes and slowdowns near the rider or on their usual roads.
+ *   The state's weekly lane closures stay out of the way (a separate `closures` list), except
+ *   one closure confirmed on the rider's own route that is in effect right now.
  * - Roads follow the rider (browse-corridors.ts): closures are listed only on
  *   the roads of the corridors being checked.
  */
@@ -46,16 +47,15 @@ export type RightNow = {
   status: "loading" | "failed" | "calm" | "items";
   /** The one line for the closed sheet. */
   line: string;
+  /** Live traffic first (crashes, slowdowns near the rider), at most one closure confirmed on the route and active now. */
   items: RightNowItem[];
+  /** The weekly HDOT closures on the rider's roads (in effect, tonight or later today): a quiet list lower in the sheet. */
+  closures: RightNowItem[];
 };
 
 const MAX_ITEMS = 3;
 const SLOWDOWN_MIN = 5;
 const SERIOUS_DELAY_MIN = 10;
-/** From this hour (Honolulu) tonight's closures lead. */
-export const EVENING_FROM_HOUR = 15;
-/** Before this hour the night's closures are still the news. */
-const MORNING_FROM_HOUR = 5;
 
 // ---- Roads --------------------------------------------------------------
 
@@ -273,6 +273,14 @@ function incidentItem(incident: DriveIncident, nowMs: number): RightNowItem | nu
     source: incidentSource(incident),
     focus: incidentFocus(incident),
   };
+}
+
+/** Every fresh incident as an item (the map pins and the sheet's cards share these ids). */
+export function incidentItems(checks: RoadCheck[], nowMs: number): RightNowItem[] {
+  return collectIncidents(checks).flatMap((incident) => {
+    const item = incidentItem(incident, nowMs);
+    return item ? [item] : [];
+  });
 }
 
 // ---- Closures -----------------------------------------------------------
@@ -510,8 +518,6 @@ export function buildRightNow(input: {
 }): RightNow {
   const { checks, closures } = input;
   const nowMs = input.now.getTime();
-  const hour = Math.floor(honoluluSeconds(input.now) / 3600);
-  const evening = hour >= EVENING_FROM_HOUR || hour < MORNING_FROM_HOUR;
 
   const anyData = checks.some((c) => c.forward || c.back);
   const stillLoading = checks.length > 0 && !anyData && checks.some((c) => c.loading);
@@ -576,22 +582,25 @@ export function buildRightNow(input: {
   const serious = live.filter(isSerious);
   const restLive = live.filter((item) => !isSerious(item));
   const closureList = closureItems.map((c) => c.item);
-  // Morning: only what is in effect or comes later today; tonight's waits until 3 PM.
-  const morningClosures = closureItems.filter((c) => c.state !== "tonight").map((c) => c.item);
+  // The one closure that may stay up top: confirmed on the rider's route and in effect now.
+  const activeOnRoute = closureItems.find((c) => c.onRoute && c.state === "now");
 
-  // Morning: what is happening on the road, then closures still in effect (tonight's wait until 3 PM).
-  // Evening/overnight: tonight's closures lead the ordinary items.
-  const ranked = evening
-    ? [...serious, ...closureList, ...restLive]
-    : [...serious, ...restLive, ...morningClosures];
+  const ranked = [...serious, ...restLive, ...(activeOnRoute ? [activeOnRoute.item] : [])];
   const items = ranked.slice(0, MAX_ITEMS);
 
   if (items.length) {
-    return { status: "items", line: items[0]!.title, items };
+    return { status: "items", line: items[0]!.title, items, closures: closureList };
   }
-  if (stillLoading) return { status: "loading", line: "Checking the roads…", items: [] };
-  if (allFailed) return { status: "failed", line: "Can’t check traffic right now", items: [] };
-  return { status: "calm", line: calmLine(checks), items: [] };
+  if (stillLoading)
+    return { status: "loading", line: "Checking the roads…", items: [], closures: closureList };
+  if (allFailed)
+    return {
+      status: "failed",
+      line: "Can’t check traffic right now",
+      items: [],
+      closures: closureList,
+    };
+  return { status: "calm", line: calmLine(checks), items: [], closures: closureList };
 }
 
 /** One honest line for "nothing to report": only roads that were actually checked. */

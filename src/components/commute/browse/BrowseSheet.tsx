@@ -32,12 +32,15 @@ export function BrowseSheet({
   state,
   onStateChange,
   peek,
+  focused = false,
   children,
 }: {
   state: SheetState;
   onStateChange: (next: SheetState) => void;
   /** The header: Right now and the search field. Taller than the closed sheet shows once opened. */
   peek: ReactNode;
+  /** A tapped item's card sits at the top of the header: let the header scroll within the half sheet. */
+  focused?: boolean;
   /** The cards. Hidden from taps and screen readers while the sheet is a peek. */
   children: ReactNode;
 }) {
@@ -149,6 +152,7 @@ export function BrowseSheet({
       ref={sheetRef}
       className="nb-sheet"
       data-state={state}
+      data-focus={focused ? "true" : undefined}
       aria-label="Nalu: where to, and what is happening now"
     >
       <div ref={probeRef} className="nb-peek-probe" aria-hidden="true" />

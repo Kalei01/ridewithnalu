@@ -7,7 +7,7 @@
   inset: 0;
   overflow: hidden;
   background: var(--nh-sea, #0a1117);
-  --nb-peek: calc(11.25rem + env(safe-area-inset-bottom));
+  --nb-peek: calc(12rem + env(safe-area-inset-bottom));
   --nb-h: calc(100dvh - 4rem - env(safe-area-inset-top));
   --nb-half: 50dvh;
 }
@@ -117,6 +117,12 @@
 .nb-sheet[data-state="full"] .nb-sheet-header {
   overflow-y: auto;
 }
+/* A tapped item's card tops the half sheet: the header scrolls inside the visible half. */
+.nb-sheet[data-state="half"][data-focus="true"] .nb-sheet-header {
+  max-height: calc(var(--nb-half) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .nb-sheet-header > :not(.nb-handle) {
   position: relative;
 }
@@ -198,6 +204,11 @@
   background: rgb(255 255 255 / 4%);
   text-align: left;
   transition: background-color 140ms ease;
+}
+/* Road closures row: the list inside keeps its own inset. */
+.nb-closures .nb-now-list {
+  padding: 0.75rem;
+  border-top: 1px solid rgb(255 255 255 / 8%);
 }
 button.nb-now-item:active {
   background: rgb(255 255 255 / 9%);

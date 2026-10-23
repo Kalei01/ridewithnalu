@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Construction, X } from "lucide-react";
 import type { MapFocus, RightNow, RightNowItem } from "@/lib/browse-right-now";
 
 /**
@@ -28,8 +28,13 @@ export function RightNowLine({ now, onOpen }: { now: RightNow; onOpen: () => voi
       aria-label={`Right now: ${now.line}. Show details`}
     >
       <span className={`nb-now-dot ${DOT[tone]}`} aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-        {now.line}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-foreground">{now.line}</span>
+        {now.status === "items" && now.items[0]!.detail && (
+          <span className="block truncate text-xs text-muted-foreground">
+            {now.items[0]!.detail}
+          </span>
+        )}
       </span>
       {more > 0 && (
         <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
@@ -75,34 +80,119 @@ export function RightNowBlock({
                     {item.source}
                   </span>
                 </span>
-                {item.focus && (
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="size-4 shrink-0 text-muted-foreground"
-                  />
-                )}
+                <ChevronRight
+                  aria-hidden="true"
+                  className="mt-1 size-4 shrink-0 text-muted-foreground"
+                />
               </>
             );
             return (
               <li key={item.id}>
-                {item.focus ? (
-                  <button
-                    type="button"
-                    className="nb-now-item"
-                    aria-current={activeId === item.id ? "true" : undefined}
-                    aria-label={`${item.title}. ${item.detail}. Show on the map`}
-                    onClick={() => onFocus(item, item.focus)}
-                  >
-                    {body}
-                  </button>
-                ) : (
-                  <div className="nb-now-item">{body}</div>
-                )}
+                <button
+                  type="button"
+                  className="nb-now-item"
+                  aria-current={activeId === item.id ? "true" : undefined}
+                  aria-label={`${item.title}. ${item.detail}. ${item.focus ? "Show on the map" : "Show details"}`}
+                  onClick={() => onFocus(item, item.focus)}
+                >
+                  {body}
+                </button>
               </li>
             );
           })}
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * The card for one Right now item (a crash, slowdown, police report or closure):
+ * what, where, when, and who said so. It takes the top of the sheet until closed.
+ */
+export function ItemCard({ item, onClose }: { item: RightNowItem; onClose: () => void }) {
+  return (
+    <section className="nb-select-card nh-card p-4" aria-label={item.title}>
+      <div className="flex items-start gap-3">
+        <span className={`nb-now-dot mt-2 ${DOT[item.tone]}`} aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            {item.kind === "closure"
+              ? "Road closure"
+              : item.kind === "slowdown"
+                ? "Slowdown"
+                : "Incident"}
+          </p>
+          <p className="mt-0.5 break-words text-lg font-semibold leading-snug text-foreground">
+            {item.title}
+          </p>
+          {item.detail && <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>}
+          <p className="mt-2 text-xs text-muted-foreground">Source: {item.source}</p>
+        </div>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="-mr-1 -mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-white/10"
+        >
+          <X aria-hidden="true" className="size-4" />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The state's weekly lane closures on the rider's roads, kept out of the way:
+ * one row, "Road closures (N)", that opens to the full list. Each opens its card.
+ */
+export function RoadClosuresRow({
+  items,
+  activeId,
+  onFocus,
+}: {
+  items: RightNowItem[];
+  activeId: string | null;
+  onFocus: (item: RightNowItem, focus: MapFocus | null) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <details className="nh-card nh-details nb-closures">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+        <Construction aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+        <span className="text-base font-bold text-foreground">Road closures ({items.length})</span>
+        <ChevronDown
+          aria-hidden="true"
+          className="nh-chevron ml-auto size-4 text-muted-foreground"
+        />
+      </summary>
+      <ul className="nb-now-list">
+        {items.map((item) => (
+          <li key={item.id}>
+            <button
+              type="button"
+              className="nb-now-item"
+              aria-current={activeId === item.id ? "true" : undefined}
+              aria-label={`${item.title}. ${item.detail}. Show details`}
+              onClick={() => onFocus(item, item.focus)}
+            >
+              <span className={`nb-now-dot mt-1.5 ${DOT[item.tone]}`} aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-foreground">{item.title}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {item.detail}
+                  {item.detail ? " · " : ""}
+                  {item.source}
+                </span>
+              </span>
+              <ChevronRight
+                aria-hidden="true"
+                className="mt-1 size-4 shrink-0 text-muted-foreground"
+              />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

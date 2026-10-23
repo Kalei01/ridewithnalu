@@ -422,10 +422,15 @@ export function useBrowseData(demo?: BrowseDemo | null) {
     const result = buildRightNow({ checks: roadChecks, closures, now });
     // Still on its way: say so rather than "Can't check".
     if (checksLoading && result.status !== "items") {
-      return { status: "loading" as const, line: "Checking the roads…", items: [] };
+      return { ...result, status: "loading" as const, line: "Checking the roads…", items: [] };
     }
     if (trafficUnavailable && result.status === "calm") {
-      return { status: "failed" as const, line: "Can’t check traffic right now", items: [] };
+      return {
+        ...result,
+        status: "failed" as const,
+        line: "Can’t check traffic right now",
+        items: [],
+      };
     }
     return result;
   }, [roadChecks, closures, now, checksLoading, trafficUnavailable]);
