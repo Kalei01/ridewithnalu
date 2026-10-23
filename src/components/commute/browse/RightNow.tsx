@@ -161,10 +161,10 @@ export function RoadClosuresRow({
 }) {
   const parts = [
     items.length
-      ? `${items.length} on your roads`
+      ? `${items.length} on roads you use`
       : weekCount === null
         ? "List unavailable right now"
-        : "None on your roads",
+        : "None on roads you use",
     weekCount !== null ? `${weekCount} this week` : null,
   ].filter(Boolean);
   return (
