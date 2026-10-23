@@ -757,10 +757,11 @@ function nearPoint(a: LatLon, b: LatLon, meters: number): boolean {
   return Math.hypot(dLat, dLon) <= meters;
 }
 
-/** The way a leg travels, from its own geometry ("heading east"); null when it barely moves. */
-function legWay(drive: DriveTime): string | null {
-  const net = netDirection(drive.path);
-  return net ? `heading ${net.replace("bound", "")}` : null;
+/** The way a leg travels, named by the check's own ends ("toward town"): forward runs a → b. */
+function legWay(area: string, id: "f" | "b"): string | null {
+  const ends = area.split("↔").map((part) => part.trim());
+  if (ends.length !== 2 || !ends[0] || !ends[1]) return null;
+  return `toward ${id === "f" ? ends[1] : ends[0]}`;
 }
 
 function legText(drive: DriveTime): string {
@@ -793,7 +794,7 @@ export function trafficCard(
   // Per-stretch road names are not in the data: name the road only when the whole route has one main road.
   const roadNames = routeRoadNames(drive);
   const oneRoad = roadNames.length === 1 ? roadNames[0]! : null;
-  const way = section ? legWay(drive) : null;
+  const way = section ? legWay(check.area, tappedLegs[0]!.id) : null;
   const direction = oneRoad ? routeDirectionOn(drive, oneRoad) : null;
   const title = oneRoad
     ? `${oneRoad}${direction ? ` ${direction}` : ""}`
@@ -826,7 +827,7 @@ export function trafficCard(
   const legLines = section
     ? []
     : legs.map((l) => ({
-        label: (legWay(l.drive) ?? (l.id === "f" ? "one way" : "the other way")).replace(
+        label: (legWay(check.area, l.id) ?? (l.id === "f" ? "one way" : "the other way")).replace(
           /^./,
           (c) => c.toUpperCase(),
         ),

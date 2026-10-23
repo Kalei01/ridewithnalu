@@ -365,7 +365,7 @@ describe("map incident kinds and the traffic card", () => {
     });
     const line = roadLines([c])[0]!;
     const card = trafficCard([c], line, 0, hst(7, 5).getTime())!;
-    expect(card.title).toBe("Kapolei ↔ town route, heading east");
+    expect(card.title).toBe("Kapolei ↔ town route, toward town");
     expect(card.title).not.toContain("H-1");
     expect(card.level).toBe("Heavy traffic");
     expect(card.facts).toEqual(["+6 min on this stretch", "+7 min over usual on the whole route"]);
@@ -390,8 +390,8 @@ describe("map incident kinds and the traffic card", () => {
     };
     const card = trafficCard([c], roadLines([c])[0]!, null, hst(7).getTime())!;
     expect(card.legs).toEqual([
-      { label: "Heading east", text: "running as usual" },
-      { label: "Heading west", text: "+15 min over usual" },
+      { label: "Toward town", text: "running as usual" },
+      { label: "Toward Kapolei", text: "+15 min over usual" },
     ]);
     expect(card.level).toBeNull();
   });
