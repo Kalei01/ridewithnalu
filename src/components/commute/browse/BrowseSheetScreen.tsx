@@ -20,7 +20,6 @@ import { LandmarkHint } from "@/components/commute/TransitNotices";
 import { WalkingMicroMap } from "@/components/commute/RailTripBreakdown";
 import { DataExpiryNotice } from "@/components/commute/DataExpiry";
 import { TONE_CLASS } from "@/components/commute/H1ConditionsCard";
-import { RoadworkTile } from "@/components/commute/RoadworkTile";
 import {
   AskNaluIfAvailable,
   BeatTheRush,
@@ -554,8 +553,12 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
               loading={rightNow.status === "loading"}
               unavailable={rightNow.status === "failed"}
             />
-            <RoadClosuresRow items={rightNow.closures} activeId={activeItem} onFocus={flyTo} />
-            <RoadworkTile />
+            <RoadClosuresRow
+              items={rightNow.closures}
+              weekCount={data.closures ? data.closures.length : null}
+              activeId={activeItem}
+              onFocus={flyTo}
+            />
             <details className="nh-card nh-details">
               <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
                 <span className="min-w-0 truncate text-sm font-semibold text-foreground">
@@ -667,7 +670,9 @@ export function BrowseSheetScreen({ onOpenSettings }: { onOpenSettings?: () => v
                   {data.nearbyStopsLoading && (
                     <p className="text-sm text-muted-foreground">Finding nearby transit…</p>
                   )}
-                  {shownStop && <StopDetail stop={shownStop} nowSeconds={nowSeconds} />}
+                  {shownStop && selectedStop?.stopId !== shownStop.stopId && (
+                    <StopDetail stop={shownStop} nowSeconds={nowSeconds} />
+                  )}
                 </div>
               </details>
             )}

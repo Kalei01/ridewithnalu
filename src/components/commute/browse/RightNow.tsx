@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, Construction, X } from "lucide-react";
 import type { MapFocus, RightNow, RightNowItem } from "@/lib/browse-right-now";
 
@@ -148,19 +149,32 @@ export function ItemCard({ item, onClose }: { item: RightNowItem; onClose: () =>
  */
 export function RoadClosuresRow({
   items,
+  weekCount,
   activeId,
   onFocus,
 }: {
   items: RightNowItem[];
+  /** All planned closures on the state's list this week (island-wide), or null when it did not load. */
+  weekCount: number | null;
   activeId: string | null;
   onFocus: (item: RightNowItem, focus: MapFocus | null) => void;
 }) {
-  if (!items.length) return null;
+  const parts = [
+    items.length
+      ? `${items.length} on your roads`
+      : weekCount === null
+        ? "List unavailable right now"
+        : "None on your roads",
+    weekCount !== null ? `${weekCount} this week` : null,
+  ].filter(Boolean);
   return (
     <details className="nh-card nh-details nb-closures">
       <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
         <Construction aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
-        <span className="text-base font-bold text-foreground">Road closures ({items.length})</span>
+        <span className="min-w-0">
+          <span className="block text-base font-bold text-foreground">Road closures</span>
+          <span className="block text-sm text-muted-foreground">{parts.join(" · ")}</span>
+        </span>
         <ChevronDown
           aria-hidden="true"
           className="nh-chevron ml-auto size-4 text-muted-foreground"
@@ -193,6 +207,12 @@ export function RoadClosuresRow({
           </li>
         ))}
       </ul>
+      <Link
+        to="/roadwork"
+        className="flex min-h-11 items-center gap-1 border-t border-white/10 px-4 text-sm font-semibold text-primary"
+      >
+        See all roadwork this week <ChevronRight aria-hidden="true" className="size-4" />
+      </Link>
     </details>
   );
 }

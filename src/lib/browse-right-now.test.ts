@@ -186,7 +186,7 @@ describe("buildRightNow", () => {
       closures: [closure()],
       now: hst(17),
     });
-    expect(evening.closures[0]?.title).toBe("H-1 westbound: 2 lanes closed");
+    expect(evening.closures[0]?.title).toBe("H-1 westbound · 2 lanes closed");
     expect(evening.closures[0]?.detail).toBe("Heads-up: tonight 8 PM–5 AM · Kalaeloa to Kunia");
   });
 
@@ -296,9 +296,9 @@ describe("rider-facing wording", () => {
     expect(none.items[0]?.title).toBe("Likelike Hwy: +7 min over typical");
   });
 
-  it("shows a closure the server did not place on the route as Elsewhere, without a map target", () => {
+  it("shows a closure the server did not place on the route as not confirmed, without a map target", () => {
     const result = buildRightNow({ checks: [check()], closures: [closure()], now: hst(21) });
-    expect(result.closures[0]?.title.startsWith("Elsewhere · H-1")).toBe(true);
+    expect(result.closures[0]?.title.startsWith("H-1 westbound · ")).toBe(true);
     expect(result.closures[0]?.tone).toBe("info");
     expect(result.closures[0]?.focus).toBeNull();
   });

@@ -455,8 +455,8 @@ function closureItem(
     kind: "closure",
     // Not confirmed on this rider's stretch: information only.
     tone: !onRoute ? "info" : /full closure/i.test(lanes) ? "bad" : "warn",
-    title: `${onRoute ? "" : "Elsewhere · "}${closureRoadLabel(closure.route)}${direction ? ` ${direction}` : ""}: ${lanes.charAt(0).toLowerCase()}${lanes.slice(1)}`,
-    detail: [when, where, onRoute ? null : "check whether it is on your stretch"]
+    title: `${closureRoadLabel(closure.route)}${direction ? ` ${direction}` : ""} · ${lanes.charAt(0).toLowerCase()}${lanes.slice(1)}`,
+    detail: [when, where, onRoute ? null : "Not confirmed on your route"]
       .filter(Boolean)
       .join(" · "),
     source: "Hawaiʻi DOT weekly list",
