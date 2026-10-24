@@ -18,6 +18,7 @@ The full working memory of NALU MAIN COMMAND (1), written before it was archived
 | Premium UX Review — PAUSED Oct 24 (cost) | session_019KNNRgXASyVD5M3m2Mej5p | trig_019g8aU9fGqEwsMhGkDk3nuN |
 | Weekly Review (Sun 9:47 AM; Sonnet since Oct 24) | session_01TwJBnK8b32BJpuhkQjC2CA | trig_018WJBnLAGD9BvDv8xDM7qJw |
 | Monthly AI-visibility reminder (1st, 9:51 AM) | fresh session each time | trig_01DpgFyMbUyJx3ZaZcgQbn1j |
+| Lead succession check (daily 4:07 AM, Haiku, fresh session) | fresh session each time | trig_01QVM39wDoGm31gcJmKvquA5 |
 | Old SEO routine, paused — never delete (deleting a routine deletes sessions it started, incl. the SEO session) | — | trig_01G52vVGE2zPsacpy4hddJzs |
 | Ask Nalu (Haiku, Josh's Q&A, read-only) | session_01AF2Z9Cn94gfyTG3Me8jHYN | — |
 | Phase 0 cleanups + Tell Nalu form polish (Sonnet, running Oct 11) | session_01ULFH1z7nveUdq7axXkUNbS | — |
