@@ -1,6 +1,6 @@
 # Nalu — main passdown (everyone)
 
-Read first, every session. Rules for keeping it current and small: `docs/passdown/README.md`. Each scheduled agent also has its own file in this folder. Last updated: 2026-10-14 (Skyline cap fix).
+Read first, every session. Rules for keeping it current and small: `docs/passdown/README.md`. Each scheduled agent also has its own file in this folder. Last updated: 2026-10-24 (lead handover to MAIN (5) for cost; reduced routine schedule — see lead.md "Cost rules").
 
 ## Owner and ground rules
 - Josh, not a developer: plain English, real evidence only, never invent numbers.

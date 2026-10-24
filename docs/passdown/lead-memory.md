@@ -13,16 +13,16 @@ The full working memory of NALU MAIN COMMAND (1), written before it was archived
 ## Sessions and routines (ids)
 | What | Session | Routine |
 |---|---|---|
-| Daily Watchman + Triage (weekdays 6:13 AM HST) | session_01TJ7WDquPEP65LxzQjWqgik | trig_01QCwmtYU2ZHYjifd26oYFgG |
-| SEO Discovery (Mon/Thu 5:58 AM) — DISABLED for Mon Oct 12 by Josh; re-enable Tue | session_01BG5hLoo9ouvcMu3fp3NuNN | trig_016zR7zTvdto6qPirJjEVBKb |
-| Premium UX Review (Wed 10:47 AM) | session_019KNNRgXASyVD5M3m2Mej5p | trig_019g8aU9fGqEwsMhGkDk3nuN |
-| Weekly Review (Sun 9:47 AM) | session_01TwJBnK8b32BJpuhkQjC2CA | trig_018WJBnLAGD9BvDv8xDM7qJw |
+| Daily Watchman + Triage (Mon/Wed/Fri 6:13 AM HST since Oct 24; Sonnet) | session_01TJ7WDquPEP65LxzQjWqgik | trig_01QCwmtYU2ZHYjifd26oYFgG |
+| SEO Discovery (Mon 5:58 AM since Oct 24; Sonnet) | session_01BG5hLoo9ouvcMu3fp3NuNN | trig_016zR7zTvdto6qPirJjEVBKb |
+| Premium UX Review — PAUSED Oct 24 (cost) | session_019KNNRgXASyVD5M3m2Mej5p | trig_019g8aU9fGqEwsMhGkDk3nuN |
+| Weekly Review (Sun 9:47 AM; Sonnet since Oct 24) | session_01TwJBnK8b32BJpuhkQjC2CA | trig_018WJBnLAGD9BvDv8xDM7qJw |
 | Monthly AI-visibility reminder (1st, 9:51 AM) | fresh session each time | trig_01DpgFyMbUyJx3ZaZcgQbn1j |
 | Old SEO routine, paused — never delete (deleting a routine deletes sessions it started, incl. the SEO session) | — | trig_01G52vVGE2zPsacpy4hddJzs |
 | Ask Nalu (Haiku, Josh's Q&A, read-only) | session_01AF2Z9Cn94gfyTG3Me8jHYN | — |
 | Phase 0 cleanups + Tell Nalu form polish (Sonnet, running Oct 11) | session_01ULFH1z7nveUdq7axXkUNbS | — |
 - Routine prompts can only be edited from their own session, and those sessions refuse relayed requests. On Oct 11 the main session asked all four to adopt run-gates.md; Watchman refused (needs Josh in that session); Josh was asked to say "yes, apply the update the main session sent" in each.
-- **Main session:** NALU — MAIN COMMAND (4) = session_01RaHbdcHV5NWx2c4yog64Z9 (since Oct 15 HST; wakes on it: trig_01SJgjnkiLDSVA98wSmmkhvh Sun 11:31 AM lead review, trig_01WomGiSHPk4McDZEFr4gAEp Wed 1:59 PM lead check). (3) session_01JUpKU1VHoS7rkFjoAghuEG handed over Oct 15 at Josh's request; (2) session_01Pht53rQRrui3wEyD3k2m3K; (1) archived. The fire_trigger inbox (trig_018dVqisHDihRPYq9mBE1qtP) is DISABLED: agents write their own line at the top of docs/passdown/inbox.md (CLAUDE.md).
+- **Main session:** NALU — MAIN COMMAND (5) = session_01UMtVvcTCVWeiZH6Aye65C3 (since Oct 24 HST, fresh for cost). (4) session_01RaHbdcHV5NWx2c4yog64Z9 handed over Oct 24; its lead-check routines trig_01SJgjnkiLDSVA98wSmmkhvh (Sun) and trig_01WomGiSHPk4McDZEFr4gAEp (Wed) are DISABLED for cost — the Sunday Weekly Review covers lead checks; never re-enable without Josh. (3) session_01JUpKU1VHoS7rkFjoAghuEG handed over Oct 15 at Josh's request; (2) session_01Pht53rQRrui3wEyD3k2m3K; (1) archived. The fire_trigger inbox (trig_018dVqisHDihRPYq9mBE1qtP) is DISABLED: agents write their own line at the top of docs/passdown/inbox.md (CLAUDE.md).
 - The main session's own reminders (lead checks, Phase 1/2 triggers) move with the main session at each handover.
 
 - Oct 15 (MAIN 4): Josh-requested guide redesign DONE — all 11 guides + hub live in the glow-card look (Skyline map component, strips, option cards), each batch reviewed by transit-accuracy/mobile-design/security-keys; head/FAQ unchanged. Promo video v1 (Leave-now, Drive only) in scratchpad; v2 needs a daytime re-record (Arrive by can't plan tomorrow). Startup credits: run 3 done, queue waits on Josh.
@@ -76,3 +76,22 @@ Cloudflare WAF rate limit on /_serverFn/; AirNow key likely wrong; optional CLOU
   - Email: hello@ridenalu.com forwards to Josh's Gmail (jreverio01@gmail.com). Gmail + Google Calendar connectors exist. The auto-mode classifier BLOCKS agents sending email on Josh's behalf even with his chat approval → use Gmail drafts; Josh taps Send. Sending as hello@: Gmail "Send mail as" + Resend SMTP (pending Josh).
   - Connectors (Oct 15): Gmail, Google Calendar (useful); Google Drive (not signed in; useful for reports); ElevenLabs x2 (park; paid voice); Floot (not useful — suggest removal); Expedia, Hugging Face (not useful now). Plugins were not visible to (3); (4) to audit.
   - Paused Supabase project "ridewithnalu-42d6da" (emails Oct 10–11) is NOT production; live project nsoameosqsnumjivkmyv "NEW NALU" healthy.
+
+## State at the Oct 24 hand-over (MAIN 4 → 5) — read this first
+- COST is Josh's top concern (Oct 24: "drastically cut costs"). Follow "Cost rules" in lead.md: specialists pinned Sonnet (security-keys Haiku); routines cut to Watchman M/W/F, SEO Mon, Weekly Review Sun (all Sonnet); Premium + lead checks paused. One build at a time; batch his feedback; small UI = mobile-design only + secret grep; fix reviewer Lows yourself.
+- LIVE since Oct 22–23:
+  - **Both-directions planning** (363cb41, ba0a712): inbound only from destination=Home or the toggle; rail + park-and-ride planned both ways; reversed trips pass p_dest_stop null (bogus 21-min Hālawa→Haleʻiwa fixed, now 94 min real); door guard; service hours checked at boarding (full) and arrival (after last train only); H-2 North/South; TomTom in-flight dedupe in lookupDriveTime/lookupTrafficMinutes.
+  - LOW leftovers: Kapolei default when location denied; town-only quick picks; fixed pulse windows; nalu-ai hard-coded Skyline hours 4:00–22:30 at nalu-ai.server.ts:612 (verify vs timetable) and name-based station lookup.
+  - Perf decision pending with Josh: trimming the 4 extra station searches on car trips home (default kept full search).
+- **New Browse sheet** (src/components/commute/browse/*), at /browse-preview and in the app Browse tab when the owner turns on Dev panel → "New Browse (preview)" (localStorage nalu-browse-sheet-v1; BROWSE_SHEET_AT_HOME stays false).
+  - Rounds 3–6 live: Right now leads with live traffic (crash/HPD/slowdowns); one "Road closures · N on roads you use · M this week" row; tap any pin or list item raises sheet to half with its card first + X.
+  - Place chips at peek with drive time (TomTom only, ≤ 2 extra lookups, hidden if Mapbox/stale >10 min/<300 m).
+  - Nalu home button → /welcome; tap a traffic road → Traffic card ("toward town/Kapolei", from the check's own ends, never geometry bearings).
+  - Incident icons: crash red/car, HPD amber/shield, closure orange/cone, roadwork yellow/wrench, legend in Layers.
+  - Live bus tags "416 · 3 min" on an open stop card (TheBus vehicle positions, >2 min dropped), Live/Scheduled tags only when some row is live.
+  - NEXT: Josh lives with it, then says "switch it" → render BrowseSheetScreen at "/" (flip BROWSE_SHEET_AT_HOME; old BrowseScreen stays for revert). Known gaps: no "Nalu" tab inside sheet besides home button; closures have no coordinates (no map pins); taps near stop pins open the stop, not traffic.
+  - Not yet verified with real TheBus data: ask Josh whether buses show when he taps a stop.
+- **TomTom** returned 403 again Oct 23–24 (health: "TomTom paused 15 min", Mapbox fallback serving). Likely the monthly quota again. Asked Josh to check the dashboard; chip times are hidden while on Mapbox. If quota is out: cut TomTom draws further (Browse road checks refresh, health probe), do not buy pay-as-you-go (Josh: free only).
+- HPD follow-ups: use the new `location` field for exact pins; drop the always-empty filtered query; verify more gazetteer nodes; bare "Moanalua" ambiguity.
+- Browse later ideas (only if Josh asks): closure map geometry, time-of-day tint, motion phase 4.
+- Housekeeping: `git stash@{0}` is an old HPD WIP superseded by 946e943 — safe to drop after a look. Scratchpad screenshots die with session 4; nothing there is needed.
