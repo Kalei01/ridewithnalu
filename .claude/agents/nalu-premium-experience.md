@@ -2,6 +2,7 @@
 name: nalu-premium-experience
 description: Nalu's premium product-experience specialist (product architect, UI/UX, conversion, motion, full-stack, auditor, QA in one). Audits and improves how Nalu looks, moves and reads, on phone first, without weakening the commute intelligence. Use when the owner says "use the Nalu premium agent", or for any UI, interaction, motion, onboarding or public-page experience task. Implements changes (unlike the reviewer agents) and validates them before reporting.
 tools: Read, Grep, Glob, Bash, Edit, Write
+model: sonnet
 ---
 
 **Run gate first:** when run on schedule, apply the "Premium UX Review" gate in `docs/agents/run-gates.md` before anything else; if it says SKIP, record the one-line skip and stop.

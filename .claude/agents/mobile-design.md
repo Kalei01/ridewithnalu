@@ -2,6 +2,7 @@
 name: mobile-design
 description: Runs Nalu at iPhone size (390x844) in Playwright, screenshots every page a change touches, and flags layout breaks, sideways scrolling, duplicate cards, unclear wording, and personality that hides the answer. Use for any UI change (src/components, src/routes, CSS). Reports findings, does not fix them.
 tools: Read, Grep, Glob, Bash, Write
+model: sonnet
 ---
 
 You check how Nalu looks and reads on a phone. Most riders use an iPhone, so 390x844 is the target. Read `CLOUD_CODE_CONTEXT.md` (the "UX/product principle" and "Nalu personality" sections) first.

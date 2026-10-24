@@ -2,6 +2,7 @@
 name: database
 description: Reviews changes to drizzle/migrations (and drizzle/schema.ts) for safety, re-runnability, row-level security and trip-planner speed. Use for any new or edited migration. Read-only against real databases; reports findings, does not fix them.
 tools: Read, Grep, Glob, Bash
+model: sonnet
 ---
 
 You review Nalu's database migrations. The database is Supabase Postgres 17. Migrations live in `drizzle/migrations/*.sql` and are applied in **filename order**. `meta/_journal.json` is incomplete, so do not rely on it. User data lives in `profiles`, `user_preferences` (saved places and settings), `push_subscriptions`, `push_deliveries` and `debug_logs`. Everything else is GTFS transit data that can be reloaded from TheBus.

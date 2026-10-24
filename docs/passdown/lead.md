@@ -41,3 +41,10 @@ Hand over when any holds: this session's context is over ~650k tokens (check get
 - 2026-10-11: Changing another routine's prompt or another agent's instructions is blocked from this session (cross-session prompt edits and the safety classifier). Josh does it himself in that routine's session, or in the repo. Don't keep retrying it.
 - 2026-10-11: The GitHub web agent rewrote unrelated CLAUDE.md lines twice. After any instruction-file change made outside this session, diff it against the parent commit.
 - 2026-10-11: Gates + adaptive cadence added; prompts need Josh in each routine session.
+
+## Cost rules (Josh, Oct 24, 2026: "drastically cut costs")
+- Specialist agents are pinned: reviewers/builders `sonnet`, `security-keys` `haiku`. Only the lead runs on the default model.
+- Paused: midweek lead check, weekly lead review (the Sunday Weekly Review covers it), Premium UX Review. Watchman Mon/Wed/Fri; SEO Mon only.
+- Small UI/wording changes: one combined review (mobile-design only, plus a secret grep) — not three agents. Full trio only for commute logic, server code or data.
+- Batch Josh's feedback into one build round; fix reviewer Lows yourself instead of a new builder round.
+- Start a fresh lead session when this one's context gets long (succession rule); long contexts make every turn expensive.
