@@ -5,6 +5,13 @@ Every fix an agent makes without Josh's approval, under the Autonomous Fix Safet
 Entry format:
 
 ```
+### 2026-10-25 HST — Weekly review: ignore test-output folders; repair doubled alerts log
+- Class: 🟢 (ignore-file lines and docs only; no code, no behavior)
+- Issue: `.gitignore` had no `playwright-report/`, `test-results/` or `coverage/` (nothing of that kind is tracked today). `docs/maintenance/alerts.md` had grown to 191 lines: commit 1c391d3 (Oct 21) doubled the whole file and spliced two stray fragments into the Oct 7 line.
+- Fix: three `.gitignore` lines; alerts.md rebuilt to one copy (98 lines) with the Oct 21 status and the Oct 22–23 "seen again" notes under the Oct 21 entry; nothing else removed.
+- Validation: duplicate block compared line-for-line before removal; 6 alert headings remain; no code changed.
+- Rollback: `git revert <sha>` (original is also in commit 1c391d3).
+
 ### 2026-10-18 HST — Dependency pass: audit 19 -> 1 (P1 from weekly review)
 - Class: 🟡 (lockfile-only, same ranges; one override)
 - Issue: `bun audit` 19 advisories (2 critical, 13 high, 3 moderate, 1 low).
