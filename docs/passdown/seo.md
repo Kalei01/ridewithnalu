@@ -18,10 +18,11 @@ Last updated: 2026-10-11 (main session, seeded). Keep ≤ 60 lines; see README.m
 - App station names live since e3a3638; guides can now be updated (English name first, Hawaiian second; table in docs/product/direction.md).
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R0 (Oct 26)
 - R+ (Oct 22)
 - R+ (Oct 19)
 - R+ (Oct 15)
 - R0 (Oct 8)
 
 ## Last run
-- Thu Oct 22: RUN OK. 828 impressions, 6 clicks. Rush-hour section added to /oahu-commute with TomTom 2025 figures read from the rendered page. Next: Nov 11 CTR/position read (factor in Oct 15 redesign and this section); items 3, 4 need demand; item 6 is Josh's call.
+- Mon Oct 26: RUN OK, review only, no site changes. 1,060 impressions, 10 clicks (four guides now earn clicks). Nothing unblocked: Oct 14/15 changes are inside the Nov 11 window. Next: Nov 11 CTR/position read; November marathon-closures check; items 3, 4 only if Search Console shows demand; item 6 is Josh's call.

@@ -106,3 +106,17 @@ Newest entry last. Each run of the twice-weekly search review appends one entry.
 **Rejected / not done:** Pearl City and Pearl Harbor pages (no new demand); no hour-by-hour rush times (no citable source); no title changes before Nov 11.
 
 **Backlog status:** 5 DONE (this run). 3, 4 need demand. 6 DECISION. Next real step is the Nov 11 CTR read, factoring in the Oct 15 redesign and this section.
+
+## 2026-10-26 (Mon) — review only, no site changes
+
+**Evidence** (Search Console, 28 days to Oct 26): 1,060 impressions (828 on Oct 22), 10 clicks (6), position 12.2. Gate: RUN (impressions +28% and +232). Clicks now come from four guides: /guides/skyline-park-and-ride 403 impr, 7 clicks (1.7%, position 7.6); ʻEwa 29 impr, 1 click (position 12.1); Mililani 69 impr, 1 click (10.2); UH Mānoa 35 impr, 1 click (8.3). Others: /guides/skyline-rail-guide 272 impr, 0 clicks, position 14.8 (9.2, then 12.9, in earlier reads; queries "skyline hours" 16 impr at 13.9, "rail hours" 10 at 9.1, "honolulu skyline hours" 7 at 51.9); airport 71 (23.6, driving-to-terminal queries); Kapolei 48 (12.2); late-night 44 (7.0); /guides hub 29 (48.7); /install 19 (18.1); /oahu-commute 7 (10.1), the rush-hour section is too new to show in queries. Index: 18 of 19 indexed; /disclaimer still "Discovered - currently not indexed". Docs/seo/ai-visibility.md is still empty, so no assistant-answer evidence.
+
+**Changed:** nothing on the site. Docs only.
+
+**Why nothing changed**
+- The rail guide's position drifting from 9.2 to 14.8 while impressions quadrupled is what a page shows when Google tests it on broader queries. The Oct 14 title/snippet change and the Oct 15 redesign are both inside the Nov 11 measurement window, so changing the title now would make the read meaningless.
+- No unblocked backlog item is left: 2, 5 and 7 are done; 3 and 4 have no demand in Search Console (nothing for Pearl City, ʻAiea or Pearl Harbor–Hickam); 6 is Josh's call.
+- The airport guide's 71 impressions are for "car to hnl terminal 1/2", "hnl pickup", "hnl airport drop off" at positions 23 to 79. That is a driving-to-the-terminal intent, a different question from "get to the airport without driving", and chasing it would pull the page off its focus. Rejected again.
+- Standing date checks are not due: marathon closures (November), TheBus feed expiry (after Dec 5).
+
+**Backlog status:** unchanged. Next real step is the Nov 11 CTR/position read (factor in the Oct 15 redesign and the Oct 22 rush-hour section), plus the November marathon check.
