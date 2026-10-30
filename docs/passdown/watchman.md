@@ -6,10 +6,11 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
-- Oct 21 TomTom alert CLOSED Oct 28 (health says "via TomTom"). If health says "via FALLBACK Mapbox" again, reopen in alerts.md (log seen again if within 7 days).
+- TomTom 403 flaps: 403 Oct 21–26, OK Oct 28, 403 again Oct 30 (alerts.md, MITIGATED by the Mapbox fallback). Log "seen again"; notify only if a Drive row says "Can't check traffic". Close when health says "via TomTom" for two runs in a row.
 - Skyline alert is CLOSED (Oct 14). Keep the SILENT FAILURES check + 60 s retry; if "No Skyline trip" returns, reopen in alerts.md and escalate to MAIN (inbox.md). Planner health 5.4–6.4 s: only flag if >6000 AND new info; known issue.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R0 (Fri Oct 30: trips yes; riders OK first try; TomTom 403 fallback back on after working Oct 28 → reopened as seen again; planner 5173 ms)
 - R0 (Wed Oct 28: trips yes; TomTom back via TomTom → Oct 21 alert closed; riders OK first try; planner 6728 ms known)
 - R0 (Mon Oct 26: trips yes; riders OK first try; TomTom 403 fallback still on, seen again; planner 5978 ms)
 - R0 (Fri Oct 23: trips yes; riders OK first try; TomTom 403 → Mapbox fallback still on, seen again)
@@ -24,4 +25,4 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Wed Oct 28, 6:22 AM HST (trips: yes — mitigated alert + planner >6000): planner 6728 ms (over the flag line, known slowness), 19/19 pages OK, http→https 301. TomTom BACK: health "via TomTom", turn-by-turn from TomTom. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (2.6–6.1 s); retries fine; no "no Skyline trip".
+- Fri Oct 30, 6:16 AM HST (trips: yes — re-opened alert): planner 5173 ms, 19/19 pages OK, http→https 301. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (2.1–4.1 s); retries fine. Health: drive via Mapbox fallback again (TomTom HTTP 403) — riders unaffected.
