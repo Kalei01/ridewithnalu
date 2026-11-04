@@ -6,10 +6,11 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
-- TomTom 403 flaps: 403 Oct 21–26, OK Oct 28, 403 again Oct 30 (alerts.md, MITIGATED by the Mapbox fallback). Log "seen again"; notify only if a Drive row says "Can't check traffic". Close when health says "via TomTom" for two runs in a row.
+- TomTom 403 flaps: 403 Oct 21–26, OK Oct 28, 403 Oct 30, OK Nov 4 (alerts.md, MITIGATED by the Mapbox fallback). Close when health says "via TomTom" on two runs in a row (Nov 4 was the first); log "seen again" if "FALLBACK Mapbox" returns; notify only if a Drive row says "Can't check traffic".
 - Skyline alert is CLOSED (Oct 14). Keep the SILENT FAILURES check + 60 s retry; if "No Skyline trip" returns, reopen in alerts.md and escalate to MAIN (inbox.md). Planner health 5.4–6.4 s: only flag if >6000 AND new info; known issue.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R0 (Wed Nov 4: trips yes; riders OK first try; TomTom ok "via TomTom" (1st ok run since Oct 28); planner 5588 ms; Mon Nov 2 run was delivered ~2 days late, so none that day)
 - R0 (Fri Oct 30: trips yes; riders OK first try; TomTom 403 fallback back on after working Oct 28 → reopened as seen again; planner 5173 ms)
 - R0 (Wed Oct 28: trips yes; TomTom back via TomTom → Oct 21 alert closed; riders OK first try; planner 6728 ms known)
 - R0 (Mon Oct 26: trips yes; riders OK first try; TomTom 403 fallback still on, seen again; planner 5978 ms)
@@ -25,4 +26,5 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Fri Oct 30, 6:16 AM HST (trips: yes — re-opened alert): planner 5173 ms, 19/19 pages OK, http→https 301. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (2.1–4.1 s); retries fine. Health: drive via Mapbox fallback again (TomTom HTTP 403) — riders unaffected.
+- Wed Nov 4, 6:15 AM HST (trips: yes — open alert + 3 weekdays since Oct 30): planner 5588 ms, 19/19 pages OK, http→https 301, timetable valid until Dec 5 (31 days). Health: drive via TomTom (turn-by-turn from TomTom). Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (2.2–4.7 s); retries fine; no "no Skyline trip". The Mon Nov 2 scheduled run did not happen on time (its trigger arrived Nov 4), so there was no Nov 2 run.
+- Usage (read Nov 4, not a Monday): users this week 22 (previous week 14), accounts 3, new accounts 0, all direct, 0 signed in.
