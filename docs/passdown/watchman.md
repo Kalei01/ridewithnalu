@@ -6,10 +6,12 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
+- Timetable ends Dec 5 (24 days on Nov 11): flag when under 21 (about Nov 14); the Sunday refresh should extend it.
 - TomTom alert CLOSED Nov 6 ("via TomTom" Nov 4 + Nov 6). If health says "via FALLBACK Mapbox" again, reopen in alerts.md; notify only if a Drive row says "Can't check traffic".
 - Skyline alert is CLOSED (Oct 14). Keep the SILENT FAILURES check + 60 s retry; if "No Skyline trip" returns, reopen in alerts.md and escalate to MAIN (inbox.md). Planner health 5.4–6.4 s: only flag if >6000 AND new info; known issue.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R0 (Wed Nov 11: all clear, trips yes; planner 5323 ms; TomTom ok; Mon Nov 9 run was delivered 2 days late, so none that day)
 - R0 (Fri Nov 6: trips yes; riders OK first try; TomTom ok 2nd run in a row → alert closed; planner 6831 ms known; HPD query timed out once, plain feed ok)
 - R0 (Wed Nov 4: trips yes; riders OK first try; TomTom ok "via TomTom" (1st ok run since Oct 28); planner 5588 ms; Mon Nov 2 run was delivered ~2 days late, so none that day)
 - R0 (Fri Oct 30: trips yes; riders OK first try; TomTom 403 fallback back on after working Oct 28 → reopened as seen again; planner 5173 ms)
@@ -27,4 +29,5 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Fri Nov 6, 6:14 AM HST (trips: yes — open alert): planner 6831 ms (over 6000, known slowness), 19/19 pages OK, http→https 301, timetable valid until Dec 5 (29 days). Health: drive via TomTom, turn-by-turn from TomTom; HPD police-report query timed out once (plain feed worked, ok). Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (3.1–7.6 s); retries fine; no "no Skyline trip". TomTom alert closed.
+- Wed Nov 11, 6:16 AM HST (trips: yes — 3+ weekdays since the last browser run): planner 5323 ms, 19/19 pages OK, http→https 301, timetable valid until Dec 5 (24 days). Health: drive via TomTom. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (3.1–4.6 s); retries fine; no "no Skyline trip". The scratchpad was empty (new container), so the trips script was rewritten before running.
+- Usage (read Nov 11, a Wednesday): users this week 19 (previous week 23), accounts 3, new accounts 0, all direct, 0 signed in.
