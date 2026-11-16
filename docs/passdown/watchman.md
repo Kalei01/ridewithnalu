@@ -7,11 +7,12 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
-- Timetable ends Dec 5 (22 days on Nov 13): flag when under 21 (from Nov 14); the Sunday refresh should extend it.
+- Timetable ends Dec 5 (19 days on Nov 16, health red since Nov 14). TheBus has published no newer feed (Weekly Review Nov 15). Alert OPEN in alerts.md; log "seen again" with days left. Notify Josh only if it gets close (≤7 days, Nov 28) with no feed or if trips start failing.
 - TomTom alert CLOSED Nov 6 ("via TomTom" Nov 4 + Nov 6). If health says "via FALLBACK Mapbox" again, reopen in alerts.md; notify only if a Drive row says "Can't check traffic".
 - Skyline alert is CLOSED (Oct 14). Keep the SILENT FAILURES check + 60 s retry; if "No Skyline trip" returns, reopen in alerts.md and escalate to MAIN (inbox.md). Planner health 5.4–6.4 s: only flag if >6000 AND new info; known issue.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R+ (Mon Nov 16: health "timetable" red, 19 days left, known from Sunday's review → alerts.md entry, no notification; riders OK first try; planner 6646 ms known)
 - R0 (Fri Nov 13: trips yes; planner 6675 ms known; Airport first try Skyline "no trip" beside a 42-min W LINE bus, 2 re-runs normal — same as Oct 15)
 - R0 (Wed Nov 11: all clear, trips yes; planner 5323 ms; TomTom ok; Mon Nov 9 run was delivered 2 days late, so none that day)
 - R0 (Fri Nov 6: trips yes; riders OK first try; TomTom ok 2nd run in a row → alert closed; planner 6831 ms known; HPD query timed out once, plain feed ok)
@@ -31,4 +32,5 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Fri Nov 13, 6:33 AM HST (trips: yes — planner >6000): planner 6675 ms (known slowness), 19/19 pages OK, http→https 301, timetable valid until Dec 5 (22 days). Health: drive via TomTom. Kapolei and ʻEwa Beach: Drive + Skyline + Bus first try (4.1 s / 3.1 s), retries fine. Airport first try: Skyline "no trip" beside a 42-min bus; two re-runs normal (see Watching).
+- Mon Nov 16, 6:17 AM HST (trips: yes — Monday): planner 6646 ms (known slowness), 19/19 pages OK, http→https 301. FLAG: health "timetable" red, valid until Dec 5 (19 days) — known (Weekly Review Nov 15), alerts.md entry added. Health: drive via TomTom. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (3.1–6.1 s); retries fine; no "no Skyline trip".
+- WEEKLY: users this week 7 (previous week 20), accounts 3, new accounts 0, all direct, 0 signed in. Timetable valid until Dec 5 (19 days).

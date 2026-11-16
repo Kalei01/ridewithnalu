@@ -2,6 +2,14 @@
 
 Every Watchman alert and what Alert Triage did about it. Newest first. Repeats within 7 days are not re-investigated.
 
+## 2026-11-16 — Health check "timetable" is red: TheBus timetable ends Dec 5 (19 days left, flag line 21)
+
+- **Alert (Watchman 6:17 AM HST):** health "timetable" check failed: "valid until 2026-12-05 (19 days)". Everything else ok; Kapolei, ʻEwa Beach and Airport trips showed Drive + Skyline + Bus first try (3.1–6.1 s) and the retries matched.
+- **Reproduced?** Yes (health endpoint). Seen again, not new: the Weekly Review reported it yesterday (docs/reviews/2026-11-15.md, P1-1: TheBus's feed file is still the Jul 24 one, same size/ETag; Nalu's weekly refresh works but there is no newer feed to import; first flagged under 21 days on Nov 14).
+- **Class:** 🔴 for me — it needs someone to ask TheBus when the next feed is coming and a decision on what riders see after Dec 5 (see the review). Not changed.
+- **Action:** logged here; no notification (already reported in the Sunday review, no new facts). Re-check each run; if a newer feed appears the Sunday refresh should pick it up.
+- **Status:** OPEN — waiting on MAIN/Josh (ask TheBus; post-Dec-5 message; threshold).
+
 ## 2026-10-21 — Drive row says "Can't check traffic right now" on every trip (TomTom route lookup returns nothing)
 
 - **Alert (Watchman 6:15 AM HST):** health checks "drive times (TomTom)" and "turn-by-turn directions" both FAILED with "no route returned" (re-checked at 6:17 AM, 3 times over ~80 s: still failing; place search OK, planner OK 5275 ms). Live trips: Kapolei, ʻEwa Beach and Airport all showed Drive "Can't check traffic right now"; ʻEwa Beach Skyline showed "Can't check Skyline right now" (drive-to-station needs the live drive time). Kapolei Skyline (walk + bus + Skyline) and Airport Skyline/Bus rows were fine. Retry after 60 s: same.
