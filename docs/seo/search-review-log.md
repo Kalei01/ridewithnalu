@@ -120,3 +120,22 @@ Newest entry last. Each run of the twice-weekly search review appends one entry.
 - Standing date checks are not due: marathon closures (November), TheBus feed expiry (after Dec 5).
 
 **Backlog status:** unchanged. Next real step is the Nov 11 CTR/position read (factor in the Oct 15 redesign and the Oct 22 rush-hour section), plus the November marathon check.
+
+## 2026-11-16 (Mon) — Nov 11 click-rate read, no site changes
+
+Three weekly runs (Nov 2, Nov 9, Nov 16) were queued while the session was idle; this is one run, done as of Nov 16. The Nov 2 and Nov 9 runs did not happen.
+
+**Evidence** (Search Console, 28 days to Nov 16): 2,000 impressions (1,060 on Oct 26), 18 clicks (10), position 10.8. About 70 to 110 impressions a day now. Pages: /guides/skyline-rail-guide 853 impr, 2 clicks (0.2%), position 12.2; /guides/skyline-park-and-ride 588 impr, 10 clicks (1.7%), position 7.7; Mililani 118 impr, 1 click; Kapolei 77 (1 click, position 7.9); ʻEwa 69 (1 click, position 7.3); UH Mānoa 74 (1 click); marathon guide 48 impr (position 8.5, rising before Dec 13); airport 46 (19.4); late-night 27 (1 click, 3.7%, position 6.6); /install 30 (1 click, 3.3%); /roadwork 18; /oahu-commute 12 impr at position 8.4. Index: 18 of 19; /disclaimer still "Discovered - currently not indexed".
+
+**Nov 11 title/snippet read (changes of Oct 14, redesign of Oct 15)**
+- Rail guide: 0 clicks from about 88 impressions before the change; 2 clicks from 853 now. The title and snippet change has not produced a measurable click-rate gain. The limit is position (10 to 12): the main query "skyline hours" has 108 impressions at position 10.0 and 1 click; "rail hours" 36 at 10.8; "skyline rail hours" 12 at 5.8. Question-style queries do well (position 1.0 for "how late does the rail run", 4.5 for "what time does the train open") but have 1 to 2 impressions each.
+- Park-and-ride: 4 clicks from 157 impressions (2.5%) before; 10 from 588 (1.7%) now, at the same position (about 7.5). Late-night: 1 click from 27 at position 6.6 (3.7%).
+- Verdict: there is no clean before/after at this volume (the page had almost no impressions before Oct 14), and the redesign landed one day later, so the two effects cannot be separated. Nothing to roll back. No title was changed this run: the evidence does not point to a better wording, and the gap is rank, which comes from the page and the site getting more established. Re-read in about four weeks.
+
+**Standing date checks**
+- Marathon closures: no official 2026 advisory found yet (web search shows only 2025 and earlier; the marathon's own site is blocked by this environment's network rules, so it could not be opened). In 2025 the advisory PDF was uploaded in November. The guide already says closures had not been published and points to the official site, so nothing to change; check again each Monday until it appears, then update the guide (and its "as of early October" wording).
+- TheBus feed: valid to Dec 5. The weekly review reports the source file has not been refreshed (Jul 24), which is for NALU MAIN. After Dec 5: re-check guide facts, `LAST_UPDATED` and `LAST_MODIFIED_ISO`.
+
+**Rejected / not done:** no title or body changes; no Pearl City or Pearl Harbor pages (no demand in Search Console); no hour-by-hour rush times; item 6 (drive-time sampling) is still Josh's call.
+
+**Backlog status:** unchanged. Next: weekly marathon check; Dec 5 feed re-check; Nov-Dec CTR read.
