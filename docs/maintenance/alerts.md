@@ -9,6 +9,7 @@ Every Watchman alert and what Alert Triage did about it. Newest first. Repeats w
 - **Class:** 🔴 for me — it needs someone to ask TheBus when the next feed is coming and a decision on what riders see after Dec 5 (see the review). Not changed.
 - **Action:** logged here; no notification (already reported in the Sunday review, no new facts). Re-check each run; if a newer feed appears the Sunday refresh should pick it up.
 - **Status:** OPEN — waiting on MAIN/Josh (ask TheBus; post-Dec-5 message; threshold).
+- 2026-11-18 seen again (Watchman 6:15 AM HST): health "timetable" still red, valid until Dec 5 (17 days); still no newer TheBus feed known. Riders fine (Kapolei, ʻEwa Beach, Airport showed Drive + Skyline + Bus first try, 3.1–5.1 s). Planner 5754 ms. Notify Josh at ≤7 days (Nov 28) if still no feed.
 
 ## 2026-10-21 — Drive row says "Can't check traffic right now" on every trip (TomTom route lookup returns nothing)
 
