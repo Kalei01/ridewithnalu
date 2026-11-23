@@ -8,7 +8,11 @@ import { StatTiles } from "@/components/guides/GuideBlocks";
 // 5:00 AM start at Ala Moana Boulevard and Queen Street, finish at Kapiʻolani Park,
 // no time limit); the marathon's 2025 traffic advisory PDF, uploaded November 2025;
 // 2025 closure coverage from KITV, KHON, Spectrum News and the Honolulu Police
-// Department. No 2026 closure list had been published when this page was written.
+// Department. As of October 5 no 2026 closure list had been published (see the November 23 update below).
+// Updated November 23, 2026: City and County of Honolulu Department of Transportation
+// Services, 2026 special events list (honolulu.gov/dts/2026-events/), Honolulu Marathon
+// entry for Dec 13, 2026 (status "submitted", times "approximate"). The marathon's own 2026
+// traffic advisory was not found as of that date.
 const META = GUIDES.marathon;
 
 const FAQS: GuideFaq[] = [
@@ -18,11 +22,11 @@ const FAQS: GuideFaq[] = [
   },
   {
     q: "When do roads close for the Honolulu Marathon?",
-    a: "The 2026 closure times had not been published as of early October 2026. In 2025, lane closures began at 12:30 AM, the major closures near the start and on H-1 eastbound began at 3:30 AM, and roads reopened in stages as runners cleared each section.",
+    a: "The marathon's own 2026 advisory had not been found as of November 23, 2026. The City and County of Honolulu's 2026 special events list shows the marathon's permit application (status: submitted) with roads closing at about 2:30 AM and reopening at about 4:00 PM. In 2025, lane closures began at 12:30 AM, the major closures near the start and on H-1 eastbound began at 3:30 AM, and roads reopened in stages as runners cleared each section.",
   },
   {
     q: "Where can I find the official 2026 road closures?",
-    a: "On the Honolulu Marathon's website. In 2025 the official traffic advisory was posted in November, and local TV news and the Honolulu Police Department shared it in the days before the race.",
+    a: "On the Honolulu Marathon's website. In 2025 the official traffic advisory was posted in November, and local TV news and the Honolulu Police Department shared it in the days before the race. The City's special events list at honolulu.gov/dts/2026-events/ also shows the marathon's permit entry.",
   },
   {
     q: "Is Skyline affected by the Honolulu Marathon?",
@@ -39,6 +43,7 @@ export const Route = createFileRoute("/guides/honolulu-marathon-traffic-2026")({
     guideHead({
       ...META,
       faqs: FAQS,
+      modified: "2026-11-23",
       extraGraph: [
         {
           "@type": "SportsEvent",
@@ -66,16 +71,16 @@ function MarathonGuidePage() {
   return (
     <GuideLayout
       breadcrumb="Honolulu Marathon traffic"
+      lastUpdated="November 2026"
       title="Honolulu Marathon 2026: traffic and road closures"
       faqs={FAQS}
       related={["lateNight", "skyline", "airport"]}
       intro={
         <p>
           The 2026 Honolulu Marathon is on Sunday, December 13, starting at 5:00 AM on Ala Moana
-          Boulevard at Queen Street and finishing at Kapiʻolani Park, with roads along the course
-          closing in the early morning and reopening in stages as runners pass. The official 2026
-          closure list had not been published as of early October 2026; last year's was posted in
-          November.
+          Boulevard at Queen Street and finishing at Kapiʻolani Park. The City's permit entry shows
+          roads closing at about 2:30 AM and reopening at about 4:00 PM; the marathon's own closure
+          advisory had not been found as of November 23, 2026.
         </p>
       }
     >
@@ -105,6 +110,37 @@ function MarathonGuidePage() {
             </>,
           ]}
         />
+      </GuideSection>
+
+      <GuideSection id="2026" title="What the City's permit shows for 2026">
+        <p>
+          The City and County of Honolulu lists the marathon on its 2026 special events page. The
+          entry is a permit application with the status "submitted", and its times are marked
+          approximate, so treat it as a preview until the marathon posts its own advisory.
+        </p>
+        <GuideList
+          items={[
+            <>
+              Roads close at about <B>2:30 AM</B> and reopen at about <B>4:00 PM</B>. The entry
+              expects 15,000 or more runners.
+            </>,
+            <>
+              <B>H-1</B> is listed as closed at the Waiʻalae Avenue off-ramp to Aina Koa Avenue.
+            </>,
+            <>
+              <B>Kalanianaʻole Highway</B> is listed with the makai half closed for runners between Aina
+              Koa Avenue and Kawaihae Street, the mauka half converted to contraflow, and all lanes
+              closed between Kawaihae Street and Keahole Street.
+            </>,
+          ]}
+        />
+        <p>
+          Source:{" "}
+          <Ext href="https://www.honolulu.gov/dts/2026-events/">
+            City and County of Honolulu, 2026 special events
+          </Ext>{" "}
+          (checked November 23, 2026).
+        </p>
       </GuideSection>
 
       <GuideSection id="2025" title="What closed in 2025">
@@ -166,7 +202,8 @@ function MarathonGuidePage() {
         <p>
           Watch for the official 2026 traffic advisory on the{" "}
           <Ext href="https://www.honolulumarathon.org/">Honolulu Marathon website</Ext>. It usually
-          appears in the weeks before the race.
+          appears in the weeks before the race, and its times and closures take over from the
+          City's permit preview above.
         </p>
       </GuideSection>
 

@@ -139,3 +139,18 @@ Three weekly runs (Nov 2, Nov 9, Nov 16) were queued while the session was idle;
 **Rejected / not done:** no title or body changes; no Pearl City or Pearl Harbor pages (no demand in Search Console); no hour-by-hour rush times; item 6 (drive-time sampling) is still Josh's call.
 
 **Backlog status:** unchanged. Next: weekly marathon check; Dec 5 feed re-check; Nov-Dec CTR read.
+
+## 2026-11-23 (Mon) — marathon guide gets the City's 2026 permit details
+
+**Evidence** (Search Console, 28 days to Nov 23): 2,834 impressions (2,000 on Nov 16), 26 clicks (18), position 9.2 (10.8). Gate: RUN (impressions +42% and +834; clicks up). /guides/skyline-park-and-ride 698 impr, 14 clicks (2.0%, position 7.3). /guides/skyline-rail-guide 1,454 impr, 8 clicks (0.6%), position 9.6, up from 12.2 and 2 clicks last week; the position gain is what the Nov 16 note said was limiting it. Kapolei 93 impr, 2 clicks (2.2%); late-night 19, 1 click (5.3%); /install 31, 1 click (3.2%, position 6.3); marathon guide 49 impr at position 8.4 (0 clicks); Mililani and UH Mānoa 129 each at position 10; airport 79 (13.0); /roadwork 36 (7.8). Index: 18 of 19; /disclaimer still "Discovered - currently not indexed". No guide code changes since Nov 16.
+
+**Changed** (marathon guide, the page with a hard date: race is Dec 13)
+- The City and County of Honolulu's 2026 special events list (honolulu.gov/dts/2026-events/, a primary source reachable from this environment) has the marathon's entry: roads close about 2:30 AM and reopen about 4:00 PM on Dec 13, 15,000+ runners expected, H-1 closed at the Waiʻalae Avenue off-ramp to Aina Koa Avenue, Kalanianaʻole Highway closed (makai half for runners, mauka half contraflow) from Aina Koa Avenue to Kawaihae Street and fully closed from Kawaihae Street to Keahole Street. The entry's status is "submitted" (not approved) and its times are marked approximate; the guide says exactly that and labels it a preview until the marathon posts its own advisory.
+- New section "What the City's permit shows for 2026", updated intro and two FAQ answers (FAQ text and page text match), source link and checked date. The page description now reflects the 2026 closures (154 characters); title unchanged. Sitemap lastmod bumped for the page. The 2025 section stays as the best detailed template until the 2026 advisory exists.
+- The marathon's own advisory is still not found (web search shows only 2025 and earlier; honolulumarathon.org itself is blocked from this environment). Checked again each Monday; when it appears, replace the permit preview with its times and closures.
+
+**Reviewers:** results in the commit message and final summary of this run.
+
+**Rejected / not done:** no title changes on the Oct 14 pages (still no rank-independent signal); no new pages (no demand for Pearl City or Pearl Harbor); the Dec 12 "Kalākaua Merrie Mile" (Marathon Association, roads close 4:30 to 8:30 AM) appears on the same City list without a route, so it was not added.
+
+**Backlog status:** unchanged. Next: marathon advisory each Monday until posted, then swap it in; Dec 5 TheBus feed re-check (MAIN is chasing the refresh); Nov-Dec CTR read.

@@ -120,9 +120,9 @@ export const GUIDES: Record<GuideSlug, GuideMeta> = {
     path: "/guides/honolulu-marathon-traffic-2026",
     seoTitle: "Honolulu Marathon 2026 Traffic and Road Closures | Nalu",
     description:
-      "Honolulu Marathon traffic on Sunday, December 13, 2026: start time, the course, what closed in 2025, when 2026 closures usually appear, and how to get around.",
+      "Honolulu Marathon road closures on December 13, 2026: the City permit shows roads closing about 2:30 AM, H-1 and Kalanianaʻole Highway closures, and tips.",
     name: "Honolulu Marathon traffic, December 13, 2026",
-    summary: "Race-day timing, the roads that closed last year, and how to plan around it.",
+    summary: "Race-day timing, the City permit's closures, last year's closures, and how to plan around it.",
   },
   compare: {
     path: "/guides/nalu-vs-google-maps",

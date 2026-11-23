@@ -14,6 +14,8 @@ type HeadInput = {
   howTo?: { name: string; steps: string[] };
   /** Breadcrumb trail above this page; defaults to Nalu > Guides. */
   parents?: Array<{ name: string; path: string }>;
+  /** schema.org dateModified (YYYY-MM-DD) when this page changed after the shared LAST_MODIFIED_ISO. */
+  modified?: string;
   /** Extra JSON-LD nodes (for example an ItemList or Organization). */
   extraGraph?: Array<Record<string, unknown>>;
 };
@@ -37,7 +39,7 @@ export function guideHead(input: HeadInput) {
       url,
       description: input.description,
       inLanguage: "en-US",
-      dateModified: LAST_MODIFIED_ISO,
+      dateModified: input.modified ?? LAST_MODIFIED_ISO,
       isPartOf: { "@type": "WebSite", name: "Nalu", url: SITE_URL },
       primaryImageOfPage: SOCIAL_CARD,
       breadcrumb: {

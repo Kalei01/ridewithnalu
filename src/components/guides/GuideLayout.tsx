@@ -38,6 +38,7 @@ export function GuideLayout({
   showHubCrumb = true,
   destination,
   take,
+  lastUpdated,
   strip,
   showDiagram = true,
 }: {
@@ -54,6 +55,8 @@ export function GuideLayout({
   destination?: GuideDestination;
   /** "Nalu's take": a few plain sentences in Nalu's voice, built only from facts already on the page. */
   take?: string;
+  /** Overrides the shared "Last updated" label for a page that changed after the other guides. */
+  lastUpdated?: string;
   /** "What to know": a few big figures from facts already on the page (StatTiles). */
   strip?: ReactNode;
   /** The drive-vs-rail picture under the trip panel; turn off on pages that never discuss driving. */
@@ -95,7 +98,7 @@ export function GuideLayout({
           </p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{title}</h1>
           <div className="mt-5 text-lg leading-8 text-foreground/90">{intro}</div>
-          <p className="mt-4 text-base text-muted-foreground">Last updated: {LAST_UPDATED}</p>
+          <p className="mt-4 text-base text-muted-foreground">Last updated: {lastUpdated ?? LAST_UPDATED}</p>
         </header>
 
         {strip && <div className="mt-8">{strip}</div>}
