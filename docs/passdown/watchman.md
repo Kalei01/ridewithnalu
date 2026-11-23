@@ -7,11 +7,12 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
-- Timetable ends Dec 5 (15 days on Nov 20, health red since Nov 14). TheBus has published no newer feed (Weekly Review Nov 15). Alert OPEN in alerts.md; log "seen again" with days left. Notify Josh only if it gets close (≤7 days, Nov 28) with no feed or if trips start failing.
+- Timetable ends Dec 5 (12 days on Nov 23, health red since Nov 14; still no answer from TheBus per Weekly Review Nov 22). TheBus has published no newer feed (Weekly Review Nov 15). Alert OPEN in alerts.md; log "seen again" with days left. Notify Josh only if it gets close (≤7 days, Nov 28) with no feed or if trips start failing.
 - TomTom alert CLOSED Nov 6 ("via TomTom" Nov 4 + Nov 6). If health says "via FALLBACK Mapbox" again, reopen in alerts.md; notify only if a Drive row says "Can't check traffic".
 - Skyline alert is CLOSED (Oct 14). Keep the SILENT FAILURES check + 60 s retry; if "No Skyline trip" returns, reopen in alerts.md and escalate to MAIN (inbox.md). Planner health 5.4–6.4 s: only flag if >6000 AND new info; known issue.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R0 (Mon Nov 23: trips yes; riders OK first try; only known flag: timetable red, 12 days left, seen again; planner 5599 ms)
 - R0 (Fri Nov 20: trips yes; riders OK first try; only known flag: timetable red, 15 days left, seen again; planner 5572 ms)
 - R0 (Wed Nov 18: trips yes; riders OK first try; only known flag: timetable red, 17 days left, seen again; planner 5754 ms; HPD query timed out once, plain feed ok)
 - R+ (Mon Nov 16: health "timetable" red, 19 days left, known from Sunday's review → alerts.md entry, no notification; riders OK first try; planner 6646 ms known)
@@ -34,4 +35,5 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Fri Nov 20, 6:15 AM HST (trips: yes — known red check): planner 5572 ms, 19/19 pages OK, http→https 301. Health: "timetable" red (Dec 5, 15 days) — known, seen again in alerts.md; drive via TomTom. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (3.1–5.6 s); retries fine; no "no Skyline trip".
+- Mon Nov 23, 6:15 AM HST (trips: yes — Monday): planner 5599 ms, 19/19 pages OK, http→https 301. Health: "timetable" red (Dec 5, 12 days) — known, seen again in alerts.md; drive via TomTom. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (3.1–4.6 s); retries fine; no "no Skyline trip".
+- WEEKLY: users this week 20 (previous week 9), accounts 3, new accounts 0, all direct, 0 signed in. Timetable valid until Dec 5 (12 days).
