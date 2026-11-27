@@ -2,16 +2,17 @@
 Last updated: 2026-10-14 (Skyline cap fix build session).
 
 ## Watching
-- Airport → Waikīkī: twice now (Oct 15, Nov 13) the first try showed Skyline "No Skyline trip that makes sense" next to a faster direct W LINE bus (41–42 min); re-runs a minute later showed Skyline = Bus (49–50 min). Likely the "Skyline doesn't beat the direct bus" filter, not a failure (outside the Kapolei/ʻEwa silent-failure rule). Escalate only if it shows with no faster bus.
+- Airport → Waikīkī: three times now (Oct 15, Nov 13, Nov 27) the first try showed Skyline "No Skyline trip that makes sense" next to a faster direct W LINE bus (41–42 min); re-runs a minute later showed Skyline = Bus (49–50 min). Likely the "Skyline doesn't beat the direct bus" filter, not a failure (outside the Kapolei/ʻEwa silent-failure rule). Escalate only if it shows with no faster bus.
 - **Skyline "No Skyline trip" on the first rush-hour try, Kapolei → downtown** (OPEN since Oct 7; alerts.md). Phase 2 went live Oct 13 ~2:30 PM (trip search now one server request). Keep running the SILENT FAILURES check and the 60 s retry; log "seen again" lines, don't re-investigate.
 - Health planner time ~5.8–6.2 s (flag line 6000 ms). Slowness is known (planner speed parked).
 
 ## Next run
-- Timetable ends Dec 5 (10 days on Nov 25, health red since Nov 14; still no answer from TheBus per Weekly Review Nov 22). NOTIFY JOSH on the Nov 28 run (≤7 days) if still open. TheBus has published no newer feed (Weekly Review Nov 15). Alert OPEN in alerts.md; log "seen again" with days left. Notify Josh only if it gets close (≤7 days, Nov 28) with no feed or if trips start failing.
+- Timetable ends Dec 5 (10 days on Nov 25, health red since Nov 14; still no answer from TheBus per Weekly Review Nov 22). Josh notified Nov 27 (8 days). On Nov 30 (5 days) log seen again; notify again only if still no decision and ≤3 days, or if trips start failing. TheBus has published no newer feed (Weekly Review Nov 15). Alert OPEN in alerts.md; log "seen again" with days left. Notify Josh only if it gets close (≤7 days, Nov 28) with no feed or if trips start failing.
 - TomTom alert CLOSED Nov 6 ("via TomTom" Nov 4 + Nov 6). If health says "via FALLBACK Mapbox" again, reopen in alerts.md; notify only if a Drive row says "Can't check traffic".
 - Skyline alert is CLOSED (Oct 14). Keep the SILENT FAILURES check + 60 s retry; if "No Skyline trip" returns, reopen in alerts.md and escalate to MAIN (inbox.md). Planner health 5.4–6.4 s: only flag if >6000 AND new info; known issue.
 
 ## Recent runs (newest first: R+ found/fixed, R0 nothing, S skipped)
+- R+ (Fri Nov 27: timetable red 8 days left, no decision/feed → notified Josh; riders OK first try; Airport first-try Skyline "no trip" next to a 41-min bus (3rd time), re-run normal; planner 5741 ms)
 - R0 (Wed Nov 25: trips yes; riders OK first try; known flag: timetable red, 10 days left; HPD check failed once and recovered in 2 min; planner 3904 ms)
 - R0 (Mon Nov 23: trips yes; riders OK first try; only known flag: timetable red, 12 days left, seen again; planner 5599 ms)
 - R0 (Fri Nov 20: trips yes; riders OK first try; only known flag: timetable red, 15 days left, seen again; planner 5572 ms)
@@ -36,4 +37,4 @@ Last updated: 2026-10-14 (Skyline cap fix build session).
 - R0 (Mon Oct 12: all clear, trips yes; first Skyline-OK first try since Oct 6)
 
 ## Last run
-- Wed Nov 25, 6:14 AM HST (trips: yes — known red check + code changes): planner 3904 ms (fastest seen), 19/19 pages OK, http→https 301. Health: "timetable" red (Dec 5, 10 days) — known, seen again in alerts.md; "police reports (HPD)" failed once (both feeds timed out) and was ok 2 minutes later; drive via TomTom. Kapolei, ʻEwa Beach, Airport: Drive + Skyline + Bus first try (4.6–5.1 s); retries fine; no "no Skyline trip".
+- Fri Nov 27, 6:14 AM HST (trips: yes — known red check): planner 5741 ms, 19/19 pages OK, http→https 301. Health: "timetable" red (Dec 5, 8 days) — Josh notified (no feed/decision yet); HPD ok; drive via TomTom. Kapolei, ʻEwa Beach: Drive + Skyline + Bus first try (5.1 s / 6.6 s); retries fine. Airport first try: Skyline "no trip" beside a 41-min bus (3rd time); not re-run.
